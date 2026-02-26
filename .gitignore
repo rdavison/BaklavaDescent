@@ -345,3 +345,6 @@ healthchecksdb
 /*.cfg
 /*.plr
 /music
+
+# Dune (OxCaml tests)
+/_build/

@@ -1,0 +1,12 @@
+(library
+ (name parity_expect)
+ (libraries core ox_math)
+ (preprocess (pps ppx_jane))
+ (inline_tests)
+ (flags (:standard -open Core))
+ (c_library_flags -L%{workspace_root}/build-ox-oracle -lc_oracle)
+ (foreign_stubs
+  (language cxx)
+  (names c_fix_stubs)
+  (include_dirs ../oracle)
+  (flags (:standard -std=c++17))))

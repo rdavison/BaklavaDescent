@@ -1,5 +1,12 @@
+(library
+ (name ox_math)
+ (libraries core)
+ (modules ox_math)
+ (flags (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
- (libraries core)
+ (modules math_bridge)
+ (libraries core ox_math)
  (flags (:standard -open Core)))
