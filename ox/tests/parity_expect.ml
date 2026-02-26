@@ -36,6 +36,21 @@ let check_binop name c_impl ox_impl cases =
       let ox = ox_impl a b in
       printf "%s a=%d b=%d c=%d ox=%d eq=%b\n" name a b c ox (Int.equal c ox))
 
+let check_binop_pair name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (a, b) ->
+      let c_x, c_y = c_impl a b in
+      let ox_x, ox_y = ox_impl a b in
+      printf
+        "%s a=%d b=%d c=(%d,%d) ox=(%d,%d) eq=%b\n"
+        name
+        a
+        b
+        c_x
+        c_y
+        ox_x
+        ox_y
+        (Int.equal c_x ox_x && Int.equal c_y ox_y))
+
 let check_ternop name c_impl ox_impl cases =
   List.iter cases ~f:(fun (a, b, c_arg) ->
       let c = c_impl a b c_arg in
@@ -175,6 +190,8 @@ external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_long_sqrt : int -> int = "caml_c_long_sqrt"
 external c_quad_sqrt : int64 -> int = "caml_c_quad_sqrt"
 external c_fixquadadjust : int64 -> int = "caml_c_fixquadadjust"
+external c_fixquadnegate : int -> int -> int * int = "caml_c_fixquadnegate"
+external c_ufixdivquadlong : int -> int -> int -> int = "caml_c_ufixdivquadlong"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
 external c_fix_isqrt : int -> int = "caml_c_fix_isqrt"
 external c_fix_sincos : int -> int * int = "caml_c_fix_sincos"
@@ -621,6 +638,27 @@ let fixquadadjust_cases =
     Int64.shift_left (Int64.of_int (-2147483647)) 16;
     9223372030926249001L;
     Int64.max_value;
+  ]
+
+let fixquadnegate_cases =
+  [
+    (0, 0);
+    (1, 0);
+    (-1, 0);
+    (Int32.to_int_exn Int32.max_value, 1);
+    (Int32.to_int_exn Int32.min_value, -1);
+    (123456789, -987654321);
+  ]
+
+let ufixdivquadlong_cases =
+  [
+    (0, 0, 1);
+    (1, 0, 1);
+    (-1, 0, 1);
+    (0, -1, 2);
+    (12345, 67890, 321);
+    (Int32.to_int_exn Int32.max_value, Int32.to_int_exn Int32.max_value, 65536);
+    (-1, -1, -1);
   ]
 
 let fix_sqrt_cases =
@@ -1220,6 +1258,36 @@ let run_random_binop ~name ~seed ~test_count c_impl ox_impl =
            incr mismatches;
            if Option.is_none !first_mismatch
            then first_mismatch := Some (sprintf "%s a=%d b=%d c=%d ox=%d" name a b c ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_binop_pair ~name ~seed ~test_count c_impl ox_impl =
+  let gen = Quickcheck.Generator.both fix_gen fix_gen in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (a, b) ->
+         incr total;
+         let c_x, c_y = c_impl a b in
+         let ox_x, ox_y = ox_impl a b in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s a=%d b=%d c=(%d,%d) ox=(%d,%d)"
+                     name
+                     a
+                     b
+                     c_x
+                     c_y
+                     ox_x
+                     ox_y)));
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
@@ -2771,6 +2839,29 @@ let%expect_test "fixquadadjust parity C vs Ox" =
     fixquadadjust q=9223372036854775807 c=2147483647 ox=2147483647 eq=true
     |}]
 
+let%expect_test "fixquadnegate parity C vs Ox" =
+  check_binop_pair "fixquadnegate" c_fixquadnegate Ox_math.fixquadnegate fixquadnegate_cases;
+  [%expect {|
+    fixquadnegate a=0 b=0 c=(0,0) ox=(0,0) eq=true
+    fixquadnegate a=1 b=0 c=(-1,-1) ox=(-1,-1) eq=true
+    fixquadnegate a=-1 b=0 c=(1,-1) ox=(1,-1) eq=true
+    fixquadnegate a=2147483647 b=1 c=(-2147483647,-2) ox=(-2147483647,-2) eq=true
+    fixquadnegate a=-2147483648 b=-1 c=(-2147483648,0) ox=(-2147483648,0) eq=true
+    fixquadnegate a=123456789 b=-987654321 c=(-123456789,987654320) ox=(-123456789,987654320) eq=true
+    |}]
+
+let%expect_test "ufixdivquadlong parity C vs Ox" =
+  check_ternop "ufixdivquadlong" c_ufixdivquadlong Ox_math.ufixdivquadlong ufixdivquadlong_cases;
+  [%expect {|
+    ufixdivquadlong a=0 b=0 c=1 c_out=0 ox=0 eq=true
+    ufixdivquadlong a=1 b=0 c=1 c_out=1 ox=1 eq=true
+    ufixdivquadlong a=-1 b=0 c=1 c_out=-1 ox=-1 eq=true
+    ufixdivquadlong a=0 b=-1 c=2 c_out=-2147483648 ox=-2147483648 eq=true
+    ufixdivquadlong a=12345 b=67890 c=321 c_out=2127413745 ox=2127413745 eq=true
+    ufixdivquadlong a=2147483647 b=2147483647 c=65536 c_out=-32769 ox=-32769 eq=true
+    ufixdivquadlong a=-1 b=-1 c=-1 c_out=1 ox=1 eq=true
+    |}]
+
 let%expect_test "fix_sqrt parity C vs Ox" =
   check_unop "fix_sqrt" c_fix_sqrt Ox_math.fix_sqrt fix_sqrt_cases;
   [%expect
@@ -3455,6 +3546,28 @@ let%expect_test "randomized fixquadadjust parity C vs Ox" =
     c_fixquadadjust
     Ox_math.fixquadadjust;
   [%expect {| fixquadadjust random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fixquadnegate parity C vs Ox" =
+  run_random_binop_pair
+    ~name:"fixquadnegate"
+    ~seed:"fixquadnegate-seed-v1"
+    ~test_count:5000
+    c_fixquadnegate
+    Ox_math.fixquadnegate;
+  [%expect {| fixquadnegate random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized ufixdivquadlong parity C vs Ox" =
+  run_random_ternop
+    ~name:"ufixdivquadlong"
+    ~seed:"ufixdivquadlong-seed-v1"
+    ~test_count:5000
+    (fun nl nh d ->
+      let d = if Int.equal d 0 then 1 else d in
+      c_ufixdivquadlong nl nh d)
+    (fun nl nh d ->
+      let d = if Int.equal d 0 then 1 else d in
+      Ox_math.ufixdivquadlong nl nh d);
+  [%expect {| ufixdivquadlong random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
   run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;

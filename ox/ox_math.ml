@@ -253,6 +253,26 @@ let fixquadadjust q =
   let signv = v < 0 in
   if Bool.( <> ) signb signv then if signb then -0x7FFF_FFFF else 0x7FFF_FFFF else v
 
+let u32_mask = Int64.of_string "0xFFFFFFFF"
+
+let u32_bits x = Int64.bit_and (Int64.of_int x) u32_mask
+let i32_from_u32 x = wrap_i64_to_fix (Int64.bit_and x u32_mask)
+
+let fixquadnegate low high =
+  let low_u = u32_bits low in
+  let new_low_u = Int64.bit_and Int64.(neg low_u) u32_mask in
+  let borrow = if Int64.equal new_low_u 0L then 0 else 1 in
+  let new_high = wrap_i64_to_fix Int64.(neg (of_int high) - of_int borrow) in
+  i32_from_u32 new_low_u, new_high
+
+let ufixdivquadlong nl nh d =
+  let den = u32_bits d in
+  if Int64.equal den 0L
+  then 0
+  else
+    let num = Int64.bit_or (Int64.shift_left (u32_bits nh) 32) (u32_bits nl) in
+    i32_from_u32 (Stdlib.Int64.unsigned_div num den)
+
 let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
   let q =
     Int64.(

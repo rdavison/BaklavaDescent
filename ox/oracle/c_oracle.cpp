@@ -171,6 +171,27 @@ extern "C" int32_t c_oracle_fixquadadjust(int64_t q)
     return v;
 }
 
+extern "C" void c_oracle_fixquadnegate(int32_t* low, int32_t* high)
+{
+    const uint32_t old_low = (uint32_t)(*low);
+    const uint32_t new_low = (uint32_t)(0u - old_low);
+    const int32_t new_high = (int32_t)(0 - *high - (new_low != 0u));
+    *low = (int32_t)new_low;
+    *high = new_high;
+}
+
+extern "C" int32_t c_oracle_ufixdivquadlong(int32_t nl, int32_t nh, int32_t d)
+{
+    const uint32_t den = (uint32_t)d;
+    if (den == 0u)
+    {
+        return 0;
+    }
+
+    const uint64_t num = (((uint64_t)(uint32_t)nh << 32) + (uint64_t)(uint32_t)nl);
+    return (int32_t)((uint32_t)(num / den));
+}
+
 extern "C" int32_t c_oracle_fix_sqrt(int32_t a)
 {
     return c_oracle_long_sqrt_ceil(a) << 8;

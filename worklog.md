@@ -395,3 +395,24 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - `cmake --build build-ox -j` passes.
+
+### 30) Ported and tested additional pure quad helpers (`fixquadnegate`, `ufixdivquadlong`)
+- Added Ox implementations in `ox/ox_math.ml`:
+  - `fixquadnegate low high` (bit-accurate 32-bit behavior, including low-word borrow into high word)
+  - `ufixdivquadlong nl nh d` (unsigned 64/32 division with low-32-bit return semantics)
+- Extended C oracle in `ox/oracle/c_oracle.{h,cpp}`:
+  - `c_oracle_fixquadnegate(int32_t* low, int32_t* high)`
+  - `c_oracle_ufixdivquadlong(int32_t nl, int32_t nh, int32_t d)`
+- Extended parity FFI in `ox/tests/c_fix_stubs.cpp`:
+  - `caml_c_fixquadnegate`
+  - `caml_c_ufixdivquadlong`
+- Extended parity harness in `ox/tests/parity_expect.ml`:
+  - deterministic parity tests for `fixquadnegate` and `ufixdivquadlong`
+  - randomized differential tests for both helper functions
+  - added generic pair-valued binop helpers (`check_binop_pair`, `run_random_binop_pair`) reused by `fixquadnegate`.
+- Notes:
+  - randomized `ufixdivquadlong` test normalizes divisor `d=0` to `1` in both C and Ox test paths to stay in defined behavior.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.
