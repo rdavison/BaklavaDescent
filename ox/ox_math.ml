@@ -28,21 +28,22 @@ let long_sqrt a =
   if a <= 0
   then 0
   else
-    let n = Int64.of_int a in
+    let module I64 = Stdlib.Int64 in
+    let n = I64.of_int a in
     let rec floor_loop lo hi best =
       if lo > hi
       then best
       else
         let mid = (lo + hi) / 2 in
-        let mid64 = Int64.of_int mid in
-        let sq = Int64.( * ) mid64 mid64 in
-        if Int64.( <= ) sq n
+        let mid64 = I64.of_int mid in
+        let sq = I64.mul mid64 mid64 in
+        if I64.compare sq n <= 0
         then floor_loop (mid + 1) hi mid
         else floor_loop lo (mid - 1) best
     in
     let floor = floor_loop 0 46341 0 in
-    let floor64 = Int64.of_int floor in
-    if Int64.( = ) (Int64.( * ) floor64 floor64) n then floor else floor + 1
+    let floor64 = I64.of_int floor in
+    if I64.equal (I64.mul floor64 floor64) n then floor else floor + 1
 
 let fix_sqrt a = Int.shift_left (long_sqrt a) 8
 
@@ -87,6 +88,35 @@ let vm_vec_copy_scale (sx, sy, sz) k =
 
 let vm_vec_scale (dx, dy, dz) k =
   fixmul dx k, fixmul dy k, fixmul dz k
+
+let quad_sqrt q =
+  let module I64 = Stdlib.Int64 in
+  if I64.compare q I64.zero <= 0
+  then 0L
+  else
+    let rec floor_loop lo hi best =
+      if I64.compare lo hi > 0
+      then best
+      else
+        let mid = I64.add lo (I64.div (I64.sub hi lo) 2L) in
+        let sq = I64.mul mid mid in
+        if I64.compare sq q <= 0
+        then floor_loop (I64.add mid 1L) hi mid
+        else floor_loop lo (I64.sub mid 1L) best
+    in
+    let floor = floor_loop 0L 3037000500L 0L in
+    if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L
+
+let vm_vec_mag (x, y, z) =
+  let module I64 = Stdlib.Int64 in
+  let q =
+    I64.add
+      (I64.add (I64.mul (I64.of_int x) (I64.of_int x)) (I64.mul (I64.of_int y) (I64.of_int y)))
+      (I64.mul (I64.of_int z) (I64.of_int z))
+  in
+  wrap_i64_to_fix (quad_sqrt q)
+
+let vm_vec_dist (x0, y0, z0) (x1, y1, z1) = vm_vec_mag (vm_vec_sub (x0, y0, z0) (x1, y1, z1))
 
 let abs_fix v = wrap_i64_to_fix (Int64.of_int (Int.abs v))
 

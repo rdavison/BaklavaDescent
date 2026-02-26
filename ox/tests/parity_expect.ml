@@ -181,7 +181,10 @@ external c_vm_vec_avg4
   = "caml_c_vm_vec_avg4_bc" "caml_c_vm_vec_avg4"
 external c_vm_vec_copy_scale : int -> int -> int -> int -> int * int * int = "caml_c_vm_vec_copy_scale"
 external c_vm_vec_scale : int -> int -> int -> int -> int * int * int = "caml_c_vm_vec_scale"
+external c_vm_vec_mag : int -> int -> int -> int = "caml_c_vm_vec_mag"
 external c_vm_vec_mag_quick : int -> int -> int -> int = "caml_c_vm_vec_mag_quick"
+external c_vm_vec_dist : int -> int -> int -> int -> int -> int -> int
+  = "caml_c_vm_vec_dist_bc" "caml_c_vm_vec_dist"
 external c_vm_vec_dist_quick : int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_vec_dist_quick_bc" "caml_c_vm_vec_dist_quick"
 external c_vm_vec_dotprod : int -> int -> int -> int -> int -> int -> int
@@ -443,12 +446,28 @@ let vm_vec_scale_cases =
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), 0x10000);
   ]
 
+let vm_vec_mag_cases =
+  [
+    (0, 0, 0);
+    (0x10000, 0x20000, -0x10000);
+    (12345, -54321, 99999);
+    (0x3fffffff, -0x3fffffff, 0);
+  ]
+
 let vm_vec_mag_quick_cases =
   [
     (0, 0, 0);
     (0x10000, 0x20000, -0x10000);
     (12345, -54321, 99999);
     (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_vec_dist_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
+    ((12345, -54321, 99999), (67890, 13579, -24680));
+    ((0x3fffffff, -0x3fffffff, 0), (-0x3fffffff, 0x3fffffff, 1));
   ]
 
 let vm_vec_dist_quick_cases =
@@ -601,6 +620,20 @@ let mat3_gen =
   Quickcheck.Generator.map
     (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
     ~f:(fun (rvec, (uvec, fvec)) -> (rvec, uvec, fvec))
+
+let clamp_mag_safe v = Int.max (-0x3fffffff) (Int.min 0x3fffffff v)
+
+let fix_mag_safe_gen =
+  Quickcheck.Generator.weighted_union
+    [
+      (3.0, Quickcheck.Generator.of_list [ -0x3fffffff; -0x10000; -1; 0; 1; 0x10000; 0x3fffffff ]);
+      (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:(fun v -> clamp_mag_safe (Int32.to_int_exn v)));
+    ]
+
+let vec3_mag_safe_gen =
+  Quickcheck.Generator.map
+    (Quickcheck.Generator.both fix_mag_safe_gen (Quickcheck.Generator.both fix_mag_safe_gen fix_mag_safe_gen))
+    ~f:(fun (x, (y, z)) -> (x, y, z))
 
 let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
   let total = ref 0 in
@@ -970,11 +1003,11 @@ let check_vec3_to_scalar name c_impl ox_impl cases =
       let ox = ox_impl (x, y, z) in
       printf "%s v=(%d,%d,%d) c=%d ox=%d eq=%b\n" name x y z c ox (Int.equal c ox))
 
-let run_random_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
+let run_random_vec3_to_scalar_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
   let total = ref 0 in
   let mismatches = ref 0 in
   let first_mismatch = ref None in
-  random_values ~seed ~test_count vec3_gen
+  random_values ~seed ~test_count gen
   |> Sequence.iter ~f:(fun (x, y, z) ->
          incr total;
          let c = c_impl x y z in
@@ -987,6 +1020,9 @@ let run_random_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
+  run_random_vec3_to_scalar_with_gen ~name ~seed ~test_count ~gen:vec3_gen c_impl ox_impl
 
 let check_two_vec3_to_scalar name c_impl ox_impl cases =
   List.iter cases ~f:(fun ((x0, y0, z0), (x1, y1, z1)) ->
@@ -1005,8 +1041,7 @@ let check_two_vec3_to_scalar name c_impl ox_impl cases =
         ox
         (Int.equal c ox))
 
-let run_random_two_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
-  let gen = Quickcheck.Generator.both vec3_gen vec3_gen in
+let run_random_two_vec3_to_scalar_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
   let total = ref 0 in
   let mismatches = ref 0 in
   let first_mismatch = ref None in
@@ -1036,6 +1071,15 @@ let run_random_two_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_two_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
+  run_random_two_vec3_to_scalar_with_gen
+    ~name
+    ~seed
+    ~test_count
+    ~gen:(Quickcheck.Generator.both vec3_gen vec3_gen)
+    c_impl
+    ox_impl
 
 let check_vec_copy_normalize_quick name c_impl ox_impl cases =
   List.iter cases ~f:(fun (sx, sy, sz) ->
@@ -1793,6 +1837,16 @@ let%expect_test "vm_vec_scale parity C vs Ox" =
     vm_vec_scale s=(2147483647,0,-2147483648) k=65536 out=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
     |}]
 
+let%expect_test "vm_vec_mag parity C vs Ox" =
+  check_vec3_to_scalar "vm_vec_mag" c_vm_vec_mag Ox_math.vm_vec_mag vm_vec_mag_cases;
+  [%expect
+    {|
+    vm_vec_mag v=(0,0,0) c=0 ox=0 eq=true
+    vm_vec_mag v=(65536,131072,-65536) c=160530 ox=160530 eq=true
+    vm_vec_mag v=(12345,-54321,99999) c=114469 ox=114469 eq=true
+    vm_vec_mag v=(1073741823,-1073741823,0) c=1518500249 ox=1518500249 eq=true
+    |}]
+
 let%expect_test "vm_vec_mag_quick parity C vs Ox" =
   check_vec3_to_scalar "vm_vec_mag_quick" c_vm_vec_mag_quick Ox_math.vm_vec_mag_quick vm_vec_mag_quick_cases;
   [%expect
@@ -1801,6 +1855,16 @@ let%expect_test "vm_vec_mag_quick parity C vs Ox" =
     vm_vec_mag_quick v=(65536,131072,-65536) c=167936 ox=167936 eq=true
     vm_vec_mag_quick v=(12345,-54321,99999) c=122683 ox=122683 eq=true
     vm_vec_mag_quick v=(2147483647,0,-2147483648) c=1744830463 ox=1744830463 eq=true
+    |}]
+
+let%expect_test "vm_vec_dist parity C vs Ox" =
+  check_two_vec3_to_scalar "vm_vec_dist" c_vm_vec_dist Ox_math.vm_vec_dist vm_vec_dist_cases;
+  [%expect
+    {|
+    vm_vec_dist v0=(0,0,0) v1=(0,0,0) c=0 ox=0 eq=true
+    vm_vec_dist v0=(65536,131072,-65536) v1=(65536,-65536,32768) c=219815 ox=219815 eq=true
+    vm_vec_dist v0=(12345,-54321,99999) v1=(67890,13579,-24680) c=152449 ox=152449 eq=true
+    vm_vec_dist v0=(1073741823,-1073741823,0) v1=(-1073741823,1073741823,1) c=-1257966798 ox=-1257966798 eq=true
     |}]
 
 let%expect_test "vm_vec_dist_quick parity C vs Ox" =
@@ -2093,6 +2157,16 @@ let%expect_test "randomized vm_vec_scale parity C vs Ox" =
     Ox_math.vm_vec_scale;
   [%expect {| vm_vec_scale random total=5000 mismatches=0 |}]
 
+let%expect_test "randomized vm_vec_mag parity C vs Ox" =
+  run_random_vec3_to_scalar_with_gen
+    ~name:"vm_vec_mag"
+    ~seed:"vm-vec-mag-seed-v1"
+    ~test_count:5000
+    ~gen:vec3_mag_safe_gen
+    c_vm_vec_mag
+    Ox_math.vm_vec_mag;
+  [%expect {| vm_vec_mag random total=5000 mismatches=0 |}]
+
 let%expect_test "randomized vm_vec_mag_quick parity C vs Ox" =
   run_random_vec3_to_scalar
     ~name:"vm_vec_mag_quick"
@@ -2101,6 +2175,16 @@ let%expect_test "randomized vm_vec_mag_quick parity C vs Ox" =
     c_vm_vec_mag_quick
     Ox_math.vm_vec_mag_quick;
   [%expect {| vm_vec_mag_quick random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_dist parity C vs Ox" =
+  run_random_two_vec3_to_scalar_with_gen
+    ~name:"vm_vec_dist"
+    ~seed:"vm-vec-dist-seed-v1"
+    ~test_count:5000
+    ~gen:(Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+    c_vm_vec_dist
+    Ox_math.vm_vec_dist;
+  [%expect {| vm_vec_dist random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_dist_quick parity C vs Ox" =
   run_random_two_vec3_to_scalar

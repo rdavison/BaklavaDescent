@@ -9,21 +9,14 @@ static inline int32_t neg_i32_wrap(int32_t v)
     return (int32_t)(0u - (uint32_t)v);
 }
 
-static int32_t c_oracle_long_sqrt_ceil(int32_t a)
+static uint64_t c_oracle_sqrt_ceil_u64(uint64_t n, uint64_t hi)
 {
-    if (a <= 0)
-    {
-        return 0;
-    }
-
-    const int64_t n = (int64_t)a;
-    int32_t lo = 0;
-    int32_t hi = 46341;
-    int32_t floor = 0;
+    uint64_t lo = 0;
+    uint64_t floor = 0;
     while (lo <= hi)
     {
-        const int32_t mid = lo + ((hi - lo) / 2);
-        const int64_t sq = (int64_t)mid * (int64_t)mid;
+        const uint64_t mid = lo + ((hi - lo) / 2);
+        const __uint128_t sq = (__uint128_t)mid * (__uint128_t)mid;
         if (sq <= n)
         {
             floor = mid;
@@ -40,6 +33,24 @@ static int32_t c_oracle_long_sqrt_ceil(int32_t a)
         return floor;
     }
     return floor + 1;
+}
+
+static int32_t c_oracle_long_sqrt_ceil(int32_t a)
+{
+    if (a <= 0)
+    {
+        return 0;
+    }
+    return (int32_t)c_oracle_sqrt_ceil_u64((uint64_t)a, 46341);
+}
+
+static int32_t c_oracle_quad_sqrt_ceil(int64_t q)
+{
+    if (q < 0)
+    {
+        return 0;
+    }
+    return (int32_t)c_oracle_sqrt_ceil_u64((uint64_t)q, 3037000500ULL);
 }
 
 extern "C" int32_t c_oracle_i2f(int32_t i)
@@ -160,6 +171,21 @@ extern "C" void c_oracle_vm_vec_scale(c_oracle_vec3* dest, int32_t k)
     dest->x = fixmul(dest->x, k);
     dest->y = fixmul(dest->y, k);
     dest->z = fixmul(dest->z, k);
+}
+
+extern "C" int32_t c_oracle_vm_vec_mag(const c_oracle_vec3* v)
+{
+    const int64_t q =
+        (int64_t)v->x * (int64_t)v->x +
+        (int64_t)v->y * (int64_t)v->y +
+        (int64_t)v->z * (int64_t)v->z;
+    return c_oracle_quad_sqrt_ceil(q);
+}
+
+extern "C" int32_t c_oracle_vm_vec_dist(const c_oracle_vec3* v0, const c_oracle_vec3* v1)
+{
+    const c_oracle_vec3 t = { v0->x - v1->x, v0->y - v1->y, v0->z - v1->z };
+    return c_oracle_vm_vec_mag(&t);
 }
 
 extern "C" int32_t c_oracle_vm_vec_mag_quick(const c_oracle_vec3* v)
