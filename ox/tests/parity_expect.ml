@@ -191,6 +191,8 @@ external c_vm_vec_crossprod : int -> int -> int -> int -> int -> int -> int * in
   = "caml_c_vm_vec_crossprod_bc" "caml_c_vm_vec_crossprod"
 external c_vm_vec_copy_normalize_quick : int -> int -> int -> int * int * int * int
   = "caml_c_vm_vec_copy_normalize_quick"
+external c_vm_vec_normalize_quick : int -> int -> int -> int * int * int * int
+  = "caml_c_vm_vec_normalize_quick"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -359,6 +361,8 @@ let vm_vec_copy_normalize_quick_cases =
     (12345, -54321, 99999);
     (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
   ]
+
+let vm_vec_normalize_quick_cases = vm_vec_copy_normalize_quick_cases
 
 let edge_fix_values =
   [
@@ -1107,6 +1111,20 @@ let%expect_test "vm_vec_copy_normalize_quick parity C vs Ox" =
     vm_vec_copy_normalize_quick s=(2147483647,0,-2147483648) m=(c:1744830463 ox:1744830463) out=(c:80659,0,-80659 ox:80659,0,-80659) eq=true
     |}]
 
+let%expect_test "vm_vec_normalize_quick parity C vs Ox" =
+  check_vec_copy_normalize_quick
+    "vm_vec_normalize_quick"
+    c_vm_vec_normalize_quick
+    Ox_math.vm_vec_normalize_quick
+    vm_vec_normalize_quick_cases;
+  [%expect
+    {|
+    vm_vec_normalize_quick s=(0,0,0) m=(c:0 ox:0) out=(c:0,0,0 ox:0,0,0) eq=true
+    vm_vec_normalize_quick s=(65536,131072,-65536) m=(c:167936 ox:167936) out=(c:25575,51150,-25575 ox:25575,51150,-25575) eq=true
+    vm_vec_normalize_quick s=(12345,-54321,99999) m=(c:122683 ox:122683) out=(c:6594,-29017,53418 ox:6594,-29017,53418) eq=true
+    vm_vec_normalize_quick s=(2147483647,0,-2147483648) m=(c:1744830463 ox:1744830463) out=(c:80659,0,-80659 ox:80659,0,-80659) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1276,3 +1294,12 @@ let%expect_test "randomized vm_vec_copy_normalize_quick parity C vs Ox" =
     c_vm_vec_copy_normalize_quick
     Ox_math.vm_vec_copy_normalize_quick;
   [%expect {| vm_vec_copy_normalize_quick random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_normalize_quick parity C vs Ox" =
+  run_random_vec_copy_normalize_quick
+    ~name:"vm_vec_normalize_quick"
+    ~seed:"vm-vec-normalize-quick-seed-v1"
+    ~test_count:5000
+    c_vm_vec_normalize_quick
+    Ox_math.vm_vec_normalize_quick;
+  [%expect {| vm_vec_normalize_quick random total=5000 mismatches=0 |}]

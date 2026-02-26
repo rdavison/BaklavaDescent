@@ -413,3 +413,20 @@ extern "C" CAMLprim value caml_c_vm_vec_copy_normalize_quick(value sx, value sy,
 
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_normalize_quick(value x, value y, value z)
+{
+    CAMLparam3(x, y, z);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 v = { Int_val(x), Int_val(y), Int_val(z) };
+    const int32_t m = c_oracle_vm_vec_normalize_quick(&v);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(m));
+    Store_field(out, 1, Val_long(v.x));
+    Store_field(out, 2, Val_long(v.y));
+    Store_field(out, 3, Val_long(v.z));
+
+    CAMLreturn(out);
+}

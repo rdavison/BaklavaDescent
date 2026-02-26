@@ -255,3 +255,8 @@ extern "C" int32_t c_oracle_vm_vec_copy_normalize_quick(c_oracle_vec3* dest, con
     }
     return m;
 }
+
+extern "C" int32_t c_oracle_vm_vec_normalize_quick(c_oracle_vec3* v)
+{
+    return c_oracle_vm_vec_copy_normalize_quick(v, v);
+}
