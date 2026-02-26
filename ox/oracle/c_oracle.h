@@ -12,6 +12,20 @@ int32_t c_oracle_fixmul(int32_t a, int32_t b);
 int32_t c_oracle_fixdiv(int32_t a, int32_t b);
 int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c);
 
+typedef struct c_oracle_vec3
+{
+    int32_t x;
+    int32_t y;
+    int32_t z;
+} c_oracle_vec3;
+
+void c_oracle_vm_vec_scale_add2(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k);
+void c_oracle_vm_vec_scale_add(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* src1,
+    const c_oracle_vec3* src2,
+    int32_t k);
+
 #ifdef __cplusplus
 }
 #endif

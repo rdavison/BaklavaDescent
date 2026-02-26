@@ -26,3 +26,21 @@ extern "C" int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c)
 {
     return fixmuldiv(a, b, c);
 }
+
+extern "C" void c_oracle_vm_vec_scale_add2(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k)
+{
+    dest->x += fixmul(src->x, k);
+    dest->y += fixmul(src->y, k);
+    dest->z += fixmul(src->z, k);
+}
+
+extern "C" void c_oracle_vm_vec_scale_add(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* src1,
+    const c_oracle_vec3* src2,
+    int32_t k)
+{
+    dest->x = src1->x + fixmul(src2->x, k);
+    dest->y = src1->y + fixmul(src2->y, k);
+    dest->z = src1->z + fixmul(src2->z, k);
+}

@@ -30,3 +30,8 @@ let vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k =
   ( wrap_add_i32 dx (fixmul sx k)
   , wrap_add_i32 dy (fixmul sy k)
   , wrap_add_i32 dz (fixmul sz k) )
+
+let vm_vec_scale_add (ax, ay, az) (bx, by, bz) k =
+  ( wrap_add_i32 ax (fixmul bx k)
+  , wrap_add_i32 ay (fixmul by k)
+  , wrap_add_i32 az (fixmul bz k) )
