@@ -16,6 +16,33 @@ let check_unop_i64 name c_impl ox_impl cases =
         ox
         (Int.equal c ox))
 
+let check_binop_i64_int name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (n, d) ->
+      let c = c_impl n d in
+      let ox = ox_impl n d in
+      printf
+        "%s n=%s d=%d c=%d ox=%d eq=%b\n"
+        name
+        (Int64.to_string n)
+        d
+        c
+        ox
+        (Int.equal c ox))
+
+let check_ternop_i64_out name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (q, a, b) ->
+      let c = c_impl q a b in
+      let ox = ox_impl q a b in
+      printf
+        "%s q=%s a=%d b=%d c=%s ox=%s eq=%b\n"
+        name
+        (Int64.to_string q)
+        a
+        b
+        (Int64.to_string c)
+        (Int64.to_string ox)
+        (Int64.equal c ox))
+
 let check_unop_pair name c_impl ox_impl cases =
   List.iter cases ~f:(fun a ->
       let c_s, c_c = c_impl a in
@@ -190,6 +217,8 @@ external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_long_sqrt : int -> int = "caml_c_long_sqrt"
 external c_quad_sqrt : int64 -> int = "caml_c_quad_sqrt"
 external c_fixquadadjust : int64 -> int = "caml_c_fixquadadjust"
+external c_fixmulaccum : int64 -> int -> int -> int64 = "caml_c_fixmulaccum"
+external c_fixdivquadlong : int64 -> int -> int = "caml_c_fixdivquadlong"
 external c_fixquadnegate : int -> int -> int * int = "caml_c_fixquadnegate"
 external c_ufixdivquadlong : int -> int -> int -> int = "caml_c_ufixdivquadlong"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
@@ -638,6 +667,27 @@ let fixquadadjust_cases =
     Int64.shift_left (Int64.of_int (-2147483647)) 16;
     9223372030926249001L;
     Int64.max_value;
+  ]
+
+let fixmulaccum_cases =
+  [
+    (0L, 0, 0);
+    (0L, 65536, 65536);
+    (1234567890123L, -12345, 67890);
+    (-1234567890123L, Int32.to_int_exn Int32.max_value, 1);
+    (Int64.of_int 9000000000000000, 1000000, -1000000);
+  ]
+
+let fixdivquadlong_cases =
+  [
+    (0L, 1);
+    (1L, 1);
+    (-1L, 1);
+    (9223372036854775807L, -1);
+    (-9223372036854775807L, 2);
+    (1234567890123456789L, 65536);
+    (-1234567890123456789L, 65536);
+    (12345L, 0);
   ]
 
 let fixquadnegate_cases =
@@ -1123,6 +1173,14 @@ let int64_gen =
       (7.0, Quickcheck.Generator.map (Quickcheck.Generator.both Int32.quickcheck_generator Int32.quickcheck_generator) ~f:(fun (hi, lo) -> from_halves hi lo));
     ]
 
+let clamp_fixmulaccum_q q = Int.max (-9_000_000_000_000_000) (Int.min 9_000_000_000_000_000 q)
+
+let fixmulaccum_q_gen =
+  Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun q -> Int64.of_int (clamp_fixmulaccum_q q))
+
+let small_fix_gen =
+  Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun q -> Int.max (-1_000_000) (Int.min 1_000_000 q))
+
 let random_values ~seed ~test_count gen =
   Quickcheck.random_sequence ~seed:(`Deterministic seed) gen |> fun seq -> Sequence.take seq test_count
 
@@ -1211,6 +1269,61 @@ let run_random_unop_i64 ~name ~seed ~test_count c_impl ox_impl =
                      (Int64.to_string q)
                      c
                      ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_binop_i64_int_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (n, d) ->
+         incr total;
+         let c = c_impl n d in
+         let ox = ox_impl n d in
+         if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s n=%s d=%d c=%d ox=%d"
+                     name
+                     (Int64.to_string n)
+                     d
+                     c
+                     ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_ternop_i64_out_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (q, a, b) ->
+         incr total;
+         let c = c_impl q a b in
+         let ox = ox_impl q a b in
+         if not (Int64.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s q=%s a=%d b=%d c=%s ox=%s"
+                     name
+                     (Int64.to_string q)
+                     a
+                     b
+                     (Int64.to_string c)
+                     (Int64.to_string ox))));
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
@@ -2839,6 +2952,29 @@ let%expect_test "fixquadadjust parity C vs Ox" =
     fixquadadjust q=9223372036854775807 c=2147483647 ox=2147483647 eq=true
     |}]
 
+let%expect_test "fixmulaccum parity C vs Ox" =
+  check_ternop_i64_out "fixmulaccum" c_fixmulaccum Ox_math.fixmulaccum fixmulaccum_cases;
+  [%expect {|
+    fixmulaccum q=0 a=0 b=0 c=0 ox=0 eq=true
+    fixmulaccum q=0 a=65536 b=65536 c=4294967296 ox=4294967296 eq=true
+    fixmulaccum q=1234567890123 a=-12345 b=67890 c=1233729788073 ox=1233729788073 eq=true
+    fixmulaccum q=-1234567890123 a=2147483647 b=1 c=-1232420406476 ox=-1232420406476 eq=true
+    fixmulaccum q=9000000000000000 a=1000000 b=-1000000 c=8999000000000000 ox=8999000000000000 eq=true
+    |}]
+
+let%expect_test "fixdivquadlong parity C vs Ox" =
+  check_binop_i64_int "fixdivquadlong" c_fixdivquadlong Ox_math.fixdivquadlong fixdivquadlong_cases;
+  [%expect {|
+    fixdivquadlong n=0 d=1 c=0 ox=0 eq=true
+    fixdivquadlong n=1 d=1 c=1 ox=1 eq=true
+    fixdivquadlong n=-1 d=1 c=-1 ox=-1 eq=true
+    fixdivquadlong n=9223372036854775807 d=-1 c=-2147483648 ox=-2147483648 eq=true
+    fixdivquadlong n=-9223372036854775807 d=2 c=1 ox=1 eq=true
+    fixdivquadlong n=1234567890123456789 d=65536 c=284458473 ox=284458473 eq=true
+    fixdivquadlong n=-1234567890123456789 d=65536 c=-284458473 ox=-284458473 eq=true
+    fixdivquadlong n=12345 d=0 c=1 ox=1 eq=true
+    |}]
+
 let%expect_test "fixquadnegate parity C vs Ox" =
   check_binop_pair "fixquadnegate" c_fixquadnegate Ox_math.fixquadnegate fixquadnegate_cases;
   [%expect {|
@@ -3546,6 +3682,36 @@ let%expect_test "randomized fixquadadjust parity C vs Ox" =
     c_fixquadadjust
     Ox_math.fixquadadjust;
   [%expect {| fixquadadjust random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fixmulaccum parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both fixmulaccum_q_gen (Quickcheck.Generator.both small_fix_gen small_fix_gen))
+      ~f:(fun (q, (a, b)) -> q, a, b)
+  in
+  run_random_ternop_i64_out_with_gen
+    ~name:"fixmulaccum"
+    ~seed:"fixmulaccum-seed-v1"
+    ~test_count:5000
+    ~gen
+    c_fixmulaccum
+    Ox_math.fixmulaccum;
+  [%expect {| fixmulaccum random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fixdivquadlong parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both int64_gen fix_gen)
+      ~f:(fun (n, d) -> n, if Int.equal d 0 then 1 else d)
+  in
+  run_random_binop_i64_int_with_gen
+    ~name:"fixdivquadlong"
+    ~seed:"fixdivquadlong-seed-v1"
+    ~test_count:5000
+    ~gen
+    c_fixdivquadlong
+    Ox_math.fixdivquadlong;
+  [%expect {| fixdivquadlong random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fixquadnegate parity C vs Ox" =
   run_random_binop_pair

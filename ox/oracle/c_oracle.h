@@ -14,6 +14,8 @@ int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c);
 int32_t c_oracle_long_sqrt(int32_t a);
 int32_t c_oracle_quad_sqrt(int64_t q);
 int32_t c_oracle_fixquadadjust(int64_t q);
+int64_t c_oracle_fixmulaccum(int64_t q, int32_t a, int32_t b);
+int32_t c_oracle_fixdivquadlong(int64_t n, int32_t d);
 void c_oracle_fixquadnegate(int32_t* low, int32_t* high);
 int32_t c_oracle_ufixdivquadlong(int32_t nl, int32_t nh, int32_t d);
 int32_t c_oracle_fix_sqrt(int32_t a);

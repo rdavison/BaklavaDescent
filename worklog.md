@@ -416,3 +416,28 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - `cmake --build build-ox -j` passes.
+
+### 31) Ported and tested additional low-level fixed-point helpers (`fixmulaccum`, `fixdivquadlong`)
+- Added Ox implementations in `ox/ox_math.ml`:
+  - `fixmulaccum q a b` (pure int64 accumulator update)
+  - `fixdivquadlong n d` (int64 / uint32-style divisor semantics with `d=0 -> 1`)
+- Extended C oracle in `ox/oracle/c_oracle.{h,cpp}`:
+  - `c_oracle_fixmulaccum(int64_t q, int32_t a, int32_t b)`
+  - `c_oracle_fixdivquadlong(int64_t n, int32_t d)`
+- Extended parity FFI in `ox/tests/c_fix_stubs.cpp`:
+  - `caml_c_fixmulaccum` (returns `int64` via `caml_copy_int64`)
+  - `caml_c_fixdivquadlong`
+- Extended parity harness in `ox/tests/parity_expect.ml`:
+  - new deterministic parity tests for both helpers.
+  - seeded randomized differential tests:
+    - `randomized fixmulaccum parity C vs Ox` (safe generator bounds to avoid `int64` overflow UB in C)
+    - `randomized fixdivquadlong parity C vs Ox`
+  - added helper functions for `int64`-typed parity assertions:
+    - `check_binop_i64_int`
+    - `check_ternop_i64_out`
+    - `run_random_binop_i64_int_with_gen`
+    - `run_random_ternop_i64_out_with_gen`
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.

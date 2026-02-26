@@ -46,6 +46,16 @@ extern "C" CAMLprim value caml_c_fixquadadjust(value q)
     return Val_long(c_oracle_fixquadadjust(Int64_val(q)));
 }
 
+extern "C" CAMLprim value caml_c_fixmulaccum(value q, value a, value b)
+{
+    return caml_copy_int64(c_oracle_fixmulaccum(Int64_val(q), Int_val(a), Int_val(b)));
+}
+
+extern "C" CAMLprim value caml_c_fixdivquadlong(value n, value d)
+{
+    return Val_long(c_oracle_fixdivquadlong(Int64_val(n), Int_val(d)));
+}
+
 extern "C" CAMLprim value caml_c_fixquadnegate(value low, value high)
 {
     CAMLparam2(low, high);

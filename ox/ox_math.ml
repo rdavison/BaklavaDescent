@@ -258,6 +258,12 @@ let u32_mask = Int64.of_string "0xFFFFFFFF"
 let u32_bits x = Int64.bit_and (Int64.of_int x) u32_mask
 let i32_from_u32 x = wrap_i64_to_fix (Int64.bit_and x u32_mask)
 
+let fixmulaccum q a b = Int64.(q + (of_int a * of_int b))
+
+let fixdivquadlong n d =
+  let den = u32_bits d in
+  if Int64.equal den 0L then 1 else wrap_i64_to_fix Int64.(n / den)
+
 let fixquadnegate low high =
   let low_u = u32_bits low in
   let new_low_u = Int64.bit_and Int64.(neg low_u) u32_mask in
