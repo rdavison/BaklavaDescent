@@ -70,6 +70,15 @@ uint32_t ufixdivquadlong(uint32_t nl, uint32_t nh, uint32_t d)
 
 fixang fix_atan2(fix cos, fix sin)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_atan2 using cd_ox_fix_atan2.\n");
+		ox_bridge_logged = 1;
+	}
+	return (fixang)cd_ox_fix_atan2(cos, sin);
+#else
 	int64_t q;
 	fix m, t;
 
@@ -102,6 +111,7 @@ fixang fix_atan2(fix cos, fix sin)
 		return (fixang)t; //[ISB] cast
 	}
 
+#endif
 }
 
 //computes the square root of a quad, returning a long 
@@ -231,7 +241,17 @@ uint16_t long_sqrt(int32_t a)
 //computes the square root of a fix, returning a fix
 fix fix_sqrt(fix a)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_sqrt using cd_ox_fix_sqrt.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_fix_sqrt(a);
+#else
 	return ((fix)long_sqrt(a)) << 8;
+#endif
 }
 
 
@@ -270,6 +290,25 @@ void fix_sincos(fix a, fix* s, fix* c)
 //no interpolation
 void fix_fastsincos(fix a, fix* s, fix* c)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	fix sinv, cosv;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_fastsincos using cd_ox_fix_fastsincos.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_fix_fastsincos(a, &sinv, &cosv);
+	if (s)
+	{
+		*s = sinv;
+	}
+	if (c)
+	{
+		*c = cosv;
+	}
+	return;
+#else
 	int i;
 
 	i = (a >> 8) & 0xff;
@@ -282,11 +321,21 @@ void fix_fastsincos(fix a, fix* s, fix* c)
 	{
 		*c = sincos_table[i + 64] << 2;
 	}
+#endif
 }
 
 //compute inverse sine
 fixang fix_asin(fix v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_asin using cd_ox_fix_asin.\n");
+		ox_bridge_logged = 1;
+	}
+	return (fixang)cd_ox_fix_asin(v);
+#else
 	fix vv;
 	int i, f, aa;
 
@@ -305,11 +354,21 @@ fixang fix_asin(fix v)
 		aa = -aa;
 
 	return aa;
+#endif
 }
 
 //compute inverse cosine
 fixang fix_acos(fix v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_acos using cd_ox_fix_acos.\n");
+		ox_bridge_logged = 1;
+	}
+	return (fixang)cd_ox_fix_acos(v);
+#else
 	fix vv;
 	int i, f, aa;
 
@@ -328,6 +387,7 @@ fixang fix_acos(fix v)
 		aa = 0x8000 - aa;
 
 	return aa;
+#endif
 }
 
 #define TABLE_SIZE 1024
@@ -335,6 +395,15 @@ fixang fix_acos(fix v)
 //for passed value a, returns 1/sqrt(a) 
 fix fix_isqrt(fix a)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_isqrt using cd_ox_fix_isqrt.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_fix_isqrt(a);
+#else
 	int i, b = a;
 	int cnt = 0;
 	int r;
@@ -361,4 +430,5 @@ fix fix_isqrt(fix a)
 	}
 
 	return r;
+#endif
 }

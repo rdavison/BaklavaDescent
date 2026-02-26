@@ -299,3 +299,51 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `cmake --build build-ox -j` passes with `USE_OX_BRIDGE=ON`.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - Runtime startup confirms bridge init (`[OX] OxCaml bridge runtime initialized.`).
+
+### 26) Expanded in-engine Ox routing for fix/trig helpers
+- Routed additional runtime callsites in `fix/fix.cpp` (guarded by `USE_OX_BRIDGE`):
+  - `fix_sqrt` -> `cd_ox_fix_sqrt`
+  - `fix_isqrt` -> `cd_ox_fix_isqrt`
+  - `fix_asin` -> `cd_ox_fix_asin`
+  - `fix_acos` -> `cd_ox_fix_acos`
+  - `fix_atan2` -> `cd_ox_fix_atan2`
+  - `fix_fastsincos` -> `cd_ox_fix_fastsincos`
+- Added one-time runtime markers for each routed function to confirm live execution path selection in game logs.
+- Extended bridge surface in `ox/bridge.h` + `ox/bridge.c`:
+  - new exported wrappers for all above functions.
+  - callback resolution via `caml_named_value` for:
+    - `cd_fix_sqrt`, `cd_fix_isqrt`, `cd_fix_asin`, `cd_fix_acos`, `cd_fix_atan2`, `cd_fix_fastsincos`.
+  - readiness checks updated so bridge init fails fast if any required callback is missing.
+- Extended Ox callback registration in `ox/math_bridge.ml` for the new callback names.
+- Important safety fix:
+  - `cd_ox_fix_sincos` and `cd_ox_fix_fastsincos` now respect nullable output pointers (`s`/`c`), matching C API contracts and avoiding null dereference risk.
+- Verification:
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.
+
+### 27) Wired first vector-arithmetic batch through Ox bridge
+- Routed additional runtime callsites in `vecmat/vecmat.cpp` (guarded by `USE_OX_BRIDGE`):
+  - `vm_vec_add`
+  - `vm_vec_sub`
+  - `vm_vec_add2`
+  - `vm_vec_sub2`
+  - `vm_vec_avg`
+  - `vm_vec_avg4`
+  - `vm_vec_copy_scale`
+  - `vm_vec_scale_add`
+  - `vm_vec_scale_add2`
+  - `vm_vec_scale2`
+- Added one-time runtime markers for each routed function:
+  - `[OX] vm_vec_* using cd_ox_vm_vec_*`
+- Extended bridge surface in `ox/bridge.h` + `ox/bridge.c`:
+  - new vector wrappers returning `(x,y,z)` via out-pointers.
+  - callback names resolved via `caml_named_value`:
+    - `cd_vm_vec_add`, `cd_vm_vec_sub`, `cd_vm_vec_add2`, `cd_vm_vec_sub2`
+    - `cd_vm_vec_avg`, `cd_vm_vec_avg4`
+    - `cd_vm_vec_copy_scale`, `cd_vm_vec_scale_add`, `cd_vm_vec_scale_add2`, `cd_vm_vec_scale2`
+  - readiness checks updated to require these callbacks before bridge is considered ready.
+- Extended Ox callback registration in `ox/math_bridge.ml`:
+  - added C-friendly wrappers that flatten tuple-based Ox APIs into integer-arity callbacks for C.
+- Verification:
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.

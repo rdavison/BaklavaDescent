@@ -30,9 +30,19 @@ vms_matrix vmd_identity_matrix = { f1_0,0,0,
 //ok for dest to equal either source, but should use vm_vec_add2() if so
 vms_vector* vm_vec_add(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_add using cd_ox_vm_vec_add.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_add(src0->x, src0->y, src0->z, src1->x, src1->y, src1->z, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = src0->x + src1->x;
 	dest->y = src0->y + src1->y;
 	dest->z = src0->z + src1->z;
+#endif
 
 	return dest;
 }
@@ -41,9 +51,19 @@ vms_vector* vm_vec_add(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 //ok for dest to equal either source, but should use vm_vec_sub2() if so
 vms_vector* vm_vec_sub(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_sub using cd_ox_vm_vec_sub.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_sub(src0->x, src0->y, src0->z, src1->x, src1->y, src1->z, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = src0->x - src1->x;
 	dest->y = src0->y - src1->y;
 	dest->z = src0->z - src1->z;
+#endif
 
 	return dest;
 }
@@ -52,9 +72,19 @@ vms_vector* vm_vec_sub(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 //dest can equal source
 vms_vector* vm_vec_add2(vms_vector* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_add2 using cd_ox_vm_vec_add2.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_add2(dest->x, dest->y, dest->z, src->x, src->y, src->z, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x += src->x;
 	dest->y += src->y;
 	dest->z += src->z;
+#endif
 
 	return dest;
 }
@@ -63,9 +93,19 @@ vms_vector* vm_vec_add2(vms_vector* dest, vms_vector* src)
 //dest can equal source
 vms_vector* vm_vec_sub2(vms_vector* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_sub2 using cd_ox_vm_vec_sub2.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_sub2(dest->x, dest->y, dest->z, src->x, src->y, src->z, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x -= src->x;
 	dest->y -= src->y;
 	dest->z -= src->z;
+#endif
 
 	return dest;
 }
@@ -74,9 +114,19 @@ vms_vector* vm_vec_sub2(vms_vector* dest, vms_vector* src)
 //dest can equal either source
 vms_vector* vm_vec_avg(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_avg using cd_ox_vm_vec_avg.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_avg(src0->x, src0->y, src0->z, src1->x, src1->y, src1->z, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = (src0->x + src1->x) / 2;
 	dest->y = (src0->y + src1->y) / 2;
 	dest->z = (src0->z + src1->z) / 2;
+#endif
 
 	return dest;
 }
@@ -85,9 +135,24 @@ vms_vector* vm_vec_avg(vms_vector* dest, vms_vector* src0, vms_vector* src1)
 //dest can equal any source
 vms_vector* vm_vec_avg4(vms_vector* dest, vms_vector* src0, vms_vector* src1, vms_vector* src2, vms_vector* src3)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_avg4 using cd_ox_vm_vec_avg4.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_avg4(
+		src0->x, src0->y, src0->z,
+		src1->x, src1->y, src1->z,
+		src2->x, src2->y, src2->z,
+		src3->x, src3->y, src3->z,
+		&dest->x, &dest->y, &dest->z);
+#else
 	dest->x = (src0->x + src1->x + src2->x + src3->x) / 4;
 	dest->y = (src0->y + src1->y + src2->y + src3->y) / 4;
 	dest->z = (src0->z + src1->z + src2->z + src3->z) / 4;
+#endif
 
 	return dest;
 }
@@ -117,9 +182,19 @@ vms_vector* vm_vec_scale(vms_vector* dest, fix s)
 //scales and copies a vector.  returns ptr to dest
 vms_vector* vm_vec_copy_scale(vms_vector* dest, vms_vector* src, fix s)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_copy_scale using cd_ox_vm_vec_copy_scale.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_copy_scale(src->x, src->y, src->z, s, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = fixmul(src->x, s);
 	dest->y = fixmul(src->y, s);
 	dest->z = fixmul(src->z, s);
+#endif
 
 	return dest;
 }
@@ -128,9 +203,23 @@ vms_vector* vm_vec_copy_scale(vms_vector* dest, vms_vector* src, fix s)
 //dest = src1 + k * src2
 vms_vector* vm_vec_scale_add(vms_vector* dest, vms_vector* src1, vms_vector* src2, fix k)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_scale_add using cd_ox_vm_vec_scale_add.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_scale_add(
+		src1->x, src1->y, src1->z,
+		src2->x, src2->y, src2->z,
+		k,
+		&dest->x, &dest->y, &dest->z);
+#else
 	dest->x = src1->x + fixmul(src2->x, k);
 	dest->y = src1->y + fixmul(src2->y, k);
 	dest->z = src1->z + fixmul(src2->z, k);
+#endif
 
 	return dest;
 }
@@ -139,9 +228,19 @@ vms_vector* vm_vec_scale_add(vms_vector* dest, vms_vector* src1, vms_vector* src
 //dest += k * src
 vms_vector* vm_vec_scale_add2(vms_vector* dest, vms_vector* src, fix k)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_scale_add2 using cd_ox_vm_vec_scale_add2.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_scale_add2(dest->x, dest->y, dest->z, src->x, src->y, src->z, k, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x += fixmul(src->x, k);
 	dest->y += fixmul(src->y, k);
 	dest->z += fixmul(src->z, k);
+#endif
 
 	return dest;
 }
@@ -150,10 +249,20 @@ vms_vector* vm_vec_scale_add2(vms_vector* dest, vms_vector* src, fix k)
 //dest *= n/d
 vms_vector* vm_vec_scale2(vms_vector* dest, fix n, fix d)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_scale2 using cd_ox_vm_vec_scale2.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_scale2(dest->x, dest->y, dest->z, n, d, &dest->x, &dest->y, &dest->z);
+#else
 	if (d == 0) return dest;
 	dest->x = fixmuldiv(dest->x, n, d);
 	dest->y = fixmuldiv(dest->y, n, d);
 	dest->z = fixmuldiv(dest->z, n, d);
+#endif
 
 	return dest;
 }
