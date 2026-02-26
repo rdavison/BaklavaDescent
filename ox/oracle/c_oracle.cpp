@@ -302,6 +302,40 @@ extern "C" void c_oracle_vm_vec_crossprod(c_oracle_vec3* dest, const c_oracle_ve
     dest->z = fixquadadjust_local(qz);
 }
 
+extern "C" int32_t c_oracle_vm_vec_copy_normalize(c_oracle_vec3* dest, const c_oracle_vec3* src)
+{
+    const int32_t m = c_oracle_vm_vec_mag(src);
+    if (m > 0)
+    {
+        dest->x = fixdiv(src->x, m);
+        dest->y = fixdiv(src->y, m);
+        dest->z = fixdiv(src->z, m);
+    }
+    else
+    {
+        dest->x = src->x;
+        dest->y = src->y;
+        dest->z = src->z;
+    }
+    return m;
+}
+
+extern "C" int32_t c_oracle_vm_vec_normalize(c_oracle_vec3* v)
+{
+    return c_oracle_vm_vec_copy_normalize(v, v);
+}
+
+extern "C" int32_t c_oracle_vm_vec_normalized_dir(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* end,
+    const c_oracle_vec3* start)
+{
+    dest->x = end->x - start->x;
+    dest->y = end->y - start->y;
+    dest->z = end->z - start->z;
+    return c_oracle_vm_vec_normalize(dest);
+}
+
 extern "C" int32_t c_oracle_vm_vec_copy_normalize_quick(c_oracle_vec3* dest, const c_oracle_vec3* src)
 {
     const int32_t m = c_oracle_vm_vec_mag_quick(src);

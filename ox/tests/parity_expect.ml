@@ -193,6 +193,11 @@ external c_vm_vec_dot3 : int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_vec_dot3_bc" "caml_c_vm_vec_dot3"
 external c_vm_vec_crossprod : int -> int -> int -> int -> int -> int -> int * int * int
   = "caml_c_vm_vec_crossprod_bc" "caml_c_vm_vec_crossprod"
+external c_vm_vec_copy_normalize : int -> int -> int -> int * int * int * int
+  = "caml_c_vm_vec_copy_normalize"
+external c_vm_vec_normalize : int -> int -> int -> int * int * int * int = "caml_c_vm_vec_normalize"
+external c_vm_vec_normalized_dir : int -> int -> int -> int -> int -> int -> int * int * int * int
+  = "caml_c_vm_vec_normalized_dir_bc" "caml_c_vm_vec_normalized_dir"
 external c_vm_vec_copy_normalize_quick : int -> int -> int -> int * int * int * int
   = "caml_c_vm_vec_copy_normalize_quick"
 external c_vm_vec_normalize_quick : int -> int -> int -> int * int * int * int
@@ -500,6 +505,24 @@ let vm_vec_crossprod_cases =
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
     ((12345, -54321, 99999), (67890, 13579, -24680));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_copy_normalize_cases =
+  [
+    (0, 0, 0);
+    (0x10000, 0x20000, -0x10000);
+    (12345, -54321, 99999);
+    (0x3fffffff, -0x3fffffff, 0);
+  ]
+
+let vm_vec_normalize_cases = vm_vec_copy_normalize_cases
+
+let vm_vec_normalized_dir_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
+    ((12345, -54321, 99999), (67890, 13579, -24680));
+    ((0x3fffffff, -0x3fffffff, 0), (-0x3fffffff, 0x3fffffff, 1));
   ]
 
 let vm_vec_copy_normalize_quick_cases =
@@ -1101,11 +1124,11 @@ let check_vec_copy_normalize_quick name c_impl ox_impl cases =
         ox_z
         (Int.equal c_m ox_m && Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
 
-let run_random_vec_copy_normalize_quick ~name ~seed ~test_count c_impl ox_impl =
+let run_random_vec_copy_normalize_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
   let total = ref 0 in
   let mismatches = ref 0 in
   let first_mismatch = ref None in
-  random_values ~seed ~test_count vec3_gen
+  random_values ~seed ~test_count gen
   |> Sequence.iter ~f:(fun (sx, sy, sz) ->
          incr total;
          let c_m, c_x, c_y, c_z = c_impl sx sy sz in
@@ -1135,6 +1158,9 @@ let run_random_vec_copy_normalize_quick ~name ~seed ~test_count c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let run_random_vec_copy_normalize_quick ~name ~seed ~test_count c_impl ox_impl =
+  run_random_vec_copy_normalize_with_gen ~name ~seed ~test_count ~gen:vec3_gen c_impl ox_impl
+
 let check_vec_normalized_dir_quick name c_impl ox_impl cases =
   List.iter cases ~f:(fun ((ex, ey, ez), (sx, sy, sz)) ->
       let c_m, c_x, c_y, c_z = c_impl ex ey ez sx sy sz in
@@ -1158,8 +1184,7 @@ let check_vec_normalized_dir_quick name c_impl ox_impl cases =
         ox_z
         (Int.equal c_m ox_m && Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
 
-let run_random_vec_normalized_dir_quick ~name ~seed ~test_count c_impl ox_impl =
-  let gen = Quickcheck.Generator.both vec3_gen vec3_gen in
+let run_random_vec_normalized_dir_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
   let total = ref 0 in
   let mismatches = ref 0 in
   let first_mismatch = ref None in
@@ -1195,6 +1220,15 @@ let run_random_vec_normalized_dir_quick ~name ~seed ~test_count c_impl ox_impl =
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_vec_normalized_dir_quick ~name ~seed ~test_count c_impl ox_impl =
+  run_random_vec_normalized_dir_with_gen
+    ~name
+    ~seed
+    ~test_count
+    ~gen:(Quickcheck.Generator.both vec3_gen vec3_gen)
+    c_impl
+    ox_impl
 
 let check_make3 name c_impl ox_impl cases =
   List.iter cases ~f:(fun (x, y, z) ->
@@ -1915,6 +1949,48 @@ let%expect_test "vm_vec_crossprod parity C vs Ox" =
     vm_vec_crossprod a=(2147483647,0,-2147483648) b=(1,-1,2) c=(32768,-98304,-32768) ox=(32768,-98304,-32768) eq=true
     |}]
 
+let%expect_test "vm_vec_copy_normalize parity C vs Ox" =
+  check_vec_copy_normalize_quick
+    "vm_vec_copy_normalize"
+    c_vm_vec_copy_normalize
+    Ox_math.vm_vec_copy_normalize
+    vm_vec_copy_normalize_cases;
+  [%expect
+    {|
+    vm_vec_copy_normalize s=(0,0,0) m=(c:0 ox:0) out=(c:0,0,0 ox:0,0,0) eq=true
+    vm_vec_copy_normalize s=(65536,131072,-65536) m=(c:160530 ox:160530) out=(c:26754,53509,-26754 ox:26754,53509,-26754) eq=true
+    vm_vec_copy_normalize s=(12345,-54321,99999) m=(c:114469 ox:114469) out=(c:7067,-31099,57251 ox:7067,-31099,57251) eq=true
+    vm_vec_copy_normalize s=(1073741823,-1073741823,0) m=(c:1518500249 ox:1518500249) out=(c:46340,-46340,0 ox:46340,-46340,0) eq=true
+    |}]
+
+let%expect_test "vm_vec_normalize parity C vs Ox" =
+  check_vec_copy_normalize_quick
+    "vm_vec_normalize"
+    c_vm_vec_normalize
+    Ox_math.vm_vec_normalize
+    vm_vec_normalize_cases;
+  [%expect
+    {|
+    vm_vec_normalize s=(0,0,0) m=(c:0 ox:0) out=(c:0,0,0 ox:0,0,0) eq=true
+    vm_vec_normalize s=(65536,131072,-65536) m=(c:160530 ox:160530) out=(c:26754,53509,-26754 ox:26754,53509,-26754) eq=true
+    vm_vec_normalize s=(12345,-54321,99999) m=(c:114469 ox:114469) out=(c:7067,-31099,57251 ox:7067,-31099,57251) eq=true
+    vm_vec_normalize s=(1073741823,-1073741823,0) m=(c:1518500249 ox:1518500249) out=(c:46340,-46340,0 ox:46340,-46340,0) eq=true
+    |}]
+
+let%expect_test "vm_vec_normalized_dir parity C vs Ox" =
+  check_vec_normalized_dir_quick
+    "vm_vec_normalized_dir"
+    c_vm_vec_normalized_dir
+    Ox_math.vm_vec_normalized_dir
+    vm_vec_normalized_dir_cases;
+  [%expect
+    {|
+    vm_vec_normalized_dir end=(0,0,0) start=(0,0,0) m=(c:0 ox:0) out=(c:0,0,0 ox:0,0,0) eq=true
+    vm_vec_normalized_dir end=(65536,131072,-65536) start=(65536,-65536,32768) m=(c:219815 ox:219815) out=(c:0,58617,-29308 ox:0,58617,-29308) eq=true
+    vm_vec_normalized_dir end=(12345,-54321,99999) start=(67890,13579,-24680) m=(c:152449 ox:152449) out=(c:-23878,-29189,53598 ox:-23878,-29189,53598) eq=true
+    vm_vec_normalized_dir end=(1073741823,-1073741823,0) start=(-1073741823,1073741823,1) m=(c:-1257966798 ox:-1257966798) out=(c:2147483646,-2147483646,-1 ox:2147483646,-2147483646,-1) eq=true
+    |}]
+
 let%expect_test "vm_vec_copy_normalize_quick parity C vs Ox" =
   check_vec_copy_normalize_quick
     "vm_vec_copy_normalize_quick"
@@ -2221,6 +2297,36 @@ let%expect_test "randomized vm_vec_crossprod parity C vs Ox" =
     c_vm_vec_crossprod
     Ox_math.vm_vec_crossprod;
   [%expect {| vm_vec_crossprod random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_copy_normalize parity C vs Ox" =
+  run_random_vec_copy_normalize_with_gen
+    ~name:"vm_vec_copy_normalize"
+    ~seed:"vm-vec-copy-normalize-seed-v1"
+    ~test_count:5000
+    ~gen:vec3_mag_safe_gen
+    c_vm_vec_copy_normalize
+    Ox_math.vm_vec_copy_normalize;
+  [%expect {| vm_vec_copy_normalize random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_normalize parity C vs Ox" =
+  run_random_vec_copy_normalize_with_gen
+    ~name:"vm_vec_normalize"
+    ~seed:"vm-vec-normalize-seed-v1"
+    ~test_count:5000
+    ~gen:vec3_mag_safe_gen
+    c_vm_vec_normalize
+    Ox_math.vm_vec_normalize;
+  [%expect {| vm_vec_normalize random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_normalized_dir parity C vs Ox" =
+  run_random_vec_normalized_dir_with_gen
+    ~name:"vm_vec_normalized_dir"
+    ~seed:"vm-vec-normalized-dir-seed-v1"
+    ~test_count:5000
+    ~gen:(Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+    c_vm_vec_normalized_dir
+    Ox_math.vm_vec_normalized_dir;
+  [%expect {| vm_vec_normalized_dir random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_copy_normalize_quick parity C vs Ox" =
   run_random_vec_copy_normalize_quick

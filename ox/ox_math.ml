@@ -170,6 +170,15 @@ let vm_vec_crossprod (x0, y0, z0) (x1, y1, z1) =
   let qz = Int64.(of_int x0 * of_int y1 + (of_int (neg_i32 y0) * of_int x1)) in
   fixquadadjust qx, fixquadadjust qy, fixquadadjust qz
 
+let vm_vec_copy_normalize (sx, sy, sz) =
+  let m = vm_vec_mag (sx, sy, sz) in
+  if m > 0 then m, (fixdiv sx m, fixdiv sy m, fixdiv sz m) else m, (sx, sy, sz)
+
+let vm_vec_normalize v = vm_vec_copy_normalize v
+
+let vm_vec_normalized_dir v_end v_start =
+  vm_vec_normalize (vm_vec_sub v_end v_start)
+
 let vm_vec_copy_normalize_quick (sx, sy, sz) =
   let m = vm_vec_mag_quick (sx, sy, sz) in
   if m > 0 then m, (fixdiv sx m, fixdiv sy m, fixdiv sz m) else m, (sx, sy, sz)
