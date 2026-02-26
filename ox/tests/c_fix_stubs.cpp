@@ -326,3 +326,9 @@ extern "C" CAMLprim value caml_c_vm_vec_scale(value dx, value dy, value dz, valu
 
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_mag_quick(value x, value y, value z)
+{
+    c_oracle_vec3 v = { Int_val(x), Int_val(y), Int_val(z) };
+    return Val_long(c_oracle_vm_vec_mag_quick(&v));
+}

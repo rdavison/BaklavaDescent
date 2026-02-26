@@ -1,5 +1,7 @@
 #include "c_oracle.h"
 
+#include <stdlib.h>
+
 #include "fix/fix.h"
 
 extern "C" int32_t c_oracle_i2f(int32_t i)
@@ -115,4 +117,35 @@ extern "C" void c_oracle_vm_vec_scale(c_oracle_vec3* dest, int32_t k)
     dest->x = fixmul(dest->x, k);
     dest->y = fixmul(dest->y, k);
     dest->z = fixmul(dest->z, k);
+}
+
+extern "C" int32_t c_oracle_vm_vec_mag_quick(const c_oracle_vec3* v)
+{
+    int32_t a = labs(v->x);
+    int32_t b = labs(v->y);
+    int32_t c = labs(v->z);
+
+    if (a < b)
+    {
+        int32_t t = a;
+        a = b;
+        b = t;
+    }
+
+    if (b < c)
+    {
+        int32_t t = b;
+        b = c;
+        c = t;
+
+        if (a < b)
+        {
+            int32_t t2 = a;
+            a = b;
+            b = t2;
+        }
+    }
+
+    int32_t bc = (b >> 2) + (c >> 3);
+    return a + bc + (bc >> 1);
 }

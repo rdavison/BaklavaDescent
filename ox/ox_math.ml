@@ -65,3 +65,27 @@ let vm_vec_copy_scale (sx, sy, sz) k =
 
 let vm_vec_scale (dx, dy, dz) k =
   fixmul dx k, fixmul dy k, fixmul dz k
+
+let abs_fix v = wrap_i64_to_fix (Int64.of_int (Int.abs v))
+
+let vm_vec_mag_quick (x, y, z) =
+  let a = ref (abs_fix x) in
+  let b = ref (abs_fix y) in
+  let c = ref (abs_fix z) in
+  if !a < !b
+  then (
+    let t = !a in
+    a := !b;
+    b := t);
+  if !b < !c
+  then (
+    let t = !b in
+    b := !c;
+    c := t;
+    if !a < !b
+    then (
+      let t2 = !a in
+      a := !b;
+      b := t2));
+  let bc = wrap_add_i32 (!b asr 2) (!c asr 3) in
+  wrap_add_i32 !a (wrap_add_i32 bc (bc asr 1))
