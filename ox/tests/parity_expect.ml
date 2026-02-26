@@ -179,6 +179,7 @@ external c_vm_vec_avg4
   -> int * int * int
   = "caml_c_vm_vec_avg4_bc" "caml_c_vm_vec_avg4"
 external c_vm_vec_copy_scale : int -> int -> int -> int -> int * int * int = "caml_c_vm_vec_copy_scale"
+external c_vm_vec_scale : int -> int -> int -> int -> int * int * int = "caml_c_vm_vec_scale"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -285,6 +286,14 @@ let vm_vec_avg4_cases =
   ]
 
 let vm_vec_copy_scale_cases =
+  [
+    ((0, 0, 0), 0);
+    ((0x10000, 0x20000, -0x10000), 0x10000);
+    ((12345, -54321, 99999), 321);
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), 0x10000);
+  ]
+
+let vm_vec_scale_cases =
   [
     ((0, 0, 0), 0);
     ((0x10000, 0x20000, -0x10000), 0x10000);
@@ -830,6 +839,16 @@ let%expect_test "vm_vec_copy_scale parity C vs Ox" =
     vm_vec_copy_scale s=(2147483647,0,-2147483648) k=65536 out=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
     |}]
 
+let%expect_test "vm_vec_scale parity C vs Ox" =
+  check_vec3_scale "vm_vec_scale" c_vm_vec_scale Ox_math.vm_vec_scale vm_vec_scale_cases;
+  [%expect
+    {|
+    vm_vec_scale s=(0,0,0) k=0 out=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_scale s=(65536,131072,-65536) k=65536 out=(65536,131072,-65536) ox=(65536,131072,-65536) eq=true
+    vm_vec_scale s=(12345,-54321,99999) k=321 out=(60,-267,489) ox=(60,-267,489) eq=true
+    vm_vec_scale s=(2147483647,0,-2147483648) k=65536 out=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -936,3 +955,12 @@ let%expect_test "randomized vm_vec_copy_scale parity C vs Ox" =
     c_vm_vec_copy_scale
     Ox_math.vm_vec_copy_scale;
   [%expect {| vm_vec_copy_scale random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_scale parity C vs Ox" =
+  run_random_vec3_scale
+    ~name:"vm_vec_scale"
+    ~seed:"vm-vec-scale-seed-v1"
+    ~test_count:5000
+    c_vm_vec_scale
+    Ox_math.vm_vec_scale;
+  [%expect {| vm_vec_scale random total=5000 mismatches=0 |}]

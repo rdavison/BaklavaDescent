@@ -62,3 +62,6 @@ let vm_vec_avg4 (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) =
 
 let vm_vec_copy_scale (sx, sy, sz) k =
   fixmul sx k, fixmul sy k, fixmul sz k
+
+let vm_vec_scale (dx, dy, dz) k =
+  fixmul dx k, fixmul dy k, fixmul dz k

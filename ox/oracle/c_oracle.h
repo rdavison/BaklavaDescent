@@ -38,6 +38,7 @@ void c_oracle_vm_vec_avg4(
     const c_oracle_vec3* src2,
     const c_oracle_vec3* src3);
 void c_oracle_vm_vec_copy_scale(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k);
+void c_oracle_vm_vec_scale(c_oracle_vec3* dest, int32_t k);
 
 #ifdef __cplusplus
 }

@@ -109,3 +109,10 @@ extern "C" void c_oracle_vm_vec_copy_scale(c_oracle_vec3* dest, const c_oracle_v
     dest->y = fixmul(src->y, k);
     dest->z = fixmul(src->z, k);
 }
+
+extern "C" void c_oracle_vm_vec_scale(c_oracle_vec3* dest, int32_t k)
+{
+    dest->x = fixmul(dest->x, k);
+    dest->y = fixmul(dest->y, k);
+    dest->z = fixmul(dest->z, k);
+}

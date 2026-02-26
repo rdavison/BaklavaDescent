@@ -310,3 +310,19 @@ extern "C" CAMLprim value caml_c_vm_vec_copy_scale(value sx, value sy, value sz,
 
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_scale(value dx, value dy, value dz, value k)
+{
+    CAMLparam4(dx, dy, dz, k);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { Int_val(dx), Int_val(dy), Int_val(dz) };
+    c_oracle_vm_vec_scale(&dest, Int_val(k));
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
