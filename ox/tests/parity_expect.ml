@@ -4,6 +4,18 @@ let check_unop name c_impl ox_impl cases =
       let ox = ox_impl a in
       printf "%s a=%d c=%d ox=%d eq=%b\n" name a c ox (Int.equal c ox))
 
+let check_unop_i64 name c_impl ox_impl cases =
+  List.iter cases ~f:(fun q ->
+      let c = c_impl q in
+      let ox = ox_impl q in
+      printf
+        "%s q=%s c=%d ox=%d eq=%b\n"
+        name
+        (Int64.to_string q)
+        c
+        ox
+        (Int.equal c ox))
+
 let check_unop_pair name c_impl ox_impl cases =
   List.iter cases ~f:(fun a ->
       let c_s, c_c = c_impl a in
@@ -160,6 +172,9 @@ external c_f2i : int -> int = "caml_c_f2i"
 external c_fixmul : int -> int -> int = "caml_c_fixmul"
 external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
+external c_long_sqrt : int -> int = "caml_c_long_sqrt"
+external c_quad_sqrt : int64 -> int = "caml_c_quad_sqrt"
+external c_fixquadadjust : int64 -> int = "caml_c_fixquadadjust"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
 external c_fix_isqrt : int -> int = "caml_c_fix_isqrt"
 external c_fix_sincos : int -> int * int = "caml_c_fix_sincos"
@@ -551,6 +566,60 @@ let muldiv_cases =
     (-0x10000, 0x10000, 0x10000);
     (12345, 67890, 321);
     (12345, 67890, 0);
+  ]
+
+let long_sqrt_cases =
+  [
+    Int32.to_int_exn Int32.min_value;
+    -1;
+    0;
+    1;
+    2;
+    3;
+    4;
+    255;
+    256;
+    257;
+    2147395600;
+    Int32.to_int_exn Int32.max_value;
+  ]
+
+let quad_sqrt_cases =
+  [
+    Int64.min_value;
+    -1L;
+    0L;
+    1L;
+    2L;
+    3L;
+    4L;
+    255L;
+    256L;
+    257L;
+    Int64.of_int 2147395600;
+    Int64.of_int (Int32.to_int_exn Int32.max_value);
+    Int64.succ (Int64.of_int (Int32.to_int_exn Int32.max_value));
+    9223372030926249001L;
+    Int64.max_value;
+  ]
+
+let fixquadadjust_cases =
+  [
+    Int64.min_value;
+    -9223372030926249001L;
+    Int64.shift_left (Int64.of_int 1) 47;
+    Int64.shift_left (Int64.neg (Int64.of_int 1)) 47;
+    Int64.shift_left (Int64.of_int 1) 31;
+    Int64.shift_left (Int64.neg (Int64.of_int 1)) 31;
+    -1L;
+    0L;
+    1L;
+    65535L;
+    65536L;
+    Int64.shift_left (Int64.of_int 2147483647) 16;
+    Int64.shift_left (Int64.of_int (-2147483647)) 16;
+    9223372030926249001L;
+    Int64.max_value;
   ]
 
 let fix_sqrt_cases =
@@ -991,6 +1060,21 @@ let fix_nonneg_gen =
       (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:(fun v -> Int.max 0 (Int32.to_int_exn v)));
     ]
 
+let int64_edge_values =
+  [ Int64.min_value; Int64.max_value; -1L; 0L; 1L; Int64.of_int Int.min_value; Int64.of_int Int.max_value ]
+
+let int64_gen =
+  let from_halves hi lo =
+    let hi64 = Int64.shift_left (Int64.of_int32 hi) 32 in
+    let lo64 = Int64.bit_and (Int64.of_int32 lo) 0xFFFF_FFFFL in
+    Int64.bit_or hi64 lo64
+  in
+  Quickcheck.Generator.weighted_union
+    [
+      (3.0, Quickcheck.Generator.of_list int64_edge_values);
+      (7.0, Quickcheck.Generator.map (Quickcheck.Generator.both Int32.quickcheck_generator Int32.quickcheck_generator) ~f:(fun (hi, lo) -> from_halves hi lo));
+    ]
+
 let random_values ~seed ~test_count gen =
   Quickcheck.random_sequence ~seed:(`Deterministic seed) gen |> fun seq -> Sequence.take seq test_count
 
@@ -1056,6 +1140,32 @@ let run_random_unop_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
 
 let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
   run_random_unop_with_gen ~name ~seed ~test_count ~gen:fix_gen c_impl ox_impl
+
+let run_random_unop_i64 ~name ~seed ~test_count c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count int64_gen
+  |> Sequence.iter ~f:(fun q ->
+         incr total;
+         let c = c_impl q in
+         let ox = ox_impl q in
+         if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s q=%s c=%d ox=%d"
+                     name
+                     (Int64.to_string q)
+                     c
+                     ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
 let run_random_unop_pair ~name ~seed ~test_count c_impl ox_impl =
   let total = ref 0 in
@@ -2590,6 +2700,67 @@ let%expect_test "fixmuldiv parity C vs Ox" =
     fixmuldiv a=12345 b=67890 c=0 c_out=1 ox=1 eq=true
     |}]
 
+let%expect_test "long_sqrt parity C vs Ox" =
+  check_unop "long_sqrt" c_long_sqrt Ox_math.long_sqrt long_sqrt_cases;
+  [%expect {|
+    long_sqrt a=-2147483648 c=0 ox=0 eq=true
+    long_sqrt a=-1 c=0 ox=0 eq=true
+    long_sqrt a=0 c=0 ox=0 eq=true
+    long_sqrt a=1 c=1 ox=1 eq=true
+    long_sqrt a=2 c=2 ox=2 eq=true
+    long_sqrt a=3 c=2 ox=2 eq=true
+    long_sqrt a=4 c=2 ox=2 eq=true
+    long_sqrt a=255 c=16 ox=16 eq=true
+    long_sqrt a=256 c=16 ox=16 eq=true
+    long_sqrt a=257 c=17 ox=17 eq=true
+    long_sqrt a=2147395600 c=46340 ox=46340 eq=true
+    long_sqrt a=2147483647 c=46341 ox=46341 eq=true
+    |}]
+
+let%expect_test "quad_sqrt parity C vs Ox" =
+  check_unop_i64
+    "quad_sqrt"
+    c_quad_sqrt
+    (fun q -> Ox_math.wrap_i64_to_fix (Ox_math.quad_sqrt q))
+    quad_sqrt_cases;
+  [%expect {|
+    quad_sqrt q=-9223372036854775808 c=0 ox=0 eq=true
+    quad_sqrt q=-1 c=0 ox=0 eq=true
+    quad_sqrt q=0 c=0 ox=0 eq=true
+    quad_sqrt q=1 c=1 ox=1 eq=true
+    quad_sqrt q=2 c=2 ox=2 eq=true
+    quad_sqrt q=3 c=2 ox=2 eq=true
+    quad_sqrt q=4 c=2 ox=2 eq=true
+    quad_sqrt q=255 c=16 ox=16 eq=true
+    quad_sqrt q=256 c=16 ox=16 eq=true
+    quad_sqrt q=257 c=17 ox=17 eq=true
+    quad_sqrt q=2147395600 c=46340 ox=46340 eq=true
+    quad_sqrt q=2147483647 c=46341 ox=46341 eq=true
+    quad_sqrt q=2147483648 c=46341 ox=46341 eq=true
+    quad_sqrt q=9223372030926249001 c=-1257966797 ox=-1257966797 eq=true
+    quad_sqrt q=9223372036854775807 c=-1257966796 ox=-1257966796 eq=true
+    |}]
+
+let%expect_test "fixquadadjust parity C vs Ox" =
+  check_unop_i64 "fixquadadjust" c_fixquadadjust Ox_math.fixquadadjust fixquadadjust_cases;
+  [%expect {|
+    fixquadadjust q=-9223372036854775808 c=-2147483647 ox=-2147483647 eq=true
+    fixquadadjust q=-9223372030926249001 c=-2147483647 ox=-2147483647 eq=true
+    fixquadadjust q=140737488355328 c=2147483647 ox=2147483647 eq=true
+    fixquadadjust q=-140737488355328 c=-2147483648 ox=-2147483648 eq=true
+    fixquadadjust q=2147483648 c=32768 ox=32768 eq=true
+    fixquadadjust q=-2147483648 c=-32768 ox=-32768 eq=true
+    fixquadadjust q=-1 c=-1 ox=-1 eq=true
+    fixquadadjust q=0 c=0 ox=0 eq=true
+    fixquadadjust q=1 c=0 ox=0 eq=true
+    fixquadadjust q=65535 c=0 ox=0 eq=true
+    fixquadadjust q=65536 c=1 ox=1 eq=true
+    fixquadadjust q=140737488289792 c=2147483647 ox=2147483647 eq=true
+    fixquadadjust q=-140737488289792 c=-2147483647 ox=-2147483647 eq=true
+    fixquadadjust q=9223372030926249001 c=2147483647 ox=2147483647 eq=true
+    fixquadadjust q=9223372036854775807 c=2147483647 ox=2147483647 eq=true
+    |}]
+
 let%expect_test "fix_sqrt parity C vs Ox" =
   check_unop "fix_sqrt" c_fix_sqrt Ox_math.fix_sqrt fix_sqrt_cases;
   [%expect
@@ -3238,6 +3409,28 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
     c_fixmuldiv
     Ox_math.fixmuldiv;
   [%expect {| fixmuldiv random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized long_sqrt parity C vs Ox" =
+  run_random_unop ~name:"long_sqrt" ~seed:"long-sqrt-seed-v1" ~test_count:5000 c_long_sqrt Ox_math.long_sqrt;
+  [%expect {| long_sqrt random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized quad_sqrt parity C vs Ox" =
+  run_random_unop_i64
+    ~name:"quad_sqrt"
+    ~seed:"quad-sqrt-seed-v1"
+    ~test_count:5000
+    c_quad_sqrt
+    (fun q -> Ox_math.wrap_i64_to_fix (Ox_math.quad_sqrt q));
+  [%expect {| quad_sqrt random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fixquadadjust parity C vs Ox" =
+  run_random_unop_i64
+    ~name:"fixquadadjust"
+    ~seed:"fixquadadjust-seed-v1"
+    ~test_count:5000
+    c_fixquadadjust
+    Ox_math.fixquadadjust;
+  [%expect {| fixquadadjust random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
   run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;

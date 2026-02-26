@@ -29,7 +29,8 @@ static uint64_t c_oracle_sqrt_ceil_u64(uint64_t n, uint64_t hi)
         }
     }
 
-    if ((int64_t)floor * (int64_t)floor == n)
+    const __uint128_t sq = (__uint128_t)floor * (__uint128_t)floor;
+    if (sq == n)
     {
         return floor;
     }
@@ -141,6 +142,33 @@ extern "C" int32_t c_oracle_fixdiv(int32_t a, int32_t b)
 extern "C" int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c)
 {
     return fixmuldiv(a, b, c);
+}
+
+extern "C" int32_t c_oracle_long_sqrt(int32_t a)
+{
+    return c_oracle_long_sqrt_ceil(a);
+}
+
+extern "C" int32_t c_oracle_quad_sqrt(int64_t q)
+{
+    return c_oracle_quad_sqrt_ceil(q);
+}
+
+extern "C" int32_t c_oracle_fixquadadjust(int64_t q)
+{
+    int32_t v = (int32_t)(q >> 16);
+    int32_t vh = (int32_t)(q >> 48);
+    const int signb = vh < 0;
+    const int signv = v < 0;
+    if (signb != signv)
+    {
+        v = (int32_t)0x7FFFFFFF;
+        if (signb)
+        {
+            v = -v;
+        }
+    }
+    return v;
 }
 
 extern "C" int32_t c_oracle_fix_sqrt(int32_t a)

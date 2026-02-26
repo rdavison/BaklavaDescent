@@ -61,12 +61,12 @@ let quad_sqrt q =
       then best
       else
         let mid = I64.add lo (I64.div (I64.sub hi lo) 2L) in
-        let sq = I64.mul mid mid in
-        if I64.compare sq q <= 0
+        let le_q = I64.compare mid I64.(div q mid) <= 0 in
+        if le_q
         then floor_loop (I64.add mid 1L) hi mid
         else floor_loop lo (I64.sub mid 1L) best
     in
-    let floor = floor_loop 0L 3037000500L 0L in
+    let floor = floor_loop 1L 3037000500L 0L in
     if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L
 
 let fix_sqrt a = Int.shift_left (long_sqrt a) 8

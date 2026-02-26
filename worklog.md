@@ -347,3 +347,29 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - `cmake --build build-ox -j` passes.
+
+### 28) Added internal helper parity (`long_sqrt`, `quad_sqrt`, `fixquadadjust`) and fixed a real Ox bug
+- Extended C oracle API in `ox/oracle/c_oracle.{h,cpp}`:
+  - `c_oracle_long_sqrt(int32_t a)`
+  - `c_oracle_quad_sqrt(int64_t q)`
+  - `c_oracle_fixquadadjust(int64_t q)`
+- Extended parity stubs in `ox/tests/c_fix_stubs.cpp`:
+  - `caml_c_long_sqrt`
+  - `caml_c_quad_sqrt`
+  - `caml_c_fixquadadjust`
+- Extended parity harness in `ox/tests/parity_expect.ml`:
+  - deterministic parity tests for:
+    - `long_sqrt`
+    - `quad_sqrt`
+    - `fixquadadjust`
+  - seeded randomized differential tests for the same helper set.
+  - added `int64`-input parity helper + generator (`check_unop_i64`, `run_random_unop_i64`, `int64_gen`).
+- Important bug discovered and fixed:
+  - Randomized `quad_sqrt` differential tests found mismatches at high `int64` values.
+  - Root cause: `Ox_math.quad_sqrt` compared `mid * mid` in `int64`, which overflows near `Int64.max_value`.
+  - Fix: switched to overflow-safe comparison `mid <= q / mid` and started binary search at `lo=1`.
+  - Result: `quad_sqrt` parity now matches C-oracle behavior (including wrapped int32 ABI in the test bridge).
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.
