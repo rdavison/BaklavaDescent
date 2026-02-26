@@ -9,6 +9,39 @@ static inline int32_t neg_i32_wrap(int32_t v)
     return (int32_t)(0u - (uint32_t)v);
 }
 
+static int32_t c_oracle_long_sqrt_ceil(int32_t a)
+{
+    if (a <= 0)
+    {
+        return 0;
+    }
+
+    const int64_t n = (int64_t)a;
+    int32_t lo = 0;
+    int32_t hi = 46341;
+    int32_t floor = 0;
+    while (lo <= hi)
+    {
+        const int32_t mid = lo + ((hi - lo) / 2);
+        const int64_t sq = (int64_t)mid * (int64_t)mid;
+        if (sq <= n)
+        {
+            floor = mid;
+            lo = mid + 1;
+        }
+        else
+        {
+            hi = mid - 1;
+        }
+    }
+
+    if ((int64_t)floor * (int64_t)floor == n)
+    {
+        return floor;
+    }
+    return floor + 1;
+}
+
 extern "C" int32_t c_oracle_i2f(int32_t i)
 {
     return i2f(i);
@@ -32,6 +65,11 @@ extern "C" int32_t c_oracle_fixdiv(int32_t a, int32_t b)
 extern "C" int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c)
 {
     return fixmuldiv(a, b, c);
+}
+
+extern "C" int32_t c_oracle_fix_sqrt(int32_t a)
+{
+    return c_oracle_long_sqrt_ceil(a) << 8;
 }
 
 extern "C" void c_oracle_vm_vec_scale_add2(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k)

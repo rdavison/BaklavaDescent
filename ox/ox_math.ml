@@ -24,6 +24,28 @@ let fixmuldiv a b c =
   if c = 0 then 1
   else Int64.(wrap_i64_to_fix ((of_int a * of_int b) / of_int c))
 
+let long_sqrt a =
+  if a <= 0
+  then 0
+  else
+    let n = Int64.of_int a in
+    let rec floor_loop lo hi best =
+      if lo > hi
+      then best
+      else
+        let mid = (lo + hi) / 2 in
+        let mid64 = Int64.of_int mid in
+        let sq = Int64.( * ) mid64 mid64 in
+        if Int64.( <= ) sq n
+        then floor_loop (mid + 1) hi mid
+        else floor_loop lo (mid - 1) best
+    in
+    let floor = floor_loop 0 46341 0 in
+    let floor64 = Int64.of_int floor in
+    if Int64.( = ) (Int64.( * ) floor64 floor64) n then floor else floor + 1
+
+let fix_sqrt a = Int.shift_left (long_sqrt a) 8
+
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
 let vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k =

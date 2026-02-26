@@ -31,6 +31,11 @@ extern "C" CAMLprim value caml_c_fixmuldiv(value a, value b, value c)
     return Val_long(c_oracle_fixmuldiv(Int_val(a), Int_val(b), Int_val(c)));
 }
 
+extern "C" CAMLprim value caml_c_fix_sqrt(value a)
+{
+    return Val_long(c_oracle_fix_sqrt(Int_val(a)));
+}
+
 extern "C" CAMLprim value caml_c_vm_vec_scale_add2(
     value dx,
     value dy,

@@ -11,6 +11,7 @@ int32_t c_oracle_f2i(int32_t f);
 int32_t c_oracle_fixmul(int32_t a, int32_t b);
 int32_t c_oracle_fixdiv(int32_t a, int32_t b);
 int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c);
+int32_t c_oracle_fix_sqrt(int32_t a);
 
 typedef struct c_oracle_vec3
 {

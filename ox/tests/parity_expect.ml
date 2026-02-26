@@ -146,6 +146,7 @@ external c_f2i : int -> int = "caml_c_f2i"
 external c_fixmul : int -> int -> int = "caml_c_fixmul"
 external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
+external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
 external c_vm_vec_scale_add2
   :  int -> int -> int -> int -> int -> int -> int -> int * int * int
   = "caml_c_vm_vec_scale_add2_bc" "caml_c_vm_vec_scale_add2"
@@ -350,6 +351,9 @@ let muldiv_cases =
     (12345, 67890, 321);
     (12345, 67890, 0);
   ]
+
+let fix_sqrt_cases =
+  [ -1; 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
 
 let vm_vec_scale_add2_cases =
   [
@@ -597,6 +601,24 @@ let mat3_gen =
   Quickcheck.Generator.map
     (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
     ~f:(fun (rvec, (uvec, fvec)) -> (rvec, uvec, fvec))
+
+let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count fix_gen
+  |> Sequence.iter ~f:(fun a ->
+         incr total;
+         let c = c_impl a in
+         let ox = ox_impl a in
+         if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s a=%d c=%d ox=%d" name a c ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
 let run_random_binop ~name ~seed ~test_count c_impl ox_impl =
   let gen = Quickcheck.Generator.both fix_gen fix_gen in
@@ -1644,6 +1666,23 @@ let%expect_test "fixmuldiv parity C vs Ox" =
     fixmuldiv a=12345 b=67890 c=0 c_out=1 ox=1 eq=true
     |}]
 
+let%expect_test "fix_sqrt parity C vs Ox" =
+  check_unop "fix_sqrt" c_fix_sqrt Ox_math.fix_sqrt fix_sqrt_cases;
+  [%expect
+    {|
+    fix_sqrt a=-1 c=0 ox=0 eq=true
+    fix_sqrt a=0 c=0 ox=0 eq=true
+    fix_sqrt a=1 c=256 ox=256 eq=true
+    fix_sqrt a=2 c=512 ox=512 eq=true
+    fix_sqrt a=255 c=4096 ox=4096 eq=true
+    fix_sqrt a=256 c=4096 ox=4096 eq=true
+    fix_sqrt a=257 c=4352 ox=4352 eq=true
+    fix_sqrt a=65536 c=65536 ox=65536 eq=true
+    fix_sqrt a=262144 c=131072 ox=131072 eq=true
+    fix_sqrt a=2147395600 c=11863040 ox=11863040 eq=true
+    fix_sqrt a=2147483647 c=11863296 ox=11863296 eq=true
+    |}]
+
 let%expect_test "vm_vec_scale_add2 parity C vs Ox" =
   check_stateful_vec3 "vm_vec_scale_add2" c_vm_vec_scale_add2 Ox_math.vm_vec_scale_add2 vm_vec_scale_add2_cases;
   [%expect
@@ -1950,6 +1989,10 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
     c_fixmuldiv
     Ox_math.fixmuldiv;
   [%expect {| fixmuldiv random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_sqrt parity C vs Ox" =
+  run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;
+  [%expect {| fix_sqrt random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale_add2 parity C vs Ox" =
   run_random_stateful_vec3
