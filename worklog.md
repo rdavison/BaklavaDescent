@@ -113,3 +113,51 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - case count
   - mismatch count
   - first mismatch (if any)
+
+## Session Update (February 26, 2026)
+
+### 12) Large parity expansion after Step 1
+- Added many additional C-oracle vs Ox parity ports with fixed-case and randomized tests.
+- Kept test execution single-process (`dune runtest ox/tests --no-buffer -j 1`) to avoid dune lock/process contention.
+- Continued explicit, typed equality in tests (no `Poly.equal`) and retained Core/Base-first style.
+
+### 13) New math/vector/matrix ports completed
+- Fixed-point:
+  - `fix_sqrt`.
+- Vector exact/quick operations:
+  - `vm_vec_mag`, `vm_vec_dist`.
+  - `vm_vec_copy_normalize`, `vm_vec_normalize`, `vm_vec_normalized_dir`.
+  - `vm_vec_normal`.
+- Matrix/rotation operations:
+  - `vm_vec_rotate`.
+  - `vm_transpose_matrix`, `vm_copy_transpose_matrix`.
+  - `vm_matrix_x_matrix`.
+  - `vm_vector_2_matrix` (including optional up/right vector semantics matching C `NULL` behavior).
+  - `sincos_2_matrix`.
+
+### 14) Harness/oracle improvements made during expansion
+- Extended C oracle (`ox/oracle/c_oracle.{h,cpp}`) for each newly ported function.
+- Extended OCaml FFI stubs (`ox/tests/c_fix_stubs.cpp`) for each new oracle entrypoint.
+- Added matrix-aware and option-aware parity helpers/generators in `ox/tests/parity_expect.ml`.
+- Added constrained/randomized generators for overflow-sensitive paths where C behavior can become pathological.
+
+### 15) Commit trail for this expansion
+- `7e31765` Port `vm_vec_rotate` and matrix transpose parity tests.
+- `b3fa912` Port `vm_matrix_x_matrix` with C parity coverage.
+- `201acf1` Port `fix_sqrt` with differential parity tests.
+- `6e55959` Port `vm_vec_mag` and `vm_vec_dist` with parity tests.
+- `5696517` Port exact vector normalize operations with parity tests.
+- `9fda811` Port `vm_vec_normal` with constrained parity fuzzing.
+- `801059a` Port `vm_vector_2_matrix` with option-aware parity tests.
+- `1d36e61` Port `sincos_2_matrix` with differential matrix tests.
+
+### 16) Current state (updated)
+- Ox bridge is live in-engine for routed functions.
+- Parity suite now covers a substantial set of fixed-point, vector, and matrix primitives.
+- Every new function above has both deterministic examples and seeded randomized differential checks, and is green.
+
+### 17) Proposed next step (Step 4)
+- Start porting angle/trig stack consumers that sit on top of the now-ported primitives:
+  - `vm_angles_2_matrix`.
+  - `vm_vec_ang_2_matrix`.
+  - potentially `vm_vec_delta_ang_norm` / `vm_vec_delta_ang` after table-backed trig parity choices are finalized.
