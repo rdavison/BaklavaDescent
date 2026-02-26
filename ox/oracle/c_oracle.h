@@ -89,6 +89,14 @@ void c_oracle_vm_vec_normal(
     const c_oracle_vec3* p0,
     const c_oracle_vec3* p1,
     const c_oracle_vec3* p2);
+int16_t c_oracle_vm_vec_delta_ang(
+    const c_oracle_vec3* v0,
+    const c_oracle_vec3* v1,
+    const c_oracle_vec3* fvec);
+int16_t c_oracle_vm_vec_delta_ang_norm(
+    const c_oracle_vec3* v0,
+    const c_oracle_vec3* v1,
+    const c_oracle_vec3* fvec);
 void c_oracle_sincos_2_matrix(
     c_oracle_mat3* dest,
     int32_t sinp,

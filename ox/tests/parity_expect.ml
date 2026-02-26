@@ -232,6 +232,32 @@ external c_vm_vec_normal
   -> int
   -> int * int * int
   = "caml_c_vm_vec_normal_bc" "caml_c_vm_vec_normal"
+external c_vm_vec_delta_ang_norm_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> bool
+  -> int
+  -> int
+  -> int
+  -> int
+  = "caml_c_vm_vec_delta_ang_norm_bc" "caml_c_vm_vec_delta_ang_norm"
+external c_vm_vec_delta_ang_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> bool
+  -> int
+  -> int
+  -> int
+  -> int
+  = "caml_c_vm_vec_delta_ang_bc" "caml_c_vm_vec_delta_ang"
 external c_sincos_2_matrix_raw
   :  int
   -> int
@@ -400,6 +426,22 @@ let c_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
 let c_vm_angles_2_matrix (p, b, h) = mat3_of_flat (c_vm_angles_2_matrix_raw p b h)
 
 let c_vm_vec_ang_2_matrix (vx, vy, vz) a = mat3_of_flat (c_vm_vec_ang_2_matrix_raw vx vy vz a)
+
+let c_vm_vec_delta_ang_norm (v0x, v0y, v0z) (v1x, v1y, v1z) fvec =
+  let has_f, fx, fy, fz =
+    match fvec with
+    | Some (x, y, z) -> true, x, y, z
+    | None -> false, 0, 0, 0
+  in
+  c_vm_vec_delta_ang_norm_raw v0x v0y v0z v1x v1y v1z has_f fx fy fz
+
+let c_vm_vec_delta_ang (v0x, v0y, v0z) (v1x, v1y, v1z) fvec =
+  let has_f, fx, fy, fz =
+    match fvec with
+    | Some (x, y, z) -> true, x, y, z
+    | None -> false, 0, 0, 0
+  in
+  c_vm_vec_delta_ang_raw v0x v0y v0z v1x v1y v1z has_f fx fy fz
 
 let c_vm_matrix_x_matrix m0 m1 =
   let r0x, r0y, r0z, u0x, u0y, u0z, f0x, f0y, f0z = flat_of_mat3 m0 in
@@ -674,6 +716,17 @@ let vm_vec_perp_cases =
 
 let vm_vec_normal_cases = vm_vec_perp_cases
 
+let vm_vec_delta_ang_cases =
+  [
+    ((0x10000, 0, 0), (0x10000, 0, 0), None);
+    ((0x10000, 0, 0), (0, 0x10000, 0), None);
+    ((0x10000, 0, 0), (0, 0x10000, 0), Some (0, 0, 0x10000));
+    ((0x10000, 0, 0), (0, 0x10000, 0), Some (0, 0, -0x10000));
+    ((0, 0, 0), (0x10000, 0, 0), Some (0, 0, 0x10000));
+    ((12345, -54321, 99999), (67890, 13579, -24680), Some (-11111, 22222, -33333));
+    ((Int32.to_int_exn Int32.max_value, 1, Int32.to_int_exn Int32.min_value), (1, -1, 2), None);
+  ]
+
 let mat_identity = ((0x10000, 0, 0), (0, 0x10000, 0), (0, 0, 0x10000))
 
 let mat_sample =
@@ -776,6 +829,10 @@ let vec3_gen =
   Quickcheck.Generator.map
     (Quickcheck.Generator.both fix_gen (Quickcheck.Generator.both fix_gen fix_gen))
     ~f:(fun (x, (y, z)) -> (x, y, z))
+
+let vec3_option_gen =
+  Quickcheck.Generator.weighted_union
+    [ (1.0, Quickcheck.Generator.return None); (3.0, Quickcheck.Generator.map vec3_gen ~f:Option.some) ]
 
 let mat3_gen =
   Quickcheck.Generator.map
@@ -1255,6 +1312,51 @@ let run_random_two_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
     ~gen:(Quickcheck.Generator.both vec3_gen vec3_gen)
     c_impl
     ox_impl
+
+let check_two_vec3_opt_to_scalar name c_impl ox_impl cases =
+  let fmt_opt = function
+    | None -> "None"
+    | Some (x, y, z) -> sprintf "Some(%d,%d,%d)" x y z
+  in
+  List.iter cases ~f:(fun ((x0, y0, z0), (x1, y1, z1), fvec) ->
+      let c = c_impl (x0, y0, z0) (x1, y1, z1) fvec in
+      let ox = ox_impl (x0, y0, z0) (x1, y1, z1) fvec in
+      printf
+        "%s v0=(%d,%d,%d) v1=(%d,%d,%d) f=%s c=%d ox=%d eq=%b\n"
+        name
+        x0
+        y0
+        z0
+        x1
+        y1
+        z1
+        (fmt_opt fvec)
+        c
+        ox
+        (Int.equal c ox))
+
+let run_random_two_vec3_opt_to_scalar ~name ~seed ~test_count c_impl ox_impl =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_option_gen))
+      ~f:(fun (v0, (v1, fvec)) -> (v0, v1, fvec))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (v0, v1, fvec) ->
+         incr total;
+         let c = c_impl v0 v1 fvec in
+         let ox = ox_impl v0 v1 fvec in
+         if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
 let check_vec_copy_normalize_quick name c_impl ox_impl cases =
   List.iter cases ~f:(fun (sx, sy, sz) ->
@@ -2529,6 +2631,38 @@ let%expect_test "vm_vec_normal parity C vs Ox" =
     vm_vec_normal p0=(2147483647,0,-2147483647) p1=(1,-1,2) p2=(7,-7,14) c=(-43690,0,43690) ox=(-43690,0,43690) eq=true
     |}]
 
+let%expect_test "vm_vec_delta_ang_norm parity C vs Ox" =
+  check_two_vec3_opt_to_scalar
+    "vm_vec_delta_ang_norm"
+    c_vm_vec_delta_ang_norm
+    Ox_math.vm_vec_delta_ang_norm
+    vm_vec_delta_ang_cases;
+  [%expect {|
+    vm_vec_delta_ang_norm v0=(65536,0,0) v1=(65536,0,0) f=None c=0 ox=0 eq=true
+    vm_vec_delta_ang_norm v0=(65536,0,0) v1=(0,65536,0) f=None c=16384 ox=16384 eq=true
+    vm_vec_delta_ang_norm v0=(65536,0,0) v1=(0,65536,0) f=Some(0,0,65536) c=16384 ox=16384 eq=true
+    vm_vec_delta_ang_norm v0=(65536,0,0) v1=(0,65536,0) f=Some(0,0,-65536) c=-16384 ox=-16384 eq=true
+    vm_vec_delta_ang_norm v0=(0,0,0) v1=(65536,0,0) f=Some(0,0,65536) c=16384 ox=16384 eq=true
+    vm_vec_delta_ang_norm v0=(12345,-54321,99999) v1=(67890,13579,-24680) f=Some(-11111,22222,-33333) c=22474 ox=22474 eq=true
+    vm_vec_delta_ang_norm v0=(2147483647,1,-2147483648) v1=(1,-1,2) f=None c=21846 ox=21846 eq=true
+    |}]
+
+let%expect_test "vm_vec_delta_ang parity C vs Ox" =
+  check_two_vec3_opt_to_scalar
+    "vm_vec_delta_ang"
+    c_vm_vec_delta_ang
+    Ox_math.vm_vec_delta_ang
+    vm_vec_delta_ang_cases;
+  [%expect {|
+    vm_vec_delta_ang v0=(65536,0,0) v1=(65536,0,0) f=None c=0 ox=0 eq=true
+    vm_vec_delta_ang v0=(65536,0,0) v1=(0,65536,0) f=None c=16384 ox=16384 eq=true
+    vm_vec_delta_ang v0=(65536,0,0) v1=(0,65536,0) f=Some(0,0,65536) c=16384 ox=16384 eq=true
+    vm_vec_delta_ang v0=(65536,0,0) v1=(0,65536,0) f=Some(0,0,-65536) c=-16384 ox=-16384 eq=true
+    vm_vec_delta_ang v0=(0,0,0) v1=(65536,0,0) f=Some(0,0,65536) c=16384 ox=16384 eq=true
+    vm_vec_delta_ang v0=(12345,-54321,99999) v1=(67890,13579,-24680) f=Some(-11111,22222,-33333) c=19360 ox=19360 eq=true
+    vm_vec_delta_ang v0=(2147483647,1,-2147483648) v1=(1,-1,2) f=None c=0 ox=0 eq=true
+    |}]
+
 let%expect_test "vm_vec_rotate parity C vs Ox" =
   check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate Ox_math.vm_vec_rotate vm_vec_rotate_cases;
   [%expect
@@ -2933,6 +3067,24 @@ let%expect_test "randomized vm_vec_normal parity C vs Ox" =
     c_vm_vec_normal
     Ox_math.vm_vec_normal;
   [%expect {| vm_vec_normal random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_delta_ang_norm parity C vs Ox" =
+  run_random_two_vec3_opt_to_scalar
+    ~name:"vm_vec_delta_ang_norm"
+    ~seed:"vm-vec-delta-ang-norm-seed-v1"
+    ~test_count:5000
+    c_vm_vec_delta_ang_norm
+    Ox_math.vm_vec_delta_ang_norm;
+  [%expect {| vm_vec_delta_ang_norm random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_delta_ang parity C vs Ox" =
+  run_random_two_vec3_opt_to_scalar
+    ~name:"vm_vec_delta_ang"
+    ~seed:"vm-vec-delta-ang-seed-v1"
+    ~test_count:5000
+    c_vm_vec_delta_ang
+    Ox_math.vm_vec_delta_ang;
+  [%expect {| vm_vec_delta_ang random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
   run_random_vec3_mat_to_vec3

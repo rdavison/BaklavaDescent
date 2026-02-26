@@ -61,6 +61,12 @@ static int32_t c_oracle_sincos_lut_entry(int i)
     return (int32_t)llround(sin(angle) * 16384.0);
 }
 
+static int32_t c_oracle_acos_lut_entry(int i)
+{
+    const double pi = 3.14159265358979323846;
+    return (int32_t)llround(acos((double)i / 256.0) * 32768.0 / pi);
+}
+
 static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
 {
     const int i = (a >> 8) & 0xFF;
@@ -71,6 +77,29 @@ static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
 
     const int32_t cc = c_oracle_sincos_lut_entry(i + 64);
     *c = (cc + (((c_oracle_sincos_lut_entry(i + 65) - cc) * f) >> 8)) << 2;
+}
+
+static int16_t c_oracle_fix_acos(int32_t v)
+{
+    int32_t vv = (int32_t)labs(v);
+
+    if (vv >= f1_0)
+    {
+        return 0;
+    }
+
+    const int i = (vv >> 8) & 0xFF;
+    const int f = vv & 0xFF;
+
+    int32_t aa = c_oracle_acos_lut_entry(i);
+    aa = aa + (((c_oracle_acos_lut_entry(i + 1) - aa) * f) >> 8);
+
+    if (v < 0)
+    {
+        aa = 0x8000 - aa;
+    }
+
+    return (int16_t)aa;
 }
 
 extern "C" int32_t c_oracle_i2f(int32_t i)
@@ -488,6 +517,40 @@ extern "C" void c_oracle_vm_vec_normal(
 {
     c_oracle_vm_vec_perp(dest, p0, p1, p2);
     c_oracle_vm_vec_normalize(dest);
+}
+
+extern "C" int16_t c_oracle_vm_vec_delta_ang_norm(
+    const c_oracle_vec3* v0,
+    const c_oracle_vec3* v1,
+    const c_oracle_vec3* fvec)
+{
+    int16_t a = c_oracle_fix_acos(c_oracle_vm_vec_dotprod(v0, v1));
+
+    if (fvec != nullptr)
+    {
+        c_oracle_vec3 t = { 0, 0, 0 };
+        c_oracle_vm_vec_crossprod(&t, v0, v1);
+        if (c_oracle_vm_vec_dotprod(&t, fvec) < 0)
+        {
+            a = (int16_t)(-a);
+        }
+    }
+
+    return a;
+}
+
+extern "C" int16_t c_oracle_vm_vec_delta_ang(
+    const c_oracle_vec3* v0,
+    const c_oracle_vec3* v1,
+    const c_oracle_vec3* fvec)
+{
+    c_oracle_vec3 t0 = { 0, 0, 0 };
+    c_oracle_vec3 t1 = { 0, 0, 0 };
+
+    c_oracle_vm_vec_copy_normalize(&t0, v0);
+    c_oracle_vm_vec_copy_normalize(&t1, v1);
+
+    return c_oracle_vm_vec_delta_ang_norm(&t0, &t1, fvec);
 }
 
 extern "C" void c_oracle_sincos_2_matrix(

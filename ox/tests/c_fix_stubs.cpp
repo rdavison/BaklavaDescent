@@ -682,6 +682,68 @@ extern "C" CAMLprim value caml_c_vm_vec_normal_bc(value* argv, int argn)
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
 
+extern "C" CAMLprim value caml_c_vm_vec_delta_ang_norm(
+    value v0x,
+    value v0y,
+    value v0z,
+    value v1x,
+    value v1y,
+    value v1z,
+    value has_f,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(v0x, v0y, v0z, v1x, v1y);
+    CAMLxparam5(v1z, has_f, fx, fy, fz);
+
+    const c_oracle_vec3 v0 = { Int_val(v0x), Int_val(v0y), Int_val(v0z) };
+    const c_oracle_vec3 v1 = { Int_val(v1x), Int_val(v1y), Int_val(v1z) };
+    const c_oracle_vec3 fvec = { Int_val(fx), Int_val(fy), Int_val(fz) };
+    const int16_t out =
+        c_oracle_vm_vec_delta_ang_norm(&v0, &v1, Bool_val(has_f) ? &fvec : nullptr);
+
+    CAMLreturn(Val_long(out));
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_delta_ang_norm_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_delta_ang_norm(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_delta_ang(
+    value v0x,
+    value v0y,
+    value v0z,
+    value v1x,
+    value v1y,
+    value v1z,
+    value has_f,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(v0x, v0y, v0z, v1x, v1y);
+    CAMLxparam5(v1z, has_f, fx, fy, fz);
+
+    const c_oracle_vec3 v0 = { Int_val(v0x), Int_val(v0y), Int_val(v0z) };
+    const c_oracle_vec3 v1 = { Int_val(v1x), Int_val(v1y), Int_val(v1z) };
+    const c_oracle_vec3 fvec = { Int_val(fx), Int_val(fy), Int_val(fz) };
+    const int16_t out =
+        c_oracle_vm_vec_delta_ang(&v0, &v1, Bool_val(has_f) ? &fvec : nullptr);
+
+    CAMLreturn(Val_long(out));
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_delta_ang_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_delta_ang(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
 extern "C" CAMLprim value caml_c_sincos_2_matrix(
     value sinp,
     value cosp,

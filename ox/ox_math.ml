@@ -54,6 +54,10 @@ let sincos_lut =
   Array.init 321 ~f:(fun i ->
       Int.of_float (Float.round (Float.sin (Float.of_int i *. Float.pi /. 128.0) *. 16384.0)))
 
+let acos_lut =
+  Array.init 257 ~f:(fun i ->
+      Int.of_float (Float.round (Float.acos (Float.of_int i /. 256.0) *. 32768.0 /. Float.pi)))
+
 let fix_sincos a =
   let i = Int.bit_and (Int.shift_right a 8) 0xFF in
   let f = Int.bit_and a 0xFF in
@@ -64,6 +68,19 @@ let fix_sincos a =
   let cc = sincos_lut.(i + 64) in
   let cosv = Int.shift_left (cc + (Int.shift_right ((sincos_lut.(i + 65) - cc) * f) 8)) 2 in
   sinv, cosv
+
+let fix_acos v =
+  let vv = wrap_i64_to_fix (Int64.of_int (Int.abs v)) in
+  if vv >= 0x10000
+  then 0
+  else
+    let i = Int.bit_and (Int.shift_right vv 8) 0xFF in
+    let f = Int.bit_and vv 0xFF in
+    let aa = acos_lut.(i) in
+    let aa = aa + (Int.shift_right ((acos_lut.(i + 1) - aa) * f) 8) in
+    let aa = if v < 0 then 0x8000 - aa else aa in
+    let low16 = Int.bit_and aa 0xFFFF in
+    if low16 > 0x7FFF then low16 - 0x10000 else low16
 
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
@@ -306,6 +323,19 @@ let vm_vec_ang_2_matrix (vx, vy, vz) a =
   let sinh = fixdiv vx cosp in
   let cosh = fixdiv vz cosp in
   sincos_2_matrix sinp cosp sinb cosb sinh cosh
+
+let vm_vec_delta_ang_norm v0 v1 fvec =
+  let a = fix_acos (vm_vec_dotprod v0 v1) in
+  match fvec with
+  | None -> a
+  | Some f ->
+    let t = vm_vec_crossprod v0 v1 in
+    if vm_vec_dotprod t f < 0 then wrap_i64_to_fixang (Int64.of_int (-a)) else a
+
+let vm_vec_delta_ang v0 v1 fvec =
+  let _, t0 = vm_vec_copy_normalize v0 in
+  let _, t1 = vm_vec_copy_normalize v1 in
+  vm_vec_delta_ang_norm t0 t1 fvec
 
 let vm_vector_2_matrix fvec uvec rvec =
   let bad_vector2 zvec =

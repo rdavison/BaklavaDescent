@@ -175,3 +175,18 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 19) Continued angle stack: delta-angle ports completed
+- Implemented in Ox:
+  - `fix_acos`-equivalent interpolation behavior (table-sample semantics reproduced in Ox via canonical sampled acos values).
+  - `vm_vec_delta_ang_norm` (optional signedness vector behavior preserved).
+  - `vm_vec_delta_ang` (normalize-then-delegate behavior preserved).
+- Extended C oracle:
+  - `c_oracle_vm_vec_delta_ang_norm`.
+  - `c_oracle_vm_vec_delta_ang`.
+- Extended parity harness:
+  - option-aware scalar helpers and generators for `(v0, v1, fvec option)` cases.
+  - deterministic and seeded randomized parity tests for both new functions.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
