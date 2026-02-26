@@ -41,6 +41,7 @@ void c_oracle_vm_vec_copy_scale(c_oracle_vec3* dest, const c_oracle_vec3* src, i
 void c_oracle_vm_vec_scale(c_oracle_vec3* dest, int32_t k);
 int32_t c_oracle_vm_vec_mag_quick(const c_oracle_vec3* v);
 int32_t c_oracle_vm_vec_dist_quick(const c_oracle_vec3* v0, const c_oracle_vec3* v1);
+int32_t c_oracle_vm_vec_dotprod(const c_oracle_vec3* v0, const c_oracle_vec3* v1);
 
 #ifdef __cplusplus
 }

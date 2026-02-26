@@ -345,3 +345,16 @@ extern "C" CAMLprim value caml_c_vm_vec_dist_quick_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_dist_quick(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_dotprod(value x0, value y0, value z0, value x1, value y1, value z1)
+{
+    c_oracle_vec3 v0 = { Int_val(x0), Int_val(y0), Int_val(z0) };
+    c_oracle_vec3 v1 = { Int_val(x1), Int_val(y1), Int_val(z1) };
+    return Val_long(c_oracle_vm_vec_dotprod(&v0, &v1));
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_dotprod_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_dotprod(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}

@@ -92,3 +92,18 @@ let vm_vec_mag_quick (x, y, z) =
 
 let vm_vec_dist_quick (x0, y0, z0) (x1, y1, z1) =
   vm_vec_mag_quick (vm_vec_sub (x0, y0, z0) (x1, y1, z1))
+
+let fixquadadjust q =
+  let v = wrap_i64_to_fix (Int64.shift_right q 16) in
+  let signb = Int64.( < ) (Int64.shift_right q 48) 0L in
+  let signv = v < 0 in
+  if Bool.( <> ) signb signv then if signb then -0x7FFF_FFFF else 0x7FFF_FFFF else v
+
+let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
+  let q =
+    Int64.(
+      (of_int x0 * of_int x1)
+      + (of_int y0 * of_int y1)
+      + (of_int z0 * of_int z1))
+  in
+  fixquadadjust q

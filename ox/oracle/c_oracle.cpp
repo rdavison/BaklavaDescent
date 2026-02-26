@@ -155,3 +155,25 @@ extern "C" int32_t c_oracle_vm_vec_dist_quick(const c_oracle_vec3* v0, const c_o
     c_oracle_vec3 t = { v0->x - v1->x, v0->y - v1->y, v0->z - v1->z };
     return c_oracle_vm_vec_mag_quick(&t);
 }
+
+extern "C" int32_t c_oracle_vm_vec_dotprod(const c_oracle_vec3* v0, const c_oracle_vec3* v1)
+{
+    const int64_t q =
+        (int64_t)v0->x * (int64_t)v1->x +
+        (int64_t)v0->y * (int64_t)v1->y +
+        (int64_t)v0->z * (int64_t)v1->z;
+
+    int32_t v = (int32_t)(q >> 16);
+    int32_t vh = (int32_t)(q >> 48);
+    const int signb = vh < 0;
+    const int signv = v < 0;
+    if (signb != signv)
+    {
+        v = (int32_t)0x7FFFFFFF;
+        if (signb)
+        {
+            v = -v;
+        }
+    }
+    return v;
+}
