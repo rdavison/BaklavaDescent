@@ -59,3 +59,6 @@ let vm_vec_avg4 (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) =
   let y = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a2 b2) c2) d2 in
   let z = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a3 b3) c3) d3 in
   x / 4, y / 4, z / 4
+
+let vm_vec_copy_scale (sx, sy, sz) k =
+  fixmul sx k, fixmul sy k, fixmul sz k

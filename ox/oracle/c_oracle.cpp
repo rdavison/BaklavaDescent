@@ -102,3 +102,10 @@ extern "C" void c_oracle_vm_vec_avg4(
     dest->y = (src0->y + src1->y + src2->y + src3->y) / 4;
     dest->z = (src0->z + src1->z + src2->z + src3->z) / 4;
 }
+
+extern "C" void c_oracle_vm_vec_copy_scale(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k)
+{
+    dest->x = fixmul(src->x, k);
+    dest->y = fixmul(src->y, k);
+    dest->z = fixmul(src->z, k);
+}

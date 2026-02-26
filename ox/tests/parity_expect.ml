@@ -101,6 +101,25 @@ let check_vec3_binop name c_impl ox_impl cases =
         ox_z
         (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
 
+let check_vec3_scale name c_impl ox_impl cases =
+  List.iter cases ~f:(fun ((sx, sy, sz), k) ->
+      let c_x, c_y, c_z = c_impl sx sy sz k in
+      let ox_x, ox_y, ox_z = ox_impl (sx, sy, sz) k in
+      printf
+        "%s s=(%d,%d,%d) k=%d out=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        sx
+        sy
+        sz
+        k
+        c_x
+        c_y
+        c_z
+        ox_x
+        ox_y
+        ox_z
+        (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
+
 let check_stateful_vec3_add2 name c_impl ox_impl cases =
   List.iter cases ~f:(fun ((dx, dy, dz), (sx, sy, sz)) ->
       let c_x, c_y, c_z = c_impl dx dy dz sx sy sz in
@@ -159,6 +178,7 @@ external c_vm_vec_avg4
   -> int
   -> int * int * int
   = "caml_c_vm_vec_avg4_bc" "caml_c_vm_vec_avg4"
+external c_vm_vec_copy_scale : int -> int -> int -> int -> int * int * int = "caml_c_vm_vec_copy_scale"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -262,6 +282,14 @@ let vm_vec_avg4_cases =
     ((0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0));
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000), (12345, -54321, 99999), (67890, 13579, -24680));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2), (-1, 1, -2), (7, -7, 14));
+  ]
+
+let vm_vec_copy_scale_cases =
+  [
+    ((0, 0, 0), 0);
+    ((0x10000, 0x20000, -0x10000), 0x10000);
+    ((12345, -54321, 99999), 321);
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), 0x10000);
   ]
 
 let edge_fix_values =
@@ -606,6 +634,40 @@ let run_random_vec3_avg4 ~name ~seed ~test_count c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let run_random_vec3_scale ~name ~seed ~test_count c_impl ox_impl =
+  let gen = Quickcheck.Generator.both vec3_gen fix_gen in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun ((sx, sy, sz), k) ->
+         incr total;
+         let c_x, c_y, c_z = c_impl sx sy sz k in
+         let ox_x, ox_y, ox_z = ox_impl (sx, sy, sz) k in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s s=(%d,%d,%d) k=%d out=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     sx
+                     sy
+                     sz
+                     k
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
 let%expect_test "i2f parity C vs Ox" =
   check_unop "i2f" c_i2f Ox_math.i2f i2f_cases;
   [%expect
@@ -758,6 +820,16 @@ let%expect_test "vm_vec_avg4 parity C vs Ox" =
     vm_vec_avg4 a=(2147483647,0,-2147483648) b=(1,-1,2) c=(-1,1,-2) d=(7,-7,14) out=(-536870910,-1,-536870908) ox=(-536870910,-1,-536870908) eq=true
     |}]
 
+let%expect_test "vm_vec_copy_scale parity C vs Ox" =
+  check_vec3_scale "vm_vec_copy_scale" c_vm_vec_copy_scale Ox_math.vm_vec_copy_scale vm_vec_copy_scale_cases;
+  [%expect
+    {|
+    vm_vec_copy_scale s=(0,0,0) k=0 out=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_copy_scale s=(65536,131072,-65536) k=65536 out=(65536,131072,-65536) ox=(65536,131072,-65536) eq=true
+    vm_vec_copy_scale s=(12345,-54321,99999) k=321 out=(60,-267,489) ox=(60,-267,489) eq=true
+    vm_vec_copy_scale s=(2147483647,0,-2147483648) k=65536 out=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -855,3 +927,12 @@ let%expect_test "randomized vm_vec_avg4 parity C vs Ox" =
     c_vm_vec_avg4
     Ox_math.vm_vec_avg4;
   [%expect {| vm_vec_avg4 random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_copy_scale parity C vs Ox" =
+  run_random_vec3_scale
+    ~name:"vm_vec_copy_scale"
+    ~seed:"vm-vec-copy-scale-seed-v1"
+    ~test_count:5000
+    c_vm_vec_copy_scale
+    Ox_math.vm_vec_copy_scale;
+  [%expect {| vm_vec_copy_scale random total=5000 mismatches=0 |}]
