@@ -237,3 +237,21 @@ extern "C" void c_oracle_vm_vec_crossprod(c_oracle_vec3* dest, const c_oracle_ve
     dest->y = fixquadadjust_local(qy);
     dest->z = fixquadadjust_local(qz);
 }
+
+extern "C" int32_t c_oracle_vm_vec_copy_normalize_quick(c_oracle_vec3* dest, const c_oracle_vec3* src)
+{
+    const int32_t m = c_oracle_vm_vec_mag_quick(src);
+    if (m > 0)
+    {
+        dest->x = fixdiv(src->x, m);
+        dest->y = fixdiv(src->y, m);
+        dest->z = fixdiv(src->z, m);
+    }
+    else
+    {
+        dest->x = src->x;
+        dest->y = src->y;
+        dest->z = src->z;
+    }
+    return m;
+}
