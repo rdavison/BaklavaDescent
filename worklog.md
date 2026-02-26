@@ -101,12 +101,15 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 ## Current State
 - Ox bridge is integrated and can run in-game (`USE_OX_BRIDGE`).
 - First real math path in engine is routed through Ox (`vm_vec_scale` via `cd_ox_fixmul`).
-- Deterministic parity test harness exists and is passing for core fixed-point primitives.
+- Deterministic parity test harness exists and is passing for:
+  - `i2f`, `f2i`, `fixmul`, `fixdiv`, `fixmuldiv`.
+- Deterministic randomized differential tests are now in place and passing (5000 cases each) for:
+  - `fixmul`, `fixdiv`, `fixmuldiv`.
 
-## Next Work (Step 2)
-- Add deterministic Quickcheck randomized differential tests (C oracle vs Ox) for current functions.
-- Keep concise expect output:
+## Next Work (Step 3)
+- Add additional pure fixed-point functions to the C oracle + Ox parity suite (e.g. `fix_sqrt` or carefully selected helpers).
+- Introduce first stateful differential test using snapshot/reset semantics for C vs Ox.
+- Keep randomized tests deterministic by seed and report:
   - case count
   - mismatch count
   - first mismatch (if any)
-- Then expand to additional pure functions before moving to stateful snapshot-based comparisons.
