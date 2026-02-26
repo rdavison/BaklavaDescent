@@ -139,3 +139,5 @@ let wrap_i64_to_fixang x =
 
 let vm_angvec_make p b h =
   wrap_i64_to_fixang (Int64.of_int p), wrap_i64_to_fixang (Int64.of_int b), wrap_i64_to_fixang (Int64.of_int h)
+
+let vm_dist_to_plane checkp norm planep = vm_vec_dotprod (vm_vec_sub checkp planep) norm

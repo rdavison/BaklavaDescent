@@ -285,3 +285,16 @@ extern "C" void c_oracle_vm_angvec_make(c_oracle_ang3* v, int16_t p, int16_t b, 
     v->b = b;
     v->h = h;
 }
+
+extern "C" int32_t c_oracle_vm_dist_to_plane(
+    const c_oracle_vec3* checkp,
+    const c_oracle_vec3* norm,
+    const c_oracle_vec3* planep)
+{
+    const c_oracle_vec3 t = {
+        checkp->x - planep->x,
+        checkp->y - planep->y,
+        checkp->z - planep->z
+    };
+    return c_oracle_vm_vec_dotprod(&t, norm);
+}

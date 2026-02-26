@@ -197,6 +197,8 @@ external c_vm_vec_normalized_dir_quick : int -> int -> int -> int -> int -> int 
   = "caml_c_vm_vec_normalized_dir_quick_bc" "caml_c_vm_vec_normalized_dir_quick"
 external c_vm_vec_make : int -> int -> int -> int * int * int = "caml_c_vm_vec_make"
 external c_vm_angvec_make : int -> int -> int -> int * int * int = "caml_c_vm_angvec_make"
+external c_vm_dist_to_plane : int -> int -> int -> int -> int -> int -> int -> int -> int -> int
+  = "caml_c_vm_dist_to_plane_bc" "caml_c_vm_dist_to_plane"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -390,6 +392,14 @@ let vm_angvec_make_cases =
     (32767, -32768, 12345);
     (40000, -40000, 65535);
     (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_dist_to_plane_cases =
+  [
+    ((0, 0, 0), (0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000), (0x10000, 0x10000, 0x10000));
+    ((12345, -54321, 99999), (67890, 13579, -24680), (-11111, 22222, -33333));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2), (7, -7, 14));
   ]
 
 let edge_fix_values =
@@ -1006,6 +1016,71 @@ let run_random_make3 ~name ~seed ~test_count gen c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let check_three_vec3_to_scalar name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (checkp, norm, planep) ->
+      let cx, cy, cz = checkp in
+      let nx, ny, nz = norm in
+      let px, py, pz = planep in
+      let c = c_impl cx cy cz nx ny nz px py pz in
+      let ox = ox_impl checkp norm planep in
+      printf
+        "%s check=(%d,%d,%d) norm=(%d,%d,%d) plane=(%d,%d,%d) c=%d ox=%d eq=%b\n"
+        name
+        cx
+        cy
+        cz
+        nx
+        ny
+        nz
+        px
+        py
+        pz
+        c
+        ox
+        (Int.equal c ox))
+
+let run_random_three_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
+      ~f:(fun (a, (b, c)) -> a, b, c)
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (checkp, norm, planep) ->
+         let cx, cy, cz = checkp in
+         let nx, ny, nz = norm in
+         let px, py, pz = planep in
+         incr total;
+         let c = c_impl cx cy cz nx ny nz px py pz in
+         let ox = ox_impl checkp norm planep in
+         if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s check=(%d,%d,%d) norm=(%d,%d,%d) plane=(%d,%d,%d) c=%d ox=%d"
+                     name
+                     cx
+                     cy
+                     cz
+                     nx
+                     ny
+                     nz
+                     px
+                     py
+                     pz
+                     c
+                     ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
 let fixang_gen =
   Quickcheck.Generator.weighted_union
     [
@@ -1310,6 +1385,16 @@ let%expect_test "vm_angvec_make parity C vs Ox" =
     vm_angvec_make in=(2147483647,0,-2147483648) c=(-1,0,0) ox=(-1,0,0) eq=true
     |}]
 
+let%expect_test "vm_dist_to_plane parity C vs Ox" =
+  check_three_vec3_to_scalar "vm_dist_to_plane" c_vm_dist_to_plane Ox_math.vm_dist_to_plane vm_dist_to_plane_cases;
+  [%expect
+    {|
+    vm_dist_to_plane check=(0,0,0) norm=(0,0,0) plane=(0,0,0) c=0 ox=0 eq=true
+    vm_dist_to_plane check=(65536,131072,-65536) norm=(65536,-65536,32768) plane=(65536,65536,65536) c=-131072 ox=-131072 eq=true
+    vm_dist_to_plane check=(12345,-54321,99999) norm=(67890,13579,-24680) plane=(-11111,22222,-33333) c=-41773 ox=-41773 eq=true
+    vm_dist_to_plane check=(2147483647,0,-2147483648) norm=(1,-1,2) plane=(7,-7,14) c=98303 ox=98303 eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1517,3 +1602,12 @@ let%expect_test "randomized vm_angvec_make parity C vs Ox" =
     c_vm_angvec_make
     Ox_math.vm_angvec_make;
   [%expect {| vm_angvec_make random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_dist_to_plane parity C vs Ox" =
+  run_random_three_vec3_to_scalar
+    ~name:"vm_dist_to_plane"
+    ~seed:"vm-dist-to-plane-seed-v1"
+    ~test_count:5000
+    c_vm_dist_to_plane
+    Ox_math.vm_dist_to_plane;
+  [%expect {| vm_dist_to_plane random total=5000 mismatches=0 |}]

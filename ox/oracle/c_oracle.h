@@ -59,6 +59,10 @@ int32_t c_oracle_vm_vec_normalized_dir_quick(
     const c_oracle_vec3* start);
 void c_oracle_vm_vec_make(c_oracle_vec3* v, int32_t x, int32_t y, int32_t z);
 void c_oracle_vm_angvec_make(c_oracle_ang3* v, int16_t p, int16_t b, int16_t h);
+int32_t c_oracle_vm_dist_to_plane(
+    const c_oracle_vec3* checkp,
+    const c_oracle_vec3* norm,
+    const c_oracle_vec3* planep);
 
 #ifdef __cplusplus
 }

@@ -496,3 +496,27 @@ extern "C" CAMLprim value caml_c_vm_angvec_make(value p, value b, value h)
     Store_field(out, 2, Val_long((int32_t)v.h));
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_dist_to_plane(
+    value cx,
+    value cy,
+    value cz,
+    value nx,
+    value ny,
+    value nz,
+    value px,
+    value py,
+    value pz)
+{
+    const c_oracle_vec3 checkp = { Int_val(cx), Int_val(cy), Int_val(cz) };
+    const c_oracle_vec3 norm = { Int_val(nx), Int_val(ny), Int_val(nz) };
+    const c_oracle_vec3 planep = { Int_val(px), Int_val(py), Int_val(pz) };
+    return Val_long(c_oracle_vm_dist_to_plane(&checkp, &norm, &planep));
+}
+
+extern "C" CAMLprim value caml_c_vm_dist_to_plane_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_dist_to_plane(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
+}
