@@ -187,6 +187,8 @@ external c_vm_vec_dotprod : int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_vec_dotprod_bc" "caml_c_vm_vec_dotprod"
 external c_vm_vec_dot3 : int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_vec_dot3_bc" "caml_c_vm_vec_dot3"
+external c_vm_vec_crossprod : int -> int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_vm_vec_crossprod_bc" "caml_c_vm_vec_crossprod"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -333,6 +335,14 @@ let vm_vec_dotprod_cases =
   ]
 
 let vm_vec_dot3_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
+    ((12345, -54321, 99999), (67890, 13579, -24680));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_crossprod_cases =
   [
     ((0, 0, 0), (0, 0, 0));
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
@@ -1009,6 +1019,16 @@ let%expect_test "vm_vec_dot3 parity C vs Ox" =
     vm_vec_dot3 v0=(2147483647,0,-2147483648) v1=(1,-1,2) c=-32769 ox=-32769 eq=true
     |}]
 
+let%expect_test "vm_vec_crossprod parity C vs Ox" =
+  check_vec3_binop "vm_vec_crossprod" c_vm_vec_crossprod Ox_math.vm_vec_crossprod vm_vec_crossprod_cases;
+  [%expect
+    {|
+    vm_vec_crossprod a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_crossprod a=(65536,131072,-65536) b=(65536,-65536,32768) c=(0,-98304,-196608) ox=(0,-98304,-196608) eq=true
+    vm_vec_crossprod a=(12345,-54321,99999) b=(67890,13579,-24680) c=(-264,108239,58830) ox=(-264,108239,58830) eq=true
+    vm_vec_crossprod a=(2147483647,0,-2147483648) b=(1,-1,2) c=(32768,-98304,-32768) ox=(32768,-98304,-32768) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1160,3 +1180,12 @@ let%expect_test "randomized vm_vec_dot3 parity C vs Ox" =
     c_vm_vec_dot3
     (fun (x, y, z) (vx, vy, vz) -> Ox_math.vm_vec_dot3 x y z (vx, vy, vz));
   [%expect {| vm_vec_dot3 random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_crossprod parity C vs Ox" =
+  run_random_vec3_binop
+    ~name:"vm_vec_crossprod"
+    ~seed:"vm-vec-crossprod-seed-v1"
+    ~test_count:5000
+    c_vm_vec_crossprod
+    Ox_math.vm_vec_crossprod;
+  [%expect {| vm_vec_crossprod random total=5000 mismatches=0 |}]

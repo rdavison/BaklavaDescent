@@ -370,3 +370,28 @@ extern "C" CAMLprim value caml_c_vm_vec_dot3_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_dot3(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_crossprod(value x0, value y0, value z0, value x1, value y1, value z1)
+{
+    CAMLparam5(x0, y0, z0, x1, y1);
+    CAMLxparam1(z1);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 src0 = { Int_val(x0), Int_val(y0), Int_val(z0) };
+    c_oracle_vec3 src1 = { Int_val(x1), Int_val(y1), Int_val(z1) };
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    c_oracle_vm_vec_crossprod(&dest, &src0, &src1);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_crossprod_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_crossprod(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}

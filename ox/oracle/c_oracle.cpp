@@ -4,6 +4,11 @@
 
 #include "fix/fix.h"
 
+static inline int32_t neg_i32_wrap(int32_t v)
+{
+    return (int32_t)(0u - (uint32_t)v);
+}
+
 extern "C" int32_t c_oracle_i2f(int32_t i)
 {
     return i2f(i);
@@ -198,4 +203,37 @@ extern "C" int32_t c_oracle_vm_vec_dot3(int32_t x, int32_t y, int32_t z, const c
         }
     }
     return out;
+}
+
+extern "C" void c_oracle_vm_vec_crossprod(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1)
+{
+    const int64_t qx =
+        (int64_t)src0->y * (int64_t)src1->z +
+        (int64_t)neg_i32_wrap(src0->z) * (int64_t)src1->y;
+    const int64_t qy =
+        (int64_t)src0->z * (int64_t)src1->x +
+        (int64_t)neg_i32_wrap(src0->x) * (int64_t)src1->z;
+    const int64_t qz =
+        (int64_t)src0->x * (int64_t)src1->y +
+        (int64_t)neg_i32_wrap(src0->y) * (int64_t)src1->x;
+
+    auto fixquadadjust_local = [](int64_t q) -> int32_t {
+        int32_t v = (int32_t)(q >> 16);
+        int32_t vh = (int32_t)(q >> 48);
+        const int signb = vh < 0;
+        const int signv = v < 0;
+        if (signb != signv)
+        {
+            v = (int32_t)0x7FFFFFFF;
+            if (signb)
+            {
+                v = -v;
+            }
+        }
+        return v;
+    };
+
+    dest->x = fixquadadjust_local(qx);
+    dest->y = fixquadadjust_local(qy);
+    dest->z = fixquadadjust_local(qz);
 }

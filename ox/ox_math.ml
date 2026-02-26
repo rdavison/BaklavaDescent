@@ -109,3 +109,11 @@ let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
   fixquadadjust q
 
 let vm_vec_dot3 x y z (vx, vy, vz) = vm_vec_dotprod (x, y, z) (vx, vy, vz)
+
+let neg_i32 v = wrap_i64_to_fix (Int64.neg (Int64.of_int v))
+
+let vm_vec_crossprod (x0, y0, z0) (x1, y1, z1) =
+  let qx = Int64.(of_int y0 * of_int z1 + (of_int (neg_i32 z0) * of_int y1)) in
+  let qy = Int64.(of_int z0 * of_int x1 + (of_int (neg_i32 x0) * of_int z1)) in
+  let qz = Int64.(of_int x0 * of_int y1 + (of_int (neg_i32 y0) * of_int x1)) in
+  fixquadadjust qx, fixquadadjust qy, fixquadadjust qz
