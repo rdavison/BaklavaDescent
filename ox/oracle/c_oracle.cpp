@@ -460,6 +460,16 @@ extern "C" void c_oracle_vm_vec_perp(
     c_oracle_vm_vec_crossprod(dest, &t0, &t1);
 }
 
+extern "C" void c_oracle_vm_vec_normal(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* p0,
+    const c_oracle_vec3* p1,
+    const c_oracle_vec3* p2)
+{
+    c_oracle_vm_vec_perp(dest, p0, p1, p2);
+    c_oracle_vm_vec_normalize(dest);
+}
+
 extern "C" void c_oracle_vm_vec_rotate(c_oracle_vec3* dest, const c_oracle_vec3* src, const c_oracle_mat3* m)
 {
     dest->x = c_oracle_vm_vec_dot3(src->x, src->y, src->z, &m->rvec);

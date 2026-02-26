@@ -647,6 +647,41 @@ extern "C" CAMLprim value caml_c_vm_vec_perp_bc(value* argv, int argn)
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
 
+extern "C" CAMLprim value caml_c_vm_vec_normal(
+    value p0x,
+    value p0y,
+    value p0z,
+    value p1x,
+    value p1y,
+    value p1z,
+    value p2x,
+    value p2y,
+    value p2z)
+{
+    CAMLparam5(p0x, p0y, p0z, p1x, p1y);
+    CAMLxparam4(p1z, p2x, p2y, p2z);
+    CAMLlocal1(out);
+
+    const c_oracle_vec3 p0 = { Int_val(p0x), Int_val(p0y), Int_val(p0z) };
+    const c_oracle_vec3 p1 = { Int_val(p1x), Int_val(p1y), Int_val(p1z) };
+    const c_oracle_vec3 p2 = { Int_val(p2x), Int_val(p2y), Int_val(p2z) };
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    c_oracle_vm_vec_normal(&dest, &p0, &p1, &p2);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_normal_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_normal(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
+}
+
 extern "C" CAMLprim value caml_c_vm_vec_rotate(
     value sx,
     value sy,

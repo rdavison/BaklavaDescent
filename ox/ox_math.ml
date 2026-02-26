@@ -249,6 +249,10 @@ let vm_vec_perp p0 p1 p2 =
   let t1 = check_vec (vm_vec_sub p2 p1) in
   vm_vec_crossprod t0 t1
 
+let vm_vec_normal p0 p1 p2 =
+  let _, n = vm_vec_normalize (vm_vec_perp p0 p1 p2) in
+  n
+
 let vm_vec_rotate src (rvec, uvec, fvec) =
   vm_vec_dotprod src rvec, vm_vec_dotprod src uvec, vm_vec_dotprod src fvec
 

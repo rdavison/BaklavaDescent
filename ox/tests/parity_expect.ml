@@ -220,6 +220,18 @@ external c_vm_vec_perp
   -> int
   -> int * int * int
   = "caml_c_vm_vec_perp_bc" "caml_c_vm_vec_perp"
+external c_vm_vec_normal
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_vec_normal_bc" "caml_c_vm_vec_normal"
 external c_vm_vec_rotate_raw
   :  int
   -> int
@@ -574,6 +586,8 @@ let vm_vec_perp_cases =
     ((12345, -54321, 99999), (67890, 13579, -24680), (-11111, 22222, -33333));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn (Int32.succ Int32.min_value)), (1, -1, 2), (7, -7, 14));
   ]
+
+let vm_vec_normal_cases = vm_vec_perp_cases
 
 let mat_identity = ((0x10000, 0, 0), (0, 0x10000, 0), (0, 0, 0x10000))
 
@@ -2073,6 +2087,16 @@ let%expect_test "vm_vec_perp parity C vs Ox" =
     vm_vec_perp p0=(2147483647,0,-2147483647) p1=(1,-1,2) p2=(7,-7,14) c=(-2,0,2) ox=(-2,0,2) eq=true
     |}]
 
+let%expect_test "vm_vec_normal parity C vs Ox" =
+  check_three_vec3_to_vec3 "vm_vec_normal" c_vm_vec_normal Ox_math.vm_vec_normal vm_vec_normal_cases;
+  [%expect
+    {|
+    vm_vec_normal p0=(0,0,0) p1=(0,0,0) p2=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_normal p0=(65536,131072,-65536) p1=(65536,-65536,32768) p2=(196608,65536,131072) c=(-48847,19539,39078) ox=(-48847,19539,39078) eq=true
+    vm_vec_normal p0=(12345,-54321,99999) p1=(67890,13579,-24680) p2=(-11111,22222,-33333) c=(2703,56992,32242) ox=(2703,56992,32242) eq=true
+    vm_vec_normal p0=(2147483647,0,-2147483647) p1=(1,-1,2) p2=(7,-7,14) c=(-43690,0,43690) ox=(-43690,0,43690) eq=true
+    |}]
+
 let%expect_test "vm_vec_rotate parity C vs Ox" =
   check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate Ox_math.vm_vec_rotate vm_vec_rotate_cases;
   [%expect
@@ -2392,6 +2416,15 @@ let%expect_test "randomized vm_vec_perp parity C vs Ox" =
     c_vm_vec_perp
     Ox_math.vm_vec_perp;
   [%expect {| vm_vec_perp random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_normal parity C vs Ox" =
+  run_random_three_vec3_to_vec3_no_min
+    ~name:"vm_vec_normal"
+    ~seed:"vm-vec-normal-seed-v1"
+    ~test_count:5000
+    c_vm_vec_normal
+    Ox_math.vm_vec_normal;
+  [%expect {| vm_vec_normal random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
   run_random_vec3_mat_to_vec3
