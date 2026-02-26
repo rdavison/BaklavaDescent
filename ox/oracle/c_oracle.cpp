@@ -69,3 +69,10 @@ extern "C" void c_oracle_vm_vec_sub(c_oracle_vec3* dest, const c_oracle_vec3* sr
     dest->y = src0->y - src1->y;
     dest->z = src0->z - src1->z;
 }
+
+extern "C" void c_oracle_vm_vec_add2(c_oracle_vec3* dest, const c_oracle_vec3* src)
+{
+    dest->x += src->x;
+    dest->y += src->y;
+    dest->z += src->z;
+}
