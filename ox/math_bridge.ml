@@ -72,6 +72,13 @@ let cd_vm_vec_delta_ang v0x v0y v0z v1x v1y v1z has_fvec fx fy fz =
   let fvec = if has_fvec <> 0 then Some (fx, fy, fz) else None in
   Ox_math.vm_vec_delta_ang (v0x, v0y, v0z) (v1x, v1y, v1z) fvec
 
+let cd_vm_vec_mag_quick x y z = Ox_math.vm_vec_mag_quick (x, y, z)
+let cd_vm_vec_dist_quick x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dist_quick (x0, y0, z0) (x1, y1, z1)
+
+let cd_vm_vec_copy_normalize_quick sx sy sz =
+  let m, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize_quick (sx, sy, sz) in
+  (m, nx, ny, nz)
+
 let () =
   (* Register named callbacks so C can resolve these via caml_named_value(). *)
   Callback.register "cd_i2f" Ox_math.i2f;
@@ -113,4 +120,7 @@ let () =
   Callback.register "cd_vm_extract_angles_vector_normalized" cd_vm_extract_angles_vector_normalized;
   Callback.register "cd_vm_extract_angles_vector" cd_vm_extract_angles_vector;
   Callback.register "cd_vm_vec_delta_ang_norm" cd_vm_vec_delta_ang_norm;
-  Callback.register "cd_vm_vec_delta_ang" cd_vm_vec_delta_ang
+  Callback.register "cd_vm_vec_delta_ang" cd_vm_vec_delta_ang;
+  Callback.register "cd_vm_vec_mag_quick" cd_vm_vec_mag_quick;
+  Callback.register "cd_vm_vec_dist_quick" cd_vm_vec_dist_quick;
+  Callback.register "cd_vm_vec_copy_normalize_quick" cd_vm_vec_copy_normalize_quick

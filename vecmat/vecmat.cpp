@@ -361,6 +361,15 @@ fix vm_vec_dist(vms_vector* v0, vms_vector* v1)
 //uses dist = largest + next_largest*3/8 + smallest*3/16
 fix vm_vec_mag_quick(vms_vector* v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_mag_quick using cd_ox_vm_vec_mag_quick.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_mag_quick(v->x, v->y, v->z);
+#else
 	fix a, b, c, bc;
 
 	a = labs(v->x);
@@ -382,6 +391,7 @@ fix vm_vec_mag_quick(vms_vector* v)
 	bc = (b >> 2) + (c >> 3);
 
 	return a + bc + (bc >> 1);
+#endif
 }
 
 
@@ -389,11 +399,21 @@ fix vm_vec_mag_quick(vms_vector* v)
 //uses dist = largest + next_largest*3/8 + smallest*3/16
 fix vm_vec_dist_quick(vms_vector* v0, vms_vector* v1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_dist_quick using cd_ox_vm_vec_dist_quick.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_dist_quick(v0->x, v0->y, v0->z, v1->x, v1->y, v1->z);
+#else
 	vms_vector t;
 
 	vm_vec_sub(&t, v0, v1);
 
 	return vm_vec_mag_quick(&t);
+#endif
 }
 
 //normalize a vector. returns mag of source vec
@@ -432,11 +452,20 @@ fix vm_vec_normalize(vms_vector* v)
 //normalize a vector. returns mag of source vec. uses approx mag
 fix vm_vec_copy_normalize_quick(vms_vector* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_copy_normalize_quick using cd_ox_vm_vec_copy_normalize_quick.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_copy_normalize_quick(src->x, src->y, src->z, &dest->x, &dest->y, &dest->z);
+#else
 	fix m;
 
 	m = vm_vec_mag_quick(src);
 
-	if (m > 0) 
+	if (m > 0)
 	{
 		dest->x = fixdiv(src->x, m);
 		dest->y = fixdiv(src->y, m);
@@ -444,6 +473,7 @@ fix vm_vec_copy_normalize_quick(vms_vector* dest, vms_vector* src)
 	}
 
 	return m;
+#endif
 }
 
 //normalize a vector. returns 1/mag of source vec. uses approx 1/mag

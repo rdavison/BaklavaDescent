@@ -48,6 +48,9 @@ static const value* g_vm_extract_angles_vector_normalized = NULL;
 static const value* g_vm_extract_angles_vector = NULL;
 static const value* g_vm_vec_delta_ang_norm = NULL;
 static const value* g_vm_vec_delta_ang = NULL;
+static const value* g_vm_vec_mag_quick = NULL;
+static const value* g_vm_vec_dist_quick = NULL;
+static const value* g_vm_vec_copy_normalize_quick = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -91,7 +94,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_vm_extract_angles_vector_normalized
           && g_vm_extract_angles_vector
           && g_vm_vec_delta_ang_norm
-          && g_vm_vec_delta_ang))
+          && g_vm_vec_delta_ang
+          && g_vm_vec_mag_quick
+          && g_vm_vec_dist_quick
+          && g_vm_vec_copy_normalize_quick))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -151,6 +157,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_vm_extract_angles_vector = caml_named_value("cd_vm_extract_angles_vector");
     g_vm_vec_delta_ang_norm = caml_named_value("cd_vm_vec_delta_ang_norm");
     g_vm_vec_delta_ang = caml_named_value("cd_vm_vec_delta_ang");
+    g_vm_vec_mag_quick = caml_named_value("cd_vm_vec_mag_quick");
+    g_vm_vec_dist_quick = caml_named_value("cd_vm_vec_dist_quick");
+    g_vm_vec_copy_normalize_quick = caml_named_value("cd_vm_vec_copy_normalize_quick");
 
     if (!g_i2f
         || !g_f2i
@@ -191,7 +200,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_vm_extract_angles_vector_normalized
         || !g_vm_extract_angles_vector
         || !g_vm_vec_delta_ang_norm
-        || !g_vm_vec_delta_ang)
+        || !g_vm_vec_delta_ang
+        || !g_vm_vec_mag_quick
+        || !g_vm_vec_dist_quick
+        || !g_vm_vec_copy_normalize_quick)
     {
         return 1;
     }
@@ -242,7 +254,10 @@ int cd_ox_is_ready(void)
            && g_vm_extract_angles_vector_normalized
            && g_vm_extract_angles_vector
            && g_vm_vec_delta_ang_norm
-           && g_vm_vec_delta_ang;
+           && g_vm_vec_delta_ang
+           && g_vm_vec_mag_quick
+           && g_vm_vec_dist_quick
+           && g_vm_vec_copy_normalize_quick;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -760,4 +775,32 @@ int32_t cd_ox_vm_vec_delta_ang(
         Val_long(has_fvec), Val_long(fx), Val_long(fy), Val_long(fz),
     };
     return Int_val(caml_callbackN(*g_vm_vec_delta_ang, 10, args));
+}
+
+int32_t cd_ox_vm_vec_mag_quick(int32_t x, int32_t y, int32_t z)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_mag_quick");
+    value args[3] = { Val_long(x), Val_long(y), Val_long(z) };
+    return Int_val(caml_callbackN(*g_vm_vec_mag_quick, 3, args));
+}
+
+int32_t cd_ox_vm_vec_dist_quick(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_dist_quick");
+    value args[6] = { Val_long(x0), Val_long(y0), Val_long(z0), Val_long(x1), Val_long(y1), Val_long(z1) };
+    return Int_val(caml_callbackN(*g_vm_vec_dist_quick, 6, args));
+}
+
+int32_t cd_ox_vm_vec_copy_normalize_quick(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t* nx, int32_t* ny, int32_t* nz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_copy_normalize_quick");
+    value args[3] = { Val_long(sx), Val_long(sy), Val_long(sz) };
+    const value out = caml_callbackN(*g_vm_vec_copy_normalize_quick, 3, args);
+    int32_t mag = Int_val(Field(out, 0));
+    if (nx) { *nx = Int_val(Field(out, 1)); }
+    if (ny) { *ny = Int_val(Field(out, 2)); }
+    if (nz) { *nz = Int_val(Field(out, 3)); }
+    return mag;
 }

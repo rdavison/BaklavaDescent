@@ -186,6 +186,11 @@ int32_t cd_ox_vm_vec_delta_ang_norm(
     int32_t v0x, int32_t v0y, int32_t v0z,
     int32_t v1x, int32_t v1y, int32_t v1z,
     int32_t has_fvec, int32_t fx, int32_t fy, int32_t fz);
+int32_t cd_ox_vm_vec_mag_quick(int32_t x, int32_t y, int32_t z);
+int32_t cd_ox_vm_vec_dist_quick(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1);
+int32_t cd_ox_vm_vec_copy_normalize_quick(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t* nx, int32_t* ny, int32_t* nz);
 int32_t cd_ox_vm_vec_delta_ang(
     int32_t v0x, int32_t v0y, int32_t v0z,
     int32_t v1x, int32_t v1y, int32_t v1z,
