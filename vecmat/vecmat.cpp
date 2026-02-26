@@ -13,9 +13,13 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
 #include "fix/fix.h"
 #include "vecmat/vecmat.h"
 #include "misc/error.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 vms_vector vmd_zero_vector = { 0,0,0 };
 vms_matrix vmd_identity_matrix = { f1_0,0,0,
@@ -91,9 +95,21 @@ vms_vector* vm_vec_avg4(vms_vector* dest, vms_vector* src0, vms_vector* src1, vm
 //scales a vector in place.  returns ptr to vector
 vms_vector* vm_vec_scale(vms_vector* dest, fix s)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_scale using cd_ox_fixmul.\n");
+		ox_bridge_logged = 1;
+	}
+	dest->x = cd_ox_fixmul(dest->x, s);
+	dest->y = cd_ox_fixmul(dest->y, s);
+	dest->z = cd_ox_fixmul(dest->z, s);
+#else
 	dest->x = fixmul(dest->x, s);
 	dest->y = fixmul(dest->y, s);
 	dest->z = fixmul(dest->z, s);
+#endif
 
 	return dest;
 }

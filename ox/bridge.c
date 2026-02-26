@@ -1,5 +1,8 @@
 #include "bridge.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <caml/callback.h>
 #include <caml/mlvalues.h>
 #include <caml/startup.h>
@@ -9,6 +12,15 @@ static const value* g_i2f = NULL;
 static const value* g_f2i = NULL;
 static const value* g_fixmul = NULL;
 static const value* g_fixdiv = NULL;
+
+static void cd_ox_require_ready(const char* fn)
+{
+    if (!(g_runtime_started && g_i2f && g_f2i && g_fixmul && g_fixdiv))
+    {
+        fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
+        abort();
+    }
+}
 
 int cd_ox_init_runtime(const char* executable_path)
 {
@@ -37,22 +49,31 @@ int cd_ox_init_runtime(const char* executable_path)
     return 0;
 }
 
+int cd_ox_is_ready(void)
+{
+    return g_runtime_started && g_i2f && g_f2i && g_fixmul && g_fixdiv;
+}
+
 int32_t cd_ox_i2f(int32_t i)
 {
-    return g_i2f ? Int_val(caml_callback(*g_i2f, Val_long(i))) : 0;
+    cd_ox_require_ready("cd_ox_i2f");
+    return Int_val(caml_callback(*g_i2f, Val_long(i)));
 }
 
 int32_t cd_ox_f2i(int32_t f)
 {
-    return g_f2i ? Int_val(caml_callback(*g_f2i, Val_long(f))) : 0;
+    cd_ox_require_ready("cd_ox_f2i");
+    return Int_val(caml_callback(*g_f2i, Val_long(f)));
 }
 
 int32_t cd_ox_fixmul(int32_t a, int32_t b)
 {
-    return g_fixmul ? Int_val(caml_callback2(*g_fixmul, Val_long(a), Val_long(b))) : 0;
+    cd_ox_require_ready("cd_ox_fixmul");
+    return Int_val(caml_callback2(*g_fixmul, Val_long(a), Val_long(b)));
 }
 
 int32_t cd_ox_fixdiv(int32_t a, int32_t b)
 {
-    return g_fixdiv ? Int_val(caml_callback2(*g_fixdiv, Val_long(a), Val_long(b))) : 0;
+    cd_ox_require_ready("cd_ox_fixdiv");
+    return Int_val(caml_callback2(*g_fixdiv, Val_long(a), Val_long(b)));
 }

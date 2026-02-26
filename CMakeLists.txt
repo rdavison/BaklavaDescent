@@ -6,6 +6,7 @@ set(CHOCOLATE_DESCENT_VERSION "0.1")
 
 set(BUILD_EDITOR OFF CACHE BOOL "Build the game editor. Descent 2 is highly broken atm. Won't link outside of Windows ATM.")
 set(NETWORK OFF CACHE BOOL "Build with UDP networking enabled.")
+set(USE_OX_BRIDGE OFF CACHE BOOL "Enable OxCaml runtime bridge for selected math paths.")
 #These features are intended for testing.
 set(DESCENT1_TEXMAP_IN_DESCENT2 OFF CACHE BOOL "Swaps Descent 1's texture mapper into Descent 2.")
 set(DESCENT2_TEXMAP_IN_DESCENT1 OFF CACHE BOOL "Swaps Descent 2's texture mapper into Descent 1. ")
@@ -630,6 +631,11 @@ set(DESCENT1_LIBS
 set(DESCENT2_LIBS
 )
 
+set(OX_BRIDGE_SOURCES
+)
+set(OX_BRIDGE_LIBS
+)
+
 find_package(OPENAL)
 find_package(FLUIDSYNTH)
 find_package(SDL2)
@@ -687,9 +693,9 @@ endif()
 if (NETWORK)
 	add_definitions(-DNETWORK)
 	set(SHARED_SOURCES ${SHARED_SOURCES} ${NETWORK_SOURCES})
-	
+
 	#Poke in platform network sources.
-	set(WIN32_SOURCES ${WIN32_SOURCES} 
+	set(WIN32_SOURCES ${WIN32_SOURCES}
 	platform/win32/win32net.cpp)
 	set(UNIX_SOURCES ${UNIX_SOURCES}
 	platform/unix/unixnet.cpp)
@@ -706,6 +712,36 @@ elseif(UNIX)
 	add_link_options(-pthread)
     set(SHARED_SOURCES ${SHARED_SOURCES} ${UNIX_SOURCES})
 	set(NOT_COMPILED_SOURCES ${NOT_COMPILED_SOURCES} ${WIN32_SOURCES})
+endif()
+
+if (USE_OX_BRIDGE)
+	if (NOT UNIX)
+		message(FATAL_ERROR "USE_OX_BRIDGE is currently supported on UNIX builds only.")
+	endif()
+
+	find_program(OCAMLC_EXECUTABLE ocamlc REQUIRED)
+	execute_process(
+		COMMAND ${OCAMLC_EXECUTABLE} -where
+		OUTPUT_VARIABLE OCAML_STDLIB_DIR
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+	include_directories(${OCAML_STDLIB_DIR})
+
+	set(OX_BRIDGE_OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/ox/build/math_bridge_complete.o)
+	add_custom_command(
+		OUTPUT ${OX_BRIDGE_OBJECT}
+		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		DEPENDS
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
+		COMMENT "Building OxCaml bridge object"
+		VERBATIM
+	)
+	add_custom_target(ox_bridge_build DEPENDS ${OX_BRIDGE_OBJECT})
+
+	set(OX_BRIDGE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ox/bridge.c ${OX_BRIDGE_OBJECT})
+	set(OX_BRIDGE_LIBS dl m pthread)
 endif()
 
 # Set up flags for MSVC
@@ -759,6 +795,15 @@ elseif(WIN32)
 	add_executable(ChocolateDescent2 WIN32 ${SHARED_SOURCES} ${NOT_COMPILED_SOURCES} ${DESCENT2_SOURCES})
 endif()
 
+if (USE_OX_BRIDGE)
+	add_dependencies(ChocolateDescent ox_bridge_build)
+	add_dependencies(ChocolateDescent2 ox_bridge_build)
+	target_sources(ChocolateDescent PRIVATE ${OX_BRIDGE_SOURCES})
+	target_sources(ChocolateDescent2 PRIVATE ${OX_BRIDGE_SOURCES})
+	target_compile_definitions(ChocolateDescent PUBLIC USE_OX_BRIDGE)
+	target_compile_definitions(ChocolateDescent2 PUBLIC USE_OX_BRIDGE)
+endif()
+
 set_target_properties(ChocolateDescent ChocolateDescent2 PROPERTIES CXX_STANDARD 14)
 
 if (BUILD_EDITOR)
@@ -768,6 +813,10 @@ endif()
 
 target_link_libraries(ChocolateDescent ${SHARED_LIBS} ${DESCENT1_LIBS})
 target_link_libraries(ChocolateDescent2 ${SHARED_LIBS} ${DESCENT2_LIBS})
+if (USE_OX_BRIDGE)
+	target_link_libraries(ChocolateDescent ${OX_BRIDGE_LIBS})
+	target_link_libraries(ChocolateDescent2 ${OX_BRIDGE_LIBS})
+endif()
 
 target_compile_definitions(ChocolateDescent PUBLIC BUILD_DESCENT1)
 target_compile_definitions(ChocolateDescent2 PUBLIC BUILD_DESCENT2)
