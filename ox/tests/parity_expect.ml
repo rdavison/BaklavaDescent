@@ -250,6 +250,27 @@ external c_vm_copy_transpose_matrix_raw
   -> int
   -> int * int * int * int * int * int * int * int * int
   = "caml_c_vm_copy_transpose_matrix_bc" "caml_c_vm_copy_transpose_matrix"
+external c_vm_matrix_x_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_matrix_x_matrix_bc" "caml_c_vm_matrix_x_matrix"
 
 type vec3 = int * int * int
 type mat3 = vec3 * vec3 * vec3
@@ -273,6 +294,30 @@ let c_vm_transpose_matrix mat =
 let c_vm_copy_transpose_matrix mat =
   let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
   mat3_of_flat (c_vm_copy_transpose_matrix_raw rx ry rz ux uy uz fx fy fz)
+
+let c_vm_matrix_x_matrix m0 m1 =
+  let r0x, r0y, r0z, u0x, u0y, u0z, f0x, f0y, f0z = flat_of_mat3 m0 in
+  let r1x, r1y, r1z, u1x, u1y, u1z, f1x, f1y, f1z = flat_of_mat3 m1 in
+  mat3_of_flat
+    (c_vm_matrix_x_matrix_raw
+       r0x
+       r0y
+       r0z
+       u0x
+       u0y
+       u0z
+       f0x
+       f0y
+       f0z
+       r1x
+       r1y
+       r1z
+       u1x
+       u1y
+       u1z
+       f1x
+       f1y
+       f1z)
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -505,6 +550,16 @@ let vm_vec_rotate_cases =
   ]
 
 let vm_matrix_cases = [ mat_identity; mat_sample; mat_extreme ]
+
+let vm_matrix_x_matrix_cases =
+  [
+    (mat_identity, mat_identity);
+    (mat_identity, mat_sample);
+    (mat_sample, mat_identity);
+    (mat_sample, mat_extreme);
+    (mat_extreme, mat_sample);
+    (mat_extreme, mat_extreme);
+  ]
 
 let edge_fix_values =
   [
@@ -1391,6 +1446,41 @@ let check_mat_unop
         ox_f3
         eq)
 
+let check_mat_binop
+    (name : string)
+    (c_impl : mat3 -> mat3 -> mat3)
+    (ox_impl : mat3 -> mat3 -> mat3)
+    (cases : (mat3 * mat3) list)
+  =
+  List.iter cases ~f:(fun (m0, m1) ->
+      let c_m = c_impl m0 m1 in
+      let ox_m = ox_impl m0 m1 in
+      let eq = if eq_mat3 c_m ox_m then "true" else "false" in
+      let c_r1, c_r2, c_r3, c_u1, c_u2, c_u3, c_f1, c_f2, c_f3 = flat_of_mat3 c_m in
+      let ox_r1, ox_r2, ox_r3, ox_u1, ox_u2, ox_u3, ox_f1, ox_f2, ox_f3 = flat_of_mat3 ox_m in
+      printf
+        "%s c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%s\n"
+        name
+        c_r1
+        c_r2
+        c_r3
+        c_u1
+        c_u2
+        c_u3
+        c_f1
+        c_f2
+        c_f3
+        ox_r1
+        ox_r2
+        ox_r3
+        ox_u1
+        ox_u2
+        ox_u3
+        ox_f1
+        ox_f2
+        ox_f3
+        eq)
+
 let run_random_vec3_mat_to_vec3
     ~(name : string)
     ~(seed : string)
@@ -1446,6 +1536,31 @@ let run_random_mat_unop
          incr total;
          let c_m = c_impl m in
          let ox_m = ox_impl m in
+         if not (eq_mat3 c_m ox_m)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_mat_binop
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : mat3 -> mat3 -> mat3)
+    (ox_impl : mat3 -> mat3 -> mat3)
+  =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen = Quickcheck.Generator.both mat3_gen mat3_gen in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (m0, m1) ->
+         incr total;
+         let c_m = c_impl m0 m1 in
+         let ox_m = ox_impl m0 m1 in
          if not (eq_mat3 c_m ox_m)
          then (
            incr mismatches;
@@ -1807,6 +1922,18 @@ let%expect_test "vm_copy_transpose_matrix parity C vs Ox" =
     vm_copy_transpose_matrix c=[2147483647,-3,5;1,-2147483648,-6;2,4,7] ox=[2147483647,-3,5;1,-2147483648,-6;2,4,7] eq=true
     |}]
 
+let%expect_test "vm_matrix_x_matrix parity C vs Ox" =
+  check_mat_binop "vm_matrix_x_matrix" c_vm_matrix_x_matrix Ox_math.vm_matrix_x_matrix vm_matrix_x_matrix_cases;
+  [%expect
+    {|
+    vm_matrix_x_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
+    vm_matrix_x_matrix c=[12345,-54321,99999;67890,13579,-24680;-11111,22222,-33333] ox=[12345,-54321,99999;67890,13579,-24680;-11111,22222,-33333] eq=true
+    vm_matrix_x_matrix c=[12345,-54321,99999;67890,13579,-24680;-11111,22222,-33333] ox=[12345,-54321,99999;67890,13579,-24680;-11111,22222,-33333] eq=true
+    vm_matrix_x_matrix c=[404520960,-1779990527,2147483647;-2147483647,-444956669,808714233;-7,-4,6] ox=[404520960,-1779990527,2147483647;-2147483647,-444956669,808714233;-7,-4,6] eq=true
+    vm_matrix_x_matrix c=[404520969,1779990519,7;2147483647,-444956669,0;-364085252,-728170494,-3] ox=[404520969,1779990519,7;2147483647,-444956669,0;-364085252,-728170494,-3] eq=true
+    vm_matrix_x_matrix c=[2147483647,-1,65536;0,2147483647,-131072;163840,196607,0] ox=[2147483647,-1,65536;0,2147483647,-131072;163840,196607,0] eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -2059,3 +2186,12 @@ let%expect_test "randomized vm_copy_transpose_matrix parity C vs Ox" =
     c_vm_copy_transpose_matrix
     Ox_math.vm_copy_transpose_matrix;
   [%expect {| vm_copy_transpose_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_matrix_x_matrix parity C vs Ox" =
+  run_random_mat_binop
+    ~name:"vm_matrix_x_matrix"
+    ~seed:"vm-matrix-x-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_matrix_x_matrix
+    Ox_math.vm_matrix_x_matrix;
+  [%expect {| vm_matrix_x_matrix random total=5000 mismatches=0 |}]

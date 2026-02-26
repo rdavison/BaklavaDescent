@@ -392,3 +392,21 @@ extern "C" void c_oracle_vm_copy_transpose_matrix(c_oracle_mat3* dest, const c_o
     dest->fvec.y = src->uvec.z;
     dest->fvec.z = src->fvec.z;
 }
+
+extern "C" void c_oracle_vm_matrix_x_matrix(
+    c_oracle_mat3* dest,
+    const c_oracle_mat3* src0,
+    const c_oracle_mat3* src1)
+{
+    dest->rvec.x = c_oracle_vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->rvec);
+    dest->uvec.x = c_oracle_vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->uvec);
+    dest->fvec.x = c_oracle_vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->fvec);
+
+    dest->rvec.y = c_oracle_vm_vec_dot3(src0->rvec.y, src0->uvec.y, src0->fvec.y, &src1->rvec);
+    dest->uvec.y = c_oracle_vm_vec_dot3(src0->rvec.y, src0->uvec.y, src0->fvec.y, &src1->uvec);
+    dest->fvec.y = c_oracle_vm_vec_dot3(src0->rvec.y, src0->uvec.y, src0->fvec.y, &src1->fvec);
+
+    dest->rvec.z = c_oracle_vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->rvec);
+    dest->uvec.z = c_oracle_vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->uvec);
+    dest->fvec.z = c_oracle_vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->fvec);
+}

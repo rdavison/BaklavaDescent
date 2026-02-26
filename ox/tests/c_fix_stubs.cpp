@@ -682,3 +682,79 @@ extern "C" CAMLprim value caml_c_vm_copy_transpose_matrix_bc(value* argv, int ar
     return caml_c_vm_copy_transpose_matrix(
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
+
+extern "C" CAMLprim value caml_c_vm_matrix_x_matrix(
+    value r0x,
+    value r0y,
+    value r0z,
+    value u0x,
+    value u0y,
+    value u0z,
+    value f0x,
+    value f0y,
+    value f0z,
+    value r1x,
+    value r1y,
+    value r1z,
+    value u1x,
+    value u1y,
+    value u1z,
+    value f1x,
+    value f1y,
+    value f1z)
+{
+    CAMLparam5(r0x, r0y, r0z, u0x, u0y);
+    CAMLxparam5(u0z, f0x, f0y, f0z, r1x);
+    CAMLxparam5(r1y, r1z, u1x, u1y, u1z);
+    CAMLxparam3(f1x, f1y, f1z);
+    CAMLlocal1(out);
+
+    const c_oracle_mat3 src0 = {
+        { Int_val(r0x), Int_val(r0y), Int_val(r0z) },
+        { Int_val(u0x), Int_val(u0y), Int_val(u0z) },
+        { Int_val(f0x), Int_val(f0y), Int_val(f0z) }
+    };
+    const c_oracle_mat3 src1 = {
+        { Int_val(r1x), Int_val(r1y), Int_val(r1z) },
+        { Int_val(u1x), Int_val(u1y), Int_val(u1z) },
+        { Int_val(f1x), Int_val(f1y), Int_val(f1z) }
+    };
+    c_oracle_mat3 dest = {};
+    c_oracle_vm_matrix_x_matrix(&dest, &src0, &src1);
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_matrix_x_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_matrix_x_matrix(
+        argv[0],
+        argv[1],
+        argv[2],
+        argv[3],
+        argv[4],
+        argv[5],
+        argv[6],
+        argv[7],
+        argv[8],
+        argv[9],
+        argv[10],
+        argv[11],
+        argv[12],
+        argv[13],
+        argv[14],
+        argv[15],
+        argv[16],
+        argv[17]);
+}

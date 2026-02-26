@@ -195,3 +195,11 @@ let vm_transpose_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) =
   (r1, u1, f1), (r2, u2, f2), (r3, u3, f3)
 
 let vm_copy_transpose_matrix src = vm_transpose_matrix src
+
+let vm_matrix_x_matrix
+    ((r0x, r0y, r0z), (u0x, u0y, u0z), (f0x, f0y, f0z))
+    (r1, u1, f1)
+  =
+  ( (vm_vec_dot3 r0x u0x f0x r1, vm_vec_dot3 r0y u0y f0y r1, vm_vec_dot3 r0z u0z f0z r1)
+  , (vm_vec_dot3 r0x u0x f0x u1, vm_vec_dot3 r0y u0y f0y u1, vm_vec_dot3 r0z u0z f0z u1)
+  , (vm_vec_dot3 r0x u0x f0x f1, vm_vec_dot3 r0y u0y f0y f1, vm_vec_dot3 r0z u0z f0z f1) )
