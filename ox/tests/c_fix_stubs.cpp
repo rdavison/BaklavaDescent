@@ -358,3 +358,15 @@ extern "C" CAMLprim value caml_c_vm_vec_dotprod_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_dotprod(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_dot3(value x, value y, value z, value vx, value vy, value vz)
+{
+    c_oracle_vec3 v = { Int_val(vx), Int_val(vy), Int_val(vz) };
+    return Val_long(c_oracle_vm_vec_dot3(Int_val(x), Int_val(y), Int_val(z), &v));
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_dot3_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_dot3(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}

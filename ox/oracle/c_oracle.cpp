@@ -177,3 +177,25 @@ extern "C" int32_t c_oracle_vm_vec_dotprod(const c_oracle_vec3* v0, const c_orac
     }
     return v;
 }
+
+extern "C" int32_t c_oracle_vm_vec_dot3(int32_t x, int32_t y, int32_t z, const c_oracle_vec3* v)
+{
+    const int64_t q =
+        (int64_t)x * (int64_t)v->x +
+        (int64_t)y * (int64_t)v->y +
+        (int64_t)z * (int64_t)v->z;
+
+    int32_t out = (int32_t)(q >> 16);
+    int32_t vh = (int32_t)(q >> 48);
+    const int signb = vh < 0;
+    const int signv = out < 0;
+    if (signb != signv)
+    {
+        out = (int32_t)0x7FFFFFFF;
+        if (signb)
+        {
+            out = -out;
+        }
+    }
+    return out;
+}

@@ -107,3 +107,5 @@ let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
       + (of_int z0 * of_int z1))
   in
   fixquadadjust q
+
+let vm_vec_dot3 x y z (vx, vy, vz) = vm_vec_dotprod (x, y, z) (vx, vy, vz)
