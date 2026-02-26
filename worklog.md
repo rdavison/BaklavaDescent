@@ -278,3 +278,24 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 25) First in-engine trig routing: `fix_sincos` via Ox bridge
+- Routed runtime callsite:
+  - `fix/fix.cpp::fix_sincos` now calls `cd_ox_fix_sincos` when `USE_OX_BRIDGE` is enabled.
+  - Added one-time runtime log marker:
+    - `[OX] fix_sincos using cd_ox_fix_sincos.`
+- Extended bridge surface:
+  - C API: `cd_ox_fix_sincos(int32_t a, int32_t* s, int32_t* c)`.
+  - Runtime callback registration/lookup:
+    - registered `cd_fix_sincos` in `ox/math_bridge.ml`.
+    - required callback presence during bridge init (`cd_ox_require_ready` / `cd_ox_is_ready`).
+- Build-system fix discovered during integration:
+  - `scripts/ox/build_bridge.sh` previously compiled only `math_bridge.ml`, which can fail to resolve `Ox_math`.
+  - Updated bridge build to compile/link both:
+    - `ox/ox_math.ml`
+    - `ox/math_bridge.ml`
+  - Added `-I "$OX_DIR"` so module interfaces resolve reliably.
+- Verification:
+  - `cmake --build build-ox -j` passes with `USE_OX_BRIDGE=ON`.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - Runtime startup confirms bridge init (`[OX] OxCaml bridge runtime initialized.`).

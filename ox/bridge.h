@@ -12,6 +12,7 @@ int32_t cd_ox_i2f(int32_t i);
 int32_t cd_ox_f2i(int32_t f);
 int32_t cd_ox_fixmul(int32_t a, int32_t b);
 int32_t cd_ox_fixdiv(int32_t a, int32_t b);
+void cd_ox_fix_sincos(int32_t a, int32_t* s, int32_t* c);
 
 #ifdef __cplusplus
 }

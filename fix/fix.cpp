@@ -15,6 +15,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
+#ifdef USE_OX_BRIDGE
+#include <stdio.h>
+#include "ox/bridge.h"
+#endif
 #include "misc/error.h"
 #include "fix/fix.h"
 
@@ -236,6 +240,16 @@ fix fix_sqrt(fix a)
 //with interpolation
 void fix_sincos(fix a, fix* s, fix* c)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] fix_sincos using cd_ox_fix_sincos.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_fix_sincos(a, s, c);
+	return;
+#else
 	int i, f;
 	fix ss, cc;
 
@@ -248,6 +262,7 @@ void fix_sincos(fix a, fix* s, fix* c)
 	cc = sincos_table[i + 64];
 	*c = (cc + (((sincos_table[i + 64 + 1] - cc) * f) >> 8)) << 2;
 
+#endif
 }
 
 //compute sine and cosine of an angle, filling in the variables
@@ -347,4 +362,3 @@ fix fix_isqrt(fix a)
 
 	return r;
 }
-

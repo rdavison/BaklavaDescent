@@ -9,10 +9,12 @@ mkdir -p "$BUILD_DIR"
 
 ocamlfind ocamlopt \
   -open Core \
+  -I "$OX_DIR" \
   -package core \
   -linkpkg \
   -output-complete-obj \
   -o "$BUILD_DIR/math_bridge_complete.o" \
+  "$OX_DIR/ox_math.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG
