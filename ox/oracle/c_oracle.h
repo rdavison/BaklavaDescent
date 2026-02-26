@@ -12,6 +12,7 @@ int32_t c_oracle_fixmul(int32_t a, int32_t b);
 int32_t c_oracle_fixdiv(int32_t a, int32_t b);
 int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c);
 int32_t c_oracle_fix_sqrt(int32_t a);
+int32_t c_oracle_fix_isqrt(int32_t a);
 void c_oracle_fix_fastsincos(int32_t a, int32_t* s, int32_t* c);
 int16_t c_oracle_fix_asin(int32_t v);
 int16_t c_oracle_fix_atan2(int32_t cosv, int32_t sinv);

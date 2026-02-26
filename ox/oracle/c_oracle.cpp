@@ -73,6 +73,16 @@ static int32_t c_oracle_asin_lut_entry(int i)
     return (int32_t)llround(asin((double)i / 256.0) * 32768.0 / pi);
 }
 
+static int32_t c_oracle_isqrt_guess_lut_entry(int i)
+{
+    if (i == 0)
+    {
+        return (int32_t)0x80000000u;
+    }
+
+    return (int32_t)(16777216.0 / sqrt((double)i));
+}
+
 static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
 {
     const int i = (a >> 8) & 0xFF;
@@ -136,6 +146,39 @@ extern "C" int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c)
 extern "C" int32_t c_oracle_fix_sqrt(int32_t a)
 {
     return c_oracle_long_sqrt_ceil(a) << 8;
+}
+
+extern "C" int32_t c_oracle_fix_isqrt(int32_t a)
+{
+    constexpr int table_size = 1024;
+    int b = a;
+    int cnt = 0;
+    int r = 0;
+
+    if (a <= 0)
+    {
+        return 0;
+    }
+
+    while (b >= table_size)
+    {
+        b >>= 1;
+        cnt++;
+    }
+
+    r = c_oracle_isqrt_guess_lut_entry(b) >> ((cnt + 1) / 2);
+
+    for (int i = 0; i < 3; i++)
+    {
+        const int old_r = r;
+        r = fixmul(((3 * 65536) - fixmul(fixmul(r, r), a)), r) / 2;
+        if (old_r >= r)
+        {
+            return (r + old_r) / 2;
+        }
+    }
+
+    return r;
 }
 
 extern "C" void c_oracle_fix_fastsincos(int32_t a, int32_t* s, int32_t* c)

@@ -244,3 +244,21 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 23) Added inverse-square-root parity: `fix_isqrt`
+- Implemented in Ox:
+  - `fix_isqrt a` with the same iterative Newton-style refinement used by C.
+  - added `isqrt_guess_lut_entry` derivation using the canonical table formula:
+    - index `0` => `0x80000000`
+    - index `i>0` => `floor(16777216 / sqrt(i))`
+- Extended C oracle:
+  - `c_oracle_fix_isqrt`.
+- Extended parity FFI:
+  - `caml_c_fix_isqrt`.
+- Extended parity harness:
+  - deterministic parity cases for `fix_isqrt`.
+  - seeded randomized parity using a non-negative generator (`fix_nonneg_gen`) to stay within defined input domain.
+  - generalized unop randomized helper to accept custom generators (`run_random_unop_with_gen`).
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

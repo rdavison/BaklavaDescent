@@ -161,6 +161,7 @@ external c_fixmul : int -> int -> int = "caml_c_fixmul"
 external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
+external c_fix_isqrt : int -> int = "caml_c_fix_isqrt"
 external c_fix_fastsincos : int -> int * int = "caml_c_fix_fastsincos"
 external c_fix_asin : int -> int = "caml_c_fix_asin"
 external c_fix_atan2 : int -> int -> int = "caml_c_fix_atan2"
@@ -553,6 +554,9 @@ let muldiv_cases =
 let fix_sqrt_cases =
   [ -1; 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
 
+let fix_isqrt_cases =
+  [ 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
+
 let fix_fastsincos_cases =
   [
     Int32.to_int_exn Int32.min_value;
@@ -942,6 +946,13 @@ let fix_gen =
       (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:Int32.to_int_exn);
     ]
 
+let fix_nonneg_gen =
+  Quickcheck.Generator.weighted_union
+    [
+      (3.0, Quickcheck.Generator.of_list fix_isqrt_cases);
+      (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:(fun v -> Int.max 0 (Int32.to_int_exn v)));
+    ]
+
 let random_values ~seed ~test_count gen =
   Quickcheck.random_sequence ~seed:(`Deterministic seed) gen |> fun seq -> Sequence.take seq test_count
 
@@ -987,11 +998,11 @@ let vec3_with_optional_axes_gen =
        (Quickcheck.Generator.both vec3_option_mag_safe_gen vec3_option_mag_safe_gen))
     ~f:(fun (fvec, (uvec, rvec)) -> (fvec, uvec, rvec))
 
-let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
+let run_random_unop_with_gen ~name ~seed ~test_count ~gen c_impl ox_impl =
   let total = ref 0 in
   let mismatches = ref 0 in
   let first_mismatch = ref None in
-  random_values ~seed ~test_count fix_gen
+  random_values ~seed ~test_count gen
   |> Sequence.iter ~f:(fun a ->
          incr total;
          let c = c_impl a in
@@ -1004,6 +1015,9 @@ let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
+  run_random_unop_with_gen ~name ~seed ~test_count ~gen:fix_gen c_impl ox_impl
 
 let run_random_unop_pair ~name ~seed ~test_count c_impl ox_impl =
   let total = ref 0 in
@@ -2555,6 +2569,21 @@ let%expect_test "fix_sqrt parity C vs Ox" =
     fix_sqrt a=2147483647 c=11863296 ox=11863296 eq=true
     |}]
 
+let%expect_test "fix_isqrt parity C vs Ox" =
+  check_unop "fix_isqrt" c_fix_isqrt Ox_math.fix_isqrt fix_isqrt_cases;
+  [%expect {|
+    fix_isqrt a=0 c=0 ox=0 eq=true
+    fix_isqrt a=1 c=47511552 ox=47511552 eq=true
+    fix_isqrt a=2 c=35589575 ox=35589575 eq=true
+    fix_isqrt a=255 c=1050638 ox=1050638 eq=true
+    fix_isqrt a=256 c=1048576 ox=1048576 eq=true
+    fix_isqrt a=257 c=1046540 ox=1046540 eq=true
+    fix_isqrt a=65536 c=65499 ox=65499 eq=true
+    fix_isqrt a=262144 c=32749 ox=32749 eq=true
+    fix_isqrt a=2147395600 c=400 ox=400 eq=true
+    fix_isqrt a=2147483647 c=400 ox=400 eq=true
+    |}]
+
 let%expect_test "fix_fastsincos parity C vs Ox" =
   check_unop_pair "fix_fastsincos" c_fix_fastsincos Ox_math.fix_fastsincos fix_fastsincos_cases;
   [%expect {|
@@ -3137,6 +3166,16 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
   run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;
   [%expect {| fix_sqrt random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_isqrt parity C vs Ox" =
+  run_random_unop_with_gen
+    ~name:"fix_isqrt"
+    ~seed:"fix-isqrt-seed-v1"
+    ~test_count:5000
+    ~gen:fix_nonneg_gen
+    c_fix_isqrt
+    Ox_math.fix_isqrt;
+  [%expect {| fix_isqrt random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_fastsincos parity C vs Ox" =
   run_random_unop_pair

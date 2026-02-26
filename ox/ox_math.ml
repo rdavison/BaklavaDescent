@@ -86,6 +86,10 @@ let asin_lut =
   Array.init 257 ~f:(fun i ->
       Int.of_float (Float.round (Float.asin (Float.of_int i /. 256.0) *. 32768.0 /. Float.pi)))
 
+let isqrt_guess_lut_entry i =
+  if i = 0 then Int32.to_int_exn Int32.min_value
+  else Int.of_float (16777216.0 /. Float.sqrt (Float.of_int i))
+
 let fix_sincos a =
   let i = Int.bit_and (Int.shift_right a 8) 0xFF in
   let f = Int.bit_and a 0xFF in
@@ -140,6 +144,30 @@ let fix_atan2 cos sin =
     let t = fix_acos (fixdiv cos m) in
     let t = if sin < 0 then -t else t in
     wrap_i32_to_fixang t)
+
+let fix_isqrt a =
+  let table_size = 1024 in
+  if a <= 0
+  then 0
+  else
+    let rec shrink b cnt =
+      if b >= table_size then shrink (Int.shift_right b 1) (cnt + 1) else b, cnt
+    in
+    let b, cnt = shrink a 0 in
+    let r0 = Int.shift_right (isqrt_guess_lut_entry b) ((cnt + 1) / 2) in
+    let rec iter i r =
+      if i >= 3
+      then r
+      else
+        let old_r = r in
+        let rr = fixmul r r in
+        let term = Int64.(wrap_i64_to_fix (of_int 196608 - of_int (fixmul rr a))) in
+        let r = fixmul term r / 2 in
+        if old_r >= r
+        then Int64.(wrap_i64_to_fix (of_int r + of_int old_r)) / 2
+        else iter (i + 1) r
+    in
+    iter 0 r0
 
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 

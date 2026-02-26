@@ -36,6 +36,11 @@ extern "C" CAMLprim value caml_c_fix_sqrt(value a)
     return Val_long(c_oracle_fix_sqrt(Int_val(a)));
 }
 
+extern "C" CAMLprim value caml_c_fix_isqrt(value a)
+{
+    return Val_long(c_oracle_fix_isqrt(Int_val(a)));
+}
+
 extern "C" CAMLprim value caml_c_fix_fastsincos(value a)
 {
     CAMLparam1(a);
