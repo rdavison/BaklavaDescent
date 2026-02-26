@@ -677,6 +677,21 @@ extern "C" CAMLprim value caml_c_vm_dist_to_plane_bc(value* argv, int argn)
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
 
+extern "C" CAMLprim value caml_c_vm_check_vec(value x, value y, value z)
+{
+    CAMLparam3(x, y, z);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 v = { Int_val(x), Int_val(y), Int_val(z) };
+    c_oracle_vm_check_vec(&v);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(v.x));
+    Store_field(out, 1, Val_long(v.y));
+    Store_field(out, 2, Val_long(v.z));
+    CAMLreturn(out);
+}
+
 extern "C" CAMLprim value caml_c_vm_vec_perp(
     value p0x,
     value p0y,

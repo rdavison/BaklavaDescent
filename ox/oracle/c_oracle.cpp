@@ -583,7 +583,7 @@ extern "C" int32_t c_oracle_vm_dist_to_plane(
     return c_oracle_vm_vec_dotprod(&t, norm);
 }
 
-static void c_oracle_check_vec(c_oracle_vec3* v)
+extern "C" void c_oracle_vm_check_vec(c_oracle_vec3* v)
 {
     int32_t check = (int32_t)(labs(v->x) | labs(v->y) | labs(v->z));
     int cnt = 0;
@@ -640,8 +640,8 @@ extern "C" void c_oracle_vm_vec_perp(
     c_oracle_vec3 t0 = { p1->x - p0->x, p1->y - p0->y, p1->z - p0->z };
     c_oracle_vec3 t1 = { p2->x - p1->x, p2->y - p1->y, p2->z - p1->z };
 
-    c_oracle_check_vec(&t0);
-    c_oracle_check_vec(&t1);
+    c_oracle_vm_check_vec(&t0);
+    c_oracle_vm_check_vec(&t1);
 
     c_oracle_vm_vec_crossprod(dest, &t0, &t1);
 }

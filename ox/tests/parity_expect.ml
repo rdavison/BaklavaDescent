@@ -240,6 +240,7 @@ external c_vm_vec_normalize_quick : int -> int -> int -> int * int * int * int
 external c_vm_vec_normalized_dir_quick : int -> int -> int -> int -> int -> int -> int * int * int * int
   = "caml_c_vm_vec_normalized_dir_quick_bc" "caml_c_vm_vec_normalized_dir_quick"
 external c_vm_vec_make : int -> int -> int -> int * int * int = "caml_c_vm_vec_make"
+external c_vm_check_vec : int -> int -> int -> int * int * int = "caml_c_vm_check_vec"
 external c_vm_angvec_make : int -> int -> int -> int * int * int = "caml_c_vm_angvec_make"
 external c_vm_dist_to_plane : int -> int -> int -> int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_dist_to_plane_bc" "caml_c_vm_dist_to_plane"
@@ -896,6 +897,15 @@ let vm_vec_make_cases =
     (0x10000, 0x20000, -0x10000);
     (12345, -54321, 99999);
     (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_check_vec_cases =
+  [
+    (0, 0, 0);
+    (1, 2, 3);
+    (0x7fff, -0x7fff, 0x4000);
+    (0x100000, 0x200000, -0x300000);
+    (0x3fffffff, -0x3fffffff, 0x1234567);
   ]
 
 let vm_angvec_make_cases =
@@ -3162,6 +3172,20 @@ let%expect_test "vm_vec_make parity C vs Ox" =
     vm_vec_make in=(2147483647,0,-2147483648) c=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
     |}]
 
+let%expect_test "vm_check_vec parity C vs Ox" =
+  check_make3
+    "vm_check_vec"
+    c_vm_check_vec
+    (fun x y z -> Ox_math.check_vec (x, y, z))
+    vm_check_vec_cases;
+  [%expect {|
+    vm_check_vec in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_check_vec in=(1,2,3) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_check_vec in=(32767,-32767,16384) c=(8191,-8192,4096) ox=(8191,-8192,4096) eq=true
+    vm_check_vec in=(1048576,2097152,-3145728) c=(65536,131072,-196608) ox=(65536,131072,-196608) eq=true
+    vm_check_vec in=(1073741823,-1073741823,19088743) c=(262143,-262144,4660) ox=(262143,-262144,4660) eq=true
+    |}]
+
 let%expect_test "vm_angvec_make parity C vs Ox" =
   check_make3 "vm_angvec_make" c_vm_angvec_make Ox_math.vm_angvec_make vm_angvec_make_cases;
   [%expect
@@ -3706,6 +3730,16 @@ let%expect_test "randomized vm_vec_make parity C vs Ox" =
     c_vm_vec_make
     Ox_math.vm_vec_make;
   [%expect {| vm_vec_make random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_check_vec parity C vs Ox" =
+  run_random_make3
+    ~name:"vm_check_vec"
+    ~seed:"vm-check-vec-seed-v1"
+    ~test_count:5000
+    vec3_mag_safe_gen
+    c_vm_check_vec
+    (fun x y z -> Ox_math.check_vec (x, y, z));
+  [%expect {| vm_check_vec random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_angvec_make parity C vs Ox" =
   run_random_make3

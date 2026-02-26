@@ -373,3 +373,25 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - `cmake --build build-ox -j` passes.
+
+### 29) Added direct parity for internal vector scaling helper: `check_vec`
+- Exposed C-oracle helper in `ox/oracle/c_oracle.{h,cpp}`:
+  - `c_oracle_vm_check_vec(c_oracle_vec3* v)`
+  - This is the same internal helper used by oracle `vm_vec_perp`.
+- Extended parity stub surface in `ox/tests/c_fix_stubs.cpp`:
+  - added `caml_c_vm_check_vec` (tuple-returning vec3 wrapper).
+- Extended parity harness in `ox/tests/parity_expect.ml`:
+  - new extern binding `c_vm_check_vec`.
+  - deterministic parity cases covering:
+    - zero vector
+    - tiny vectors (underflow/normalize-up path)
+    - moderate vectors
+    - large vectors (scale-down path)
+  - seeded randomized differential test:
+    - `randomized vm_check_vec parity C vs Ox` using `vec3_mag_safe_gen`.
+- Outcome:
+  - confirms Ox `check_vec` helper matches C behavior directly, not just indirectly through `vm_vec_perp`.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - `cmake --build build-ox -j` passes.
