@@ -16,6 +16,23 @@ let cd_vm_vec_scale_add2 dx dy dz sx sy sz k =
   Ox_math.vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k
 
 let cd_vm_vec_scale2 dx dy dz n d = Ox_math.vm_vec_scale2 (dx, dy, dz) n d
+let cd_vm_vec_mag x y z = Ox_math.vm_vec_mag (x, y, z)
+let cd_vm_vec_dist x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dist (x0, y0, z0) (x1, y1, z1)
+let cd_vm_vec_dotprod x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dotprod (x0, y0, z0) (x1, y1, z1)
+let cd_vm_vec_dot3 x y z vx vy vz = Ox_math.vm_vec_dot3 x y z (vx, vy, vz)
+
+let cd_vm_vec_crossprod x0 y0 z0 x1 y1 z1 =
+  Ox_math.vm_vec_crossprod (x0, y0, z0) (x1, y1, z1)
+
+let cd_vm_vec_perp p0x p0y p0z p1x p1y p1z p2x p2y p2z =
+  Ox_math.vm_vec_perp (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
+
+let cd_vm_vec_copy_normalize sx sy sz =
+  let m, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize (sx, sy, sz) in
+  (m, nx, ny, nz)
+
+let cd_vm_vec_rotate sx sy sz r1 r2 r3 u1 u2 u3 f1 f2 f3 =
+  Ox_math.vm_vec_rotate (sx, sy, sz) ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
 
 let () =
   (* Register named callbacks so C can resolve these via caml_named_value(). *)
@@ -39,4 +56,12 @@ let () =
   Callback.register "cd_vm_vec_copy_scale" cd_vm_vec_copy_scale;
   Callback.register "cd_vm_vec_scale_add" cd_vm_vec_scale_add;
   Callback.register "cd_vm_vec_scale_add2" cd_vm_vec_scale_add2;
-  Callback.register "cd_vm_vec_scale2" cd_vm_vec_scale2
+  Callback.register "cd_vm_vec_scale2" cd_vm_vec_scale2;
+  Callback.register "cd_vm_vec_mag" cd_vm_vec_mag;
+  Callback.register "cd_vm_vec_dist" cd_vm_vec_dist;
+  Callback.register "cd_vm_vec_dotprod" cd_vm_vec_dotprod;
+  Callback.register "cd_vm_vec_dot3" cd_vm_vec_dot3;
+  Callback.register "cd_vm_vec_crossprod" cd_vm_vec_crossprod;
+  Callback.register "cd_vm_vec_perp" cd_vm_vec_perp;
+  Callback.register "cd_vm_vec_copy_normalize" cd_vm_vec_copy_normalize;
+  Callback.register "cd_vm_vec_rotate" cd_vm_vec_rotate

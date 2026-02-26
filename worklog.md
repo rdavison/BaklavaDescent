@@ -441,3 +441,35 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - `cmake --build build-ox -j` passes.
+
+### 32) Wired second batch of vector/matrix primitives through Ox bridge
+- Added bridge implementations for 8 additional functions, bringing total bridge surface from 23 to 31 functions.
+- **Already declared in bridge.h (needed impl + registration + engine wiring):**
+  - `vm_vec_dotprod` (scalar return, 6 args)
+  - `vm_vec_dot3` (scalar return, 6 args)
+  - `vm_vec_mag` (scalar return, 3 args)
+  - `vm_vec_dist` (scalar return, 6 args)
+- **New bridge functions (full pipeline: bridge.h + bridge.c + math_bridge.ml + vecmat.cpp):**
+  - `vm_vec_crossprod` (vec3 return, 6 args)
+  - `vm_vec_perp` (vec3 return, 9 args — three points)
+  - `vm_vec_copy_normalize` (mag + vec3 return via 4-tuple, 3 args)
+  - `vm_vec_rotate` (vec3 return, 12 args — vec + matrix)
+- Extended `ox/math_bridge.ml`:
+  - Added C-friendly flattened wrappers for each new callback.
+  - `cd_vm_vec_copy_normalize` returns a 4-tuple `(mag, nx, ny, nz)` for C unpacking.
+  - `cd_vm_vec_rotate` flattens `(vec3, matrix)` into 12 integer args.
+- Extended `ox/bridge.c`:
+  - Added 8 global callback pointers and updated `cd_ox_require_ready`, `cd_ox_init_runtime`, `cd_ox_is_ready`.
+  - Added function implementations using `caml_callbackN` + `cd_ox_unpack_vec3` / `Field` unpacking.
+- Extended `vecmat/vecmat.cpp`:
+  - Added `#ifdef USE_OX_BRIDGE` wiring for all 8 functions with one-time `[OX]` log markers.
+- Cascade effect — these bridged functions also cover composite callers:
+  - `vm_vec_normalize` → calls `vm_vec_copy_normalize` (now bridged)
+  - `vm_vec_normal` → calls `vm_vec_perp` + `vm_vec_normalize` (both bridged)
+  - `vm_vec_normalized_dir` → calls `vm_vec_sub` + `vm_vec_normalize` (both bridged)
+  - `vm_matrix_x_matrix` → calls `vm_vec_dot3` (now bridged)
+- Verification:
+  - `scripts/ox/build_bridge.sh` passes.
+  - `cmake --build build-ox -j` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - Runtime launch confirms new `[OX]` markers for `vm_vec_perp`, `vm_vec_copy_normalize`, `vm_vec_dotprod`, `vm_vec_crossprod`.

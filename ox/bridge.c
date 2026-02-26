@@ -29,6 +29,14 @@ static const value* g_vm_vec_copy_scale = NULL;
 static const value* g_vm_vec_scale_add = NULL;
 static const value* g_vm_vec_scale_add2 = NULL;
 static const value* g_vm_vec_scale2 = NULL;
+static const value* g_vm_vec_mag = NULL;
+static const value* g_vm_vec_dist = NULL;
+static const value* g_vm_vec_dotprod = NULL;
+static const value* g_vm_vec_dot3 = NULL;
+static const value* g_vm_vec_crossprod = NULL;
+static const value* g_vm_vec_perp = NULL;
+static const value* g_vm_vec_copy_normalize = NULL;
+static const value* g_vm_vec_rotate = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -53,7 +61,15 @@ static void cd_ox_require_ready(const char* fn)
           && g_vm_vec_copy_scale
           && g_vm_vec_scale_add
           && g_vm_vec_scale_add2
-          && g_vm_vec_scale2))
+          && g_vm_vec_scale2
+          && g_vm_vec_mag
+          && g_vm_vec_dist
+          && g_vm_vec_dotprod
+          && g_vm_vec_dot3
+          && g_vm_vec_crossprod
+          && g_vm_vec_perp
+          && g_vm_vec_copy_normalize
+          && g_vm_vec_rotate))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -94,6 +110,14 @@ int cd_ox_init_runtime(const char* executable_path)
     g_vm_vec_scale_add = caml_named_value("cd_vm_vec_scale_add");
     g_vm_vec_scale_add2 = caml_named_value("cd_vm_vec_scale_add2");
     g_vm_vec_scale2 = caml_named_value("cd_vm_vec_scale2");
+    g_vm_vec_mag = caml_named_value("cd_vm_vec_mag");
+    g_vm_vec_dist = caml_named_value("cd_vm_vec_dist");
+    g_vm_vec_dotprod = caml_named_value("cd_vm_vec_dotprod");
+    g_vm_vec_dot3 = caml_named_value("cd_vm_vec_dot3");
+    g_vm_vec_crossprod = caml_named_value("cd_vm_vec_crossprod");
+    g_vm_vec_perp = caml_named_value("cd_vm_vec_perp");
+    g_vm_vec_copy_normalize = caml_named_value("cd_vm_vec_copy_normalize");
+    g_vm_vec_rotate = caml_named_value("cd_vm_vec_rotate");
 
     if (!g_i2f
         || !g_f2i
@@ -115,7 +139,15 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_vm_vec_copy_scale
         || !g_vm_vec_scale_add
         || !g_vm_vec_scale_add2
-        || !g_vm_vec_scale2)
+        || !g_vm_vec_scale2
+        || !g_vm_vec_mag
+        || !g_vm_vec_dist
+        || !g_vm_vec_dotprod
+        || !g_vm_vec_dot3
+        || !g_vm_vec_crossprod
+        || !g_vm_vec_perp
+        || !g_vm_vec_copy_normalize
+        || !g_vm_vec_rotate)
     {
         return 1;
     }
@@ -147,7 +179,15 @@ int cd_ox_is_ready(void)
            && g_vm_vec_copy_scale
            && g_vm_vec_scale_add
            && g_vm_vec_scale_add2
-           && g_vm_vec_scale2;
+           && g_vm_vec_scale2
+           && g_vm_vec_mag
+           && g_vm_vec_dist
+           && g_vm_vec_dotprod
+           && g_vm_vec_dot3
+           && g_vm_vec_crossprod
+           && g_vm_vec_perp
+           && g_vm_vec_copy_normalize
+           && g_vm_vec_rotate;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -409,4 +449,88 @@ void cd_ox_vm_vec_scale2(int32_t dx, int32_t dy, int32_t dz, int32_t n, int32_t 
     cd_ox_require_ready("cd_ox_vm_vec_scale2");
     value args[5] = { Val_long(dx), Val_long(dy), Val_long(dz), Val_long(n), Val_long(d) };
     cd_ox_unpack_vec3(caml_callbackN(*g_vm_vec_scale2, 5, args), x, y, z);
+}
+
+int32_t cd_ox_vm_vec_mag(int32_t x, int32_t y, int32_t z)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_mag");
+    value args[3] = { Val_long(x), Val_long(y), Val_long(z) };
+    return Int_val(caml_callbackN(*g_vm_vec_mag, 3, args));
+}
+
+int32_t cd_ox_vm_vec_dist(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_dist");
+    value args[6] = { Val_long(x0), Val_long(y0), Val_long(z0), Val_long(x1), Val_long(y1), Val_long(z1) };
+    return Int_val(caml_callbackN(*g_vm_vec_dist, 6, args));
+}
+
+int32_t cd_ox_vm_vec_dotprod(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_dotprod");
+    value args[6] = { Val_long(x0), Val_long(y0), Val_long(z0), Val_long(x1), Val_long(y1), Val_long(z1) };
+    return Int_val(caml_callbackN(*g_vm_vec_dotprod, 6, args));
+}
+
+int32_t cd_ox_vm_vec_dot3(int32_t x, int32_t y, int32_t z, int32_t vx, int32_t vy, int32_t vz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_dot3");
+    value args[6] = { Val_long(x), Val_long(y), Val_long(z), Val_long(vx), Val_long(vy), Val_long(vz) };
+    return Int_val(caml_callbackN(*g_vm_vec_dot3, 6, args));
+}
+
+void cd_ox_vm_vec_crossprod(
+    int32_t x0, int32_t y0, int32_t z0,
+    int32_t x1, int32_t y1, int32_t z1,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_crossprod");
+    value args[6] = { Val_long(x0), Val_long(y0), Val_long(z0), Val_long(x1), Val_long(y1), Val_long(z1) };
+    cd_ox_unpack_vec3(caml_callbackN(*g_vm_vec_crossprod, 6, args), rx, ry, rz);
+}
+
+void cd_ox_vm_vec_perp(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_perp");
+    value args[9] = {
+        Val_long(p0x), Val_long(p0y), Val_long(p0z),
+        Val_long(p1x), Val_long(p1y), Val_long(p1z),
+        Val_long(p2x), Val_long(p2y), Val_long(p2z),
+    };
+    cd_ox_unpack_vec3(caml_callbackN(*g_vm_vec_perp, 9, args), rx, ry, rz);
+}
+
+int32_t cd_ox_vm_vec_copy_normalize(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t* nx, int32_t* ny, int32_t* nz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_copy_normalize");
+    value args[3] = { Val_long(sx), Val_long(sy), Val_long(sz) };
+    const value out = caml_callbackN(*g_vm_vec_copy_normalize, 3, args);
+    int32_t mag = Int_val(Field(out, 0));
+    if (nx) { *nx = Int_val(Field(out, 1)); }
+    if (ny) { *ny = Int_val(Field(out, 2)); }
+    if (nz) { *nz = Int_val(Field(out, 3)); }
+    return mag;
+}
+
+void cd_ox_vm_vec_rotate(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_vm_vec_rotate");
+    value args[12] = {
+        Val_long(sx), Val_long(sy), Val_long(sz),
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+    };
+    cd_ox_unpack_vec3(caml_callbackN(*g_vm_vec_rotate, 12, args), rx, ry, rz);
 }

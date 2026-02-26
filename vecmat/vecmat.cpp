@@ -270,6 +270,15 @@ vms_vector* vm_vec_scale2(vms_vector* dest, fix n, fix d)
 //returns dot product of 2 vectors
 fix vm_vec_dotprod(vms_vector* v0, vms_vector* v1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_dotprod using cd_ox_vm_vec_dotprod.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_dotprod(v0->x, v0->y, v0->z, v1->x, v1->y, v1->z);
+#else
 	int64_t q;
 
 	q= 0;
@@ -279,10 +288,20 @@ fix vm_vec_dotprod(vms_vector* v0, vms_vector* v1)
 	fixmulaccum(&q, v0->z, v1->z);
 
 	return fixquadadjust(q);
+#endif
 }
 
 fix vm_vec_dot3(fix x, fix y, fix z, vms_vector* v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_dot3 using cd_ox_vm_vec_dot3.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_dot3(x, y, z, v->x, v->y, v->z);
+#else
 	int64_t q;
 
 	q = 0;
@@ -292,11 +311,21 @@ fix vm_vec_dot3(fix x, fix y, fix z, vms_vector* v)
 	fixmulaccum(&q, z, v->z);
 
 	return fixquadadjust(q);
+#endif
 }
 
 //returns magnitude of a vector
 fix vm_vec_mag(vms_vector* v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_mag using cd_ox_vm_vec_mag.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_mag(v->x, v->y, v->z);
+#else
 	int64_t q;
 
 	q = 0;
@@ -306,14 +335,25 @@ fix vm_vec_mag(vms_vector* v)
 	fixmulaccum(&q, v->z, v->z);
 
 	return quad_sqrt(q);
+#endif
 }
 
 //computes the distance between two points. (does sub and mag)
 fix vm_vec_dist(vms_vector* v0, vms_vector* v1)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_dist using cd_ox_vm_vec_dist.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_dist(v0->x, v0->y, v0->z, v1->x, v1->y, v1->z);
+#else
 	vms_vector t;
 	vm_vec_sub(&t, v0, v1);
 	return vm_vec_mag(&t);
+#endif
 }
 
 
@@ -359,11 +399,20 @@ fix vm_vec_dist_quick(vms_vector* v0, vms_vector* v1)
 //normalize a vector. returns mag of source vec
 fix vm_vec_copy_normalize(vms_vector* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_copy_normalize using cd_ox_vm_vec_copy_normalize.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_copy_normalize(src->x, src->y, src->z, &dest->x, &dest->y, &dest->z);
+#else
 	fix m;
 
 	m = vm_vec_mag(src);
 
-	if (m > 0) 
+	if (m > 0)
 	{
 		dest->x = fixdiv(src->x, m);
 		dest->y = fixdiv(src->y, m);
@@ -371,6 +420,7 @@ fix vm_vec_copy_normalize(vms_vector* dest, vms_vector* src)
 	}
 
 	return m;
+#endif
 }
 
 //normalize a vector. returns mag of source vec
@@ -493,9 +543,18 @@ void check_vec(vms_vector* v)
 //your inputs are ok.
 vms_vector * vm_vec_crossprod(vms_vector * dest, vms_vector * src0, vms_vector * src1)
 {
-	int64_t q;
-
 	Assert(dest != src0 && dest != src1);
+
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_crossprod using cd_ox_vm_vec_crossprod.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_crossprod(src0->x, src0->y, src0->z, src1->x, src1->y, src1->z, &dest->x, &dest->y, &dest->z);
+#else
+	int64_t q;
 
 	q = 0;
 	fixmulaccum(&q, src0->y, src1->z);
@@ -511,6 +570,7 @@ vms_vector * vm_vec_crossprod(vms_vector * dest, vms_vector * src0, vms_vector *
 	fixmulaccum(&q, src0->x, src1->y);
 	fixmulaccum(&q, -src0->y, src1->x);
 	dest->z = fixquadadjust(q);
+#endif
 
 	return dest;
 }
@@ -520,6 +580,19 @@ vms_vector * vm_vec_crossprod(vms_vector * dest, vms_vector * src0, vms_vector *
 //dest CANNOT equal either source
 vms_vector* vm_vec_perp(vms_vector* dest, vms_vector* p0, vms_vector* p1, vms_vector* p2)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_perp using cd_ox_vm_vec_perp.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_perp(
+		p0->x, p0->y, p0->z,
+		p1->x, p1->y, p1->z,
+		p2->x, p2->y, p2->z,
+		&dest->x, &dest->y, &dest->z);
+#else
 	vms_vector t0, t1;
 
 	vm_vec_sub(&t0, p1, p0);
@@ -528,7 +601,10 @@ vms_vector* vm_vec_perp(vms_vector* dest, vms_vector* p0, vms_vector* p1, vms_ve
 	check_vec(&t0);
 	check_vec(&t1);
 
-	return vm_vec_crossprod(dest, &t0, &t1);
+	vm_vec_crossprod(dest, &t0, &t1);
+#endif
+
+	return dest;
 }
 
 //computes the delta angle between two vectors. 
@@ -777,9 +853,24 @@ vms_vector* vm_vec_rotate(vms_vector* dest, vms_vector* src, vms_matrix* m)
 {
 	Assert(dest != src);
 
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_rotate using cd_ox_vm_vec_rotate.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_rotate(
+		src->x, src->y, src->z,
+		m->rvec.x, m->rvec.y, m->rvec.z,
+		m->uvec.x, m->uvec.y, m->uvec.z,
+		m->fvec.x, m->fvec.y, m->fvec.z,
+		&dest->x, &dest->y, &dest->z);
+#else
 	dest->x = vm_vec_dot(src, &m->rvec);
 	dest->y = vm_vec_dot(src, &m->uvec);
 	dest->z = vm_vec_dot(src, &m->fvec);
+#endif
 
 	return dest;
 }

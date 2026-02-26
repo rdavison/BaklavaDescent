@@ -109,6 +109,28 @@ void cd_ox_vm_vec_scale_add2(
     int32_t* y,
     int32_t* z);
 void cd_ox_vm_vec_scale2(int32_t dx, int32_t dy, int32_t dz, int32_t n, int32_t d, int32_t* x, int32_t* y, int32_t* z);
+int32_t cd_ox_vm_vec_mag(int32_t x, int32_t y, int32_t z);
+int32_t cd_ox_vm_vec_dist(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1);
+int32_t cd_ox_vm_vec_dotprod(int32_t x0, int32_t y0, int32_t z0, int32_t x1, int32_t y1, int32_t z1);
+int32_t cd_ox_vm_vec_dot3(int32_t x, int32_t y, int32_t z, int32_t vx, int32_t vy, int32_t vz);
+void cd_ox_vm_vec_crossprod(
+    int32_t x0, int32_t y0, int32_t z0,
+    int32_t x1, int32_t y1, int32_t z1,
+    int32_t* rx, int32_t* ry, int32_t* rz);
+void cd_ox_vm_vec_perp(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z,
+    int32_t* rx, int32_t* ry, int32_t* rz);
+int32_t cd_ox_vm_vec_copy_normalize(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t* nx, int32_t* ny, int32_t* nz);
+void cd_ox_vm_vec_rotate(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* rx, int32_t* ry, int32_t* rz);
 
 #ifdef __cplusplus
 }
