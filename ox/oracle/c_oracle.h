@@ -19,6 +19,13 @@ typedef struct c_oracle_vec3
     int32_t z;
 } c_oracle_vec3;
 
+typedef struct c_oracle_ang3
+{
+    int16_t p;
+    int16_t b;
+    int16_t h;
+} c_oracle_ang3;
+
 void c_oracle_vm_vec_scale_add2(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k);
 void c_oracle_vm_vec_scale_add(
     c_oracle_vec3* dest,
@@ -50,6 +57,8 @@ int32_t c_oracle_vm_vec_normalized_dir_quick(
     c_oracle_vec3* dest,
     const c_oracle_vec3* end,
     const c_oracle_vec3* start);
+void c_oracle_vm_vec_make(c_oracle_vec3* v, int32_t x, int32_t y, int32_t z);
+void c_oracle_vm_angvec_make(c_oracle_ang3* v, int16_t p, int16_t b, int16_t h);
 
 #ifdef __cplusplus
 }

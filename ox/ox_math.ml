@@ -126,3 +126,16 @@ let vm_vec_normalize_quick v = vm_vec_copy_normalize_quick v
 
 let vm_vec_normalized_dir_quick v_end v_start =
   vm_vec_normalize_quick (vm_vec_sub v_end v_start)
+
+let vm_vec_make x y z = x, y, z
+
+let wrap_i64_to_fixang x =
+  let mask16 = Int64.of_string "0xFFFF" in
+  let max_i16 = Int64.of_string "0x7FFF" in
+  let two16 = Int64.of_string "0x10000" in
+  let low16 = Int64.bit_and x mask16 in
+  let signed = if Int64.( > ) low16 max_i16 then Int64.( - ) low16 two16 else low16 in
+  Int64.to_int_exn signed
+
+let vm_angvec_make p b h =
+  wrap_i64_to_fixang (Int64.of_int p), wrap_i64_to_fixang (Int64.of_int b), wrap_i64_to_fixang (Int64.of_int h)

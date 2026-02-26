@@ -462,3 +462,37 @@ extern "C" CAMLprim value caml_c_vm_vec_normalized_dir_quick_bc(value* argv, int
     (void)argn;
     return caml_c_vm_vec_normalized_dir_quick(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_make(value x, value y, value z)
+{
+    CAMLparam3(x, y, z);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 v = { 0, 0, 0 };
+    c_oracle_vm_vec_make(&v, Int_val(x), Int_val(y), Int_val(z));
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(v.x));
+    Store_field(out, 1, Val_long(v.y));
+    Store_field(out, 2, Val_long(v.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_angvec_make(value p, value b, value h)
+{
+    CAMLparam3(p, b, h);
+    CAMLlocal1(out);
+
+    c_oracle_ang3 v = { 0, 0, 0 };
+    c_oracle_vm_angvec_make(
+        &v,
+        (int16_t)Int_val(p),
+        (int16_t)Int_val(b),
+        (int16_t)Int_val(h));
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long((int32_t)v.p));
+    Store_field(out, 1, Val_long((int32_t)v.b));
+    Store_field(out, 2, Val_long((int32_t)v.h));
+    CAMLreturn(out);
+}

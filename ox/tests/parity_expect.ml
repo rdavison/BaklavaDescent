@@ -195,6 +195,8 @@ external c_vm_vec_normalize_quick : int -> int -> int -> int * int * int * int
   = "caml_c_vm_vec_normalize_quick"
 external c_vm_vec_normalized_dir_quick : int -> int -> int -> int -> int -> int -> int * int * int * int
   = "caml_c_vm_vec_normalized_dir_quick_bc" "caml_c_vm_vec_normalized_dir_quick"
+external c_vm_vec_make : int -> int -> int -> int * int * int = "caml_c_vm_vec_make"
+external c_vm_angvec_make : int -> int -> int -> int * int * int = "caml_c_vm_angvec_make"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -372,6 +374,22 @@ let vm_vec_normalized_dir_quick_cases =
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
     ((12345, -54321, 99999), (67890, 13579, -24680));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_make_cases =
+  [
+    (0, 0, 0);
+    (0x10000, 0x20000, -0x10000);
+    (12345, -54321, 99999);
+    (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_angvec_make_cases =
+  [
+    (0, 0, 0);
+    (32767, -32768, 12345);
+    (40000, -40000, 65535);
+    (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
   ]
 
 let edge_fix_values =
@@ -938,6 +956,68 @@ let run_random_vec_normalized_dir_quick ~name ~seed ~test_count c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let check_make3 name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (x, y, z) ->
+      let c_x, c_y, c_z = c_impl x y z in
+      let ox_x, ox_y, ox_z = ox_impl x y z in
+      printf
+        "%s in=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        x
+        y
+        z
+        c_x
+        c_y
+        c_z
+        ox_x
+        ox_y
+        ox_z
+        (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
+
+let run_random_make3 ~name ~seed ~test_count gen c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (x, y, z) ->
+         incr total;
+         let c_x, c_y, c_z = c_impl x y z in
+         let ox_x, ox_y, ox_z = ox_impl x y z in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s in=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     x
+                     y
+                     z
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let fixang_gen =
+  Quickcheck.Generator.weighted_union
+    [
+      (3.0, Quickcheck.Generator.of_list [ -32768; -32767; -1; 0; 1; 32766; 32767 ]);
+      (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:Int32.to_int_exn);
+    ]
+
+let ang3_gen =
+  Quickcheck.Generator.map
+    (Quickcheck.Generator.both fixang_gen (Quickcheck.Generator.both fixang_gen fixang_gen))
+    ~f:(fun (x, (y, z)) -> (x, y, z))
+
 let%expect_test "i2f parity C vs Ox" =
   check_unop "i2f" c_i2f Ox_math.i2f i2f_cases;
   [%expect
@@ -1210,6 +1290,26 @@ let%expect_test "vm_vec_normalized_dir_quick parity C vs Ox" =
     vm_vec_normalized_dir_quick end=(2147483647,0,-2147483648) start=(1,-1,2) m=(c:-1342177284 ox:-1342177284) out=(c:2147483646,1,2147483646 ox:2147483646,1,2147483646) eq=true
     |}]
 
+let%expect_test "vm_vec_make parity C vs Ox" =
+  check_make3 "vm_vec_make" c_vm_vec_make Ox_math.vm_vec_make vm_vec_make_cases;
+  [%expect
+    {|
+    vm_vec_make in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_make in=(65536,131072,-65536) c=(65536,131072,-65536) ox=(65536,131072,-65536) eq=true
+    vm_vec_make in=(12345,-54321,99999) c=(12345,-54321,99999) ox=(12345,-54321,99999) eq=true
+    vm_vec_make in=(2147483647,0,-2147483648) c=(2147483647,0,-2147483648) ox=(2147483647,0,-2147483648) eq=true
+    |}]
+
+let%expect_test "vm_angvec_make parity C vs Ox" =
+  check_make3 "vm_angvec_make" c_vm_angvec_make Ox_math.vm_angvec_make vm_angvec_make_cases;
+  [%expect
+    {|
+    vm_angvec_make in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_angvec_make in=(32767,-32768,12345) c=(32767,-32768,12345) ox=(32767,-32768,12345) eq=true
+    vm_angvec_make in=(40000,-40000,65535) c=(-25536,25536,-1) ox=(-25536,25536,-1) eq=true
+    vm_angvec_make in=(2147483647,0,-2147483648) c=(-1,0,0) ox=(-1,0,0) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1397,3 +1497,23 @@ let%expect_test "randomized vm_vec_normalized_dir_quick parity C vs Ox" =
     c_vm_vec_normalized_dir_quick
     Ox_math.vm_vec_normalized_dir_quick;
   [%expect {| vm_vec_normalized_dir_quick random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_make parity C vs Ox" =
+  run_random_make3
+    ~name:"vm_vec_make"
+    ~seed:"vm-vec-make-seed-v1"
+    ~test_count:5000
+    vec3_gen
+    c_vm_vec_make
+    Ox_math.vm_vec_make;
+  [%expect {| vm_vec_make random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_angvec_make parity C vs Ox" =
+  run_random_make3
+    ~name:"vm_angvec_make"
+    ~seed:"vm-angvec-make-seed-v1"
+    ~test_count:5000
+    ang3_gen
+    c_vm_angvec_make
+    Ox_math.vm_angvec_make;
+  [%expect {| vm_angvec_make random total=5000 mismatches=0 |}]

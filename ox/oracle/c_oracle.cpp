@@ -271,3 +271,17 @@ extern "C" int32_t c_oracle_vm_vec_normalized_dir_quick(
     dest->z = end->z - start->z;
     return c_oracle_vm_vec_normalize_quick(dest);
 }
+
+extern "C" void c_oracle_vm_vec_make(c_oracle_vec3* v, int32_t x, int32_t y, int32_t z)
+{
+    v->x = x;
+    v->y = y;
+    v->z = z;
+}
+
+extern "C" void c_oracle_vm_angvec_make(c_oracle_ang3* v, int16_t p, int16_t b, int16_t h)
+{
+    v->p = p;
+    v->b = b;
+    v->h = h;
+}
