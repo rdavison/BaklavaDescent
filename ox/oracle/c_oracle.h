@@ -63,6 +63,11 @@ int32_t c_oracle_vm_dist_to_plane(
     const c_oracle_vec3* checkp,
     const c_oracle_vec3* norm,
     const c_oracle_vec3* planep);
+void c_oracle_vm_vec_perp(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* p0,
+    const c_oracle_vec3* p1,
+    const c_oracle_vec3* p2);
 
 #ifdef __cplusplus
 }

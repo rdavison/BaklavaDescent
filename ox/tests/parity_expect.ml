@@ -199,6 +199,18 @@ external c_vm_vec_make : int -> int -> int -> int * int * int = "caml_c_vm_vec_m
 external c_vm_angvec_make : int -> int -> int -> int * int * int = "caml_c_vm_angvec_make"
 external c_vm_dist_to_plane : int -> int -> int -> int -> int -> int -> int -> int -> int -> int
   = "caml_c_vm_dist_to_plane_bc" "caml_c_vm_dist_to_plane"
+external c_vm_vec_perp
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_vec_perp_bc" "caml_c_vm_vec_perp"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -400,6 +412,14 @@ let vm_dist_to_plane_cases =
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000), (0x10000, 0x10000, 0x10000));
     ((12345, -54321, 99999), (67890, 13579, -24680), (-11111, 22222, -33333));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2), (7, -7, 14));
+  ]
+
+let vm_vec_perp_cases =
+  [
+    ((0, 0, 0), (0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000), (0x30000, 0x10000, 0x20000));
+    ((12345, -54321, 99999), (67890, 13579, -24680), (-11111, 22222, -33333));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn (Int32.succ Int32.min_value)), (1, -1, 2), (7, -7, 14));
   ]
 
 let edge_fix_values =
@@ -1081,6 +1101,138 @@ let run_random_three_vec3_to_scalar ~name ~seed ~test_count c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let check_three_vec3_to_vec3 name c_impl ox_impl cases =
+  List.iter cases ~f:(fun (p0, p1, p2) ->
+      let p0x, p0y, p0z = p0 in
+      let p1x, p1y, p1z = p1 in
+      let p2x, p2y, p2z = p2 in
+      let c_x, c_y, c_z = c_impl p0x p0y p0z p1x p1y p1z p2x p2y p2z in
+      let ox_x, ox_y, ox_z = ox_impl p0 p1 p2 in
+      printf
+        "%s p0=(%d,%d,%d) p1=(%d,%d,%d) p2=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        p0x
+        p0y
+        p0z
+        p1x
+        p1y
+        p1z
+        p2x
+        p2y
+        p2z
+        c_x
+        c_y
+        c_z
+        ox_x
+        ox_y
+        ox_z
+        (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
+
+let run_random_three_vec3_to_vec3 ~name ~seed ~test_count c_impl ox_impl =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
+      ~f:(fun (a, (b, c)) -> a, b, c)
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (p0, p1, p2) ->
+         let p0x, p0y, p0z = p0 in
+         let p1x, p1y, p1z = p1 in
+         let p2x, p2y, p2z = p2 in
+         incr total;
+         let c_x, c_y, c_z = c_impl p0x p0y p0z p1x p1y p1z p2x p2y p2z in
+         let ox_x, ox_y, ox_z = ox_impl p0 p1 p2 in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s p0=(%d,%d,%d) p1=(%d,%d,%d) p2=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     p0x
+                     p0y
+                     p0z
+                     p1x
+                     p1y
+                     p1z
+                     p2x
+                     p2y
+                     p2z
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let fix_no_min_gen =
+  Quickcheck.Generator.map Int32.quickcheck_generator ~f:(fun i ->
+      if Int32.equal i Int32.min_value then Int32.succ i else i)
+  |> Quickcheck.Generator.map ~f:Int32.to_int_exn
+
+let vec3_no_min_gen =
+  Quickcheck.Generator.map
+    (Quickcheck.Generator.both fix_no_min_gen (Quickcheck.Generator.both fix_no_min_gen fix_no_min_gen))
+    ~f:(fun (x, (y, z)) -> (x, y, z))
+
+let vec3_perp_gen =
+  Quickcheck.Generator.map vec3_no_min_gen ~f:(fun (x, y, z) -> (x asr 1, y asr 1, z asr 1))
+
+let run_random_three_vec3_to_vec3_no_min ~name ~seed ~test_count c_impl ox_impl =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_perp_gen (Quickcheck.Generator.both vec3_perp_gen vec3_perp_gen))
+      ~f:(fun (a, (b, c)) -> a, b, c)
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (p0, p1, p2) ->
+         let p0x, p0y, p0z = p0 in
+         let p1x, p1y, p1z = p1 in
+         let p2x, p2y, p2z = p2 in
+         incr total;
+         let c_x, c_y, c_z = c_impl p0x p0y p0z p1x p1y p1z p2x p2y p2z in
+         let ox_x, ox_y, ox_z = ox_impl p0 p1 p2 in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s p0=(%d,%d,%d) p1=(%d,%d,%d) p2=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     p0x
+                     p0y
+                     p0z
+                     p1x
+                     p1y
+                     p1z
+                     p2x
+                     p2y
+                     p2z
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
 let fixang_gen =
   Quickcheck.Generator.weighted_union
     [
@@ -1395,6 +1547,16 @@ let%expect_test "vm_dist_to_plane parity C vs Ox" =
     vm_dist_to_plane check=(2147483647,0,-2147483648) norm=(1,-1,2) plane=(7,-7,14) c=98303 ox=98303 eq=true
     |}]
 
+let%expect_test "vm_vec_perp parity C vs Ox" =
+  check_three_vec3_to_vec3 "vm_vec_perp" c_vm_vec_perp Ox_math.vm_vec_perp vm_vec_perp_cases;
+  [%expect
+    {|
+    vm_vec_perp p0=(0,0,0) p1=(0,0,0) p2=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_perp p0=(65536,131072,-65536) p1=(65536,-65536,32768) p2=(196608,65536,131072) c=(-491520,196608,393216) ox=(-491520,196608,393216) eq=true
+    vm_vec_perp p0=(12345,-54321,99999) p1=(67890,13579,-24680) p2=(-11111,22222,-33333) c=(7477,157629,89176) ox=(7477,157629,89176) eq=true
+    vm_vec_perp p0=(2147483647,0,-2147483647) p1=(1,-1,2) p2=(7,-7,14) c=(-2,0,2) ox=(-2,0,2) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1611,3 +1773,12 @@ let%expect_test "randomized vm_dist_to_plane parity C vs Ox" =
     c_vm_dist_to_plane
     Ox_math.vm_dist_to_plane;
   [%expect {| vm_dist_to_plane random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_perp parity C vs Ox" =
+  run_random_three_vec3_to_vec3_no_min
+    ~name:"vm_vec_perp"
+    ~seed:"vm-vec-perp-seed-v1"
+    ~test_count:5000
+    c_vm_vec_perp
+    Ox_math.vm_vec_perp;
+  [%expect {| vm_vec_perp random total=5000 mismatches=0 |}]

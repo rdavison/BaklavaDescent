@@ -141,3 +141,49 @@ let vm_angvec_make p b h =
   wrap_i64_to_fixang (Int64.of_int p), wrap_i64_to_fixang (Int64.of_int b), wrap_i64_to_fixang (Int64.of_int h)
 
 let vm_dist_to_plane checkp norm planep = vm_vec_dotprod (vm_vec_sub checkp planep) norm
+
+let bitand_i32 a b = wrap_i64_to_fix Int64.(bit_and (of_int a) (of_int b))
+let bitor_i32 a b = wrap_i64_to_fix Int64.(bit_or (of_int a) (of_int b))
+let shl_i32 a n = wrap_i64_to_fix Int64.(shift_left (of_int a) n)
+let asr_i32 a n = wrap_i64_to_fix Int64.(shift_right (of_int a) n)
+let abs_i32_c a = wrap_i64_to_fix (Int64.of_int (Int.abs a))
+
+let check_vec (x, y, z) =
+  let x = ref x in
+  let y = ref y in
+  let z = ref z in
+  let check = ref (bitor_i32 (bitor_i32 (abs_i32_c !x) (abs_i32_c !y)) (abs_i32_c !z)) in
+  let cnt = ref 0 in
+  if !check <> 0
+  then if bitand_i32 !check 0xFFFC0000 <> 0
+  then (
+    while bitand_i32 !check 0xFFF00000 <> 0 do
+      cnt := !cnt + 4;
+      check := asr_i32 !check 4
+    done;
+    while bitand_i32 !check 0xFFFC0000 <> 0 do
+      cnt := !cnt + 2;
+      check := asr_i32 !check 2
+    done;
+    x := asr_i32 !x !cnt;
+    y := asr_i32 !y !cnt;
+    z := asr_i32 !z !cnt)
+  else if bitand_i32 !check 0xFFFF8000 = 0
+  then (
+    while bitand_i32 !check 0xFFFFF000 = 0 do
+      cnt := !cnt + 4;
+      check := shl_i32 !check 4
+    done;
+    while bitand_i32 !check 0xFFFF8000 = 0 do
+      cnt := !cnt + 2;
+      check := shl_i32 !check 2
+    done;
+    x := asr_i32 !x !cnt;
+    y := asr_i32 !y !cnt;
+    z := asr_i32 !z !cnt);
+  !x, !y, !z
+
+let vm_vec_perp p0 p1 p2 =
+  let t0 = check_vec (vm_vec_sub p1 p0) in
+  let t1 = check_vec (vm_vec_sub p2 p1) in
+  vm_vec_crossprod t0 t1

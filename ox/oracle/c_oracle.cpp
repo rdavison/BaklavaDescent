@@ -298,3 +298,66 @@ extern "C" int32_t c_oracle_vm_dist_to_plane(
     };
     return c_oracle_vm_vec_dotprod(&t, norm);
 }
+
+static void c_oracle_check_vec(c_oracle_vec3* v)
+{
+    int32_t check = (int32_t)(labs(v->x) | labs(v->y) | labs(v->z));
+    int cnt = 0;
+
+    if (check == 0)
+    {
+        return;
+    }
+
+    if (check & 0xfffc0000)
+    {
+        while (check & 0xfff00000)
+        {
+            cnt += 4;
+            check >>= 4;
+        }
+
+        while (check & 0xfffc0000)
+        {
+            cnt += 2;
+            check >>= 2;
+        }
+
+        v->x >>= cnt;
+        v->y >>= cnt;
+        v->z >>= cnt;
+    }
+    else if ((check & 0xffff8000) == 0)
+    {
+        while ((check & 0xfffff000) == 0)
+        {
+            cnt += 4;
+            check <<= 4;
+        }
+
+        while ((check & 0xffff8000) == 0)
+        {
+            cnt += 2;
+            check <<= 2;
+        }
+
+        v->x >>= cnt;
+        v->y >>= cnt;
+        v->z >>= cnt;
+    }
+}
+
+extern "C" void c_oracle_vm_vec_perp(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* p0,
+    const c_oracle_vec3* p1,
+    const c_oracle_vec3* p2)
+{
+    c_oracle_vec3 t0 = { p1->x - p0->x, p1->y - p0->y, p1->z - p0->z };
+    c_oracle_vec3 t1 = { p2->x - p1->x, p2->y - p1->y, p2->z - p1->z };
+
+    c_oracle_check_vec(&t0);
+    c_oracle_check_vec(&t1);
+
+    c_oracle_vm_vec_crossprod(dest, &t0, &t1);
+}
