@@ -187,3 +187,11 @@ let vm_vec_perp p0 p1 p2 =
   let t0 = check_vec (vm_vec_sub p1 p0) in
   let t1 = check_vec (vm_vec_sub p2 p1) in
   vm_vec_crossprod t0 t1
+
+let vm_vec_rotate src (rvec, uvec, fvec) =
+  vm_vec_dotprod src rvec, vm_vec_dotprod src uvec, vm_vec_dotprod src fvec
+
+let vm_transpose_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) =
+  (r1, u1, f1), (r2, u2, f2), (r3, u3, f3)
+
+let vm_copy_transpose_matrix src = vm_transpose_matrix src

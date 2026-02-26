@@ -555,3 +555,130 @@ extern "C" CAMLprim value caml_c_vm_vec_perp_bc(value* argv, int argn)
     return caml_c_vm_vec_perp(
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_rotate(
+    value sx,
+    value sy,
+    value sz,
+    value rx,
+    value ry,
+    value rz,
+    value ux,
+    value uy,
+    value uz,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(sx, sy, sz, rx, ry);
+    CAMLxparam5(rz, ux, uy, uz, fx);
+    CAMLxparam2(fy, fz);
+    CAMLlocal1(out);
+
+    const c_oracle_vec3 src = { Int_val(sx), Int_val(sy), Int_val(sz) };
+    const c_oracle_mat3 m = {
+        { Int_val(rx), Int_val(ry), Int_val(rz) },
+        { Int_val(ux), Int_val(uy), Int_val(uz) },
+        { Int_val(fx), Int_val(fy), Int_val(fz) }
+    };
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    c_oracle_vm_vec_rotate(&dest, &src, &m);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_rotate_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_rotate(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]);
+}
+
+extern "C" CAMLprim value caml_c_vm_transpose_matrix(
+    value rx,
+    value ry,
+    value rz,
+    value ux,
+    value uy,
+    value uz,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(rx, ry, rz, ux, uy);
+    CAMLxparam4(uz, fx, fy, fz);
+    CAMLlocal1(out);
+
+    c_oracle_mat3 m = {
+        { Int_val(rx), Int_val(ry), Int_val(rz) },
+        { Int_val(ux), Int_val(uy), Int_val(uz) },
+        { Int_val(fx), Int_val(fy), Int_val(fz) }
+    };
+    c_oracle_vm_transpose_matrix(&m);
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(m.rvec.x));
+    Store_field(out, 1, Val_long(m.rvec.y));
+    Store_field(out, 2, Val_long(m.rvec.z));
+    Store_field(out, 3, Val_long(m.uvec.x));
+    Store_field(out, 4, Val_long(m.uvec.y));
+    Store_field(out, 5, Val_long(m.uvec.z));
+    Store_field(out, 6, Val_long(m.fvec.x));
+    Store_field(out, 7, Val_long(m.fvec.y));
+    Store_field(out, 8, Val_long(m.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_transpose_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_transpose_matrix(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
+}
+
+extern "C" CAMLprim value caml_c_vm_copy_transpose_matrix(
+    value rx,
+    value ry,
+    value rz,
+    value ux,
+    value uy,
+    value uz,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(rx, ry, rz, ux, uy);
+    CAMLxparam4(uz, fx, fy, fz);
+    CAMLlocal1(out);
+
+    const c_oracle_mat3 src = {
+        { Int_val(rx), Int_val(ry), Int_val(rz) },
+        { Int_val(ux), Int_val(uy), Int_val(uz) },
+        { Int_val(fx), Int_val(fy), Int_val(fz) }
+    };
+    c_oracle_mat3 dest = {};
+    c_oracle_vm_copy_transpose_matrix(&dest, &src);
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_copy_transpose_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_copy_transpose_matrix(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
+}

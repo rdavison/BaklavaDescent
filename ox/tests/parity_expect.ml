@@ -211,6 +211,68 @@ external c_vm_vec_perp
   -> int
   -> int * int * int
   = "caml_c_vm_vec_perp_bc" "caml_c_vm_vec_perp"
+external c_vm_vec_rotate_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_vec_rotate_bc" "caml_c_vm_vec_rotate"
+external c_vm_transpose_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_transpose_matrix_bc" "caml_c_vm_transpose_matrix"
+external c_vm_copy_transpose_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_copy_transpose_matrix_bc" "caml_c_vm_copy_transpose_matrix"
+
+type vec3 = int * int * int
+type mat3 = vec3 * vec3 * vec3
+
+let eq_vec3 (ax, ay, az) (bx, by, bz) = Int.equal ax bx && Int.equal ay by && Int.equal az bz
+
+let eq_mat3 (ar, au, af) (br, bu, bf) = eq_vec3 ar br && eq_vec3 au bu && eq_vec3 af bf
+
+let flat_of_mat3 ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3) : mat3) = r1, r2, r3, u1, u2, u3, f1, f2, f3
+
+let mat3_of_flat (r1, r2, r3, u1, u2, u3, f1, f2, f3) : mat3 = (r1, r2, r3), (u1, u2, u3), (f1, f2, f3)
+
+let c_vm_vec_rotate (sx, sy, sz) mat =
+  let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
+  c_vm_vec_rotate_raw sx sy sz rx ry rz ux uy uz fx fy fz
+
+let c_vm_transpose_matrix mat =
+  let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
+  mat3_of_flat (c_vm_transpose_matrix_raw rx ry rz ux uy uz fx fy fz)
+
+let c_vm_copy_transpose_matrix mat =
+  let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
+  mat3_of_flat (c_vm_copy_transpose_matrix_raw rx ry rz ux uy uz fx fy fz)
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -422,6 +484,28 @@ let vm_vec_perp_cases =
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn (Int32.succ Int32.min_value)), (1, -1, 2), (7, -7, 14));
   ]
 
+let mat_identity = ((0x10000, 0, 0), (0, 0x10000, 0), (0, 0, 0x10000))
+
+let mat_sample =
+  ( (12345, -54321, 99999)
+  , (67890, 13579, -24680)
+  , (-11111, 22222, -33333) )
+
+let mat_extreme =
+  ( (Int32.to_int_exn Int32.max_value, 1, 2)
+  , (-3, Int32.to_int_exn Int32.min_value, 4)
+  , (5, -6, 7) )
+
+let vm_vec_rotate_cases =
+  [
+    ((0, 0, 0), mat_identity);
+    ((0x10000, 0x20000, -0x10000), mat_identity);
+    ((12345, -54321, 99999), mat_sample);
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), mat_extreme);
+  ]
+
+let vm_matrix_cases = [ mat_identity; mat_sample; mat_extreme ]
+
 let edge_fix_values =
   [
     Int32.to_int_exn Int32.min_value;
@@ -453,6 +537,11 @@ let vec3_gen =
   Quickcheck.Generator.map
     (Quickcheck.Generator.both fix_gen (Quickcheck.Generator.both fix_gen fix_gen))
     ~f:(fun (x, (y, z)) -> (x, y, z))
+
+let mat3_gen =
+  Quickcheck.Generator.map
+    (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
+    ~f:(fun (rvec, (uvec, fvec)) -> (rvec, uvec, fvec))
 
 let run_random_binop ~name ~seed ~test_count c_impl ox_impl =
   let gen = Quickcheck.Generator.both fix_gen fix_gen in
@@ -1233,6 +1322,139 @@ let run_random_three_vec3_to_vec3_no_min ~name ~seed ~test_count c_impl ox_impl 
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let check_vec3_mat_to_vec3
+    (name : string)
+    (c_impl : vec3 -> mat3 -> vec3)
+    (ox_impl : vec3 -> mat3 -> vec3)
+    (cases : (vec3 * mat3) list)
+  =
+  List.iter cases ~f:(fun (v, m) ->
+      let vx, vy, vz = v in
+      let c_x, c_y, c_z = c_impl v m in
+      let ox_x, ox_y, ox_z = ox_impl v m in
+      let r1, r2, r3, u1, u2, u3, f1, f2, f3 = flat_of_mat3 m in
+      printf
+        "%s v=(%d,%d,%d) m=[%d,%d,%d;%d,%d,%d;%d,%d,%d] c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        vx
+        vy
+        vz
+        r1
+        r2
+        r3
+        u1
+        u2
+        u3
+        f1
+        f2
+        f3
+        c_x
+        c_y
+        c_z
+        ox_x
+        ox_y
+        ox_z
+        (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
+
+let check_mat_unop
+    (name : string)
+    (c_impl : mat3 -> mat3)
+    (ox_impl : mat3 -> mat3)
+    (cases : mat3 list)
+  =
+  List.iter cases ~f:(fun m ->
+      let c_m = c_impl m in
+      let ox_m = ox_impl m in
+      let eq = if eq_mat3 c_m ox_m then "true" else "false" in
+      let c_r1, c_r2, c_r3, c_u1, c_u2, c_u3, c_f1, c_f2, c_f3 = flat_of_mat3 c_m in
+      let ox_r1, ox_r2, ox_r3, ox_u1, ox_u2, ox_u3, ox_f1, ox_f2, ox_f3 = flat_of_mat3 ox_m in
+      printf
+        "%s c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%s\n"
+        name
+        c_r1
+        c_r2
+        c_r3
+        c_u1
+        c_u2
+        c_u3
+        c_f1
+        c_f2
+        c_f3
+        ox_r1
+        ox_r2
+        ox_r3
+        ox_u1
+        ox_u2
+        ox_u3
+        ox_f1
+        ox_f2
+        ox_f3
+        eq)
+
+let run_random_vec3_mat_to_vec3
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : vec3 -> mat3 -> vec3)
+    (ox_impl : vec3 -> mat3 -> vec3)
+  =
+  let gen = Quickcheck.Generator.both vec3_gen mat3_gen in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (v, m) ->
+         incr total;
+         let c_x, c_y, c_z = c_impl v m in
+         let ox_x, ox_y, ox_z = ox_impl v m in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             let vx, vy, vz = v in
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s v=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     vx
+                     vy
+                     vz
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_mat_unop
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : mat3 -> mat3)
+    (ox_impl : mat3 -> mat3)
+  =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count mat3_gen
+  |> Sequence.iter ~f:(fun m ->
+         incr total;
+         let c_m = c_impl m in
+         let ox_m = ox_impl m in
+         if not (eq_mat3 c_m ox_m)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
 let fixang_gen =
   Quickcheck.Generator.weighted_union
     [
@@ -1557,6 +1779,34 @@ let%expect_test "vm_vec_perp parity C vs Ox" =
     vm_vec_perp p0=(2147483647,0,-2147483647) p1=(1,-1,2) p2=(7,-7,14) c=(-2,0,2) ox=(-2,0,2) eq=true
     |}]
 
+let%expect_test "vm_vec_rotate parity C vs Ox" =
+  check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate Ox_math.vm_vec_rotate vm_vec_rotate_cases;
+  [%expect
+    {|
+    vm_vec_rotate v=(0,0,0) m=[65536,0,0;0,65536,0;0,0,65536] c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_rotate v=(65536,131072,-65536) m=[65536,0,0;0,65536,0;0,0,65536] c=(65536,131072,-65536) ox=(65536,131072,-65536) eq=true
+    vm_vec_rotate v=(12345,-54321,99999) m=[12345,-54321,99999;67890,13579,-24680;-11111,22222,-33333] c=(199935,-36126,-71374) ox=(199935,-36126,-71374) eq=true
+    vm_vec_rotate v=(2147483647,0,-2147483648) m=[2147483647,1,2;-3,-2147483648,4;5,-6,7] c=(2147483647,-229376,-65537) ox=(2147483647,-229376,-65537) eq=true
+    |}]
+
+let%expect_test "vm_transpose_matrix parity C vs Ox" =
+  check_mat_unop "vm_transpose_matrix" c_vm_transpose_matrix Ox_math.vm_transpose_matrix vm_matrix_cases;
+  [%expect
+    {|
+    vm_transpose_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
+    vm_transpose_matrix c=[12345,67890,-11111;-54321,13579,22222;99999,-24680,-33333] ox=[12345,67890,-11111;-54321,13579,22222;99999,-24680,-33333] eq=true
+    vm_transpose_matrix c=[2147483647,-3,5;1,-2147483648,-6;2,4,7] ox=[2147483647,-3,5;1,-2147483648,-6;2,4,7] eq=true
+    |}]
+
+let%expect_test "vm_copy_transpose_matrix parity C vs Ox" =
+  check_mat_unop "vm_copy_transpose_matrix" c_vm_copy_transpose_matrix Ox_math.vm_copy_transpose_matrix vm_matrix_cases;
+  [%expect
+    {|
+    vm_copy_transpose_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
+    vm_copy_transpose_matrix c=[12345,67890,-11111;-54321,13579,22222;99999,-24680,-33333] ox=[12345,67890,-11111;-54321,13579,22222;99999,-24680,-33333] eq=true
+    vm_copy_transpose_matrix c=[2147483647,-3,5;1,-2147483648,-6;2,4,7] ox=[2147483647,-3,5;1,-2147483648,-6;2,4,7] eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -1782,3 +2032,30 @@ let%expect_test "randomized vm_vec_perp parity C vs Ox" =
     c_vm_vec_perp
     Ox_math.vm_vec_perp;
   [%expect {| vm_vec_perp random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
+  run_random_vec3_mat_to_vec3
+    ~name:"vm_vec_rotate"
+    ~seed:"vm-vec-rotate-seed-v1"
+    ~test_count:5000
+    c_vm_vec_rotate
+    Ox_math.vm_vec_rotate;
+  [%expect {| vm_vec_rotate random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_transpose_matrix parity C vs Ox" =
+  run_random_mat_unop
+    ~name:"vm_transpose_matrix"
+    ~seed:"vm-transpose-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_transpose_matrix
+    Ox_math.vm_transpose_matrix;
+  [%expect {| vm_transpose_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_copy_transpose_matrix parity C vs Ox" =
+  run_random_mat_unop
+    ~name:"vm_copy_transpose_matrix"
+    ~seed:"vm-copy-transpose-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_copy_transpose_matrix
+    Ox_math.vm_copy_transpose_matrix;
+  [%expect {| vm_copy_transpose_matrix random total=5000 mismatches=0 |}]
