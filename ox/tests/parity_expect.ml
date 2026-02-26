@@ -255,6 +255,20 @@ external c_vm_vector_2_matrix_raw
   -> int
   -> int * int * int * int * int * int * int * int * int
   = "caml_c_vm_vector_2_matrix_bc" "caml_c_vm_vector_2_matrix"
+external c_vm_vector_2_matrix_norm_raw
+  :  int
+  -> int
+  -> int
+  -> bool
+  -> int
+  -> int
+  -> int
+  -> bool
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_vector_2_matrix_norm_bc" "caml_c_vm_vector_2_matrix_norm"
 external c_vm_vec_rotate_raw
   :  int
   -> int
@@ -352,6 +366,20 @@ let c_vm_vector_2_matrix fvec uvec rvec =
     | None -> false, 0, 0, 0
   in
   mat3_of_flat (c_vm_vector_2_matrix_raw fx fy fz has_u ux uy uz has_r rx ry rz)
+
+let c_vm_vector_2_matrix_norm fvec uvec rvec =
+  let fx, fy, fz = fvec in
+  let has_u, ux, uy, uz =
+    match uvec with
+    | Some (x, y, z) -> true, x, y, z
+    | None -> false, 0, 0, 0
+  in
+  let has_r, rx, ry, rz =
+    match rvec with
+    | Some (x, y, z) -> true, x, y, z
+    | None -> false, 0, 0, 0
+  in
+  mat3_of_flat (c_vm_vector_2_matrix_norm_raw fx fy fz has_u ux uy uz has_r rx ry rz)
 
 let c_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
   mat3_of_flat (c_sincos_2_matrix_raw sinp cosp sinb cosb sinh cosh)
@@ -671,6 +699,8 @@ let vm_vector_2_matrix_cases =
     ((0x10000, 0x2000, 0x3000), Some (0, 0x10000, 0), Some (0x10000, 0, 0));
     ((0x10000, 0x2000, 0x3000), Some (0, 0, 0), Some (0x10000, 0, 0));
   ]
+
+let vm_vector_2_matrix_norm_cases = vm_vector_2_matrix_cases
 
 let sincos_2_matrix_cases =
   [
@@ -2373,6 +2403,23 @@ let%expect_test "vm_vector_2_matrix parity C vs Ox" =
     vm_vector_2_matrix f=(65536,8192,12288) u=Some(0,0,0) r=Some(65536,0,0) c=[12077,0,-64412;-7854,65044,-1473;63932,7991,11987] ox=[12077,0,-64412;-7854,65044,-1473;63932,7991,11987] eq=true
     |}]
 
+let%expect_test "vm_vector_2_matrix_norm parity C vs Ox" =
+  check_vec3_opt_opt_to_mat
+    "vm_vector_2_matrix_norm"
+    c_vm_vector_2_matrix_norm
+    Ox_math.vm_vector_2_matrix_norm
+    vm_vector_2_matrix_norm_cases;
+  [%expect
+    {|
+    vm_vector_2_matrix_norm f=(65536,0,0) u=None r=None c=[0,0,-65536;0,65536,0;65536,0,0] ox=[0,0,-65536;0,65536,0;65536,0,0] eq=true
+    vm_vector_2_matrix_norm f=(0,65536,0) u=None r=None c=[65536,0,0;0,0,-65536;0,65536,0] ox=[65536,0,0;0,0,-65536;0,65536,0] eq=true
+    vm_vector_2_matrix_norm f=(0,0,0) u=None r=None c=[65536,0,0;0,0,-65536;0,0,0] ox=[65536,0,0;0,0,-65536;0,0,0] eq=true
+    vm_vector_2_matrix_norm f=(65536,8192,12288) u=Some(0,65536,0) r=None c=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] ox=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] eq=true
+    vm_vector_2_matrix_norm f=(65536,8192,12288) u=None r=Some(65536,0,0) c=[14767,-36351,-54526;0,54526,-36351;65536,8192,12288] ox=[14767,-36351,-54526;0,54526,-36351;65536,8192,12288] eq=true
+    vm_vector_2_matrix_norm f=(65536,8192,12288) u=Some(0,65536,0) r=Some(65536,0,0) c=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] ox=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] eq=true
+    vm_vector_2_matrix_norm f=(65536,8192,12288) u=Some(0,0,0) r=Some(65536,0,0) c=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] ox=[12077,0,-64412;-8052,66676,-1510;65536,8192,12288] eq=true
+    |}]
+
 let%expect_test "sincos_2_matrix parity C vs Ox" =
   check_six_fix_to_mat
     "sincos_2_matrix"
@@ -2721,6 +2768,16 @@ let%expect_test "randomized vm_vector_2_matrix parity C vs Ox" =
     c_vm_vector_2_matrix
     Ox_math.vm_vector_2_matrix;
   [%expect {| vm_vector_2_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vector_2_matrix_norm parity C vs Ox" =
+  run_random_vec3_opt_opt_to_mat
+    ~name:"vm_vector_2_matrix_norm"
+    ~seed:"vm-vector-2-matrix-norm-seed-v1"
+    ~test_count:5000
+    ~gen:vec3_with_optional_axes_gen
+    c_vm_vector_2_matrix_norm
+    Ox_math.vm_vector_2_matrix_norm;
+  [%expect {| vm_vector_2_matrix_norm random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized sincos_2_matrix parity C vs Ox" =
   run_random_six_fix_to_mat
