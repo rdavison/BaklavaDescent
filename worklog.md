@@ -527,3 +527,20 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `3d/matrix.cpp` — scale_matrix
   - `3d/instance.cpp` — g3_start_instance_matrix (with optional orient via has_orient flag)
 - Verification: oracle + dune tests pass, cmake build succeeds, game launches without crash.
+
+### 35) Fix randomized parity tests and wire remaining 3d/points.cpp functions
+
+- **Fixed randomized parity test failures (3 bugs):**
+  - `g3_project_point` (3259 mismatches): C stub returned uninitialized `sx`/`sy` on overflow — initialized to 0 in `c_fix_stubs.cpp`.
+  - `g3_project_point` generator: `pos_fix_gen` produced values outside int32 range (`Int.abs Int32.min_value` = 2147483648) — clamped to `[1, 0x7FFFFFFF]`.
+  - `g3_calc_point_depth` (884 mismatches): subtraction `px - vpx` wraps in C int32 but not OCaml — already fixed with `wrap_sub` helper in `ox_3d.ml`.
+  - All 9 randomized tests (5000 cases each) now pass with 0 mismatches.
+- **Wired remaining 3 functions in `3d/points.cpp`:**
+  - `g3_point_2_vec` — new bridge callback `cd_ox_g3_point_2_vec` (16 args), passes `Canv_w2`, `Canv_h2`, `Matrix_scale`, `Unscaled_matrix` to Ox.
+  - `g3_rotate_delta_vec` — reuses existing `cd_ox_vm_vec_rotate` bridge (no new OCaml callback).
+  - `g3_add_delta_vec` — reuses existing `cd_ox_vm_vec_add` + `cd_ox_g3_code_point` bridges.
+- **Build system fixes:**
+  - Updated `scripts/ox/build_bridge.sh` to compile `ox_3d.ml` and `g3d_bridge.ml` (previously only `ox_math.ml` and `math_bridge.ml`).
+  - Updated `CMakeLists.txt` DEPENDS to track all Ox source files for rebuild detection.
+- **3d/ module fully wired:** all 12 math functions in `3d/points.cpp`, `3d/matrix.cpp`, and `3d/instance.cpp` now route through Ox. Remaining 3d/ functions are either thin glue calling already-wired functions, or rendering/setup code with no portable math.
+- Bridge function count: 56 total (was 55).

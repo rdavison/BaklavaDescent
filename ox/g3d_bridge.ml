@@ -55,6 +55,16 @@ let cd_g3_start_instance_matrix
   in
   (nvpx, nvpy, nvpz, nr1, nr2, nr3, nu1, nu2, nu3, nf1, nf2, nf3)
 
+let cd_g3_point_2_vec sx sy canv_w2 canv_h2 msx msy msz ur1 ur2 ur3 uu1 uu2 uu3 uf1 uf2 uf3 =
+  let (vx, vy, vz) =
+    Ox_3d.g3_point_2_vec
+      ~canv_w2 ~canv_h2
+      ~matrix_scale:(msx, msy, msz)
+      ~unscaled_matrix:((ur1, ur2, ur3), (uu1, uu2, uu3), (uf1, uf2, uf3))
+      sx sy
+  in
+  (vx, vy, vz)
+
 let () =
   Callback.register "cd_g3_code_point" cd_g3_code_point;
   Callback.register "cd_checkmuldiv" cd_checkmuldiv;
@@ -65,4 +75,5 @@ let () =
   Callback.register "cd_g3_rotate_delta_z" cd_g3_rotate_delta_z;
   Callback.register "cd_g3_calc_point_depth" cd_g3_calc_point_depth;
   Callback.register "cd_scale_matrix" cd_scale_matrix;
-  Callback.register "cd_g3_start_instance_matrix" cd_g3_start_instance_matrix
+  Callback.register "cd_g3_start_instance_matrix" cd_g3_start_instance_matrix;
+  Callback.register "cd_g3_point_2_vec" cd_g3_point_2_vec

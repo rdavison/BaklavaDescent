@@ -733,6 +733,9 @@ if (USE_OX_BRIDGE)
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 		DEPENDS
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_math.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_3d.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/g3d_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		COMMENT "Building OxCaml bridge object"

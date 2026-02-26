@@ -171,6 +171,21 @@ void g3_project_point(g3s_point* p)
 //from a 2d point, compute the vector through that point
 void g3_point_2_vec(vms_vector* v, short sx, short sy)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_point_2_vec using cd_ox_g3_point_2_vec.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_g3_point_2_vec(
+		sx, sy, Canv_w2, Canv_h2,
+		Matrix_scale.x, Matrix_scale.y, Matrix_scale.z,
+		Unscaled_matrix.rvec.x, Unscaled_matrix.rvec.y, Unscaled_matrix.rvec.z,
+		Unscaled_matrix.uvec.x, Unscaled_matrix.uvec.y, Unscaled_matrix.uvec.z,
+		Unscaled_matrix.fvec.x, Unscaled_matrix.fvec.y, Unscaled_matrix.fvec.z,
+		&v->x, &v->y, &v->z);
+#else
 	vms_vector tempv;
 	vms_matrix tempm;
 
@@ -183,6 +198,7 @@ void g3_point_2_vec(vms_vector* v, short sx, short sy)
 	vm_copy_transpose_matrix(&tempm, &Unscaled_matrix);
 
 	vm_vec_rotate(v, &tempv, &tempm);
+#endif
 
 }
 
@@ -259,16 +275,47 @@ vms_vector* g3_rotate_delta_z(vms_vector* dest, fix dz)
 
 vms_vector* g3_rotate_delta_vec(vms_vector* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_rotate_delta_vec using cd_ox_vm_vec_rotate.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_rotate(
+		src->x, src->y, src->z,
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		&dest->x, &dest->y, &dest->z);
+	return dest;
+#else
 	return vm_vec_rotate(dest, src, &View_matrix);
+#endif
 }
 
 uint8_t g3_add_delta_vec(g3s_point* dest, g3s_point* src, vms_vector* deltav)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_add_delta_vec using cd_ox bridge.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_add(
+		src->p3_vec.x, src->p3_vec.y, src->p3_vec.z,
+		deltav->x, deltav->y, deltav->z,
+		&dest->p3_vec.x, &dest->p3_vec.y, &dest->p3_vec.z);
+	dest->p3_flags = 0;
+	return dest->p3_codes = cd_ox_g3_code_point(dest->p3_x, dest->p3_y, dest->p3_z);
+#else
 	vm_vec_add(&dest->p3_vec, &src->p3_vec, deltav);
 
 	dest->p3_flags = 0;		//not projected
 
 	return g3_code_point(dest);
+#endif
 }
 
 //calculate the depth of a point - returns the z coord of the rotated point

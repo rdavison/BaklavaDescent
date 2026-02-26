@@ -1402,7 +1402,7 @@ extern "C" CAMLprim value caml_c_g3_project_point(
 {
     CAMLparam5(x, y, z, canv_w2, canv_h2);
     CAMLlocal1(out);
-    int32_t sx, sy;
+    int32_t sx = 0, sy = 0;
     int ok = c_oracle_g3_project_point(
         Int_val(x), Int_val(y), Int_val(z),
         Int_val(canv_w2), Int_val(canv_h2),

@@ -15,6 +15,8 @@ ocamlfind ocamlopt \
   -output-complete-obj \
   -o "$BUILD_DIR/math_bridge_complete.o" \
   "$OX_DIR/ox_math.ml" \
+  "$OX_DIR/ox_3d.ml" \
+  "$OX_DIR/g3d_bridge.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG

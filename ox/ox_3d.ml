@@ -32,9 +32,9 @@ let checkmuldiv a b c =
     let h32 = Ox_math.wrap_i64_to_fix (Int64.of_int high) in
     if h32 < 0 then -h32 else h32
   in
-  (* shld ecx,eax,1 approximation *)
-  let high = high * 2 in
-  let high = if low > 0x7FFFFFFF then high + 1 else high in
+  (* shld ecx,eax,1 approximation — must wrap like int32 *)
+  let high = Ox_math.wrap_i64_to_fix (Int64.of_int (high * 2)) in
+  let high = if low > 0x7FFFFFFF then Ox_math.wrap_i64_to_fix (Int64.of_int (high + 1)) else high in
   if high >= c then false, 0
   else true, Ox_math.fixdivquadlong qt c
 
@@ -50,14 +50,15 @@ let g3_rotate_point ~view_pos ~view_matrix src =
    Takes the rotated point (x, y, z), current codes and flags,
    and canvas half-dimensions (canv_w2, canv_h2).
    Returns (sx, sy, new_flags). *)
+let wrap_add a b = Ox_math.wrap_i64_to_fix Int64.(of_int a + of_int b)
+let wrap_sub a b = Ox_math.wrap_i64_to_fix Int64.(of_int a - of_int b)
+
 let g3_project_point (x, y, z) ~canv_w2 ~canv_h2 =
   let ok_x, tx = checkmuldiv x canv_w2 z in
   if ok_x then
     let ok_y, ty = checkmuldiv y canv_h2 z in
     if ok_y then
-      (* PF_PROJECTED = 1 *)
-      Some (Ox_math.wrap_i64_to_fix Int64.(of_int canv_w2 + of_int tx),
-            Ox_math.wrap_i64_to_fix Int64.(of_int canv_h2 - of_int ty))
+      Some (wrap_add canv_w2 tx, wrap_sub canv_h2 ty)
     else None
   else None
 
@@ -76,9 +77,9 @@ let g3_rotate_delta_z ((_, _, r3), (_, _, u3), (_, _, f3)) dz =
 (* Calculate the depth (z in view space) of a world-space point. *)
 let g3_calc_point_depth ~view_pos:(vpx, vpy, vpz) ~view_fvec:(fx, fy, fz) (px, py, pz) =
   let q = 0L in
-  let q = Ox_math.fixmulaccum q (px - vpx) fx in
-  let q = Ox_math.fixmulaccum q (py - vpy) fy in
-  let q = Ox_math.fixmulaccum q (pz - vpz) fz in
+  let q = Ox_math.fixmulaccum q (wrap_sub px vpx) fx in
+  let q = Ox_math.fixmulaccum q (wrap_sub py vpy) fy in
+  let q = Ox_math.fixmulaccum q (wrap_sub pz vpz) fz in
   Ox_math.fixquadadjust q
 
 (* Perform aspect scaling on a view matrix.

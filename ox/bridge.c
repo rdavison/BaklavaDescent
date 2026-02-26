@@ -61,6 +61,7 @@ static const value* g_g3_rotate_delta_z = NULL;
 static const value* g_g3_calc_point_depth = NULL;
 static const value* g_scale_matrix = NULL;
 static const value* g_g3_start_instance_matrix = NULL;
+static const value* g_g3_point_2_vec = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -117,7 +118,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_g3_rotate_delta_z
           && g_g3_calc_point_depth
           && g_scale_matrix
-          && g_g3_start_instance_matrix))
+          && g_g3_start_instance_matrix
+          && g_g3_point_2_vec))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -190,6 +192,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_g3_calc_point_depth = caml_named_value("cd_g3_calc_point_depth");
     g_scale_matrix = caml_named_value("cd_scale_matrix");
     g_g3_start_instance_matrix = caml_named_value("cd_g3_start_instance_matrix");
+    g_g3_point_2_vec = caml_named_value("cd_g3_point_2_vec");
 
     if (!g_i2f
         || !g_f2i
@@ -243,7 +246,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_g3_rotate_delta_z
         || !g_g3_calc_point_depth
         || !g_scale_matrix
-        || !g_g3_start_instance_matrix)
+        || !g_g3_start_instance_matrix
+        || !g_g3_point_2_vec)
     {
         return 1;
     }
@@ -307,7 +311,8 @@ int cd_ox_is_ready(void)
            && g_g3_rotate_delta_z
            && g_g3_calc_point_depth
            && g_scale_matrix
-           && g_g3_start_instance_matrix;
+           && g_g3_start_instance_matrix
+           && g_g3_point_2_vec;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1034,4 +1039,26 @@ void cd_ox_g3_start_instance_matrix(
     *nr1 = Int_val(Field(out, 3)); *nr2 = Int_val(Field(out, 4)); *nr3 = Int_val(Field(out, 5));
     *nu1 = Int_val(Field(out, 6)); *nu2 = Int_val(Field(out, 7)); *nu3 = Int_val(Field(out, 8));
     *nf1 = Int_val(Field(out, 9)); *nf2 = Int_val(Field(out, 10)); *nf3 = Int_val(Field(out, 11));
+}
+
+void cd_ox_g3_point_2_vec(
+    int32_t sx, int32_t sy,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t ur1, int32_t ur2, int32_t ur3,
+    int32_t uu1, int32_t uu2, int32_t uu3,
+    int32_t uf1, int32_t uf2, int32_t uf3,
+    int32_t* vx, int32_t* vy, int32_t* vz)
+{
+    cd_ox_require_ready("cd_ox_g3_point_2_vec");
+    value args[16] = {
+        Val_long(sx), Val_long(sy),
+        Val_long(canv_w2), Val_long(canv_h2),
+        Val_long(msx), Val_long(msy), Val_long(msz),
+        Val_long(ur1), Val_long(ur2), Val_long(ur3),
+        Val_long(uu1), Val_long(uu2), Val_long(uu3),
+        Val_long(uf1), Val_long(uf2), Val_long(uf3),
+    };
+    const value out = caml_callbackN(*g_g3_point_2_vec, 16, args);
+    *vx = Int_val(Field(out, 0)); *vy = Int_val(Field(out, 1)); *vz = Int_val(Field(out, 2));
 }

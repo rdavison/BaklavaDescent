@@ -256,6 +256,14 @@ void cd_ox_g3_start_instance_matrix(
     int32_t* nr1, int32_t* nr2, int32_t* nr3,
     int32_t* nu1, int32_t* nu2, int32_t* nu3,
     int32_t* nf1, int32_t* nf2, int32_t* nf3);
+void cd_ox_g3_point_2_vec(
+    int32_t sx, int32_t sy,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t ur1, int32_t ur2, int32_t ur3,
+    int32_t uu1, int32_t uu2, int32_t uu3,
+    int32_t uf1, int32_t uf2, int32_t uf3,
+    int32_t* vx, int32_t* vy, int32_t* vz);
 
 #ifdef __cplusplus
 }
