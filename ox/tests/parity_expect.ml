@@ -147,6 +147,8 @@ external c_fixmul : int -> int -> int = "caml_c_fixmul"
 external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
+external c_fix_asin : int -> int = "caml_c_fix_asin"
+external c_fix_atan2 : int -> int -> int = "caml_c_fix_atan2"
 external c_vm_vec_scale_add2
   :  int -> int -> int -> int -> int -> int -> int -> int * int * int
   = "caml_c_vm_vec_scale_add2_bc" "caml_c_vm_vec_scale_add2"
@@ -280,6 +282,24 @@ external c_vm_vec_ang_2_matrix_raw
   -> int
   -> int * int * int * int * int * int * int * int * int
   = "caml_c_vm_vec_ang_2_matrix_bc" "caml_c_vm_vec_ang_2_matrix"
+external c_vm_extract_angles_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_extract_angles_matrix_bc" "caml_c_vm_extract_angles_matrix"
+external c_vm_extract_angles_vector_normalized
+  :  int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_extract_angles_vector_normalized"
 external c_vm_vector_2_matrix_raw
   :  int
   -> int
@@ -427,6 +447,10 @@ let c_vm_angles_2_matrix (p, b, h) = mat3_of_flat (c_vm_angles_2_matrix_raw p b 
 
 let c_vm_vec_ang_2_matrix (vx, vy, vz) a = mat3_of_flat (c_vm_vec_ang_2_matrix_raw vx vy vz a)
 
+let c_vm_extract_angles_matrix mat =
+  let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
+  c_vm_extract_angles_matrix_raw rx ry rz ux uy uz fx fy fz
+
 let c_vm_vec_delta_ang_norm (v0x, v0y, v0z) (v1x, v1y, v1z) fvec =
   let has_f, fx, fy, fz =
     match fvec with
@@ -501,6 +525,35 @@ let muldiv_cases =
 
 let fix_sqrt_cases =
   [ -1; 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
+
+let fix_asin_cases =
+  [
+    Int32.to_int_exn Int32.min_value;
+    -0x10000;
+    -0x8000;
+    -1;
+    0;
+    1;
+    0x7FFF;
+    0x8000;
+    0xFFFF;
+    0x10000;
+    Int32.to_int_exn Int32.max_value;
+  ]
+
+let fix_atan2_cases =
+  [
+    (0x10000, 0);
+    (0, 0x10000);
+    (-0x10000, 0);
+    (0, -0x10000);
+    (0x10000, 0x10000);
+    (0x10000, -0x10000);
+    (0, 0);
+    (12345, -54321);
+    (Int32.to_int_exn Int32.max_value, Int32.to_int_exn Int32.min_value);
+    (Int32.to_int_exn Int32.min_value, Int32.to_int_exn Int32.max_value);
+  ]
 
 let vm_vec_scale_add2_cases =
   [
@@ -797,6 +850,20 @@ let vm_vec_ang_2_matrix_cases =
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), 32767);
     ((-0x10000, 0x10000, 0x10000), -32768);
   ]
+
+let vm_extract_angles_vector_normalized_cases =
+  [
+    (0x10000, 0, 0);
+    (0, 0x10000, 0);
+    (0, -0x10000, 0);
+    (0, 0, 0x10000);
+    (46340, 0, 46340);
+    (12345, -54321, 99999);
+    (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_extract_angles_matrix_cases =
+  [ mat_identity; mat_sample; mat_extreme; Ox_math.vm_angles_2_matrix (0x1000, 0x2000, 0x3000) ]
 
 let edge_fix_values =
   [
@@ -1835,6 +1902,26 @@ let check_mat_binop
         ox_f3
         eq)
 
+let check_mat_to_ang3
+    (name : string)
+    (c_impl : mat3 -> int * int * int)
+    (ox_impl : mat3 -> int * int * int)
+    (cases : mat3 list)
+  =
+  List.iter cases ~f:(fun m ->
+      let c_p, c_b, c_h = c_impl m in
+      let ox_p, ox_b, ox_h = ox_impl m in
+      printf
+        "%s c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        c_p
+        c_b
+        c_h
+        ox_p
+        ox_b
+        ox_h
+        (Int.equal c_p ox_p && Int.equal c_b ox_b && Int.equal c_h ox_h))
+
 let check_vec3_opt_opt_to_mat
     (name : string)
     (c_impl : vec3 -> vec3 option -> vec3 option -> mat3)
@@ -2059,6 +2146,30 @@ let run_random_mat_unop
            incr mismatches;
            if Option.is_none !first_mismatch
            then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_mat_to_ang3
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : mat3 -> int * int * int)
+    (ox_impl : mat3 -> int * int * int)
+  =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count mat3_gen
+  |> Sequence.iter ~f:(fun m ->
+         incr total;
+         let c_p, c_b, c_h = c_impl m in
+         let ox_p, ox_b, ox_h = ox_impl m in
+         if not (Int.equal c_p ox_p && Int.equal c_b ox_b && Int.equal c_h ox_h)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s angle mismatch" name)));
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
@@ -2307,6 +2418,37 @@ let%expect_test "fix_sqrt parity C vs Ox" =
     fix_sqrt a=262144 c=131072 ox=131072 eq=true
     fix_sqrt a=2147395600 c=11863040 ox=11863040 eq=true
     fix_sqrt a=2147483647 c=11863296 ox=11863296 eq=true
+    |}]
+
+let%expect_test "fix_asin parity C vs Ox" =
+  check_unop "fix_asin" c_fix_asin Ox_math.fix_asin fix_asin_cases;
+  [%expect {|
+    fix_asin a=-2147483648 c=0 ox=0 eq=true
+    fix_asin a=-65536 c=16384 ox=16384 eq=true
+    fix_asin a=-32768 c=-5461 ox=-5461 eq=true
+    fix_asin a=-1 c=0 ox=0 eq=true
+    fix_asin a=0 c=0 ox=0 eq=true
+    fix_asin a=1 c=0 ox=0 eq=true
+    fix_asin a=32767 c=5460 ox=5460 eq=true
+    fix_asin a=32768 c=5461 ox=5461 eq=true
+    fix_asin a=65535 c=16380 ox=16380 eq=true
+    fix_asin a=65536 c=16384 ox=16384 eq=true
+    fix_asin a=2147483647 c=16384 ox=16384 eq=true
+    |}]
+
+let%expect_test "fix_atan2 parity C vs Ox" =
+  check_binop "fix_atan2" c_fix_atan2 Ox_math.fix_atan2 fix_atan2_cases;
+  [%expect {|
+    fix_atan2 a=65536 b=0 c=0 ox=0 eq=true
+    fix_atan2 a=0 b=65536 c=16384 ox=16384 eq=true
+    fix_atan2 a=-65536 b=0 c=-32768 ox=-32768 eq=true
+    fix_atan2 a=0 b=-65536 c=-16384 ox=-16384 eq=true
+    fix_atan2 a=65536 b=65536 c=8192 ox=8192 eq=true
+    fix_atan2 a=65536 b=-65536 c=-8192 ox=-8192 eq=true
+    fix_atan2 a=0 b=0 c=0 ox=0 eq=true
+    fix_atan2 a=12345 b=-54321 c=-14053 ox=-14053 eq=true
+    fix_atan2 a=2147483647 b=-2147483648 c=0 ox=0 eq=true
+    fix_atan2 a=-2147483648 b=2147483647 c=16384 ox=16384 eq=true
     |}]
 
 let%expect_test "vm_vec_scale_add2 parity C vs Ox" =
@@ -2663,6 +2805,35 @@ let%expect_test "vm_vec_delta_ang parity C vs Ox" =
     vm_vec_delta_ang v0=(2147483647,1,-2147483648) v1=(1,-1,2) f=None c=0 ox=0 eq=true
     |}]
 
+let%expect_test "vm_extract_angles_vector_normalized parity C vs Ox" =
+  check_make3
+    "vm_extract_angles_vector_normalized"
+    c_vm_extract_angles_vector_normalized
+    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized (x, y, z))
+    vm_extract_angles_vector_normalized_cases;
+  [%expect {|
+    vm_extract_angles_vector_normalized in=(65536,0,0) c=(0,0,16384) ox=(0,0,16384) eq=true
+    vm_extract_angles_vector_normalized in=(0,65536,0) c=(16384,0,0) ox=(16384,0,0) eq=true
+    vm_extract_angles_vector_normalized in=(0,-65536,0) c=(16384,0,0) ox=(16384,0,0) eq=true
+    vm_extract_angles_vector_normalized in=(0,0,65536) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_extract_angles_vector_normalized in=(46340,0,46340) c=(0,0,8192) ox=(0,0,8192) eq=true
+    vm_extract_angles_vector_normalized in=(12345,-54321,99999) c=(10191,0,1280) ox=(10191,0,1280) eq=true
+    vm_extract_angles_vector_normalized in=(2147483647,0,-2147483648) c=(0,0,16384) ox=(0,0,16384) eq=true
+    |}]
+
+let%expect_test "vm_extract_angles_matrix parity C vs Ox" =
+  check_mat_to_ang3
+    "vm_extract_angles_matrix"
+    c_vm_extract_angles_matrix
+    Ox_math.vm_extract_angles_matrix
+    vm_extract_angles_matrix_cases;
+  [%expect {|
+    vm_extract_angles_matrix c=(0,0,0) ox=(0,0,0) eq=true
+    vm_extract_angles_matrix c=(-5882,-13829,-29413) ox=(-5882,-13829,-29413) eq=true
+    vm_extract_angles_matrix c=(6711,16384,6143) ox=(6711,16384,6143) eq=true
+    vm_extract_angles_matrix c=(4095,8192,12288) ox=(4095,8192,12288) eq=true
+    |}]
+
 let%expect_test "vm_vec_rotate parity C vs Ox" =
   check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate Ox_math.vm_vec_rotate vm_vec_rotate_cases;
   [%expect
@@ -2799,6 +2970,14 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
   run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;
   [%expect {| fix_sqrt random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_asin parity C vs Ox" =
+  run_random_unop ~name:"fix_asin" ~seed:"fix-asin-seed-v1" ~test_count:5000 c_fix_asin Ox_math.fix_asin;
+  [%expect {| fix_asin random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_atan2 parity C vs Ox" =
+  run_random_binop ~name:"fix_atan2" ~seed:"fix-atan2-seed-v1" ~test_count:5000 c_fix_atan2 Ox_math.fix_atan2;
+  [%expect {| fix_atan2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale_add2 parity C vs Ox" =
   run_random_stateful_vec3
@@ -3085,6 +3264,25 @@ let%expect_test "randomized vm_vec_delta_ang parity C vs Ox" =
     c_vm_vec_delta_ang
     Ox_math.vm_vec_delta_ang;
   [%expect {| vm_vec_delta_ang random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_extract_angles_vector_normalized parity C vs Ox" =
+  run_random_make3
+    ~name:"vm_extract_angles_vector_normalized"
+    ~seed:"vm-extract-angles-vector-normalized-seed-v1"
+    ~test_count:5000
+    vec3_gen
+    c_vm_extract_angles_vector_normalized
+    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized (x, y, z));
+  [%expect {| vm_extract_angles_vector_normalized random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_extract_angles_matrix parity C vs Ox" =
+  run_random_mat_to_ang3
+    ~name:"vm_extract_angles_matrix"
+    ~seed:"vm-extract-angles-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_extract_angles_matrix
+    Ox_math.vm_extract_angles_matrix;
+  [%expect {| vm_extract_angles_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
   run_random_vec3_mat_to_vec3

@@ -36,6 +36,16 @@ extern "C" CAMLprim value caml_c_fix_sqrt(value a)
     return Val_long(c_oracle_fix_sqrt(Int_val(a)));
 }
 
+extern "C" CAMLprim value caml_c_fix_asin(value v)
+{
+    return Val_long(c_oracle_fix_asin(Int_val(v)));
+}
+
+extern "C" CAMLprim value caml_c_fix_atan2(value cosv, value sinv)
+{
+    return Val_long(c_oracle_fix_atan2(Int_val(cosv), Int_val(sinv)));
+}
+
 extern "C" CAMLprim value caml_c_vm_vec_scale_add2(
     value dx,
     value dy,
@@ -843,6 +853,60 @@ extern "C" CAMLprim value caml_c_vm_vec_ang_2_matrix_bc(value* argv, int argn)
 {
     (void)argn;
     return caml_c_vm_vec_ang_2_matrix(argv[0], argv[1], argv[2], argv[3]);
+}
+
+extern "C" CAMLprim value caml_c_vm_extract_angles_matrix(
+    value rx,
+    value ry,
+    value rz,
+    value ux,
+    value uy,
+    value uz,
+    value fx,
+    value fy,
+    value fz)
+{
+    CAMLparam5(rx, ry, rz, ux, uy);
+    CAMLxparam4(uz, fx, fy, fz);
+    CAMLlocal1(out);
+
+    const c_oracle_mat3 m = {
+        { Int_val(rx), Int_val(ry), Int_val(rz) },
+        { Int_val(ux), Int_val(uy), Int_val(uz) },
+        { Int_val(fx), Int_val(fy), Int_val(fz) }
+    };
+
+    c_oracle_ang3 a = { 0, 0, 0 };
+    c_oracle_vm_extract_angles_matrix(&a, &m);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(a.p));
+    Store_field(out, 1, Val_long(a.b));
+    Store_field(out, 2, Val_long(a.h));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_extract_angles_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_extract_angles_matrix(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
+}
+
+extern "C" CAMLprim value caml_c_vm_extract_angles_vector_normalized(value x, value y, value z)
+{
+    CAMLparam3(x, y, z);
+    CAMLlocal1(out);
+
+    const c_oracle_vec3 v = { Int_val(x), Int_val(y), Int_val(z) };
+    c_oracle_ang3 a = { 0, 0, 0 };
+    c_oracle_vm_extract_angles_vector_normalized(&a, &v);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(a.p));
+    Store_field(out, 1, Val_long(a.b));
+    Store_field(out, 2, Val_long(a.h));
+    CAMLreturn(out);
 }
 
 extern "C" CAMLprim value caml_c_vm_vector_2_matrix(

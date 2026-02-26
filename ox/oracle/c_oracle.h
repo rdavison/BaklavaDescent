@@ -12,6 +12,8 @@ int32_t c_oracle_fixmul(int32_t a, int32_t b);
 int32_t c_oracle_fixdiv(int32_t a, int32_t b);
 int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c);
 int32_t c_oracle_fix_sqrt(int32_t a);
+int16_t c_oracle_fix_asin(int32_t v);
+int16_t c_oracle_fix_atan2(int32_t cosv, int32_t sinv);
 
 typedef struct c_oracle_vec3
 {
@@ -107,6 +109,8 @@ void c_oracle_sincos_2_matrix(
     int32_t cosh);
 void c_oracle_vm_angles_2_matrix(c_oracle_mat3* dest, const c_oracle_ang3* a);
 void c_oracle_vm_vec_ang_2_matrix(c_oracle_mat3* dest, const c_oracle_vec3* v, int16_t a);
+void c_oracle_vm_extract_angles_matrix(c_oracle_ang3* dest, const c_oracle_mat3* m);
+void c_oracle_vm_extract_angles_vector_normalized(c_oracle_ang3* dest, const c_oracle_vec3* v);
 void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,

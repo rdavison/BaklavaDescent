@@ -13,6 +13,12 @@ let wrap_i64_to_fix x =
   let signed = if Int64.( > ) low32 max_i32 then Int64.( - ) low32 two32 else low32 in
   Int64.to_int_exn signed
 
+let wrap_i32_to_fixang x =
+  let low16 = Int.bit_and x 0xFFFF in
+  if low16 > 0x7FFF then low16 - 0x10000 else low16
+
+let abs_fix v = wrap_i64_to_fix (Int64.of_int (Int.abs v))
+
 let fixmul a b =
   Int64.(wrap_i64_to_fix (shift_right (of_int a * of_int b) fracbits))
 
@@ -45,6 +51,24 @@ let long_sqrt a =
     let floor64 = I64.of_int floor in
     if I64.equal (I64.mul floor64 floor64) n then floor else floor + 1
 
+let quad_sqrt q =
+  let module I64 = Stdlib.Int64 in
+  if I64.compare q I64.zero <= 0
+  then 0L
+  else
+    let rec floor_loop lo hi best =
+      if I64.compare lo hi > 0
+      then best
+      else
+        let mid = I64.add lo (I64.div (I64.sub hi lo) 2L) in
+        let sq = I64.mul mid mid in
+        if I64.compare sq q <= 0
+        then floor_loop (I64.add mid 1L) hi mid
+        else floor_loop lo (I64.sub mid 1L) best
+    in
+    let floor = floor_loop 0L 3037000500L 0L in
+    if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L
+
 let fix_sqrt a = Int.shift_left (long_sqrt a) 8
 
 (* fix_sincos uses 256-entry quarter-wave indexing plus interpolation.
@@ -58,6 +82,10 @@ let acos_lut =
   Array.init 257 ~f:(fun i ->
       Int.of_float (Float.round (Float.acos (Float.of_int i /. 256.0) *. 32768.0 /. Float.pi)))
 
+let asin_lut =
+  Array.init 257 ~f:(fun i ->
+      Int.of_float (Float.round (Float.asin (Float.of_int i /. 256.0) *. 32768.0 /. Float.pi)))
+
 let fix_sincos a =
   let i = Int.bit_and (Int.shift_right a 8) 0xFF in
   let f = Int.bit_and a 0xFF in
@@ -70,7 +98,7 @@ let fix_sincos a =
   sinv, cosv
 
 let fix_acos v =
-  let vv = wrap_i64_to_fix (Int64.of_int (Int.abs v)) in
+  let vv = abs_fix v in
   if vv >= 0x10000
   then 0
   else
@@ -79,8 +107,35 @@ let fix_acos v =
     let aa = acos_lut.(i) in
     let aa = aa + (Int.shift_right ((acos_lut.(i + 1) - aa) * f) 8) in
     let aa = if v < 0 then 0x8000 - aa else aa in
-    let low16 = Int.bit_and aa 0xFFFF in
-    if low16 > 0x7FFF then low16 - 0x10000 else low16
+    wrap_i32_to_fixang aa
+
+let fix_asin v =
+  let vv = abs_fix v in
+  if vv >= 0x10000
+  then 0x4000
+  else
+    let i = Int.bit_and (Int.shift_right vv 8) 0xFF in
+    let f = Int.bit_and vv 0xFF in
+    let aa = asin_lut.(i) in
+    let aa = aa + (Int.shift_right ((asin_lut.(i + 1) - aa) * f) 8) in
+    let aa = if v < 0 then -aa else aa in
+    wrap_i32_to_fixang aa
+
+let fix_atan2 cos sin =
+  let q = Int64.(of_int sin * of_int sin + (of_int cos * of_int cos)) in
+  let m = wrap_i64_to_fix (quad_sqrt q) in
+  let abs_no_wrap v = Int64.abs (Int64.of_int v) in
+  if m = 0
+  then 0
+  else if Int64.compare (abs_no_wrap sin) (abs_no_wrap cos) < 0
+  then (
+    let t = fix_asin (fixdiv sin m) in
+    let t = if cos < 0 then 0x8000 - t else t in
+    wrap_i32_to_fixang t)
+  else (
+    let t = fix_acos (fixdiv cos m) in
+    let t = if sin < 0 then -t else t in
+    wrap_i32_to_fixang t)
 
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
@@ -124,24 +179,6 @@ let vm_vec_copy_scale (sx, sy, sz) k =
 let vm_vec_scale (dx, dy, dz) k =
   fixmul dx k, fixmul dy k, fixmul dz k
 
-let quad_sqrt q =
-  let module I64 = Stdlib.Int64 in
-  if I64.compare q I64.zero <= 0
-  then 0L
-  else
-    let rec floor_loop lo hi best =
-      if I64.compare lo hi > 0
-      then best
-      else
-        let mid = I64.add lo (I64.div (I64.sub hi lo) 2L) in
-        let sq = I64.mul mid mid in
-        if I64.compare sq q <= 0
-        then floor_loop (I64.add mid 1L) hi mid
-        else floor_loop lo (I64.sub mid 1L) best
-    in
-    let floor = floor_loop 0L 3037000500L 0L in
-    if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L
-
 let vm_vec_mag (x, y, z) =
   let module I64 = Stdlib.Int64 in
   let q =
@@ -152,8 +189,6 @@ let vm_vec_mag (x, y, z) =
   wrap_i64_to_fix (quad_sqrt q)
 
 let vm_vec_dist (x0, y0, z0) (x1, y1, z1) = vm_vec_mag (vm_vec_sub (x0, y0, z0) (x1, y1, z1))
-
-let abs_fix v = wrap_i64_to_fix (Int64.of_int (Int.abs v))
 
 let vm_vec_mag_quick (x, y, z) =
   let a = ref (abs_fix x) in
@@ -330,12 +365,39 @@ let vm_vec_delta_ang_norm v0 v1 fvec =
   | None -> a
   | Some f ->
     let t = vm_vec_crossprod v0 v1 in
-    if vm_vec_dotprod t f < 0 then wrap_i64_to_fixang (Int64.of_int (-a)) else a
+    if vm_vec_dotprod t f < 0 then wrap_i32_to_fixang (-a) else a
 
 let vm_vec_delta_ang v0 v1 fvec =
   let _, t0 = vm_vec_copy_normalize v0 in
   let _, t1 = vm_vec_copy_normalize v1 in
   vm_vec_delta_ang_norm t0 t1 fvec
+
+let vm_extract_angles_vector_normalized (x, y, z) =
+  let b = 0 in
+  let p = fix_asin (neg_i32 y) in
+  let h = if x = 0 && z = 0 then 0 else fix_atan2 z x in
+  vm_angvec_make p b h
+
+let vm_extract_angles_matrix (rvec, uvec, fvec) =
+  let fx, fy, fz = fvec in
+  let _, uy, _ = uvec in
+  let _, ry, _ = rvec in
+
+  let h = if fx = 0 && fz = 0 then 0 else fix_atan2 fz fx in
+  let sinh, cosh = fix_sincos h in
+
+  let cosp = if Int.abs sinh > Int.abs cosh then fixdiv fx sinh else fixdiv fz cosh in
+  let p = if cosp = 0 && fy = 0 then 0 else fix_atan2 cosp (neg_i32 fy) in
+
+  let b =
+    if cosp = 0
+    then 0
+    else (
+      let sinb = fixdiv ry cosp in
+      let cosb = fixdiv uy cosp in
+      if sinb = 0 && cosb = 0 then 0 else fix_atan2 cosb sinb)
+  in
+  vm_angvec_make p b h
 
 let vm_vector_2_matrix fvec uvec rvec =
   let bad_vector2 zvec =

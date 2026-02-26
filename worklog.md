@@ -190,3 +190,24 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 20) Trig inverse + angle extraction ports completed
+- Implemented in Ox:
+  - `fix_asin`.
+  - `fix_atan2`.
+  - `vm_extract_angles_vector_normalized`.
+  - `vm_extract_angles_matrix`.
+- Extended C oracle:
+  - `c_oracle_fix_asin`.
+  - `c_oracle_fix_atan2`.
+  - `c_oracle_vm_extract_angles_vector_normalized`.
+  - `c_oracle_vm_extract_angles_matrix`.
+- Extended parity harness:
+  - new scalar parity tests for `fix_asin` and `fix_atan2` (deterministic + randomized).
+  - new angle-extraction parity tests for vector-normalized and matrix variants (deterministic + randomized).
+- Important bug caught and fixed:
+  - Ox `fix_atan2` initially used wrapped 32-bit absolute values for branch selection, which diverged from C `labs` semantics for `INT_MIN` edge cases.
+  - Fixed by using non-wrapping absolute-value comparison (`int64`-based) in Ox, restoring parity.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

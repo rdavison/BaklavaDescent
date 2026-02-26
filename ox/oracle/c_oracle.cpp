@@ -67,6 +67,12 @@ static int32_t c_oracle_acos_lut_entry(int i)
     return (int32_t)llround(acos((double)i / 256.0) * 32768.0 / pi);
 }
 
+static int32_t c_oracle_asin_lut_entry(int i)
+{
+    const double pi = 3.14159265358979323846;
+    return (int32_t)llround(asin((double)i / 256.0) * 32768.0 / pi);
+}
+
 static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
 {
     const int i = (a >> 8) & 0xFF;
@@ -130,6 +136,59 @@ extern "C" int32_t c_oracle_fixmuldiv(int32_t a, int32_t b, int32_t c)
 extern "C" int32_t c_oracle_fix_sqrt(int32_t a)
 {
     return c_oracle_long_sqrt_ceil(a) << 8;
+}
+
+extern "C" int16_t c_oracle_fix_asin(int32_t v)
+{
+    int32_t vv = (int32_t)labs(v);
+
+    if (vv >= f1_0)
+    {
+        return 0x4000;
+    }
+
+    const int i = (vv >> 8) & 0xFF;
+    const int f = vv & 0xFF;
+
+    int32_t aa = c_oracle_asin_lut_entry(i);
+    aa = aa + (((c_oracle_asin_lut_entry(i + 1) - aa) * f) >> 8);
+
+    if (v < 0)
+    {
+        aa = -aa;
+    }
+
+    return (int16_t)aa;
+}
+
+extern "C" int16_t c_oracle_fix_atan2(int32_t cosv, int32_t sinv)
+{
+    const int64_t q = (int64_t)sinv * (int64_t)sinv + (int64_t)cosv * (int64_t)cosv;
+    const int32_t m = c_oracle_quad_sqrt_ceil(q);
+
+    if (m == 0)
+    {
+        return 0;
+    }
+
+    if (labs(sinv) < labs(cosv))
+    {
+        int16_t t = c_oracle_fix_asin(fixdiv(sinv, m));
+        if (cosv < 0)
+        {
+            t = (int16_t)(0x8000 - t);
+        }
+        return (int16_t)t;
+    }
+    else
+    {
+        int16_t t = c_oracle_fix_acos(fixdiv(cosv, m));
+        if (sinv < 0)
+        {
+            t = (int16_t)(-t);
+        }
+        return (int16_t)t;
+    }
 }
 
 extern "C" void c_oracle_vm_vec_scale_add2(c_oracle_vec3* dest, const c_oracle_vec3* src, int32_t k)
@@ -603,6 +662,83 @@ extern "C" void c_oracle_vm_vec_ang_2_matrix(c_oracle_mat3* dest, const c_oracle
     cosh = fixdiv(v->z, cosp);
 
     c_oracle_sincos_2_matrix(dest, sinp, cosp, sinb, cosb, sinh, cosh);
+}
+
+extern "C" void c_oracle_vm_extract_angles_matrix(c_oracle_ang3* dest, const c_oracle_mat3* m)
+{
+    int16_t h;
+    int16_t p;
+    int16_t b;
+    int32_t sinh;
+    int32_t cosh;
+    int32_t cosp;
+
+    if (m->fvec.x == 0 && m->fvec.z == 0)
+    {
+        h = 0;
+    }
+    else
+    {
+        h = c_oracle_fix_atan2(m->fvec.z, m->fvec.x);
+    }
+
+    c_oracle_fix_sincos(h, &sinh, &cosh);
+
+    if (abs(sinh) > abs(cosh))
+    {
+        cosp = fixdiv(m->fvec.x, sinh);
+    }
+    else
+    {
+        cosp = fixdiv(m->fvec.z, cosh);
+    }
+
+    if (cosp == 0 && m->fvec.y == 0)
+    {
+        p = 0;
+    }
+    else
+    {
+        p = c_oracle_fix_atan2(cosp, neg_i32_wrap(m->fvec.y));
+    }
+
+    if (cosp == 0)
+    {
+        b = 0;
+    }
+    else
+    {
+        const int32_t sinb = fixdiv(m->rvec.y, cosp);
+        const int32_t cosb = fixdiv(m->uvec.y, cosp);
+
+        if (sinb == 0 && cosb == 0)
+        {
+            b = 0;
+        }
+        else
+        {
+            b = c_oracle_fix_atan2(cosb, sinb);
+        }
+    }
+
+    dest->p = p;
+    dest->b = b;
+    dest->h = h;
+}
+
+extern "C" void c_oracle_vm_extract_angles_vector_normalized(c_oracle_ang3* dest, const c_oracle_vec3* v)
+{
+    dest->b = 0;
+    dest->p = c_oracle_fix_asin(neg_i32_wrap(v->y));
+
+    if (v->x == 0 && v->z == 0)
+    {
+        dest->h = 0;
+    }
+    else
+    {
+        dest->h = c_oracle_fix_atan2(v->z, v->x);
+    }
 }
 
 extern "C" void c_oracle_vm_vector_2_matrix(
