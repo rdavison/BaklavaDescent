@@ -260,3 +260,14 @@ extern "C" int32_t c_oracle_vm_vec_normalize_quick(c_oracle_vec3* v)
 {
     return c_oracle_vm_vec_copy_normalize_quick(v, v);
 }
+
+extern "C" int32_t c_oracle_vm_vec_normalized_dir_quick(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* end,
+    const c_oracle_vec3* start)
+{
+    dest->x = end->x - start->x;
+    dest->y = end->y - start->y;
+    dest->z = end->z - start->z;
+    return c_oracle_vm_vec_normalize_quick(dest);
+}

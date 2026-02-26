@@ -430,3 +430,35 @@ extern "C" CAMLprim value caml_c_vm_vec_normalize_quick(value x, value y, value 
 
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_normalized_dir_quick(
+    value ex,
+    value ey,
+    value ez,
+    value sx,
+    value sy,
+    value sz)
+{
+    CAMLparam5(ex, ey, ez, sx, sy);
+    CAMLxparam1(sz);
+    CAMLlocal1(out);
+
+    const c_oracle_vec3 end = { Int_val(ex), Int_val(ey), Int_val(ez) };
+    const c_oracle_vec3 start = { Int_val(sx), Int_val(sy), Int_val(sz) };
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    const int32_t m = c_oracle_vm_vec_normalized_dir_quick(&dest, &end, &start);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(m));
+    Store_field(out, 1, Val_long(dest.x));
+    Store_field(out, 2, Val_long(dest.y));
+    Store_field(out, 3, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_normalized_dir_quick_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_normalized_dir_quick(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}

@@ -123,3 +123,6 @@ let vm_vec_copy_normalize_quick (sx, sy, sz) =
   if m > 0 then m, (fixdiv sx m, fixdiv sy m, fixdiv sz m) else m, (sx, sy, sz)
 
 let vm_vec_normalize_quick v = vm_vec_copy_normalize_quick v
+
+let vm_vec_normalized_dir_quick v_end v_start =
+  vm_vec_normalize_quick (vm_vec_sub v_end v_start)

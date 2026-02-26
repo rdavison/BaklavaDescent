@@ -46,6 +46,10 @@ int32_t c_oracle_vm_vec_dot3(int32_t x, int32_t y, int32_t z, const c_oracle_vec
 void c_oracle_vm_vec_crossprod(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1);
 int32_t c_oracle_vm_vec_copy_normalize_quick(c_oracle_vec3* dest, const c_oracle_vec3* src);
 int32_t c_oracle_vm_vec_normalize_quick(c_oracle_vec3* v);
+int32_t c_oracle_vm_vec_normalized_dir_quick(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* end,
+    const c_oracle_vec3* start);
 
 #ifdef __cplusplus
 }
