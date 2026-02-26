@@ -473,3 +473,29 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `cmake --build build-ox -j` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - Runtime launch confirms new `[OX]` markers for `vm_vec_perp`, `vm_vec_copy_normalize`, `vm_vec_dotprod`, `vm_vec_crossprod`.
+
+### 33) Wired angle/matrix stack through Ox bridge (11 new functions, total 42)
+- Added bridge implementations for the full angle-to-matrix and matrix operation stack.
+- **Matrix-producing functions (matrix output via `cd_ox_unpack_matrix` helper):**
+  - `sincos_2_matrix` (6 scalar args → matrix)
+  - `vm_angles_2_matrix` (angvec → matrix)
+  - `vm_vec_ang_2_matrix` (vec3 + fixang → matrix)
+  - `vm_transpose_matrix` (matrix → matrix, in-place)
+  - `vm_copy_transpose_matrix` (reuses `cd_ox_vm_transpose_matrix` with separate src/dest)
+  - `vm_matrix_x_matrix` (2 matrices → matrix, 18 input args)
+  - `vm_vector_2_matrix` (fvec + optional uvec + optional rvec → matrix)
+- **Angle-extraction functions (angvec output via `cd_ox_unpack_ang3` helper):**
+  - `vm_extract_angles_matrix` (matrix → angvec)
+  - `vm_extract_angles_vector_normalized` (vec3 → angvec)
+  - `vm_extract_angles_vector` (initial angvec + vec3 → angvec, stateful)
+- **Delta-angle functions (scalar return with optional fvec):**
+  - `vm_vec_delta_ang_norm` (2 vec3 + optional fvec → fixang)
+  - `vm_vec_delta_ang` (2 vec3 + optional fvec → fixang)
+- Bridge design notes:
+  - Added `cd_ox_unpack_matrix` (unpacks nested 3-tuple-of-3-tuples) and `cd_ox_unpack_ang3` helpers in bridge.c.
+  - Optional C `NULL` pointers encoded as `has_uvec`/`has_rvec`/`has_fvec` integer flags in bridge API; OCaml wrappers convert to `option` types.
+- Verification:
+  - `scripts/ox/build_bridge.sh` passes.
+  - `cmake --build build-ox -j` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.
+  - Runtime bridge init succeeds; per-function `[OX]` markers fire when gameplay code paths are exercised.
