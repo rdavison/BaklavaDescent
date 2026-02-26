@@ -614,22 +614,49 @@ vms_vector* vm_vec_perp(vms_vector* dest, vms_vector* p0, vms_vector* p1, vms_ve
 //returned.
 fixang vm_vec_delta_ang(vms_vector* v0, vms_vector* v1, vms_vector* fvec)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_delta_ang using cd_ox_vm_vec_delta_ang.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_delta_ang(
+		v0->x, v0->y, v0->z,
+		v1->x, v1->y, v1->z,
+		fvec ? 1 : 0,
+		fvec ? fvec->x : 0, fvec ? fvec->y : 0, fvec ? fvec->z : 0);
+#else
 	vms_vector t0, t1;
 
 	vm_vec_copy_normalize(&t0, v0);
 	vm_vec_copy_normalize(&t1, v1);
 
 	return vm_vec_delta_ang_norm(&t0, &t1, fvec);
+#endif
 }
 
 //computes the delta angle between two normalized vectors. 
 fixang vm_vec_delta_ang_norm(vms_vector* v0, vms_vector* v1, vms_vector* fvec)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_delta_ang_norm using cd_ox_vm_vec_delta_ang_norm.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_vm_vec_delta_ang_norm(
+		v0->x, v0->y, v0->z,
+		v1->x, v1->y, v1->z,
+		fvec ? 1 : 0,
+		fvec ? fvec->x : 0, fvec ? fvec->y : 0, fvec ? fvec->z : 0);
+#else
 	fixang a;
 
 	a = fix_acos(vm_vec_dot(v0, v1));
 
-	if (fvec) 
+	if (fvec)
 	{
 		vms_vector t;
 
@@ -640,10 +667,23 @@ fixang vm_vec_delta_ang_norm(vms_vector* v0, vms_vector* v1, vms_vector* fvec)
 	}
 
 	return a;
+#endif
 }
 
 vms_matrix* sincos_2_matrix(vms_matrix* m, fix sinp, fix cosp, fix sinb, fix cosb, fix sinh, fix cosh)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] sincos_2_matrix using cd_ox_sincos_2_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_sincos_2_matrix(sinp, cosp, sinb, cosb, sinh, cosh,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	fix sbsh, cbch, cbsh, sbch;
 
 	sbsh = fixmul(sinb, sinh);
@@ -663,26 +703,53 @@ vms_matrix* sincos_2_matrix(vms_matrix* m, fix sinp, fix cosp, fix sinb, fix cos
 	m->fvec.z = fixmul(cosh, cosp);				//m9
 
 	m->fvec.y = -sinp;								//m6
+#endif
 
 	return m;
-
 }
 
 //computes a matrix from a set of three angles.  returns ptr to matrix
 vms_matrix* vm_angles_2_matrix(vms_matrix* m, vms_angvec* a)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_angles_2_matrix using cd_ox_vm_angles_2_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_angles_2_matrix(a->p, a->b, a->h,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	fix sinp, cosp, sinb, cosb, sinh, cosh;
 
 	fix_sincos(a->p, &sinp, &cosp);
 	fix_sincos(a->b, &sinb, &cosb);
 	fix_sincos(a->h, &sinh, &cosh);
 
-	return sincos_2_matrix(m, sinp, cosp, sinb, cosb, sinh, cosh);
+	sincos_2_matrix(m, sinp, cosp, sinb, cosb, sinh, cosh);
+#endif
+
+	return m;
 }
 
 //computes a matrix from a forward vector and an angle
 vms_matrix* vm_vec_ang_2_matrix(vms_matrix* m, vms_vector* v, fixang a)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vec_ang_2_matrix using cd_ox_vm_vec_ang_2_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_vec_ang_2_matrix(v->x, v->y, v->z, a,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	fix sinb, cosb, sinp, cosp, sinh, cosh;
 
 	fix_sincos(a, &sinb, &cosb);
@@ -693,7 +760,10 @@ vms_matrix* vm_vec_ang_2_matrix(vms_matrix* m, vms_vector* v, fixang a)
 	sinh = fixdiv(v->x, cosp);
 	cosh = fixdiv(v->z, cosp);
 
-	return sincos_2_matrix(m, sinp, cosp, sinb, cosb, sinh, cosh);
+	sincos_2_matrix(m, sinp, cosp, sinb, cosb, sinh, cosh);
+#endif
+
+	return m;
 }
 
 //computes a matrix from one or more vectors. The forward vector is required,
@@ -703,26 +773,44 @@ vms_matrix* vm_vec_ang_2_matrix(vms_matrix* m, vms_vector* v, fixang a)
 //returns ptr to matrix
 vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec, vms_vector* rvec)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vector_2_matrix using cd_ox_vm_vector_2_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	Assert(fvec != NULL);
+	cd_ox_vm_vector_2_matrix(
+		fvec->x, fvec->y, fvec->z,
+		uvec ? 1 : 0,
+		uvec ? uvec->x : 0, uvec ? uvec->y : 0, uvec ? uvec->z : 0,
+		rvec ? 1 : 0,
+		rvec ? rvec->x : 0, rvec ? rvec->y : 0, rvec ? rvec->z : 0,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	vms_vector* xvec = &m->rvec, * yvec = &m->uvec, * zvec = &m->fvec;
 
 	Assert(fvec != NULL);
 
-	if (vm_vec_copy_normalize(zvec, fvec) == 0) 
+	if (vm_vec_copy_normalize(zvec, fvec) == 0)
 	{
 		Int3();		//forward vec should not be zero-length
 		return m;
 	}
 
-	if (uvec == NULL) 
+	if (uvec == NULL)
 	{
-		if (rvec == NULL) 
+		if (rvec == NULL)
 		{
 			//just forward vec
 
 		bad_vector2:
 			;
 
-			if (zvec->x == 0 && zvec->z == 0) 
+			if (zvec->x == 0 && zvec->z == 0)
 			{
 				//forward vec is straight up or down
 
@@ -731,7 +819,7 @@ vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec
 
 				m->rvec.y = m->rvec.z = m->uvec.x = m->uvec.y = 0;
 			}
-			else 
+			else
 			{
 				//not straight up or down
 
@@ -744,7 +832,7 @@ vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec
 				vm_vec_crossprod(yvec, zvec, xvec);
 			}
 		}
-		else 
+		else
 		{
 			//use right vec
 
@@ -761,7 +849,7 @@ vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec
 			vm_vec_crossprod(xvec, yvec, zvec);
 		}
 	}
-	else 
+	else
 	{
 		//use up vec
 		if (vm_vec_copy_normalize(yvec, uvec) == 0)
@@ -776,6 +864,7 @@ vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec
 		//now recompute up vector, in case it wasn't entirely perpendiclar
 		vm_vec_crossprod(yvec, zvec, xvec);
 	}
+#endif
 
 	return m;
 }
@@ -879,11 +968,27 @@ vms_vector* vm_vec_rotate(vms_vector* dest, vms_vector* src, vms_matrix* m)
 //transpose a matrix in place. returns ptr to matrix
 vms_matrix* vm_transpose_matrix(vms_matrix* m)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_transpose_matrix using cd_ox_vm_transpose_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_transpose_matrix(
+		m->rvec.x, m->rvec.y, m->rvec.z,
+		m->uvec.x, m->uvec.y, m->uvec.z,
+		m->fvec.x, m->fvec.y, m->fvec.z,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	fix t;
 
 	t = m->uvec.x;  m->uvec.x = m->rvec.y;  m->rvec.y = t;
 	t = m->fvec.x;  m->fvec.x = m->rvec.z;  m->rvec.z = t;
 	t = m->fvec.y;  m->fvec.y = m->uvec.z;  m->uvec.z = t;
+#endif
 
 	return m;
 }
@@ -894,6 +999,21 @@ vms_matrix* vm_copy_transpose_matrix(vms_matrix* dest, vms_matrix* src)
 {
 	Assert(dest != src);
 
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_copy_transpose_matrix using cd_ox_vm_transpose_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_transpose_matrix(
+		src->rvec.x, src->rvec.y, src->rvec.z,
+		src->uvec.x, src->uvec.y, src->uvec.z,
+		src->fvec.x, src->fvec.y, src->fvec.z,
+		&dest->rvec.x, &dest->rvec.y, &dest->rvec.z,
+		&dest->uvec.x, &dest->uvec.y, &dest->uvec.z,
+		&dest->fvec.x, &dest->fvec.y, &dest->fvec.z);
+#else
 	dest->rvec.x = src->rvec.x;
 	dest->rvec.y = src->uvec.x;
 	dest->rvec.z = src->fvec.x;
@@ -905,6 +1025,7 @@ vms_matrix* vm_copy_transpose_matrix(vms_matrix* dest, vms_matrix* src)
 	dest->fvec.x = src->rvec.z;
 	dest->fvec.y = src->uvec.z;
 	dest->fvec.z = src->fvec.z;
+#endif
 
 	return dest;
 }
@@ -915,6 +1036,24 @@ vms_matrix* vm_matrix_x_matrix(vms_matrix* dest, vms_matrix* src0, vms_matrix* s
 {
 	Assert(dest != src0 && dest != src1);
 
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_matrix_x_matrix using cd_ox_vm_matrix_x_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_vm_matrix_x_matrix(
+		src0->rvec.x, src0->rvec.y, src0->rvec.z,
+		src0->uvec.x, src0->uvec.y, src0->uvec.z,
+		src0->fvec.x, src0->fvec.y, src0->fvec.z,
+		src1->rvec.x, src1->rvec.y, src1->rvec.z,
+		src1->uvec.x, src1->uvec.y, src1->uvec.z,
+		src1->fvec.x, src1->fvec.y, src1->fvec.z,
+		&dest->rvec.x, &dest->rvec.y, &dest->rvec.z,
+		&dest->uvec.x, &dest->uvec.y, &dest->uvec.z,
+		&dest->fvec.x, &dest->fvec.y, &dest->fvec.z);
+#else
 	dest->rvec.x = vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->rvec);
 	dest->uvec.x = vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->uvec);
 	dest->fvec.x = vm_vec_dot3(src0->rvec.x, src0->uvec.x, src0->fvec.x, &src1->fvec);
@@ -926,6 +1065,7 @@ vms_matrix* vm_matrix_x_matrix(vms_matrix* dest, vms_matrix* src0, vms_matrix* s
 	dest->rvec.z = vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->rvec);
 	dest->uvec.z = vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->uvec);
 	dest->fvec.z = vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->fvec);
+#endif
 
 	return dest;
 }
@@ -934,6 +1074,21 @@ vms_matrix* vm_matrix_x_matrix(vms_matrix* dest, vms_matrix* src0, vms_matrix* s
 //extract angles from a matrix 
 vms_angvec* vm_extract_angles_matrix(vms_angvec* a, vms_matrix* m)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_extract_angles_matrix using cd_ox_vm_extract_angles_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t p, b, h;
+	cd_ox_vm_extract_angles_matrix(
+		m->rvec.x, m->rvec.y, m->rvec.z,
+		m->uvec.x, m->uvec.y, m->uvec.z,
+		m->fvec.x, m->fvec.y, m->fvec.z,
+		&p, &b, &h);
+	a->p = p; a->b = b; a->h = h;
+#else
 	fix sinh, cosh, cosp;
 
 	if (m->fvec.x == 0 && m->fvec.z == 0)		//zero head
@@ -958,7 +1113,7 @@ vms_angvec* vm_extract_angles_matrix(vms_angvec* a, vms_matrix* m)
 
 		a->b = 0;
 
-	else 
+	else
 	{
 		fix sinb, cosb;
 
@@ -970,6 +1125,7 @@ vms_angvec* vm_extract_angles_matrix(vms_angvec* a, vms_matrix* m)
 		else
 			a->b = fix_atan2(cosb, sinb);
 	}
+#endif
 
 	return a;
 }
@@ -978,6 +1134,17 @@ vms_angvec* vm_extract_angles_matrix(vms_angvec* a, vms_matrix* m)
 //extract heading and pitch from a vector, assuming bank==0
 vms_angvec* vm_extract_angles_vector_normalized(vms_angvec* a, vms_vector* v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_extract_angles_vector_normalized using cd_ox_vm_extract_angles_vector_normalized.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t p, b, h;
+	cd_ox_vm_extract_angles_vector_normalized(v->x, v->y, v->z, &p, &b, &h);
+	a->p = p; a->b = b; a->h = h;
+#else
 	a->b = 0;		//always zero bank
 
 	a->p = fix_asin(-v->y);
@@ -986,6 +1153,7 @@ vms_angvec* vm_extract_angles_vector_normalized(vms_angvec* a, vms_vector* v)
 		a->h = 0;
 	else
 		a->h = fix_atan2(v->z, v->x);
+#endif
 
 	return a;
 }
@@ -993,13 +1161,24 @@ vms_angvec* vm_extract_angles_vector_normalized(vms_angvec* a, vms_vector* v)
 //extract heading and pitch from a vector, assuming bank==0
 vms_angvec* vm_extract_angles_vector(vms_angvec* a, vms_vector* v)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_extract_angles_vector using cd_ox_vm_extract_angles_vector.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t p, b, h;
+	cd_ox_vm_extract_angles_vector(a->p, a->b, a->h, v->x, v->y, v->z, &p, &b, &h);
+	a->p = p; a->b = b; a->h = h;
+#else
 	vms_vector t;
 
 	if (vm_vec_copy_normalize(&t, v) != 0)
 		vm_extract_angles_vector_normalized(a, &t);
+#endif
 
 	return a;
-
 }
 
 //compute the distance from a point to a plane.  takes the normalized normal

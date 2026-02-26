@@ -131,6 +131,65 @@ void cd_ox_vm_vec_rotate(
     int32_t u1, int32_t u2, int32_t u3,
     int32_t f1, int32_t f2, int32_t f3,
     int32_t* rx, int32_t* ry, int32_t* rz);
+void cd_ox_sincos_2_matrix(
+    int32_t sinp, int32_t cosp, int32_t sinb, int32_t cosb, int32_t sinh, int32_t cosh,
+    int32_t* r1, int32_t* r2, int32_t* r3,
+    int32_t* u1, int32_t* u2, int32_t* u3,
+    int32_t* f1, int32_t* f2, int32_t* f3);
+void cd_ox_vm_angles_2_matrix(
+    int32_t p, int32_t b, int32_t h,
+    int32_t* r1, int32_t* r2, int32_t* r3,
+    int32_t* u1, int32_t* u2, int32_t* u3,
+    int32_t* f1, int32_t* f2, int32_t* f3);
+void cd_ox_vm_vec_ang_2_matrix(
+    int32_t vx, int32_t vy, int32_t vz, int32_t a,
+    int32_t* r1, int32_t* r2, int32_t* r3,
+    int32_t* u1, int32_t* u2, int32_t* u3,
+    int32_t* f1, int32_t* f2, int32_t* f3);
+void cd_ox_vm_transpose_matrix(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3);
+void cd_ox_vm_matrix_x_matrix(
+    int32_t s0r1, int32_t s0r2, int32_t s0r3,
+    int32_t s0u1, int32_t s0u2, int32_t s0u3,
+    int32_t s0f1, int32_t s0f2, int32_t s0f3,
+    int32_t s1r1, int32_t s1r2, int32_t s1r3,
+    int32_t s1u1, int32_t s1u2, int32_t s1u3,
+    int32_t s1f1, int32_t s1f2, int32_t s1f3,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3);
+void cd_ox_vm_vector_2_matrix(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t has_uvec, int32_t ux, int32_t uy, int32_t uz,
+    int32_t has_rvec, int32_t rx, int32_t ry, int32_t rz,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3);
+void cd_ox_vm_extract_angles_matrix(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* p, int32_t* b, int32_t* h);
+void cd_ox_vm_extract_angles_vector_normalized(
+    int32_t x, int32_t y, int32_t z,
+    int32_t* p, int32_t* b, int32_t* h);
+void cd_ox_vm_extract_angles_vector(
+    int32_t ip, int32_t ib, int32_t ih,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t* p, int32_t* b, int32_t* h);
+int32_t cd_ox_vm_vec_delta_ang_norm(
+    int32_t v0x, int32_t v0y, int32_t v0z,
+    int32_t v1x, int32_t v1y, int32_t v1z,
+    int32_t has_fvec, int32_t fx, int32_t fy, int32_t fz);
+int32_t cd_ox_vm_vec_delta_ang(
+    int32_t v0x, int32_t v0y, int32_t v0z,
+    int32_t v1x, int32_t v1y, int32_t v1z,
+    int32_t has_fvec, int32_t fx, int32_t fy, int32_t fz);
 
 #ifdef __cplusplus
 }

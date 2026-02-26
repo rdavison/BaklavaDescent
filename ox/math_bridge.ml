@@ -34,6 +34,44 @@ let cd_vm_vec_copy_normalize sx sy sz =
 let cd_vm_vec_rotate sx sy sz r1 r2 r3 u1 u2 u3 f1 f2 f3 =
   Ox_math.vm_vec_rotate (sx, sy, sz) ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
 
+let cd_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
+  Ox_math.sincos_2_matrix sinp cosp sinb cosb sinh cosh
+
+let cd_vm_angles_2_matrix p b h = Ox_math.vm_angles_2_matrix (p, b, h)
+
+let cd_vm_vec_ang_2_matrix vx vy vz a = Ox_math.vm_vec_ang_2_matrix (vx, vy, vz) a
+
+let cd_vm_transpose_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 =
+  Ox_math.vm_transpose_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+
+let cd_vm_matrix_x_matrix s0r1 s0r2 s0r3 s0u1 s0u2 s0u3 s0f1 s0f2 s0f3
+    s1r1 s1r2 s1r3 s1u1 s1u2 s1u3 s1f1 s1f2 s1f3 =
+  Ox_math.vm_matrix_x_matrix
+    ((s0r1, s0r2, s0r3), (s0u1, s0u2, s0u3), (s0f1, s0f2, s0f3))
+    ((s1r1, s1r2, s1r3), (s1u1, s1u2, s1u3), (s1f1, s1f2, s1f3))
+
+let cd_vm_vector_2_matrix fx fy fz has_uvec ux uy uz has_rvec rx ry rz =
+  let uvec = if has_uvec <> 0 then Some (ux, uy, uz) else None in
+  let rvec = if has_rvec <> 0 then Some (rx, ry, rz) else None in
+  Ox_math.vm_vector_2_matrix (fx, fy, fz) uvec rvec
+
+let cd_vm_extract_angles_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 =
+  Ox_math.vm_extract_angles_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+
+let cd_vm_extract_angles_vector_normalized x y z =
+  Ox_math.vm_extract_angles_vector_normalized (x, y, z)
+
+let cd_vm_extract_angles_vector ip ib ih vx vy vz =
+  Ox_math.vm_extract_angles_vector (ip, ib, ih) (vx, vy, vz)
+
+let cd_vm_vec_delta_ang_norm v0x v0y v0z v1x v1y v1z has_fvec fx fy fz =
+  let fvec = if has_fvec <> 0 then Some (fx, fy, fz) else None in
+  Ox_math.vm_vec_delta_ang_norm (v0x, v0y, v0z) (v1x, v1y, v1z) fvec
+
+let cd_vm_vec_delta_ang v0x v0y v0z v1x v1y v1z has_fvec fx fy fz =
+  let fvec = if has_fvec <> 0 then Some (fx, fy, fz) else None in
+  Ox_math.vm_vec_delta_ang (v0x, v0y, v0z) (v1x, v1y, v1z) fvec
+
 let () =
   (* Register named callbacks so C can resolve these via caml_named_value(). *)
   Callback.register "cd_i2f" Ox_math.i2f;
@@ -64,4 +102,15 @@ let () =
   Callback.register "cd_vm_vec_crossprod" cd_vm_vec_crossprod;
   Callback.register "cd_vm_vec_perp" cd_vm_vec_perp;
   Callback.register "cd_vm_vec_copy_normalize" cd_vm_vec_copy_normalize;
-  Callback.register "cd_vm_vec_rotate" cd_vm_vec_rotate
+  Callback.register "cd_vm_vec_rotate" cd_vm_vec_rotate;
+  Callback.register "cd_sincos_2_matrix" cd_sincos_2_matrix;
+  Callback.register "cd_vm_angles_2_matrix" cd_vm_angles_2_matrix;
+  Callback.register "cd_vm_vec_ang_2_matrix" cd_vm_vec_ang_2_matrix;
+  Callback.register "cd_vm_transpose_matrix" cd_vm_transpose_matrix;
+  Callback.register "cd_vm_matrix_x_matrix" cd_vm_matrix_x_matrix;
+  Callback.register "cd_vm_vector_2_matrix" cd_vm_vector_2_matrix;
+  Callback.register "cd_vm_extract_angles_matrix" cd_vm_extract_angles_matrix;
+  Callback.register "cd_vm_extract_angles_vector_normalized" cd_vm_extract_angles_vector_normalized;
+  Callback.register "cd_vm_extract_angles_vector" cd_vm_extract_angles_vector;
+  Callback.register "cd_vm_vec_delta_ang_norm" cd_vm_vec_delta_ang_norm;
+  Callback.register "cd_vm_vec_delta_ang" cd_vm_vec_delta_ang
