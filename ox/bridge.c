@@ -51,6 +51,16 @@ static const value* g_vm_vec_delta_ang = NULL;
 static const value* g_vm_vec_mag_quick = NULL;
 static const value* g_vm_vec_dist_quick = NULL;
 static const value* g_vm_vec_copy_normalize_quick = NULL;
+static const value* g_g3_code_point = NULL;
+static const value* g_checkmuldiv = NULL;
+static const value* g_g3_rotate_point = NULL;
+static const value* g_g3_project_point = NULL;
+static const value* g_g3_rotate_delta_x = NULL;
+static const value* g_g3_rotate_delta_y = NULL;
+static const value* g_g3_rotate_delta_z = NULL;
+static const value* g_g3_calc_point_depth = NULL;
+static const value* g_scale_matrix = NULL;
+static const value* g_g3_start_instance_matrix = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -97,7 +107,17 @@ static void cd_ox_require_ready(const char* fn)
           && g_vm_vec_delta_ang
           && g_vm_vec_mag_quick
           && g_vm_vec_dist_quick
-          && g_vm_vec_copy_normalize_quick))
+          && g_vm_vec_copy_normalize_quick
+          && g_g3_code_point
+          && g_checkmuldiv
+          && g_g3_rotate_point
+          && g_g3_project_point
+          && g_g3_rotate_delta_x
+          && g_g3_rotate_delta_y
+          && g_g3_rotate_delta_z
+          && g_g3_calc_point_depth
+          && g_scale_matrix
+          && g_g3_start_instance_matrix))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -160,6 +180,16 @@ int cd_ox_init_runtime(const char* executable_path)
     g_vm_vec_mag_quick = caml_named_value("cd_vm_vec_mag_quick");
     g_vm_vec_dist_quick = caml_named_value("cd_vm_vec_dist_quick");
     g_vm_vec_copy_normalize_quick = caml_named_value("cd_vm_vec_copy_normalize_quick");
+    g_g3_code_point = caml_named_value("cd_g3_code_point");
+    g_checkmuldiv = caml_named_value("cd_checkmuldiv");
+    g_g3_rotate_point = caml_named_value("cd_g3_rotate_point");
+    g_g3_project_point = caml_named_value("cd_g3_project_point");
+    g_g3_rotate_delta_x = caml_named_value("cd_g3_rotate_delta_x");
+    g_g3_rotate_delta_y = caml_named_value("cd_g3_rotate_delta_y");
+    g_g3_rotate_delta_z = caml_named_value("cd_g3_rotate_delta_z");
+    g_g3_calc_point_depth = caml_named_value("cd_g3_calc_point_depth");
+    g_scale_matrix = caml_named_value("cd_scale_matrix");
+    g_g3_start_instance_matrix = caml_named_value("cd_g3_start_instance_matrix");
 
     if (!g_i2f
         || !g_f2i
@@ -203,7 +233,17 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_vm_vec_delta_ang
         || !g_vm_vec_mag_quick
         || !g_vm_vec_dist_quick
-        || !g_vm_vec_copy_normalize_quick)
+        || !g_vm_vec_copy_normalize_quick
+        || !g_g3_code_point
+        || !g_checkmuldiv
+        || !g_g3_rotate_point
+        || !g_g3_project_point
+        || !g_g3_rotate_delta_x
+        || !g_g3_rotate_delta_y
+        || !g_g3_rotate_delta_z
+        || !g_g3_calc_point_depth
+        || !g_scale_matrix
+        || !g_g3_start_instance_matrix)
     {
         return 1;
     }
@@ -257,7 +297,17 @@ int cd_ox_is_ready(void)
            && g_vm_vec_delta_ang
            && g_vm_vec_mag_quick
            && g_vm_vec_dist_quick
-           && g_vm_vec_copy_normalize_quick;
+           && g_vm_vec_copy_normalize_quick
+           && g_g3_code_point
+           && g_checkmuldiv
+           && g_g3_rotate_point
+           && g_g3_project_point
+           && g_g3_rotate_delta_x
+           && g_g3_rotate_delta_y
+           && g_g3_rotate_delta_z
+           && g_g3_calc_point_depth
+           && g_scale_matrix
+           && g_g3_start_instance_matrix;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -803,4 +853,185 @@ int32_t cd_ox_vm_vec_copy_normalize_quick(
     if (ny) { *ny = Int_val(Field(out, 2)); }
     if (nz) { *nz = Int_val(Field(out, 3)); }
     return mag;
+}
+
+/* ---- 3D pipeline bridge functions ---- */
+
+uint8_t cd_ox_g3_code_point(int32_t x, int32_t y, int32_t z)
+{
+    cd_ox_require_ready("cd_ox_g3_code_point");
+    value args[3] = { Val_long(x), Val_long(y), Val_long(z) };
+    return (uint8_t)Int_val(caml_callbackN(*g_g3_code_point, 3, args));
+}
+
+int cd_ox_checkmuldiv(int32_t* r, int32_t a, int32_t b, int32_t c)
+{
+    cd_ox_require_ready("cd_ox_checkmuldiv");
+    value args[3] = { Val_long(a), Val_long(b), Val_long(c) };
+    const value out = caml_callbackN(*g_checkmuldiv, 3, args);
+    int ok = Int_val(Field(out, 0));
+    *r = Int_val(Field(out, 1));
+    return ok;
+}
+
+void cd_ox_g3_rotate_point(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* rx, int32_t* ry, int32_t* rz, uint8_t* codes)
+{
+    cd_ox_require_ready("cd_ox_g3_rotate_point");
+    value args[15] = {
+        Val_long(sx), Val_long(sy), Val_long(sz),
+        Val_long(vpx), Val_long(vpy), Val_long(vpz),
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+    };
+    const value out = caml_callbackN(*g_g3_rotate_point, 15, args);
+    *rx = Int_val(Field(out, 0));
+    *ry = Int_val(Field(out, 1));
+    *rz = Int_val(Field(out, 2));
+    *codes = (uint8_t)Int_val(Field(out, 3));
+}
+
+int cd_ox_g3_project_point(
+    int32_t x, int32_t y, int32_t z,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t* sx, int32_t* sy)
+{
+    cd_ox_require_ready("cd_ox_g3_project_point");
+    value args[5] = { Val_long(x), Val_long(y), Val_long(z), Val_long(canv_w2), Val_long(canv_h2) };
+    const value out = caml_callbackN(*g_g3_project_point, 5, args);
+    int ok = Int_val(Field(out, 0));
+    *sx = Int_val(Field(out, 1));
+    *sy = Int_val(Field(out, 2));
+    return ok;
+}
+
+void cd_ox_g3_rotate_delta_x(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dx,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_g3_rotate_delta_x");
+    value args[10] = {
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(dx),
+    };
+    cd_ox_unpack_vec3(caml_callbackN(*g_g3_rotate_delta_x, 10, args), rx, ry, rz);
+}
+
+void cd_ox_g3_rotate_delta_y(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dy,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_g3_rotate_delta_y");
+    value args[10] = {
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(dy),
+    };
+    cd_ox_unpack_vec3(caml_callbackN(*g_g3_rotate_delta_y, 10, args), rx, ry, rz);
+}
+
+void cd_ox_g3_rotate_delta_z(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dz,
+    int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    cd_ox_require_ready("cd_ox_g3_rotate_delta_z");
+    value args[10] = {
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(dz),
+    };
+    cd_ox_unpack_vec3(caml_callbackN(*g_g3_rotate_delta_z, 10, args), rx, ry, rz);
+}
+
+int32_t cd_ox_g3_calc_point_depth(
+    int32_t px, int32_t py, int32_t pz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t fx, int32_t fy, int32_t fz)
+{
+    cd_ox_require_ready("cd_ox_g3_calc_point_depth");
+    value args[9] = {
+        Val_long(px), Val_long(py), Val_long(pz),
+        Val_long(vpx), Val_long(vpy), Val_long(vpz),
+        Val_long(fx), Val_long(fy), Val_long(fz),
+    };
+    return Int_val(caml_callbackN(*g_g3_calc_point_depth, 9, args));
+}
+
+void cd_ox_scale_matrix(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t wsx, int32_t wsy, int32_t wsz,
+    int32_t zoom,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3,
+    int32_t* msx, int32_t* msy, int32_t* msz)
+{
+    cd_ox_require_ready("cd_ox_scale_matrix");
+    value args[13] = {
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(wsx), Val_long(wsy), Val_long(wsz),
+        Val_long(zoom),
+    };
+    const value out = caml_callbackN(*g_scale_matrix, 13, args);
+    *or1 = Int_val(Field(out, 0)); *or2 = Int_val(Field(out, 1)); *or3 = Int_val(Field(out, 2));
+    *ou1 = Int_val(Field(out, 3)); *ou2 = Int_val(Field(out, 4)); *ou3 = Int_val(Field(out, 5));
+    *of1 = Int_val(Field(out, 6)); *of2 = Int_val(Field(out, 7)); *of3 = Int_val(Field(out, 8));
+    *msx = Int_val(Field(out, 9)); *msy = Int_val(Field(out, 10)); *msz = Int_val(Field(out, 11));
+}
+
+void cd_ox_g3_start_instance_matrix(
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t has_orient,
+    int32_t mr1, int32_t mr2, int32_t mr3,
+    int32_t mu1, int32_t mu2, int32_t mu3,
+    int32_t mf1, int32_t mf2, int32_t mf3,
+    int32_t* nvpx, int32_t* nvpy, int32_t* nvpz,
+    int32_t* nr1, int32_t* nr2, int32_t* nr3,
+    int32_t* nu1, int32_t* nu2, int32_t* nu3,
+    int32_t* nf1, int32_t* nf2, int32_t* nf3)
+{
+    cd_ox_require_ready("cd_ox_g3_start_instance_matrix");
+    value args[25] = {
+        Val_long(vpx), Val_long(vpy), Val_long(vpz),
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(px), Val_long(py), Val_long(pz),
+        Val_long(has_orient),
+        Val_long(mr1), Val_long(mr2), Val_long(mr3),
+        Val_long(mu1), Val_long(mu2), Val_long(mu3),
+        Val_long(mf1), Val_long(mf2), Val_long(mf3),
+    };
+    const value out = caml_callbackN(*g_g3_start_instance_matrix, 25, args);
+    *nvpx = Int_val(Field(out, 0)); *nvpy = Int_val(Field(out, 1)); *nvpz = Int_val(Field(out, 2));
+    *nr1 = Int_val(Field(out, 3)); *nr2 = Int_val(Field(out, 4)); *nr3 = Int_val(Field(out, 5));
+    *nu1 = Int_val(Field(out, 6)); *nu2 = Int_val(Field(out, 7)); *nu3 = Int_val(Field(out, 8));
+    *nf1 = Int_val(Field(out, 9)); *nf2 = Int_val(Field(out, 10)); *nf3 = Int_val(Field(out, 11));
 }

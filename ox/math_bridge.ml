@@ -123,4 +123,6 @@ let () =
   Callback.register "cd_vm_vec_delta_ang" cd_vm_vec_delta_ang;
   Callback.register "cd_vm_vec_mag_quick" cd_vm_vec_mag_quick;
   Callback.register "cd_vm_vec_dist_quick" cd_vm_vec_dist_quick;
-  Callback.register "cd_vm_vec_copy_normalize_quick" cd_vm_vec_copy_normalize_quick
+  Callback.register "cd_vm_vec_copy_normalize_quick" cd_vm_vec_copy_normalize_quick;
+  (* Force 3D bridge module initialization so its callbacks are registered. *)
+  ignore (G3d_bridge.cd_g3_code_point : int -> int -> int -> int)

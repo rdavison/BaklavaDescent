@@ -499,3 +499,31 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `cmake --build build-ox -j` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
   - Runtime bridge init succeeds; per-function `[OX]` markers fire when gameplay code paths are exercised.
+
+## 34. Port 3D pipeline to Ox and wire through bridge
+
+- Created `ox/ox_3d.ml` — pure stateless implementations of the 3D coordinate transformation pipeline:
+  - `g3_code_point` — compute clipping codes (CC_OFF_LEFT/RIGHT/TOP/BOT/BEHIND)
+  - `checkmuldiv` — overflow-safe fixmul-then-divide (used by projection)
+  - `g3_rotate_point` — world-to-view-space rotation (sub + rotate + code)
+  - `g3_project_point` — perspective projection to screen coords
+  - `g3_rotate_delta_x/y/z` — delta rotation by matrix column extraction
+  - `g3_calc_point_depth` — z-depth via dot product with view forward vector
+  - `scale_matrix` — aspect-ratio scaling of view matrix by zoom and window scale
+  - `g3_point_2_vec` — 2D screen point to 3D ray unprojection
+  - `g3_start_instance_matrix` — transformation stack push (sub + rotate + transpose + matmul)
+- Key design: all functions are **pure** — globals (View_position, View_matrix, etc.) are passed as explicit parameters from C side rather than read from mutable state.
+- Created `ox/g3d_bridge.ml` — OCaml callback wrappers flattening tuples/options to integer-arity functions for C bridge.
+- Added `bridge_3d` library in `ox/dune`; `math_bridge.ml` force-links it via `ignore` to ensure callback registration.
+- C oracle implementations added for all 3d functions (`c_oracle.h`/`c_oracle.cpp`).
+- C stubs added in `ox/tests/c_fix_stubs.cpp` for parity testing.
+- Parity tests added in `ox/tests/parity_expect.ml` — all pass with perfect C-vs-Ox agreement.
+- Bridge wiring (10 new functions, total now 55):
+  - `cd_ox_g3_code_point`, `cd_ox_checkmuldiv`, `cd_ox_g3_rotate_point`, `cd_ox_g3_project_point`
+  - `cd_ox_g3_rotate_delta_x/y/z`, `cd_ox_g3_calc_point_depth`
+  - `cd_ox_scale_matrix`, `cd_ox_g3_start_instance_matrix`
+- Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:
+  - `3d/points.cpp` — 7 functions: g3_code_point, g3_rotate_point, checkmuldiv, g3_project_point, g3_rotate_delta_x/y/z, g3_calc_point_depth
+  - `3d/matrix.cpp` — scale_matrix
+  - `3d/instance.cpp` — g3_start_instance_matrix (with optional orient via has_orient flag)
+- Verification: oracle + dune tests pass, cmake build succeeds, game launches without crash.

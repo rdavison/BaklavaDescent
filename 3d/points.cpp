@@ -11,12 +11,26 @@ AND AGREES TO THE TERMS HEREIN AND ACCEPTS THE SAME BY USE OF THIS FILE.
 COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 */
 
+#include <stdio.h>
+
 #include "3d/3d.h"
 #include "globvars.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 //code a point.  fills in the p3_codes field of the point, and returns the codes
 uint8_t g3_code_point(g3s_point* p)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_code_point using cd_ox_g3_code_point.\n");
+		ox_bridge_logged = 1;
+	}
+	return p->p3_codes = cd_ox_g3_code_point(p->p3_x, p->p3_y, p->p3_z);
+#else
 	uint8_t cc = 0;
 
 	if (p->p3_x > p->p3_z)
@@ -35,12 +49,32 @@ uint8_t g3_code_point(g3s_point* p)
 		cc |= CC_BEHIND;
 
 	return p->p3_codes = cc;
+#endif
 
 }
 
 //rotates a point. returns codes.  does not check if already rotated
 uint8_t g3_rotate_point(g3s_point* dest, vms_vector* src)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_rotate_point using cd_ox_g3_rotate_point.\n");
+		ox_bridge_logged = 1;
+	}
+	uint8_t codes;
+	cd_ox_g3_rotate_point(
+		src->x, src->y, src->z,
+		View_position.x, View_position.y, View_position.z,
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		&dest->p3_vec.x, &dest->p3_vec.y, &dest->p3_vec.z, &codes);
+	dest->p3_flags = 0;
+	dest->p3_codes = codes;
+	return codes;
+#else
 	vms_vector tempv;
 
 	vm_vec_sub(&tempv, src, &View_position);
@@ -50,6 +84,7 @@ uint8_t g3_rotate_point(g3s_point* dest, vms_vector* src)
 	dest->p3_flags = 0;	//no projected
 
 	return g3_code_point(dest);
+#endif
 
 }
 
@@ -57,6 +92,15 @@ uint8_t g3_rotate_point(g3s_point* dest, vms_vector* src)
 //returns true if div is ok, else false
 int checkmuldiv(fix* r, fix a, fix b, fix c)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] checkmuldiv using cd_ox_checkmuldiv.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_checkmuldiv(r, a, b, c);
+#else
 	int64_t q, qt;
 	q = 0; qt = 0;
 
@@ -73,29 +117,47 @@ int checkmuldiv(fix* r, fix a, fix b, fix c)
 	}
 		//fixquadnegate(&qt);
 
-	//This is to approximate the shld ecx,eax,1 in the PC ASM. 
+	//This is to approximate the shld ecx,eax,1 in the PC ASM.
 	high *= 2;
-	if (low > 0x7FFFFFFFU) //Attempt to simulate the carry of the highest bit from the low register. This was originally 0x7FFF, which is too small. 
-		high++; //Hypothetically should be a |, but in practice should never carry since the low bit won't be set from the multiply. 
+	if (low > 0x7FFFFFFFU) //Attempt to simulate the carry of the highest bit from the low register. This was originally 0x7FFF, which is too small.
+		high++; //Hypothetically should be a |, but in practice should never carry since the low bit won't be set from the multiply.
 
 	if (high >= c)
 		return 0;
-	else 
+	else
 	{
 		*r = fixdivquadlong(q, c);
 		return 1;
 	}
+#endif
 }
 
 //projects a point
 void g3_project_point(g3s_point* p)
 {
-	fix tx, ty;
-
 	if (p->p3_flags & PF_PROJECTED || p->p3_codes & CC_BEHIND)
 		return;
 
-	if (checkmuldiv(&tx, p->p3_x, Canv_w2, p->p3_z) && checkmuldiv(&ty, p->p3_y, Canv_h2, p->p3_z)) 
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_project_point using cd_ox_g3_project_point.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t sx, sy;
+	if (cd_ox_g3_project_point(p->p3_x, p->p3_y, p->p3_z, Canv_w2, Canv_h2, &sx, &sy))
+	{
+		p->p3_sx = sx;
+		p->p3_sy = sy;
+		p->p3_flags |= PF_PROJECTED;
+	}
+	else
+		p->p3_flags |= PF_OVERFLOW;
+#else
+	fix tx, ty;
+
+	if (checkmuldiv(&tx, p->p3_x, Canv_w2, p->p3_z) && checkmuldiv(&ty, p->p3_y, Canv_h2, p->p3_z))
 	{
 		p->p3_sx = Canv_w2 + tx;
 		p->p3_sy = Canv_h2 - ty;
@@ -103,6 +165,7 @@ void g3_project_point(g3s_point* p)
 	}
 	else
 		p->p3_flags |= PF_OVERFLOW;
+#endif
 }
 
 //from a 2d point, compute the vector through that point
@@ -126,27 +189,69 @@ void g3_point_2_vec(vms_vector* v, short sx, short sy)
 //delta rotation functions
 vms_vector* g3_rotate_delta_x(vms_vector* dest, fix dx)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_rotate_delta_x using cd_ox_g3_rotate_delta_x.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_g3_rotate_delta_x(
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		dx, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = fixmul(View_matrix.rvec.x, dx);
 	dest->y = fixmul(View_matrix.uvec.x, dx);
 	dest->z = fixmul(View_matrix.fvec.x, dx);
+#endif
 
 	return dest;
 }
 
 vms_vector* g3_rotate_delta_y(vms_vector* dest, fix dy)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_rotate_delta_y using cd_ox_g3_rotate_delta_y.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_g3_rotate_delta_y(
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		dy, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = fixmul(View_matrix.rvec.y, dy);
 	dest->y = fixmul(View_matrix.uvec.y, dy);
 	dest->z = fixmul(View_matrix.fvec.y, dy);
+#endif
 
 	return dest;
 }
 
 vms_vector* g3_rotate_delta_z(vms_vector* dest, fix dz)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_rotate_delta_z using cd_ox_g3_rotate_delta_z.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_g3_rotate_delta_z(
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		dz, &dest->x, &dest->y, &dest->z);
+#else
 	dest->x = fixmul(View_matrix.rvec.z, dz);
 	dest->y = fixmul(View_matrix.uvec.z, dz);
 	dest->z = fixmul(View_matrix.fvec.z, dz);
+#endif
 
 	return dest;
 }
@@ -169,6 +274,18 @@ uint8_t g3_add_delta_vec(g3s_point* dest, g3s_point* src, vms_vector* deltav)
 //calculate the depth of a point - returns the z coord of the rotated point
 fix g3_calc_point_depth(vms_vector* pnt)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_calc_point_depth using cd_ox_g3_calc_point_depth.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_g3_calc_point_depth(
+		pnt->x, pnt->y, pnt->z,
+		View_position.x, View_position.y, View_position.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z);
+#else
 	int64_t q;
 
 	q = 0;
@@ -177,4 +294,5 @@ fix g3_calc_point_depth(vms_vector* pnt)
 	fixmulaccum(&q, (pnt->z - View_position.z), View_matrix.fvec.z);
 
 	return fixquadadjust(q);
+#endif
 }

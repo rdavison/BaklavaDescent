@@ -1057,3 +1057,142 @@ extern "C" void c_oracle_vm_matrix_x_matrix(
     dest->uvec.z = c_oracle_vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->uvec);
     dest->fvec.z = c_oracle_vm_vec_dot3(src0->rvec.z, src0->uvec.z, src0->fvec.z, &src1->fvec);
 }
+
+/* ---- 3D pipeline oracle functions ---- */
+
+#define CC_OFF_LEFT  1
+#define CC_OFF_RIGHT 2
+#define CC_OFF_BOT   4
+#define CC_OFF_TOP   8
+#define CC_BEHIND    0x80
+
+extern "C" uint8_t c_oracle_g3_code_point(int32_t x, int32_t y, int32_t z)
+{
+    uint8_t cc = 0;
+    if (x > z) cc |= CC_OFF_RIGHT;
+    if (y > z) cc |= CC_OFF_TOP;
+    if (x < -z) cc |= CC_OFF_LEFT;
+    if (y < -z) cc |= CC_OFF_BOT;
+    if (z <= 0) cc |= CC_BEHIND;
+    return cc;
+}
+
+extern "C" int c_oracle_checkmuldiv(int32_t* r, int32_t a, int32_t b, int32_t c)
+{
+    int64_t q = 0;
+    q = c_oracle_fixmulaccum(q, a, b);
+    int64_t qt = q;
+    int32_t high = (int32_t)((qt >> 32) & 0xFFFFFFFF);
+    uint32_t low = (uint32_t)(qt & 0xFFFFFFFF);
+    if (high < 0) high = -high;
+    high *= 2;
+    if (low > 0x7FFFFFFFU) high++;
+    if (high >= c) return 0;
+    *r = c_oracle_fixdivquadlong(q, c);
+    return 1;
+}
+
+extern "C" void c_oracle_g3_rotate_point(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* rx, int32_t* ry, int32_t* rz, uint8_t* codes)
+{
+    c_oracle_vec3 tempv = { sx - vpx, sy - vpy, sz - vpz };
+    c_oracle_mat3 m = { {r1, r2, r3}, {u1, u2, u3}, {f1, f2, f3} };
+    c_oracle_vec3 dest;
+    c_oracle_vm_vec_rotate(&dest, &tempv, &m);
+    *rx = dest.x; *ry = dest.y; *rz = dest.z;
+    *codes = c_oracle_g3_code_point(dest.x, dest.y, dest.z);
+}
+
+extern "C" int c_oracle_g3_project_point(
+    int32_t x, int32_t y, int32_t z,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t* sx, int32_t* sy)
+{
+    int32_t tx, ty;
+    if (c_oracle_checkmuldiv(&tx, x, canv_w2, z) && c_oracle_checkmuldiv(&ty, y, canv_h2, z))
+    {
+        *sx = canv_w2 + tx;
+        *sy = canv_h2 - ty;
+        return 1;
+    }
+    return 0;
+}
+
+extern "C" void c_oracle_g3_rotate_delta_x(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dx, int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    *rx = fixmul(r1, dx);
+    *ry = fixmul(u1, dx);
+    *rz = fixmul(f1, dx);
+}
+
+extern "C" void c_oracle_g3_rotate_delta_y(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dy, int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    *rx = fixmul(r2, dy);
+    *ry = fixmul(u2, dy);
+    *rz = fixmul(f2, dy);
+}
+
+extern "C" void c_oracle_g3_rotate_delta_z(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dz, int32_t* rx, int32_t* ry, int32_t* rz)
+{
+    *rx = fixmul(r3, dz);
+    *ry = fixmul(u3, dz);
+    *rz = fixmul(f3, dz);
+}
+
+extern "C" int32_t c_oracle_g3_calc_point_depth(
+    int32_t px, int32_t py, int32_t pz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t fx, int32_t fy, int32_t fz)
+{
+    int64_t q = 0;
+    q = c_oracle_fixmulaccum(q, px - vpx, fx);
+    q = c_oracle_fixmulaccum(q, py - vpy, fy);
+    q = c_oracle_fixmulaccum(q, pz - vpz, fz);
+    return c_oracle_fixquadadjust(q);
+}
+
+extern "C" void c_oracle_scale_matrix(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t wsx, int32_t wsy, int32_t wsz,
+    int32_t zoom,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3,
+    int32_t* msx, int32_t* msy, int32_t* msz)
+{
+    int32_t sx = wsx, sy = wsy, sz = wsz;
+    if (zoom <= f1_0)
+    {
+        sz = fixmul(sz, zoom);
+    }
+    else
+    {
+        int32_t s = fixdiv(f1_0, zoom);
+        sx = fixmul(sx, s);
+        sy = fixmul(sy, s);
+    }
+    /* scale each row */
+    *or1 = fixmul(r1, sx); *or2 = fixmul(r2, sx); *or3 = fixmul(r3, sx);
+    *ou1 = fixmul(u1, sy); *ou2 = fixmul(u2, sy); *ou3 = fixmul(u3, sy);
+    *of1 = fixmul(f1, sz); *of2 = fixmul(f2, sz); *of3 = fixmul(f3, sz);
+    *msx = sx; *msy = sy; *msz = sz;
+}

@@ -4,9 +4,22 @@
  (modules ox_math)
  (flags (:standard -open Core)))
 
+(library
+ (name ox_3d)
+ (libraries core ox_math)
+ (modules ox_3d)
+ (flags (:standard -open Core)))
+
+(library
+ (name bridge_3d)
+ (libraries core ox_math ox_3d)
+ (modules g3d_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
  (modules math_bridge)
- (libraries core ox_math)
+ (libraries core ox_math ox_3d bridge_3d)
  (flags (:standard -open Core)))

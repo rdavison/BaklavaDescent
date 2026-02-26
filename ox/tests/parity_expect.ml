@@ -4185,3 +4185,265 @@ let%expect_test "randomized vm_vec_ang_2_matrix parity C vs Ox" =
     c_vm_vec_ang_2_matrix
     Ox_math.vm_vec_ang_2_matrix;
   [%expect {| vm_vec_ang_2_matrix random total=5000 mismatches=0 |}]
+
+(* ---- 3D pipeline parity tests ---- *)
+
+external c_g3_code_point : int -> int -> int -> int = "caml_c_g3_code_point"
+
+external c_checkmuldiv : int -> int -> int -> int * int = "caml_c_checkmuldiv"
+
+external c_g3_rotate_point
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int * int * int * int
+  = "caml_c_g3_rotate_point_bc" "caml_c_g3_rotate_point"
+
+external c_g3_project_point
+  :  int -> int -> int -> int -> int
+  -> int * int * int
+  = "caml_c_g3_project_point"
+
+external c_g3_rotate_delta_x
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  -> int * int * int
+  = "caml_c_g3_rotate_delta_x_bc" "caml_c_g3_rotate_delta_x"
+
+external c_g3_rotate_delta_y
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  -> int * int * int
+  = "caml_c_g3_rotate_delta_y_bc" "caml_c_g3_rotate_delta_y"
+
+external c_g3_rotate_delta_z
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  -> int * int * int
+  = "caml_c_g3_rotate_delta_z_bc" "caml_c_g3_rotate_delta_z"
+
+external c_g3_calc_point_depth
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  = "caml_c_g3_calc_point_depth_bc" "caml_c_g3_calc_point_depth"
+
+external c_scale_matrix
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int * int * int * int
+  = "caml_c_scale_matrix_bc" "caml_c_scale_matrix"
+
+let g3_code_point_cases =
+  [ (0, 0, 0x10000)     (* origin in front *)
+  ; (0x20000, 0, 0x10000)  (* x > z -> OFF_RIGHT *)
+  ; (0, 0x20000, 0x10000)  (* y > z -> OFF_TOP *)
+  ; (-0x20000, 0, 0x10000) (* x < -z -> OFF_LEFT *)
+  ; (0, -0x20000, 0x10000) (* y < -z -> OFF_BOT *)
+  ; (0, 0, -1)             (* z <= 0 -> BEHIND *)
+  ; (0, 0, 0)              (* z == 0 -> BEHIND *)
+  ; (0x10000, 0x10000, 0x10000) (* x==z, y==z: on boundary, no clipping *)
+  ; (0x10001, 0x10001, 0x10000) (* just past boundary -> RIGHT | TOP *)
+  ; (-0x10001, -0x10001, 0x10000) (* OFF_LEFT | OFF_BOT *)
+  ]
+
+let%expect_test "g3_code_point parity C vs Ox" =
+  List.iter g3_code_point_cases ~f:(fun (x, y, z) ->
+      let c = c_g3_code_point x y z in
+      let ox = Ox_3d.g3_code_point (x, y, z) in
+      printf "g3_code_point (%d,%d,%d) c=0x%02x ox=0x%02x eq=%b\n" x y z c ox (Int.equal c ox));
+  [%expect {|
+    g3_code_point (0,0,65536) c=0x00 ox=0x00 eq=true
+    g3_code_point (131072,0,65536) c=0x02 ox=0x02 eq=true
+    g3_code_point (0,131072,65536) c=0x08 ox=0x08 eq=true
+    g3_code_point (-131072,0,65536) c=0x01 ox=0x01 eq=true
+    g3_code_point (0,-131072,65536) c=0x04 ox=0x04 eq=true
+    g3_code_point (0,0,-1) c=0x8f ox=0x8f eq=true
+    g3_code_point (0,0,0) c=0x80 ox=0x80 eq=true
+    g3_code_point (65536,65536,65536) c=0x00 ox=0x00 eq=true
+    g3_code_point (65537,65537,65536) c=0x0a ox=0x0a eq=true
+    g3_code_point (-65537,-65537,65536) c=0x05 ox=0x05 eq=true
+    |}]
+
+let checkmuldiv_cases =
+  [ (0x10000, 0x10000, 0x10000)  (* 1 * 1 / 1 = 1 *)
+  ; (0x20000, 0x30000, 0x10000)  (* 2 * 3 / 1 = 6 *)
+  ; (0x10000, 0x8000, 0x10000)   (* 1 * 0.5 / 1 = 0.5 *)
+  ; (0x7FFFFFFF, 0x7FFFFFFF, 0x10000) (* large values -> overflow *)
+  ; (0x10000, 0x10000, 0)        (* divide by zero *)
+  ; (100, 200, 0x10000)          (* small values *)
+  ]
+
+let%expect_test "checkmuldiv parity C vs Ox" =
+  List.iter checkmuldiv_cases ~f:(fun (a, b, c) ->
+      let c_ok, c_r = c_checkmuldiv a b c in
+      let ox_ok, ox_r = Ox_3d.checkmuldiv a b c in
+      let ox_ok_i = if ox_ok then 1 else 0 in
+      printf "checkmuldiv a=%d b=%d c=%d c_ok=%d c_r=%d ox_ok=%d ox_r=%d eq=%b\n"
+        a b c c_ok c_r ox_ok_i ox_r (Int.equal c_ok ox_ok_i && Int.equal c_r ox_r));
+  [%expect {|
+    checkmuldiv a=65536 b=65536 c=65536 c_ok=1 c_r=65536 ox_ok=1 ox_r=65536 eq=true
+    checkmuldiv a=131072 b=196608 c=65536 c_ok=1 c_r=393216 ox_ok=1 ox_r=393216 eq=true
+    checkmuldiv a=65536 b=32768 c=65536 c_ok=1 c_r=32768 ox_ok=1 ox_r=32768 eq=true
+    checkmuldiv a=2147483647 b=2147483647 c=65536 c_ok=0 c_r=0 ox_ok=0 ox_r=0 eq=true
+    checkmuldiv a=65536 b=65536 c=0 c_ok=0 c_r=0 ox_ok=0 ox_r=0 eq=true
+    checkmuldiv a=100 b=200 c=65536 c_ok=1 c_r=0 ox_ok=1 ox_r=0 eq=true |}]
+
+(* Identity matrix for simple rotation tests *)
+let id_mat = (0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x10000)
+
+let%expect_test "g3_rotate_point parity C vs Ox" =
+  let cases =
+    [ (* point at origin, view at origin, identity matrix *)
+      ((0, 0, 0), (0, 0, 0), id_mat)
+    ; (* point in front of viewer *)
+      ((0, 0, 0x30000), (0, 0, 0), id_mat)
+    ; (* point offset from viewer *)
+      ((0x10000, 0x20000, 0x30000), (0, 0, 0), id_mat)
+    ; (* viewer offset *)
+      ((0x20000, 0, 0x40000), (0x10000, 0, 0x10000), id_mat)
+    ]
+  in
+  List.iter cases ~f:(fun ((sx, sy, sz), (vpx, vpy, vpz), (r1, r2, r3, u1, u2, u3, f1, f2, f3)) ->
+      let c_rx, c_ry, c_rz, c_codes = c_g3_rotate_point sx sy sz vpx vpy vpz r1 r2 r3 u1 u2 u3 f1 f2 f3 in
+      let (ox_rx, ox_ry, ox_rz), ox_codes =
+        Ox_3d.g3_rotate_point
+          ~view_pos:(vpx, vpy, vpz)
+          ~view_matrix:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+          (sx, sy, sz)
+      in
+      let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz && c_codes = ox_codes in
+      printf "g3_rotate_point c=(%d,%d,%d,0x%02x) ox=(%d,%d,%d,0x%02x) eq=%b\n"
+        c_rx c_ry c_rz c_codes ox_rx ox_ry ox_rz ox_codes eq);
+  [%expect {|
+    g3_rotate_point c=(0,0,0,0x80) ox=(0,0,0,0x80) eq=true
+    g3_rotate_point c=(0,0,196608,0x00) ox=(0,0,196608,0x00) eq=true
+    g3_rotate_point c=(65536,131072,196608,0x00) ox=(65536,131072,196608,0x00) eq=true
+    g3_rotate_point c=(65536,0,196608,0x00) ox=(65536,0,196608,0x00) eq=true |}]
+
+let%expect_test "g3_project_point parity C vs Ox" =
+  let cases =
+    [ (0, 0, 0x10000, 160 * 0x10000, 100 * 0x10000)  (* center *)
+    ; (0x8000, 0, 0x10000, 160 * 0x10000, 100 * 0x10000)  (* right of center *)
+    ; (0, -0x8000, 0x10000, 160 * 0x10000, 100 * 0x10000) (* below center *)
+    ]
+  in
+  List.iter cases ~f:(fun (x, y, z, cw2, ch2) ->
+      let c_ok, c_sx, c_sy = c_g3_project_point x y z cw2 ch2 in
+      let ox_result = Ox_3d.g3_project_point (x, y, z) ~canv_w2:cw2 ~canv_h2:ch2 in
+      let ox_ok, ox_sx, ox_sy =
+        match ox_result with
+        | Some (sx, sy) -> 1, sx, sy
+        | None -> 0, 0, 0
+      in
+      let eq = c_ok = ox_ok && c_sx = ox_sx && c_sy = ox_sy in
+      printf "g3_project_point (%d,%d,%d) c_ok=%d c=(%d,%d) ox_ok=%d ox=(%d,%d) eq=%b\n"
+        x y z c_ok c_sx c_sy ox_ok ox_sx ox_sy eq);
+  [%expect {|
+    g3_project_point (0,0,65536) c_ok=1 c=(10485760,6553600) ox_ok=1 ox=(10485760,6553600) eq=true
+    g3_project_point (32768,0,65536) c_ok=1 c=(15728640,6553600) ox_ok=1 ox=(15728640,6553600) eq=true
+    g3_project_point (0,-32768,65536) c_ok=1 c=(10485760,9830400) ox_ok=1 ox=(10485760,9830400) eq=true |}]
+
+let%expect_test "g3_rotate_delta_x parity C vs Ox" =
+  let mat = (0x10000, 0x8000, 0, 0, 0x10000, 0, 0, 0, 0x10000) in
+  let (r1, r2, r3, u1, u2, u3, f1, f2, f3) = mat in
+  let dx = 0x20000 in
+  let c_rx, c_ry, c_rz = c_g3_rotate_delta_x r1 r2 r3 u1 u2 u3 f1 f2 f3 dx in
+  let ox_rx, ox_ry, ox_rz =
+    Ox_3d.g3_rotate_delta_x ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dx
+  in
+  let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
+  printf "g3_rotate_delta_x c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n" c_rx c_ry c_rz ox_rx ox_ry ox_rz eq;
+  [%expect {| g3_rotate_delta_x c=(131072,0,0) ox=(131072,0,0) eq=true |}]
+
+let%expect_test "g3_rotate_delta_y parity C vs Ox" =
+  let mat = (0x10000, 0x8000, 0, 0, 0x10000, 0, 0, 0, 0x10000) in
+  let (r1, r2, r3, u1, u2, u3, f1, f2, f3) = mat in
+  let dy = 0x20000 in
+  let c_rx, c_ry, c_rz = c_g3_rotate_delta_y r1 r2 r3 u1 u2 u3 f1 f2 f3 dy in
+  let ox_rx, ox_ry, ox_rz =
+    Ox_3d.g3_rotate_delta_y ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dy
+  in
+  let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
+  printf "g3_rotate_delta_y c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n" c_rx c_ry c_rz ox_rx ox_ry ox_rz eq;
+  [%expect {| g3_rotate_delta_y c=(65536,131072,0) ox=(65536,131072,0) eq=true |}]
+
+let%expect_test "g3_rotate_delta_z parity C vs Ox" =
+  let mat = (0x10000, 0x8000, 0, 0, 0x10000, 0, 0, 0, 0x10000) in
+  let (r1, r2, r3, u1, u2, u3, f1, f2, f3) = mat in
+  let dz = 0x20000 in
+  let c_rx, c_ry, c_rz = c_g3_rotate_delta_z r1 r2 r3 u1 u2 u3 f1 f2 f3 dz in
+  let ox_rx, ox_ry, ox_rz =
+    Ox_3d.g3_rotate_delta_z ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dz
+  in
+  let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
+  printf "g3_rotate_delta_z c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n" c_rx c_ry c_rz ox_rx ox_ry ox_rz eq;
+  [%expect {| g3_rotate_delta_z c=(0,0,131072) ox=(0,0,131072) eq=true |}]
+
+let%expect_test "g3_calc_point_depth parity C vs Ox" =
+  let cases =
+    [ ((0x30000, 0, 0x50000), (0x10000, 0, 0x10000), (0, 0, 0x10000))
+    ; ((0, 0, 0), (0, 0, 0), (0x10000, 0, 0))
+    ; ((0x10000, 0x20000, 0x30000), (0, 0, 0), (0x4000, 0x4000, 0x4000))
+    ]
+  in
+  List.iter cases ~f:(fun ((px, py, pz), (vpx, vpy, vpz), (fx, fy, fz)) ->
+      let c_depth = c_g3_calc_point_depth px py pz vpx vpy vpz fx fy fz in
+      let ox_depth =
+        Ox_3d.g3_calc_point_depth
+          ~view_pos:(vpx, vpy, vpz) ~view_fvec:(fx, fy, fz) (px, py, pz)
+      in
+      printf "g3_calc_point_depth c=%d ox=%d eq=%b\n" c_depth ox_depth (Int.equal c_depth ox_depth));
+  [%expect {|
+    g3_calc_point_depth c=262144 ox=262144 eq=true
+    g3_calc_point_depth c=0 ox=0 eq=true
+    g3_calc_point_depth c=98304 ox=98304 eq=true
+    |}]
+
+let%expect_test "scale_matrix parity C vs Ox" =
+  let cases =
+    [ (* identity matrix, unity window scale, zoom = 1.0 *)
+      ((0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x10000),
+       (0x10000, 0x10000, 0x10000), 0x10000)
+    ; (* zoom in (zoom < 1.0) *)
+      ((0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x10000),
+       (0x10000, 0x10000, 0x10000), 0x8000)
+    ; (* zoom out (zoom > 1.0) *)
+      ((0x10000, 0, 0, 0, 0x10000, 0, 0, 0, 0x10000),
+       (0x10000, 0x10000, 0x10000), 0x20000)
+    ]
+  in
+  List.iter cases ~f:(fun ((r1, r2, r3, u1, u2, u3, f1, f2, f3), (wsx, wsy, wsz), zoom) ->
+      let (cr1, cr2, cr3, cu1, cu2, cu3, cf1, cf2, cf3, cmsx, cmsy, cmsz) =
+        c_scale_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 wsx wsy wsz zoom
+      in
+      let (scaled_mat, (omsx, omsy, omsz), _unscaled) =
+        Ox_3d.scale_matrix
+          ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+          (wsx, wsy, wsz) zoom
+      in
+      let ((or1, or2, or3), (ou1, ou2, ou3), (of1, of2, of3)) = scaled_mat in
+      let eq =
+        cr1 = or1 && cr2 = or2 && cr3 = or3
+        && cu1 = ou1 && cu2 = ou2 && cu3 = ou3
+        && cf1 = of1 && cf2 = of2 && cf3 = of3
+        && cmsx = omsx && cmsy = omsy && cmsz = omsz
+      in
+      printf "scale_matrix zoom=%d c_mat=(%d,%d,%d/%d,%d,%d/%d,%d,%d) c_ms=(%d,%d,%d) eq=%b\n"
+        zoom cr1 cr2 cr3 cu1 cu2 cu3 cf1 cf2 cf3 cmsx cmsy cmsz eq);
+  [%expect {|
+    scale_matrix zoom=65536 c_mat=(65536,0,0/0,65536,0/0,0,65536) c_ms=(65536,65536,65536) eq=true
+    scale_matrix zoom=32768 c_mat=(65536,0,0/0,65536,0/0,0,32768) c_ms=(65536,65536,32768) eq=true
+    scale_matrix zoom=131072 c_mat=(32768,0,0/0,32768,0/0,0,65536) c_ms=(32768,32768,65536) eq=true |}]

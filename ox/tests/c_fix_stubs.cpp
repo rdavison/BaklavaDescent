@@ -1340,3 +1340,230 @@ extern "C" CAMLprim value caml_c_vm_matrix_x_matrix_bc(value* argv, int argn)
         argv[16],
         argv[17]);
 }
+
+/* ---- 3D pipeline stubs ---- */
+
+extern "C" CAMLprim value caml_c_g3_code_point(value x, value y, value z)
+{
+    return Val_long(c_oracle_g3_code_point(Int_val(x), Int_val(y), Int_val(z)));
+}
+
+extern "C" CAMLprim value caml_c_checkmuldiv(value a, value b, value c)
+{
+    CAMLparam3(a, b, c);
+    CAMLlocal1(out);
+    int32_t r = 0;
+    int ok = c_oracle_checkmuldiv(&r, Int_val(a), Int_val(b), Int_val(c));
+    out = caml_alloc_tuple(2);
+    Store_field(out, 0, Val_long(ok));
+    Store_field(out, 1, Val_long(r));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_point(
+    value sx, value sy, value sz,
+    value vpx, value vpy, value vpz,
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3)
+{
+    CAMLparam5(sx, sy, sz, vpx, vpy);
+    CAMLxparam5(vpz, r1, r2, r3, u1);
+    CAMLxparam5(u2, u3, f1, f2, f3);
+    CAMLlocal1(out);
+    int32_t rx, ry, rz;
+    uint8_t codes;
+    c_oracle_g3_rotate_point(
+        Int_val(sx), Int_val(sy), Int_val(sz),
+        Int_val(vpx), Int_val(vpy), Int_val(vpz),
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        &rx, &ry, &rz, &codes);
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(rx));
+    Store_field(out, 1, Val_long(ry));
+    Store_field(out, 2, Val_long(rz));
+    Store_field(out, 3, Val_long(codes));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_point_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_rotate_point(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12], argv[13], argv[14]);
+}
+
+extern "C" CAMLprim value caml_c_g3_project_point(
+    value x, value y, value z, value canv_w2, value canv_h2)
+{
+    CAMLparam5(x, y, z, canv_w2, canv_h2);
+    CAMLlocal1(out);
+    int32_t sx, sy;
+    int ok = c_oracle_g3_project_point(
+        Int_val(x), Int_val(y), Int_val(z),
+        Int_val(canv_w2), Int_val(canv_h2),
+        &sx, &sy);
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(ok));
+    Store_field(out, 1, Val_long(sx));
+    Store_field(out, 2, Val_long(sy));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_x(
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3,
+    value dx)
+{
+    CAMLparam5(r1, r2, r3, u1, u2);
+    CAMLxparam5(u3, f1, f2, f3, dx);
+    CAMLlocal1(out);
+    int32_t rx, ry, rz;
+    c_oracle_g3_rotate_delta_x(
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        Int_val(dx), &rx, &ry, &rz);
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(rx));
+    Store_field(out, 1, Val_long(ry));
+    Store_field(out, 2, Val_long(rz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_x_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_rotate_delta_x(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_y(
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3,
+    value dy)
+{
+    CAMLparam5(r1, r2, r3, u1, u2);
+    CAMLxparam5(u3, f1, f2, f3, dy);
+    CAMLlocal1(out);
+    int32_t rx, ry, rz;
+    c_oracle_g3_rotate_delta_y(
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        Int_val(dy), &rx, &ry, &rz);
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(rx));
+    Store_field(out, 1, Val_long(ry));
+    Store_field(out, 2, Val_long(rz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_y_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_rotate_delta_y(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_z(
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3,
+    value dz)
+{
+    CAMLparam5(r1, r2, r3, u1, u2);
+    CAMLxparam5(u3, f1, f2, f3, dz);
+    CAMLlocal1(out);
+    int32_t rx, ry, rz;
+    c_oracle_g3_rotate_delta_z(
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        Int_val(dz), &rx, &ry, &rz);
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(rx));
+    Store_field(out, 1, Val_long(ry));
+    Store_field(out, 2, Val_long(rz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_rotate_delta_z_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_rotate_delta_z(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
+extern "C" CAMLprim value caml_c_g3_calc_point_depth(
+    value px, value py, value pz,
+    value vpx, value vpy, value vpz,
+    value fx, value fy, value fz)
+{
+    return Val_long(c_oracle_g3_calc_point_depth(
+        Int_val(px), Int_val(py), Int_val(pz),
+        Int_val(vpx), Int_val(vpy), Int_val(vpz),
+        Int_val(fx), Int_val(fy), Int_val(fz)));
+}
+
+extern "C" CAMLprim value caml_c_g3_calc_point_depth_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_calc_point_depth(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8]);
+}
+
+extern "C" CAMLprim value caml_c_scale_matrix(
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3,
+    value wsx, value wsy, value wsz,
+    value zoom)
+{
+    CAMLparam5(r1, r2, r3, u1, u2);
+    CAMLxparam5(u3, f1, f2, f3, wsx);
+    CAMLxparam3(wsy, wsz, zoom);
+    CAMLlocal1(out);
+    int32_t or1, or2, or3, ou1, ou2, ou3, of1, of2, of3, msx, msy, msz;
+    c_oracle_scale_matrix(
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        Int_val(wsx), Int_val(wsy), Int_val(wsz),
+        Int_val(zoom),
+        &or1, &or2, &or3, &ou1, &ou2, &ou3, &of1, &of2, &of3,
+        &msx, &msy, &msz);
+    out = caml_alloc_tuple(12);
+    Store_field(out, 0, Val_long(or1));
+    Store_field(out, 1, Val_long(or2));
+    Store_field(out, 2, Val_long(or3));
+    Store_field(out, 3, Val_long(ou1));
+    Store_field(out, 4, Val_long(ou2));
+    Store_field(out, 5, Val_long(ou3));
+    Store_field(out, 6, Val_long(of1));
+    Store_field(out, 7, Val_long(of2));
+    Store_field(out, 8, Val_long(of3));
+    Store_field(out, 9, Val_long(msx));
+    Store_field(out, 10, Val_long(msy));
+    Store_field(out, 11, Val_long(msz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_scale_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_scale_matrix(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12]);
+}

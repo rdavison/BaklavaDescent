@@ -11,11 +11,15 @@ AND AGREES TO THE TERMS HEREIN AND ACCEPTS THE SAME BY USE OF THIS FILE.
 COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 */
 #include <stddef.h>
+#include <stdio.h>
 
 #include "misc/error.h"
 
 #include "3d/3d.h"
 #include "globvars.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 //[ISB] bumped for the moment, from 5. Because fan levels like corrupting memory. 
 //[ISB] but I also can't blame them, Parallax never published these static limits. 
@@ -30,24 +34,46 @@ struct instance_context {
 int instance_depth = 0;
 
 //instance at specified point with specified orientation
-//if matrix==NULL, don't modify matrix.  This will be like doing an offset   
+//if matrix==NULL, don't modify matrix.  This will be like doing an offset
 void g3_start_instance_matrix(vms_vector* pos, vms_matrix* orient)
 {
-	vms_vector tempv;
-	vms_matrix tempm, tempm2;
-
 	Assert(instance_depth < MAX_INSTANCE_DEPTH);
 
 	instance_stack[instance_depth].m = View_matrix;
 	instance_stack[instance_depth].p = View_position;
 	instance_depth++;
 
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_start_instance_matrix using cd_ox_g3_start_instance_matrix.\n");
+		ox_bridge_logged = 1;
+	}
+	cd_ox_g3_start_instance_matrix(
+		View_position.x, View_position.y, View_position.z,
+		View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+		View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+		View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+		pos->x, pos->y, pos->z,
+		orient ? 1 : 0,
+		orient ? orient->rvec.x : 0, orient ? orient->rvec.y : 0, orient ? orient->rvec.z : 0,
+		orient ? orient->uvec.x : 0, orient ? orient->uvec.y : 0, orient ? orient->uvec.z : 0,
+		orient ? orient->fvec.x : 0, orient ? orient->fvec.y : 0, orient ? orient->fvec.z : 0,
+		&View_position.x, &View_position.y, &View_position.z,
+		&View_matrix.rvec.x, &View_matrix.rvec.y, &View_matrix.rvec.z,
+		&View_matrix.uvec.x, &View_matrix.uvec.y, &View_matrix.uvec.z,
+		&View_matrix.fvec.x, &View_matrix.fvec.y, &View_matrix.fvec.z);
+#else
+	vms_vector tempv;
+	vms_matrix tempm, tempm2;
+
 	//step 1: subtract object position from view position
 
 	vm_vec_sub(&tempv, &View_position, pos);
 
 
-	if (orient) 
+	if (orient)
 	{
 		//step 2: rotate view vector through object matrix
 		vm_vec_rotate(&View_position, &tempv, orient);
@@ -58,6 +84,7 @@ void g3_start_instance_matrix(vms_vector* pos, vms_matrix* orient)
 		vm_matrix_x_matrix(&tempm, &tempm2, &View_matrix);
 		View_matrix = tempm;
 	}
+#endif
 }
 
 

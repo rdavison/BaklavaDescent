@@ -142,6 +142,50 @@ void c_oracle_vm_matrix_x_matrix(
     const c_oracle_mat3* src0,
     const c_oracle_mat3* src1);
 
+/* 3D pipeline functions */
+uint8_t c_oracle_g3_code_point(int32_t x, int32_t y, int32_t z);
+int c_oracle_checkmuldiv(int32_t* r, int32_t a, int32_t b, int32_t c);
+void c_oracle_g3_rotate_point(
+    int32_t sx, int32_t sy, int32_t sz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t* rx, int32_t* ry, int32_t* rz, uint8_t* codes);
+int c_oracle_g3_project_point(
+    int32_t x, int32_t y, int32_t z,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t* sx, int32_t* sy);
+void c_oracle_g3_rotate_delta_x(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dx, int32_t* rx, int32_t* ry, int32_t* rz);
+void c_oracle_g3_rotate_delta_y(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dy, int32_t* rx, int32_t* ry, int32_t* rz);
+void c_oracle_g3_rotate_delta_z(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t dz, int32_t* rx, int32_t* ry, int32_t* rz);
+int32_t c_oracle_g3_calc_point_depth(
+    int32_t px, int32_t py, int32_t pz,
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t fx, int32_t fy, int32_t fz);
+void c_oracle_scale_matrix(
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t wsx, int32_t wsy, int32_t wsz,
+    int32_t zoom,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3,
+    int32_t* msx, int32_t* msy, int32_t* msz);
+
 #ifdef __cplusplus
 }
 #endif
