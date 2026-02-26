@@ -23,3 +23,10 @@ let fixdiv a b =
 let fixmuldiv a b c =
   if c = 0 then 1
   else Int64.(wrap_i64_to_fix ((of_int a * of_int b) / of_int c))
+
+let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
+
+let vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k =
+  ( wrap_add_i32 dx (fixmul sx k)
+  , wrap_add_i32 dy (fixmul sy k)
+  , wrap_add_i32 dz (fixmul sz k) )
