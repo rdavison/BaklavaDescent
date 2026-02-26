@@ -26,6 +26,8 @@ void c_oracle_vm_vec_scale_add(
     const c_oracle_vec3* src2,
     int32_t k);
 void c_oracle_vm_vec_scale2(c_oracle_vec3* dest, int32_t n, int32_t d);
+void c_oracle_vm_vec_add(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1);
+void c_oracle_vm_vec_sub(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1);
 
 #ifdef __cplusplus
 }

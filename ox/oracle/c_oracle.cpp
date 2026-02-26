@@ -55,3 +55,17 @@ extern "C" void c_oracle_vm_vec_scale2(c_oracle_vec3* dest, int32_t n, int32_t d
     dest->y = fixmuldiv(dest->y, n, d);
     dest->z = fixmuldiv(dest->z, n, d);
 }
+
+extern "C" void c_oracle_vm_vec_add(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1)
+{
+    dest->x = src0->x + src1->x;
+    dest->y = src0->y + src1->y;
+    dest->z = src0->z + src1->z;
+}
+
+extern "C" void c_oracle_vm_vec_sub(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1)
+{
+    dest->x = src0->x - src1->x;
+    dest->y = src0->y - src1->y;
+    dest->z = src0->z - src1->z;
+}

@@ -111,3 +111,55 @@ extern "C" CAMLprim value caml_c_vm_vec_scale2(value dx, value dy, value dz, val
 
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_add(value ax, value ay, value az, value bx, value by, value bz)
+{
+    CAMLparam5(ax, ay, az, bx, by);
+    CAMLxparam1(bz);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    const c_oracle_vec3 src0 = { Int_val(ax), Int_val(ay), Int_val(az) };
+    const c_oracle_vec3 src1 = { Int_val(bx), Int_val(by), Int_val(bz) };
+
+    c_oracle_vm_vec_add(&dest, &src0, &src1);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_add_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_add(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_sub(value ax, value ay, value az, value bx, value by, value bz)
+{
+    CAMLparam5(ax, ay, az, bx, by);
+    CAMLxparam1(bz);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    const c_oracle_vec3 src0 = { Int_val(ax), Int_val(ay), Int_val(az) };
+    const c_oracle_vec3 src1 = { Int_val(bx), Int_val(by), Int_val(bz) };
+
+    c_oracle_vm_vec_sub(&dest, &src0, &src1);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_sub_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_sub(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
