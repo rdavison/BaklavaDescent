@@ -140,6 +140,8 @@ external c_vm_vec_sub : int -> int -> int -> int -> int -> int -> int * int * in
   = "caml_c_vm_vec_sub_bc" "caml_c_vm_vec_sub"
 external c_vm_vec_add2 : int -> int -> int -> int -> int -> int -> int * int * int
   = "caml_c_vm_vec_add2_bc" "caml_c_vm_vec_add2"
+external c_vm_vec_sub2 : int -> int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_vm_vec_sub2_bc" "caml_c_vm_vec_sub2"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -215,6 +217,14 @@ let vm_vec_sub_cases =
   ]
 
 let vm_vec_add2_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
+    ((12345, -54321, 99999), (67890, 13579, -24680));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_sub2_cases =
   [
     ((0, 0, 0), (0, 0, 0));
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
@@ -614,6 +624,16 @@ let%expect_test "vm_vec_add2 parity C vs Ox" =
     vm_vec_add2 d=(2147483647,0,-2147483648) s=(1,-1,2) c=(-2147483648,-1,-2147483646) ox=(-2147483648,-1,-2147483646) eq=true
     |}]
 
+let%expect_test "vm_vec_sub2 parity C vs Ox" =
+  check_stateful_vec3_add2 "vm_vec_sub2" c_vm_vec_sub2 Ox_math.vm_vec_sub2 vm_vec_sub2_cases;
+  [%expect
+    {|
+    vm_vec_sub2 d=(0,0,0) s=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_sub2 d=(65536,131072,-65536) s=(65536,-65536,32768) c=(0,196608,-98304) ox=(0,196608,-98304) eq=true
+    vm_vec_sub2 d=(12345,-54321,99999) s=(67890,13579,-24680) c=(-55545,-67900,124679) ox=(-55545,-67900,124679) eq=true
+    vm_vec_sub2 d=(2147483647,0,-2147483648) s=(1,-1,2) c=(2147483646,1,2147483646) ox=(2147483646,1,2147483646) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -684,3 +704,12 @@ let%expect_test "randomized vm_vec_add2 parity C vs Ox" =
     c_vm_vec_add2
     Ox_math.vm_vec_add2;
   [%expect {| vm_vec_add2 random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_sub2 parity C vs Ox" =
+  run_random_stateful_vec3_add2
+    ~name:"vm_vec_sub2"
+    ~seed:"vm-vec-sub2-seed-v1"
+    ~test_count:5000
+    c_vm_vec_sub2
+    Ox_math.vm_vec_sub2;
+  [%expect {| vm_vec_sub2 random total=5000 mismatches=0 |}]

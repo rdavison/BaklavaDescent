@@ -188,3 +188,28 @@ extern "C" CAMLprim value caml_c_vm_vec_add2_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_add2(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_sub2(value dx, value dy, value dz, value sx, value sy, value sz)
+{
+    CAMLparam5(dx, dy, dz, sx, sy);
+    CAMLxparam1(sz);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { Int_val(dx), Int_val(dy), Int_val(dz) };
+    const c_oracle_vec3 src = { Int_val(sx), Int_val(sy), Int_val(sz) };
+
+    c_oracle_vm_vec_sub2(&dest, &src);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_sub2_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_sub2(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}

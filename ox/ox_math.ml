@@ -47,3 +47,6 @@ let vm_vec_sub (ax, ay, az) (bx, by, bz) =
 
 let vm_vec_add2 (dx, dy, dz) (sx, sy, sz) =
   wrap_add_i32 dx sx, wrap_add_i32 dy sy, wrap_add_i32 dz sz
+
+let vm_vec_sub2 (dx, dy, dz) (sx, sy, sz) =
+  wrap_add_i32 dx (-sx), wrap_add_i32 dy (-sy), wrap_add_i32 dz (-sz)
