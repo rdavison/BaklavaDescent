@@ -161,3 +161,17 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `vm_angles_2_matrix`.
   - `vm_vec_ang_2_matrix`.
   - potentially `vm_vec_delta_ang_norm` / `vm_vec_delta_ang` after table-backed trig parity choices are finalized.
+
+### 18) Step 4 progress: angle-to-matrix ports completed
+- Implemented in Ox:
+  - `fix_sincos`-equivalent interpolation behavior (table-sample semantics reproduced in Ox via canonical sampled sine values).
+  - `vm_angles_2_matrix`.
+  - `vm_vec_ang_2_matrix`.
+- Extended C oracle:
+  - `c_oracle_vm_angles_2_matrix`.
+  - `c_oracle_vm_vec_ang_2_matrix`.
+- Extended parity FFI stubs and expect tests:
+  - deterministic examples and seeded randomized differential tests for both new functions.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

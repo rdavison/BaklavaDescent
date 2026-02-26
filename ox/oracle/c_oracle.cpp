@@ -1,5 +1,6 @@
 #include "c_oracle.h"
 
+#include <cmath>
 #include <stdlib.h>
 
 #include "fix/fix.h"
@@ -51,6 +52,25 @@ static int32_t c_oracle_quad_sqrt_ceil(int64_t q)
         return 0;
     }
     return (int32_t)c_oracle_sqrt_ceil_u64((uint64_t)q, 3037000500ULL);
+}
+
+static int32_t c_oracle_sincos_lut_entry(int i)
+{
+    const double pi = 3.14159265358979323846;
+    const double angle = (double)i * pi / 128.0;
+    return (int32_t)llround(sin(angle) * 16384.0);
+}
+
+static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
+{
+    const int i = (a >> 8) & 0xFF;
+    const int f = a & 0xFF;
+
+    const int32_t ss = c_oracle_sincos_lut_entry(i);
+    *s = (ss + (((c_oracle_sincos_lut_entry(i + 1) - ss) * f) >> 8)) << 2;
+
+    const int32_t cc = c_oracle_sincos_lut_entry(i + 64);
+    *c = (cc + (((c_oracle_sincos_lut_entry(i + 65) - cc) * f) >> 8)) << 2;
 }
 
 extern "C" int32_t c_oracle_i2f(int32_t i)
@@ -496,6 +516,30 @@ extern "C" void c_oracle_sincos_2_matrix(
     dest->fvec.z = fixmul(cosh, cosp);
 
     dest->fvec.y = -sinp;
+}
+
+extern "C" void c_oracle_vm_angles_2_matrix(c_oracle_mat3* dest, const c_oracle_ang3* a)
+{
+    int32_t sinp, cosp, sinb, cosb, sinh, cosh;
+    c_oracle_fix_sincos(a->p, &sinp, &cosp);
+    c_oracle_fix_sincos(a->b, &sinb, &cosb);
+    c_oracle_fix_sincos(a->h, &sinh, &cosh);
+    c_oracle_sincos_2_matrix(dest, sinp, cosp, sinb, cosb, sinh, cosh);
+}
+
+extern "C" void c_oracle_vm_vec_ang_2_matrix(c_oracle_mat3* dest, const c_oracle_vec3* v, int16_t a)
+{
+    int32_t sinb, cosb, sinp, cosp, sinh, cosh;
+
+    c_oracle_fix_sincos(a, &sinb, &cosb);
+
+    sinp = -v->y;
+    cosp = c_oracle_fix_sqrt(f1_0 - fixmul(sinp, sinp));
+
+    sinh = fixdiv(v->x, cosp);
+    cosh = fixdiv(v->z, cosp);
+
+    c_oracle_sincos_2_matrix(dest, sinp, cosp, sinb, cosb, sinh, cosh);
 }
 
 extern "C" void c_oracle_vm_vector_2_matrix(

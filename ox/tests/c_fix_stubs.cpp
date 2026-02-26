@@ -723,6 +723,66 @@ extern "C" CAMLprim value caml_c_sincos_2_matrix_bc(value* argv, int argn)
     return caml_c_sincos_2_matrix(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
 
+extern "C" CAMLprim value caml_c_vm_angles_2_matrix(value p, value b, value h)
+{
+    CAMLparam3(p, b, h);
+    CAMLlocal1(out);
+
+    const c_oracle_ang3 a = {
+        static_cast<int16_t>(Int_val(p)),
+        static_cast<int16_t>(Int_val(b)),
+        static_cast<int16_t>(Int_val(h))
+    };
+    c_oracle_mat3 dest = {};
+    c_oracle_vm_angles_2_matrix(&dest, &a);
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_angles_2_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_angles_2_matrix(argv[0], argv[1], argv[2]);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_ang_2_matrix(value vx, value vy, value vz, value a)
+{
+    CAMLparam4(vx, vy, vz, a);
+    CAMLlocal1(out);
+
+    const c_oracle_vec3 v = { Int_val(vx), Int_val(vy), Int_val(vz) };
+    c_oracle_mat3 dest = {};
+    c_oracle_vm_vec_ang_2_matrix(&dest, &v, static_cast<int16_t>(Int_val(a)));
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_ang_2_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_ang_2_matrix(argv[0], argv[1], argv[2], argv[3]);
+}
+
 extern "C" CAMLprim value caml_c_vm_vector_2_matrix(
     value fx,
     value fy,

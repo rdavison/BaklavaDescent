@@ -97,6 +97,8 @@ void c_oracle_sincos_2_matrix(
     int32_t cosb,
     int32_t sinh,
     int32_t cosh);
+void c_oracle_vm_angles_2_matrix(c_oracle_mat3* dest, const c_oracle_ang3* a);
+void c_oracle_vm_vec_ang_2_matrix(c_oracle_mat3* dest, const c_oracle_vec3* v, int16_t a);
 void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,

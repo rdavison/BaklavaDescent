@@ -241,6 +241,19 @@ external c_sincos_2_matrix_raw
   -> int
   -> int * int * int * int * int * int * int * int * int
   = "caml_c_sincos_2_matrix_bc" "caml_c_sincos_2_matrix"
+external c_vm_angles_2_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_angles_2_matrix_bc" "caml_c_vm_angles_2_matrix"
+external c_vm_vec_ang_2_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_vm_vec_ang_2_matrix_bc" "caml_c_vm_vec_ang_2_matrix"
 external c_vm_vector_2_matrix_raw
   :  int
   -> int
@@ -383,6 +396,10 @@ let c_vm_vector_2_matrix_norm fvec uvec rvec =
 
 let c_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
   mat3_of_flat (c_sincos_2_matrix_raw sinp cosp sinb cosb sinh cosh)
+
+let c_vm_angles_2_matrix (p, b, h) = mat3_of_flat (c_vm_angles_2_matrix_raw p b h)
+
+let c_vm_vec_ang_2_matrix (vx, vy, vz) a = mat3_of_flat (c_vm_vec_ang_2_matrix_raw vx vy vz a)
 
 let c_vm_matrix_x_matrix m0 m1 =
   let r0x, r0y, r0z, u0x, u0y, u0z, f0x, f0y, f0z = flat_of_mat3 m0 in
@@ -708,6 +725,24 @@ let sincos_2_matrix_cases =
     (0x2000, 0xFF00, 0x1000, 0xF000, 0x0800, 0xF800);
     (12345, -54321, 22222, -33333, 44444, -55555);
     (Int32.to_int_exn Int32.max_value, 0x10000, Int32.to_int_exn Int32.min_value, 0x8000, -0x10000, 0x20000);
+  ]
+
+let vm_angles_2_matrix_cases =
+  [
+    (0, 0, 0);
+    (0x1000, 0x2000, 0x3000);
+    (-0x4000, 0x7FFF, -0x7FFF);
+    (40000, -40000, 65535);
+    (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_vec_ang_2_matrix_cases =
+  [
+    ((0x10000, 0, 0), 0);
+    ((0x2000, -0x4000, 0x7000), 0x1200);
+    ((12345, -54321, 99999), -12345);
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), 32767);
+    ((-0x10000, 0x10000, 0x10000), -32768);
   ]
 
 let edge_fix_values =
@@ -1784,6 +1819,84 @@ let check_six_fix_to_mat
         ox_f3
         eq)
 
+let check_ang3_to_mat
+    (name : string)
+    (c_impl : int * int * int -> mat3)
+    (ox_impl : int * int * int -> mat3)
+    (cases : (int * int * int) list)
+  =
+  List.iter cases ~f:(fun ((p, b, h) as ang) ->
+      let c_m = c_impl ang in
+      let ox_m = ox_impl ang in
+      let eq = if eq_mat3 c_m ox_m then "true" else "false" in
+      let c_r1, c_r2, c_r3, c_u1, c_u2, c_u3, c_f1, c_f2, c_f3 = flat_of_mat3 c_m in
+      let ox_r1, ox_r2, ox_r3, ox_u1, ox_u2, ox_u3, ox_f1, ox_f2, ox_f3 = flat_of_mat3 ox_m in
+      printf
+        "%s a=(%d,%d,%d) c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%s\n"
+        name
+        p
+        b
+        h
+        c_r1
+        c_r2
+        c_r3
+        c_u1
+        c_u2
+        c_u3
+        c_f1
+        c_f2
+        c_f3
+        ox_r1
+        ox_r2
+        ox_r3
+        ox_u1
+        ox_u2
+        ox_u3
+        ox_f1
+        ox_f2
+        ox_f3
+        eq)
+
+let check_vec3_fixang_to_mat
+    (name : string)
+    (c_impl : vec3 -> int -> mat3)
+    (ox_impl : vec3 -> int -> mat3)
+    (cases : (vec3 * int) list)
+  =
+  List.iter cases ~f:(fun (v, a) ->
+      let c_m = c_impl v a in
+      let ox_m = ox_impl v a in
+      let eq = if eq_mat3 c_m ox_m then "true" else "false" in
+      let vx, vy, vz = v in
+      let c_r1, c_r2, c_r3, c_u1, c_u2, c_u3, c_f1, c_f2, c_f3 = flat_of_mat3 c_m in
+      let ox_r1, ox_r2, ox_r3, ox_u1, ox_u2, ox_u3, ox_f1, ox_f2, ox_f3 = flat_of_mat3 ox_m in
+      printf
+        "%s v=(%d,%d,%d) a=%d c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%s\n"
+        name
+        vx
+        vy
+        vz
+        a
+        c_r1
+        c_r2
+        c_r3
+        c_u1
+        c_u2
+        c_u3
+        c_f1
+        c_f2
+        c_f3
+        ox_r1
+        ox_r2
+        ox_r3
+        ox_u1
+        ox_u2
+        ox_u3
+        ox_f1
+        ox_f2
+        ox_f3
+        eq)
+
 let run_random_vec3_mat_to_vec3
     ~(name : string)
     ~(seed : string)
@@ -1924,6 +2037,76 @@ let run_random_six_fix_to_mat
          incr total;
          let c_m = c_impl sinp cosp sinb cosb sinh cosh in
          let ox_m = ox_impl sinp cosp sinb cosb sinh cosh in
+         if not (eq_mat3 c_m ox_m)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_ang3_to_mat
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : int * int * int -> mat3)
+    (ox_impl : int * int * int -> mat3)
+  =
+  let fixang_gen_local =
+    Quickcheck.Generator.weighted_union
+      [
+        (3.0, Quickcheck.Generator.of_list [ -32768; -32767; -1; 0; 1; 32766; 32767 ]);
+        (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:Int32.to_int_exn);
+      ]
+  in
+  let ang3_gen_local =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         fixang_gen_local
+         (Quickcheck.Generator.both fixang_gen_local fixang_gen_local))
+      ~f:(fun (x, (y, z)) -> (x, y, z))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count ang3_gen_local
+  |> Sequence.iter ~f:(fun ang ->
+         incr total;
+         let c_m = c_impl ang in
+         let ox_m = ox_impl ang in
+         if not (eq_mat3 c_m ox_m)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_vec3_fixang_to_mat
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : vec3 -> int -> mat3)
+    (ox_impl : vec3 -> int -> mat3)
+  =
+  let fixang_gen_local =
+    Quickcheck.Generator.weighted_union
+      [
+        (3.0, Quickcheck.Generator.of_list [ -32768; -32767; -1; 0; 1; 32766; 32767 ]);
+        (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:Int32.to_int_exn);
+      ]
+  in
+  let gen = Quickcheck.Generator.both vec3_gen fixang_gen_local in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (v, a) ->
+         incr total;
+         let c_m = c_impl v a in
+         let ox_m = ox_impl v a in
          if not (eq_mat3 c_m ox_m)
          then (
            incr mismatches;
@@ -2434,6 +2617,34 @@ let%expect_test "sincos_2_matrix parity C vs Ox" =
     sincos_2_matrix s=(2147483647,65536,-2147483648,32768,-65536,131072) c=[98304,-2147483648,32768;-1073741824,32768,-1;-65536,-2147483647,131072] ox=[98304,-2147483648,32768;-1073741824,32768,-1;-65536,-2147483647,131072] eq=true
     |}]
 
+let%expect_test "vm_angles_2_matrix parity C vs Ox" =
+  check_ang3_to_mat
+    "vm_angles_2_matrix"
+    c_vm_angles_2_matrix
+    Ox_math.vm_angles_2_matrix
+    vm_angles_2_matrix_cases;
+  [%expect {|
+    vm_angles_2_matrix a=(0,0,0) c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
+    vm_angles_2_matrix a=(4096,8192,12288) c=[34117,42813,-36027;-1349,42813,49599;55939,-25080,23171] ox=[34117,42813,-36027;-1349,42813,49599;55939,-25080,23171] eq=true
+    vm_angles_2_matrix a=(-16384,32767,-32767) c=[65537,0,-4;-4,0,-65537;0,65536,0] ox=[65537,0,-4;-4,0,-65537;0,65536,0] eq=true
+    vm_angles_2_matrix a=(40000,-40000,65535) c=[-50398,-32214,-26773;-41885,38765,32205;6,41884,-50401] ox=[-50398,-32214,-26773;-41885,38765,32205;6,41884,-50401] eq=true
+    vm_angles_2_matrix a=(2147483647,0,-2147483648) c=[65536,0,0;0,65532,-8;0,8,65532] ox=[65536,0,0;0,65532,-8;0,8,65532] eq=true
+    |}]
+
+let%expect_test "vm_vec_ang_2_matrix parity C vs Ox" =
+  check_vec3_fixang_to_mat
+    "vm_vec_ang_2_matrix"
+    c_vm_vec_ang_2_matrix
+    Ox_math.vm_vec_ang_2_matrix
+    vm_vec_ang_2_matrix_cases;
+  [%expect {|
+    vm_vec_ang_2_matrix v=(65536,0,0) a=0 c=[0,0,-65536;0,65536,0;65536,0,0] ox=[0,0,-65536;0,65536,0;65536,0,0] eq=true
+    vm_vec_ang_2_matrix v=(8192,-16384,28672) a=4608 c=[27657,27144,-4481;-10742,57392,10303;8191,-16384,28671] ox=[27657,27144,-4481;-10742,57392,10303;8191,-16384,28671] eq=true
+    vm_vec_ang_2_matrix v=(12345,-54321,99999) a=-12345 c=[50276,-34135,-144731;171483,13918,35312;12344,-54321,99999] ox=[50276,-34135,-144731;171483,13918,35312;12344,-54321,99999] eq=true
+    vm_vec_ang_2_matrix v=(2147483647,0,-2147483648) a=32767 c=[-2147483648,4,2147483647;131072,-65536,131071;2147483647,0,-2147483648] ox=[-2147483648,4,2147483647;131072,-65536,131071;2147483647,0,-2147483648] eq=true
+    vm_vec_ang_2_matrix v=(-65536,65536,65536) a=-32768 c=[-1,0,1;1,0,1;0,65536,0] ox=[-1,0,1;1,0,1;0,65536,0] eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -2787,3 +2998,21 @@ let%expect_test "randomized sincos_2_matrix parity C vs Ox" =
     c_sincos_2_matrix
     Ox_math.sincos_2_matrix;
   [%expect {| sincos_2_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_angles_2_matrix parity C vs Ox" =
+  run_random_ang3_to_mat
+    ~name:"vm_angles_2_matrix"
+    ~seed:"vm-angles-2-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_angles_2_matrix
+    Ox_math.vm_angles_2_matrix;
+  [%expect {| vm_angles_2_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_ang_2_matrix parity C vs Ox" =
+  run_random_vec3_fixang_to_mat
+    ~name:"vm_vec_ang_2_matrix"
+    ~seed:"vm-vec-ang-2-matrix-seed-v1"
+    ~test_count:5000
+    c_vm_vec_ang_2_matrix
+    Ox_math.vm_vec_ang_2_matrix;
+  [%expect {| vm_vec_ang_2_matrix random total=5000 mismatches=0 |}]

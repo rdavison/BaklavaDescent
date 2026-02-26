@@ -47,6 +47,24 @@ let long_sqrt a =
 
 let fix_sqrt a = Int.shift_left (long_sqrt a) 8
 
+(* fix_sincos uses 256-entry quarter-wave indexing plus interpolation.
+   We compute the canonical table entries on demand from the same sample points
+   used by the original C table (round(sin(i*pi/128) * 16384)). *)
+let sincos_lut =
+  Array.init 321 ~f:(fun i ->
+      Int.of_float (Float.round (Float.sin (Float.of_int i *. Float.pi /. 128.0) *. 16384.0)))
+
+let fix_sincos a =
+  let i = Int.bit_and (Int.shift_right a 8) 0xFF in
+  let f = Int.bit_and a 0xFF in
+
+  let ss = sincos_lut.(i) in
+  let sinv = Int.shift_left (ss + (Int.shift_right ((sincos_lut.(i + 1) - ss) * f) 8)) 2 in
+
+  let cc = sincos_lut.(i + 64) in
+  let cosv = Int.shift_left (cc + (Int.shift_right ((sincos_lut.(i + 65) - cc) * f) 8)) 2 in
+  sinv, cosv
+
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
 let vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k =
@@ -272,6 +290,22 @@ let sincos_2_matrix sinp cosp sinb cosb sinh cosh =
 
   let fvec_y = neg_i32 sinp in
   (rvec_x, rvec_y, rvec_z), (uvec_x, uvec_y, uvec_z), (fvec_x, fvec_y, fvec_z)
+
+let vm_angles_2_matrix (p, b, h) =
+  let p, b, h = vm_angvec_make p b h in
+  let sinp, cosp = fix_sincos p in
+  let sinb, cosb = fix_sincos b in
+  let sinh, cosh = fix_sincos h in
+  sincos_2_matrix sinp cosp sinb cosb sinh cosh
+
+let vm_vec_ang_2_matrix (vx, vy, vz) a =
+  let a = wrap_i64_to_fixang (Int64.of_int a) in
+  let sinb, cosb = fix_sincos a in
+  let sinp = neg_i32 vy in
+  let cosp = fix_sqrt (wrap_add_i32 0x10000 (neg_i32 (fixmul sinp sinp))) in
+  let sinh = fixdiv vx cosp in
+  let cosh = fixdiv vz cosp in
+  sincos_2_matrix sinp cosp sinb cosb sinh cosh
 
 let vm_vector_2_matrix fvec uvec rvec =
   let bad_vector2 zvec =
