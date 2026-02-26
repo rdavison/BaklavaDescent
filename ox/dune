@@ -1,0 +1,5 @@
+(executable
+ (name math_bridge)
+ (modes native)
+ (libraries core)
+ (flags (:standard -open Core)))
