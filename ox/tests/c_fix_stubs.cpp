@@ -909,6 +909,39 @@ extern "C" CAMLprim value caml_c_vm_extract_angles_vector_normalized(value x, va
     CAMLreturn(out);
 }
 
+extern "C" CAMLprim value caml_c_vm_extract_angles_vector(
+    value p,
+    value b,
+    value h,
+    value x,
+    value y,
+    value z)
+{
+    CAMLparam5(p, b, h, x, y);
+    CAMLxparam1(z);
+    CAMLlocal1(out);
+
+    c_oracle_ang3 a = {
+        static_cast<int16_t>(Int_val(p)),
+        static_cast<int16_t>(Int_val(b)),
+        static_cast<int16_t>(Int_val(h))
+    };
+    const c_oracle_vec3 v = { Int_val(x), Int_val(y), Int_val(z) };
+    c_oracle_vm_extract_angles_vector(&a, &v);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(a.p));
+    Store_field(out, 1, Val_long(a.b));
+    Store_field(out, 2, Val_long(a.h));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_extract_angles_vector_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_extract_angles_vector(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
 extern "C" CAMLprim value caml_c_vm_vector_2_matrix(
     value fx,
     value fy,

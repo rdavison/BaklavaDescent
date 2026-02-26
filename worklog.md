@@ -211,3 +211,22 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 21) Stateful angle extraction vector parity completed (`vm_extract_angles_vector`)
+- Implemented in Ox:
+  - `vm_extract_angles_vector (p,b,h) v`.
+  - Behavior matches C: normalize input vector; if non-zero, compute fresh angles; if zero, preserve existing angle state.
+- Extended C oracle:
+  - `c_oracle_vm_extract_angles_vector`.
+- Extended parity FFI:
+  - `caml_c_vm_extract_angles_vector` (+ bytecode wrapper).
+- Extended parity tests:
+  - deterministic stateful test cases for `(initial_ang3, vec3)`.
+  - seeded randomized differential test (`5000` cases).
+- Important mismatch found and fixed:
+  - Randomized parity initially reported `45/5000` mismatches.
+  - Root cause: Ox fallback path returned raw `(p,b,h)` values without `fixang` wrapping, while C always preserves `int16`-wrapped state.
+  - Fix: fallback path now returns `vm_angvec_make p b h`.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

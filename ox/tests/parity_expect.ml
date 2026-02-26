@@ -300,6 +300,15 @@ external c_vm_extract_angles_vector_normalized
   -> int
   -> int * int * int
   = "caml_c_vm_extract_angles_vector_normalized"
+external c_vm_extract_angles_vector_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_extract_angles_vector_bc" "caml_c_vm_extract_angles_vector"
 external c_vm_vector_2_matrix_raw
   :  int
   -> int
@@ -450,6 +459,9 @@ let c_vm_vec_ang_2_matrix (vx, vy, vz) a = mat3_of_flat (c_vm_vec_ang_2_matrix_r
 let c_vm_extract_angles_matrix mat =
   let rx, ry, rz, ux, uy, uz, fx, fy, fz = flat_of_mat3 mat in
   c_vm_extract_angles_matrix_raw rx ry rz ux uy uz fx fy fz
+
+let c_vm_extract_angles_vector (p, b, h) (x, y, z) =
+  c_vm_extract_angles_vector_raw p b h x y z
 
 let c_vm_vec_delta_ang_norm (v0x, v0y, v0z) (v1x, v1y, v1z) fvec =
   let has_f, fx, fy, fz =
@@ -860,6 +872,15 @@ let vm_extract_angles_vector_normalized_cases =
     (46340, 0, 46340);
     (12345, -54321, 99999);
     (Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value);
+  ]
+
+let vm_extract_angles_vector_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((111, 222, 333), (0, 0, 0));
+    ((0, 0, 0), (0x10000, 0, 0));
+    ((-123, 456, -789), (0, 0x10000, 0));
+    ((Int32.to_int_exn Int32.max_value, 17, Int32.to_int_exn Int32.min_value), (12345, -54321, 99999));
   ]
 
 let vm_extract_angles_matrix_cases =
@@ -1417,6 +1438,60 @@ let run_random_two_vec3_opt_to_scalar ~name ~seed ~test_count c_impl ox_impl =
          let c = c_impl v0 v1 fvec in
          let ox = ox_impl v0 v1 fvec in
          if not (Int.equal c ox)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let check_stateful_ang3_from_vec name c_impl ox_impl cases =
+  List.iter cases ~f:(fun ((p0, b0, h0), (x, y, z)) ->
+      let c_p, c_b, c_h = c_impl (p0, b0, h0) (x, y, z) in
+      let ox_p, ox_b, ox_h = ox_impl (p0, b0, h0) (x, y, z) in
+      printf
+        "%s a0=(%d,%d,%d) v=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        p0
+        b0
+        h0
+        x
+        y
+        z
+        c_p
+        c_b
+        c_h
+        ox_p
+        ox_b
+        ox_h
+        (Int.equal c_p ox_p && Int.equal c_b ox_b && Int.equal c_h ox_h))
+
+let run_random_stateful_ang3_from_vec ~name ~seed ~test_count c_impl ox_impl =
+  let fixang_gen_local =
+    Quickcheck.Generator.weighted_union
+      [
+        (3.0, Quickcheck.Generator.of_list [ -32768; -32767; -1; 0; 1; 32766; 32767 ]);
+        (7.0, Quickcheck.Generator.map Int32.quickcheck_generator ~f:Int32.to_int_exn);
+      ]
+  in
+  let ang3_gen_local =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         fixang_gen_local
+         (Quickcheck.Generator.both fixang_gen_local fixang_gen_local))
+      ~f:(fun (x, (y, z)) -> (x, y, z))
+  in
+  let gen = Quickcheck.Generator.both ang3_gen_local vec3_gen in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (a0, v) ->
+         incr total;
+         let c_p, c_b, c_h = c_impl a0 v in
+         let ox_p, ox_b, ox_h = ox_impl a0 v in
+         if not (Int.equal c_p ox_p && Int.equal c_b ox_b && Int.equal c_h ox_h)
          then (
            incr mismatches;
            if Option.is_none !first_mismatch
@@ -2821,6 +2896,20 @@ let%expect_test "vm_extract_angles_vector_normalized parity C vs Ox" =
     vm_extract_angles_vector_normalized in=(2147483647,0,-2147483648) c=(0,0,16384) ox=(0,0,16384) eq=true
     |}]
 
+let%expect_test "vm_extract_angles_vector parity C vs Ox" =
+  check_stateful_ang3_from_vec
+    "vm_extract_angles_vector"
+    c_vm_extract_angles_vector
+    Ox_math.vm_extract_angles_vector
+    vm_extract_angles_vector_cases;
+  [%expect {|
+    vm_extract_angles_vector a0=(0,0,0) v=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_extract_angles_vector a0=(111,222,333) v=(0,0,0) c=(111,222,333) ox=(111,222,333) eq=true
+    vm_extract_angles_vector a0=(0,0,0) v=(65536,0,0) c=(0,0,16384) ox=(0,0,16384) eq=true
+    vm_extract_angles_vector a0=(-123,456,-789) v=(0,65536,0) c=(16384,0,0) ox=(16384,0,0) eq=true
+    vm_extract_angles_vector a0=(2147483647,17,-2147483648) v=(12345,-54321,99999) c=(5157,0,1280) ox=(5157,0,1280) eq=true
+    |}]
+
 let%expect_test "vm_extract_angles_matrix parity C vs Ox" =
   check_mat_to_ang3
     "vm_extract_angles_matrix"
@@ -3274,6 +3363,15 @@ let%expect_test "randomized vm_extract_angles_vector_normalized parity C vs Ox" 
     c_vm_extract_angles_vector_normalized
     (fun x y z -> Ox_math.vm_extract_angles_vector_normalized (x, y, z));
   [%expect {| vm_extract_angles_vector_normalized random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_extract_angles_vector parity C vs Ox" =
+  run_random_stateful_ang3_from_vec
+    ~name:"vm_extract_angles_vector"
+    ~seed:"vm-extract-angles-vector-seed-v1"
+    ~test_count:5000
+    c_vm_extract_angles_vector
+    Ox_math.vm_extract_angles_vector;
+  [%expect {| vm_extract_angles_vector random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_extract_angles_matrix parity C vs Ox" =
   run_random_mat_to_ang3

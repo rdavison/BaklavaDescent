@@ -378,6 +378,10 @@ let vm_extract_angles_vector_normalized (x, y, z) =
   let h = if x = 0 && z = 0 then 0 else fix_atan2 z x in
   vm_angvec_make p b h
 
+let vm_extract_angles_vector (p, b, h) v =
+  let m, t = vm_vec_copy_normalize v in
+  if m <> 0 then vm_extract_angles_vector_normalized t else vm_angvec_make p b h
+
 let vm_extract_angles_matrix (rvec, uvec, fvec) =
   let fx, fy, fz = fvec in
   let _, uy, _ = uvec in

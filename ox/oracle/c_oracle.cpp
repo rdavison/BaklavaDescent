@@ -741,6 +741,15 @@ extern "C" void c_oracle_vm_extract_angles_vector_normalized(c_oracle_ang3* dest
     }
 }
 
+extern "C" void c_oracle_vm_extract_angles_vector(c_oracle_ang3* dest, const c_oracle_vec3* v)
+{
+    c_oracle_vec3 t = { 0, 0, 0 };
+    if (c_oracle_vm_vec_copy_normalize(&t, v) != 0)
+    {
+        c_oracle_vm_extract_angles_vector_normalized(dest, &t);
+    }
+}
+
 extern "C" void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,

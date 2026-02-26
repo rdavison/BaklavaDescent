@@ -111,6 +111,7 @@ void c_oracle_vm_angles_2_matrix(c_oracle_mat3* dest, const c_oracle_ang3* a);
 void c_oracle_vm_vec_ang_2_matrix(c_oracle_mat3* dest, const c_oracle_vec3* v, int16_t a);
 void c_oracle_vm_extract_angles_matrix(c_oracle_ang3* dest, const c_oracle_mat3* m);
 void c_oracle_vm_extract_angles_vector_normalized(c_oracle_ang3* dest, const c_oracle_vec3* v);
+void c_oracle_vm_extract_angles_vector(c_oracle_ang3* dest, const c_oracle_vec3* v);
 void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,
