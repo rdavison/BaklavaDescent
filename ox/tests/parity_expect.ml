@@ -162,7 +162,9 @@ external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
 external c_fix_isqrt : int -> int = "caml_c_fix_isqrt"
+external c_fix_sincos : int -> int * int = "caml_c_fix_sincos"
 external c_fix_fastsincos : int -> int * int = "caml_c_fix_fastsincos"
+external c_fix_acos : int -> int = "caml_c_fix_acos"
 external c_fix_asin : int -> int = "caml_c_fix_asin"
 external c_fix_atan2 : int -> int -> int = "caml_c_fix_atan2"
 external c_vm_vec_scale_add2
@@ -557,6 +559,27 @@ let fix_sqrt_cases =
 let fix_isqrt_cases =
   [ 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
 
+let fix_sincos_cases =
+  [
+    Int32.to_int_exn Int32.min_value;
+    -0x10000;
+    -0x8000;
+    -257;
+    -256;
+    -255;
+    -1;
+    0;
+    1;
+    255;
+    256;
+    257;
+    0x4000;
+    0x8000;
+    0xFFFF;
+    0x10000;
+    Int32.to_int_exn Int32.max_value;
+  ]
+
 let fix_fastsincos_cases =
   [
     Int32.to_int_exn Int32.min_value;
@@ -567,6 +590,21 @@ let fix_fastsincos_cases =
     1;
     0x3FFF;
     0x4000;
+    0x7FFF;
+    0x8000;
+    0xFFFF;
+    0x10000;
+    Int32.to_int_exn Int32.max_value;
+  ]
+
+let fix_acos_cases =
+  [
+    Int32.to_int_exn Int32.min_value;
+    -0x10000;
+    -0x8000;
+    -1;
+    0;
+    1;
     0x7FFF;
     0x8000;
     0xFFFF;
@@ -2584,6 +2622,28 @@ let%expect_test "fix_isqrt parity C vs Ox" =
     fix_isqrt a=2147483647 c=400 ox=400 eq=true
     |}]
 
+let%expect_test "fix_sincos parity C vs Ox" =
+  check_unop_pair "fix_sincos" c_fix_sincos Ox_math.fix_sincos fix_sincos_cases;
+  [%expect {|
+    fix_sincos a=-2147483648 c=(0,65536) ox=(0,65536) eq=true
+    fix_sincos a=-65536 c=(0,65536) ox=(0,65536) eq=true
+    fix_sincos a=-32768 c=(0,-65536) ox=(0,-65536) eq=true
+    fix_sincos a=-257 c=(-1616,65512) ox=(-1616,65512) eq=true
+    fix_sincos a=-256 c=(-1608,65516) ox=(-1608,65516) eq=true
+    fix_sincos a=-255 c=(-1604,65516) ox=(-1604,65516) eq=true
+    fix_sincos a=-1 c=(-8,65532) ox=(-8,65532) eq=true
+    fix_sincos a=0 c=(0,65536) ox=(0,65536) eq=true
+    fix_sincos a=1 c=(4,65532) ox=(4,65532) eq=true
+    fix_sincos a=255 c=(1600,65516) ox=(1600,65516) eq=true
+    fix_sincos a=256 c=(1608,65516) ox=(1608,65516) eq=true
+    fix_sincos a=257 c=(1612,65512) ox=(1612,65512) eq=true
+    fix_sincos a=16384 c=(65536,0) ox=(65536,0) eq=true
+    fix_sincos a=32768 c=(0,-65536) ox=(0,-65536) eq=true
+    fix_sincos a=65535 c=(-8,65532) ox=(-8,65532) eq=true
+    fix_sincos a=65536 c=(0,65536) ox=(0,65536) eq=true
+    fix_sincos a=2147483647 c=(-8,65532) ox=(-8,65532) eq=true
+    |}]
+
 let%expect_test "fix_fastsincos parity C vs Ox" =
   check_unop_pair "fix_fastsincos" c_fix_fastsincos Ox_math.fix_fastsincos fix_fastsincos_cases;
   [%expect {|
@@ -2600,6 +2660,22 @@ let%expect_test "fix_fastsincos parity C vs Ox" =
     fix_fastsincos a=65535 c=(-1608,65516) ox=(-1608,65516) eq=true
     fix_fastsincos a=65536 c=(0,65536) ox=(0,65536) eq=true
     fix_fastsincos a=2147483647 c=(-1608,65516) ox=(-1608,65516) eq=true
+    |}]
+
+let%expect_test "fix_acos parity C vs Ox" =
+  check_unop "fix_acos" c_fix_acos Ox_math.fix_acos fix_acos_cases;
+  [%expect {|
+    fix_acos a=-2147483648 c=16384 ox=16384 eq=true
+    fix_acos a=-65536 c=0 ox=0 eq=true
+    fix_acos a=-32768 c=21845 ox=21845 eq=true
+    fix_acos a=-1 c=16385 ox=16385 eq=true
+    fix_acos a=0 c=16384 ox=16384 eq=true
+    fix_acos a=1 c=16383 ox=16383 eq=true
+    fix_acos a=32767 c=10923 ox=10923 eq=true
+    fix_acos a=32768 c=10923 ox=10923 eq=true
+    fix_acos a=65535 c=3 ox=3 eq=true
+    fix_acos a=65536 c=0 ox=0 eq=true
+    fix_acos a=2147483647 c=0 ox=0 eq=true
     |}]
 
 let%expect_test "fix_asin parity C vs Ox" =
@@ -3177,6 +3253,15 @@ let%expect_test "randomized fix_isqrt parity C vs Ox" =
     Ox_math.fix_isqrt;
   [%expect {| fix_isqrt random total=5000 mismatches=0 |}]
 
+let%expect_test "randomized fix_sincos parity C vs Ox" =
+  run_random_unop_pair
+    ~name:"fix_sincos"
+    ~seed:"fix-sincos-seed-v1"
+    ~test_count:5000
+    c_fix_sincos
+    Ox_math.fix_sincos;
+  [%expect {| fix_sincos random total=5000 mismatches=0 |}]
+
 let%expect_test "randomized fix_fastsincos parity C vs Ox" =
   run_random_unop_pair
     ~name:"fix_fastsincos"
@@ -3185,6 +3270,10 @@ let%expect_test "randomized fix_fastsincos parity C vs Ox" =
     c_fix_fastsincos
     Ox_math.fix_fastsincos;
   [%expect {| fix_fastsincos random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_acos parity C vs Ox" =
+  run_random_unop ~name:"fix_acos" ~seed:"fix-acos-seed-v1" ~test_count:5000 c_fix_acos Ox_math.fix_acos;
+  [%expect {| fix_acos random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_asin parity C vs Ox" =
   run_random_unop ~name:"fix_asin" ~seed:"fix-asin-seed-v1" ~test_count:5000 c_fix_asin Ox_math.fix_asin;

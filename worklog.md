@@ -262,3 +262,19 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 24) Added direct parity for existing inverse/trig helpers (`fix_sincos`, `fix_acos`)
+- Exposed oracle internals as public C-oracle entrypoints:
+  - `c_oracle_fix_sincos`
+  - `c_oracle_fix_acos`
+- Extended parity FFI:
+  - `caml_c_fix_sincos`
+  - `caml_c_fix_acos`
+- Extended parity harness:
+  - deterministic + randomized differential tests for `fix_sincos` (pair output).
+  - deterministic + randomized differential tests for `fix_acos`.
+- Outcome:
+  - confirms that direct helper behavior remains aligned, not only via downstream consumers.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

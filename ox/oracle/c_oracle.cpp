@@ -83,7 +83,7 @@ static int32_t c_oracle_isqrt_guess_lut_entry(int i)
     return (int32_t)(16777216.0 / sqrt((double)i));
 }
 
-static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
+extern "C" void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
 {
     const int i = (a >> 8) & 0xFF;
     const int f = a & 0xFF;
@@ -95,7 +95,7 @@ static void c_oracle_fix_sincos(int32_t a, int32_t* s, int32_t* c)
     *c = (cc + (((c_oracle_sincos_lut_entry(i + 65) - cc) * f) >> 8)) << 2;
 }
 
-static int16_t c_oracle_fix_acos(int32_t v)
+extern "C" int16_t c_oracle_fix_acos(int32_t v)
 {
     int32_t vv = (int32_t)labs(v);
 
