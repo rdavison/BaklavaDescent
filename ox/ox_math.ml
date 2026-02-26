@@ -14,8 +14,12 @@ let wrap_i64_to_fix x =
   Int64.to_int_exn signed
 
 let fixmul a b =
-  Int64.(wrap_i64_to_fix (shift_right ((of_int a * of_int b)) fracbits))
+  Int64.(wrap_i64_to_fix (shift_right (of_int a * of_int b) fracbits))
 
 let fixdiv a b =
   if b = 0 then 1
-  else Int64.(wrap_i64_to_fix ((shift_left (of_int a) fracbits) / of_int b))
+  else Int64.(wrap_i64_to_fix (shift_left (of_int a) fracbits / of_int b))
+
+let fixmuldiv a b c =
+  if c = 0 then 1
+  else Int64.(wrap_i64_to_fix ((of_int a * of_int b) / of_int c))
