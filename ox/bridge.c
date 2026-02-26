@@ -62,6 +62,9 @@ static const value* g_g3_calc_point_depth = NULL;
 static const value* g_scale_matrix = NULL;
 static const value* g_g3_start_instance_matrix = NULL;
 static const value* g_g3_point_2_vec = NULL;
+static const value* g_clip_edge = NULL;
+static const value* g_g3_check_normal_facing = NULL;
+static const value* g_calc_rod_corners = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -119,7 +122,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_g3_calc_point_depth
           && g_scale_matrix
           && g_g3_start_instance_matrix
-          && g_g3_point_2_vec))
+          && g_g3_point_2_vec
+          && g_clip_edge
+          && g_g3_check_normal_facing
+          && g_calc_rod_corners))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -193,6 +199,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_scale_matrix = caml_named_value("cd_scale_matrix");
     g_g3_start_instance_matrix = caml_named_value("cd_g3_start_instance_matrix");
     g_g3_point_2_vec = caml_named_value("cd_g3_point_2_vec");
+    g_clip_edge = caml_named_value("cd_clip_edge");
+    g_g3_check_normal_facing = caml_named_value("cd_g3_check_normal_facing");
+    g_calc_rod_corners = caml_named_value("cd_calc_rod_corners");
 
     if (!g_i2f
         || !g_f2i
@@ -247,7 +256,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_g3_calc_point_depth
         || !g_scale_matrix
         || !g_g3_start_instance_matrix
-        || !g_g3_point_2_vec)
+        || !g_g3_point_2_vec
+        || !g_clip_edge
+        || !g_g3_check_normal_facing
+        || !g_calc_rod_corners)
     {
         return 1;
     }
@@ -312,7 +324,10 @@ int cd_ox_is_ready(void)
            && g_g3_calc_point_depth
            && g_scale_matrix
            && g_g3_start_instance_matrix
-           && g_g3_point_2_vec;
+           && g_g3_point_2_vec
+           && g_clip_edge
+           && g_g3_check_normal_facing
+           && g_calc_rod_corners;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1061,4 +1076,72 @@ void cd_ox_g3_point_2_vec(
     };
     const value out = caml_callbackN(*g_g3_point_2_vec, 16, args);
     *vx = Int_val(Field(out, 0)); *vy = Int_val(Field(out, 1)); *vz = Int_val(Field(out, 2));
+}
+
+void cd_ox_clip_edge(
+    int32_t plane_flag,
+    int32_t on_x, int32_t on_y, int32_t on_z,
+    int32_t on_u, int32_t on_v, int32_t on_l, int32_t on_flags,
+    int32_t off_x, int32_t off_y, int32_t off_z,
+    int32_t off_u, int32_t off_v, int32_t off_l,
+    int32_t* nx, int32_t* ny, int32_t* nz,
+    int32_t* nu, int32_t* nv, int32_t* nl,
+    int32_t* nflags, uint8_t* ncodes)
+{
+    cd_ox_require_ready("cd_ox_clip_edge");
+    value args[14] = {
+        Val_long(plane_flag),
+        Val_long(on_x), Val_long(on_y), Val_long(on_z),
+        Val_long(on_u), Val_long(on_v), Val_long(on_l), Val_long(on_flags),
+        Val_long(off_x), Val_long(off_y), Val_long(off_z),
+        Val_long(off_u), Val_long(off_v), Val_long(off_l),
+    };
+    const value out = caml_callbackN(*g_clip_edge, 14, args);
+    *nx = Int_val(Field(out, 0));
+    *ny = Int_val(Field(out, 1));
+    *nz = Int_val(Field(out, 2));
+    *nu = Int_val(Field(out, 3));
+    *nv = Int_val(Field(out, 4));
+    *nl = Int_val(Field(out, 5));
+    *nflags = Int_val(Field(out, 6));
+    *ncodes = (uint8_t)Int_val(Field(out, 7));
+}
+
+int cd_ox_g3_check_normal_facing(
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t nx, int32_t ny, int32_t nz)
+{
+    cd_ox_require_ready("cd_ox_g3_check_normal_facing");
+    value args[9] = {
+        Val_long(vpx), Val_long(vpy), Val_long(vpz),
+        Val_long(vx), Val_long(vy), Val_long(vz),
+        Val_long(nx), Val_long(ny), Val_long(nz),
+    };
+    return Int_val(caml_callbackN(*g_g3_check_normal_facing, 9, args));
+}
+
+int cd_ox_calc_rod_corners(
+    int32_t bx, int32_t by, int32_t bz, int32_t bw,
+    int32_t tx, int32_t ty, int32_t tz, int32_t tw,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t* c0x, int32_t* c0y, int32_t* c0z,
+    int32_t* c1x, int32_t* c1y, int32_t* c1z,
+    int32_t* c2x, int32_t* c2y, int32_t* c2z,
+    int32_t* c3x, int32_t* c3y, int32_t* c3z,
+    uint8_t* codes_and)
+{
+    cd_ox_require_ready("cd_ox_calc_rod_corners");
+    value args[11] = {
+        Val_long(bx), Val_long(by), Val_long(bz), Val_long(bw),
+        Val_long(tx), Val_long(ty), Val_long(tz), Val_long(tw),
+        Val_long(msx), Val_long(msy), Val_long(msz),
+    };
+    const value out = caml_callbackN(*g_calc_rod_corners, 11, args);
+    *c0x = Int_val(Field(out, 0)); *c0y = Int_val(Field(out, 1)); *c0z = Int_val(Field(out, 2));
+    *c1x = Int_val(Field(out, 3)); *c1y = Int_val(Field(out, 4)); *c1z = Int_val(Field(out, 5));
+    *c2x = Int_val(Field(out, 6)); *c2y = Int_val(Field(out, 7)); *c2z = Int_val(Field(out, 8));
+    *c3x = Int_val(Field(out, 9)); *c3y = Int_val(Field(out, 10)); *c3z = Int_val(Field(out, 11));
+    *codes_and = (uint8_t)Int_val(Field(out, 12));
+    return (*codes_and != 0) ? 1 : 0;
 }

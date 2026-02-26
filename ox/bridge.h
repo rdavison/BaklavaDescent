@@ -264,6 +264,28 @@ void cd_ox_g3_point_2_vec(
     int32_t uu1, int32_t uu2, int32_t uu3,
     int32_t uf1, int32_t uf2, int32_t uf3,
     int32_t* vx, int32_t* vy, int32_t* vz);
+void cd_ox_clip_edge(
+    int32_t plane_flag,
+    int32_t on_x, int32_t on_y, int32_t on_z,
+    int32_t on_u, int32_t on_v, int32_t on_l, int32_t on_flags,
+    int32_t off_x, int32_t off_y, int32_t off_z,
+    int32_t off_u, int32_t off_v, int32_t off_l,
+    int32_t* nx, int32_t* ny, int32_t* nz,
+    int32_t* nu, int32_t* nv, int32_t* nl,
+    int32_t* nflags, uint8_t* ncodes);
+int cd_ox_g3_check_normal_facing(
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t nx, int32_t ny, int32_t nz);
+int cd_ox_calc_rod_corners(
+    int32_t bx, int32_t by, int32_t bz, int32_t bw,
+    int32_t tx, int32_t ty, int32_t tz, int32_t tw,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t* c0x, int32_t* c0y, int32_t* c0z,
+    int32_t* c1x, int32_t* c1y, int32_t* c1z,
+    int32_t* c2x, int32_t* c2y, int32_t* c2z,
+    int32_t* c3x, int32_t* c3y, int32_t* c3z,
+    uint8_t* codes_and);
 
 #ifdef __cplusplus
 }

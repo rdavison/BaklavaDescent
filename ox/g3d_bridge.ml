@@ -65,6 +65,32 @@ let cd_g3_point_2_vec sx sy canv_w2 canv_h2 msx msy msz ur1 ur2 ur3 uu1 uu2 uu3 
   in
   (vx, vy, vz)
 
+let cd_clip_edge plane_flag
+    on_x on_y on_z on_u on_v on_l on_flags
+    off_x off_y off_z off_u off_v off_l =
+  let (nx, ny, nz, nu, nv, nl, nflags, ncodes) =
+    Ox_3d.clip_edge ~plane_flag
+      ~on_x ~on_y ~on_z ~on_u ~on_v ~on_l ~on_flags
+      ~off_x ~off_y ~off_z ~off_u ~off_v ~off_l
+  in
+  (nx, ny, nz, nu, nv, nl, nflags, ncodes)
+
+let cd_g3_check_normal_facing vpx vpy vpz vx vy vz nx ny nz =
+  let facing =
+    Ox_3d.g3_check_normal_facing
+      ~view_pos:(vpx, vpy, vpz) (vx, vy, vz) (nx, ny, nz)
+  in
+  if facing then 1 else 0
+
+let cd_calc_rod_corners bx by bz bw tx ty tz tw msx msy msz =
+  let ((c0x, c0y, c0z), (c1x, c1y, c1z), (c2x, c2y, c2z), (c3x, c3y, c3z), codes_and) =
+    Ox_3d.calc_rod_corners
+      ~bot_vec:(bx, by, bz) ~bot_width:bw
+      ~top_vec:(tx, ty, tz) ~top_width:tw
+      ~matrix_scale:(msx, msy, msz)
+  in
+  (c0x, c0y, c0z, c1x, c1y, c1z, c2x, c2y, c2z, c3x, c3y, c3z, codes_and)
+
 let () =
   Callback.register "cd_g3_code_point" cd_g3_code_point;
   Callback.register "cd_checkmuldiv" cd_checkmuldiv;
@@ -76,4 +102,7 @@ let () =
   Callback.register "cd_g3_calc_point_depth" cd_g3_calc_point_depth;
   Callback.register "cd_scale_matrix" cd_scale_matrix;
   Callback.register "cd_g3_start_instance_matrix" cd_g3_start_instance_matrix;
-  Callback.register "cd_g3_point_2_vec" cd_g3_point_2_vec
+  Callback.register "cd_g3_point_2_vec" cd_g3_point_2_vec;
+  Callback.register "cd_clip_edge" cd_clip_edge;
+  Callback.register "cd_g3_check_normal_facing" cd_g3_check_normal_facing;
+  Callback.register "cd_calc_rod_corners" cd_calc_rod_corners

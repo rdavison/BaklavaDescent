@@ -4246,6 +4246,29 @@ external c_scale_matrix
   -> int * int * int * int * int * int * int * int * int * int * int * int
   = "caml_c_scale_matrix_bc" "caml_c_scale_matrix"
 
+external c_g3_start_instance_matrix
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int * int * int * int * int * int * int * int * int * int * int * int
+  = "caml_c_g3_start_instance_matrix_bc" "caml_c_g3_start_instance_matrix"
+
+external c_g3_point_2_vec
+  :  int -> int
+  -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int * int * int
+  = "caml_c_g3_point_2_vec_bc" "caml_c_g3_point_2_vec"
+
 let g3_code_point_cases =
   [ (0, 0, 0x10000)     (* origin in front *)
   ; (0x20000, 0, 0x10000)  (* x > z -> OFF_RIGHT *)
@@ -4725,3 +4748,269 @@ let%expect_test "randomized scale_matrix parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "scale_matrix randomized parity failed" ();
   [%expect {| scale_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized g3_start_instance_matrix parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_gen mat3_gen)
+         (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both (Quickcheck.Generator.of_list [0; 1]) mat3_gen)))
+      ~f:(fun ((vp, vm), (pos, (has_orient, orient))) -> (vp, vm, pos, has_orient, orient))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"g3-start-instance-matrix-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((vpx, vpy, vpz),
+                            ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)),
+                            (px, py, pz), has_orient,
+                            ((mr1, mr2, mr3), (mu1, mu2, mu3), (mf1, mf2, mf3))) ->
+         incr total;
+         let (cnvpx, cnvpy, cnvpz, cnr1, cnr2, cnr3, cnu1, cnu2, cnu3, cnf1, cnf2, cnf3) =
+           c_g3_start_instance_matrix
+             vpx vpy vpz r1 r2 r3 u1 u2 u3 f1 f2 f3
+             px py pz has_orient mr1 mr2 mr3 mu1 mu2 mu3 mf1 mf2 mf3
+         in
+         let orient = if has_orient <> 0 then Some ((mr1, mr2, mr3), (mu1, mu2, mu3), (mf1, mf2, mf3)) else None in
+         let (onvpx, onvpy, onvpz),
+             ((onr1, onr2, onr3), (onu1, onu2, onu3), (onf1, onf2, onf3)) =
+           Ox_3d.g3_start_instance_matrix
+             ~view_pos:(vpx, vpy, vpz)
+             ~view_matrix:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+             (px, py, pz) orient
+         in
+         let eq = cnvpx = onvpx && cnvpy = onvpy && cnvpz = onvpz
+                  && cnr1 = onr1 && cnr2 = onr2 && cnr3 = onr3
+                  && cnu1 = onu1 && cnu2 = onu2 && cnu3 = onu3
+                  && cnf1 = onf1 && cnf2 = onf2 && cnf3 = onf3
+         in
+         if not eq
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf "g3_start_instance_matrix has_orient=%d c_vp=(%d,%d,%d) ox_vp=(%d,%d,%d)"
+                     has_orient cnvpx cnvpy cnvpz onvpx onvpy onvpz)));
+  printf "g3_start_instance_matrix random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "g3_start_instance_matrix randomized parity failed" ();
+  [%expect {| g3_start_instance_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized g3_point_2_vec parity C vs Ox" =
+  let short_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v -> Int.max (-32768) (Int.min 32767 v)) in
+  let nonzero_fix_gen = Quickcheck.Generator.map fix_gen ~f:(fun v ->
+    let v = Ox_math.wrap_i64_to_fix (Int64.of_int v) in
+    if v = 0 then 1 else v) in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both short_gen short_gen)
+         (Quickcheck.Generator.both
+            (Quickcheck.Generator.both nonzero_fix_gen nonzero_fix_gen)
+            (Quickcheck.Generator.both vec3_gen mat3_gen)))
+      ~f:(fun ((sx, sy), ((cw2, ch2), (ms, um))) -> (sx, sy, cw2, ch2, ms, um))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"g3-point-2-vec-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun (sx, sy, canv_w2, canv_h2,
+                            (msx, msy, msz),
+                            ((ur1, ur2, ur3), (uu1, uu2, uu3), (uf1, uf2, uf3))) ->
+         (* Skip cases where matrix_scale x or y is zero to avoid div-by-zero *)
+         if msx <> 0 && msy <> 0 then (
+           incr total;
+           let (cvx, cvy, cvz) =
+             c_g3_point_2_vec sx sy canv_w2 canv_h2 msx msy msz
+               ur1 ur2 ur3 uu1 uu2 uu3 uf1 uf2 uf3
+           in
+           let (ovx, ovy, ovz) =
+             Ox_3d.g3_point_2_vec
+               ~canv_w2 ~canv_h2
+               ~matrix_scale:(msx, msy, msz)
+               ~unscaled_matrix:((ur1, ur2, ur3), (uu1, uu2, uu3), (uf1, uf2, uf3))
+               sx sy
+           in
+           if not (cvx = ovx && cvy = ovy && cvz = ovz)
+           then (
+             incr mismatches;
+             if Option.is_none !first_mismatch
+             then
+               first_mismatch
+               := Some
+                    (sprintf "g3_point_2_vec (%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+                       sx sy cvx cvy cvz ovx ovy ovz))));
+  printf "g3_point_2_vec random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "g3_point_2_vec randomized parity failed" ();
+  [%expect {| g3_point_2_vec random total=4507 mismatches=0 |}]
+
+(* ---- Drawing helpers: clip_edge, g3_check_normal_facing, calc_rod_corners ---- *)
+
+external c_clip_edge
+  :  int
+  -> int -> int -> int
+  -> int -> int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int * int * int * int * int * int * int * int
+  = "caml_c_clip_edge_bc" "caml_c_clip_edge"
+
+external c_g3_check_normal_facing
+  :  int -> int -> int
+  -> int -> int -> int
+  -> int -> int -> int
+  -> int
+  = "caml_c_g3_check_normal_facing_bc" "caml_c_g3_check_normal_facing"
+
+external c_calc_rod_corners
+  :  int -> int -> int -> int
+  -> int -> int -> int -> int
+  -> int -> int -> int
+  -> int * int * int * int * int * int * int * int * int * int * int * int * int
+  = "caml_c_calc_rod_corners_bc" "caml_c_calc_rod_corners"
+
+let%expect_test "randomized clip_edge parity C vs Ox" =
+  let plane_flag_gen = Quickcheck.Generator.of_list [1; 2; 4; 8] in
+  let flag_gen = Quickcheck.Generator.of_list [0; 8; 16; 24] in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both plane_flag_gen
+            (Quickcheck.Generator.both vec3_gen vec3_gen))
+         (Quickcheck.Generator.both
+            (Quickcheck.Generator.both vec3_gen flag_gen)
+            vec3_gen))
+      ~f:(fun ((pf, (on_xyz, on_uvl)), ((off_xyz, flags), off_uvl)) ->
+        (pf, on_xyz, on_uvl, flags, off_xyz, off_uvl))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"clip-edge-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun (plane_flag,
+                            (on_x, on_y, on_z), (on_u, on_v, on_l), on_flags,
+                            (off_x, off_y, off_z), (off_u, off_v, off_l)) ->
+         incr total;
+         let (cnx, cny, cnz, cnu, cnv, cnl, cnflags, cncodes) =
+           c_clip_edge plane_flag
+             on_x on_y on_z on_u on_v on_l on_flags
+             off_x off_y off_z off_u off_v off_l
+         in
+         let (onx, ony, onz, onu, onv, onl, onflags, oncodes) =
+           Ox_3d.clip_edge ~plane_flag
+             ~on_x ~on_y ~on_z ~on_u ~on_v ~on_l ~on_flags
+             ~off_x ~off_y ~off_z ~off_u ~off_v ~off_l
+         in
+         let eq = cnx = onx && cny = ony && cnz = onz
+                  && cnu = onu && cnv = onv && cnl = onl
+                  && cnflags = onflags && cncodes = oncodes
+         in
+         if not eq
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf "clip_edge pf=%d c=(%d,%d,%d) ox=(%d,%d,%d) c_codes=%d ox_codes=%d"
+                     plane_flag cnx cny cnz onx ony onz cncodes oncodes)));
+  printf "clip_edge random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "clip_edge randomized parity failed" ();
+  [%expect {| clip_edge random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized g3_check_normal_facing parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
+      ~f:(fun (vp, (v, n)) -> (vp, v, n))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"g3-check-normal-facing-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((vpx, vpy, vpz), (vx, vy, vz), (nx, ny, nz)) ->
+         incr total;
+         let c_res = c_g3_check_normal_facing vpx vpy vpz vx vy vz nx ny nz in
+         let ox_res =
+           if Ox_3d.g3_check_normal_facing
+                ~view_pos:(vpx, vpy, vpz) (vx, vy, vz) (nx, ny, nz)
+           then 1 else 0
+         in
+         if c_res <> ox_res
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf "g3_check_normal_facing vp=(%d,%d,%d) c=%d ox=%d"
+                     vpx vpy vpz c_res ox_res)));
+  printf "g3_check_normal_facing random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "g3_check_normal_facing randomized parity failed" ();
+  [%expect {| g3_check_normal_facing random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized calc_rod_corners parity C vs Ox" =
+  let rod_fix_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    Int.max (-500_000) (Int.min 500_000 v)) in
+  let rod_vec3_gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both rod_fix_gen (Quickcheck.Generator.both rod_fix_gen rod_fix_gen))
+      ~f:(fun (x, (y, z)) -> (x, y, z)) in
+  let nonzero_fix_gen = Quickcheck.Generator.map rod_fix_gen ~f:(fun v ->
+    if v = 0 then 0x10000 else v) in
+  let width_gen = Quickcheck.Generator.map rod_fix_gen ~f:(fun v ->
+    Int.max 1 (Int.abs v)) in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both rod_vec3_gen width_gen)
+         (Quickcheck.Generator.both
+            (Quickcheck.Generator.both rod_vec3_gen width_gen)
+            (Quickcheck.Generator.both
+               (Quickcheck.Generator.both nonzero_fix_gen nonzero_fix_gen)
+               nonzero_fix_gen)))
+      ~f:(fun ((bot, bw), ((top, tw), ((msx, msy), msz))) ->
+        (bot, bw, top, tw, msx, msy, msz))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"calc-rod-corners-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((bx, by, bz), bw, (tx, ty, tz), tw, msx, msy, msz) ->
+         if msx <> 0 && msy <> 0 then (
+           incr total;
+           let (cc0x, cc0y, cc0z, cc1x, cc1y, cc1z,
+                cc2x, cc2y, cc2z, cc3x, cc3y, cc3z, cca) =
+             c_calc_rod_corners bx by bz bw tx ty tz tw msx msy msz
+           in
+           let ((o0x, o0y, o0z), (o1x, o1y, o1z),
+                (o2x, o2y, o2z), (o3x, o3y, o3z), oca) =
+             Ox_3d.calc_rod_corners
+               ~bot_vec:(bx, by, bz) ~bot_width:bw
+               ~top_vec:(tx, ty, tz) ~top_width:tw
+               ~matrix_scale:(msx, msy, msz)
+           in
+           let eq = cc0x = o0x && cc0y = o0y && cc0z = o0z
+                    && cc1x = o1x && cc1y = o1y && cc1z = o1z
+                    && cc2x = o2x && cc2y = o2y && cc2z = o2z
+                    && cc3x = o3x && cc3y = o3y && cc3z = o3z
+                    && cca = oca
+           in
+           if not eq
+           then (
+             incr mismatches;
+             if Option.is_none !first_mismatch
+             then
+               first_mismatch
+               := Some
+                    (sprintf "calc_rod_corners c0=(%d,%d,%d)/(%d,%d,%d) o0=(%d,%d,%d)/(%d,%d,%d) cca=%d oca=%d"
+                       cc0x cc0y cc0z cc1x cc1y cc1z o0x o0y o0z o1x o1y o1z cca oca))));
+  printf "calc_rod_corners random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "calc_rod_corners randomized parity failed" ();
+  [%expect {| calc_rod_corners random total=5000 mismatches=0 |}]

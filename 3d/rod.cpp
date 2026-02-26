@@ -14,6 +14,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "3d/3d.h"
 #include "globvars.h"
 #include "fix/fix.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#include <stdio.h>
+#endif
 
 grs_point blob_vertices[4];
 g3s_point rod_points[4];
@@ -27,6 +31,37 @@ g3s_uvl uvl_list[4] = { 0x0200,0x0200,0,
 //compute the corners of a rod.  fills in vertbuf.
 int calc_rod_corners(g3s_point* bot_point, fix bot_width, g3s_point* top_point, fix top_width)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] calc_rod_corners using cd_ox_calc_rod_corners.\n");
+		ox_bridge_logged = 1;
+	}
+
+	int32_t c0x, c0y, c0z, c1x, c1y, c1z, c2x, c2y, c2z, c3x, c3y, c3z;
+	uint8_t codes_and;
+	int off_screen = cd_ox_calc_rod_corners(
+		bot_point->p3_x, bot_point->p3_y, bot_point->p3_z, bot_width,
+		top_point->p3_x, top_point->p3_y, top_point->p3_z, top_width,
+		Matrix_scale.x, Matrix_scale.y, Matrix_scale.z,
+		&c0x, &c0y, &c0z, &c1x, &c1y, &c1z,
+		&c2x, &c2y, &c2z, &c3x, &c3y, &c3z,
+		&codes_and);
+
+	rod_points[0].p3_x = c0x; rod_points[0].p3_y = c0y; rod_points[0].p3_z = c0z;
+	rod_points[1].p3_x = c1x; rod_points[1].p3_y = c1y; rod_points[1].p3_z = c1z;
+	rod_points[2].p3_x = c2x; rod_points[2].p3_y = c2y; rod_points[2].p3_z = c2z;
+	rod_points[3].p3_x = c3x; rod_points[3].p3_y = c3y; rod_points[3].p3_z = c3z;
+
+	if (codes_and)
+		return 1;
+
+	for (int i = 0; i < 4; i++)
+		rod_points[i].p3_flags = 0;
+
+	return 0;
+#else
 	vms_vector delta_vec, top, tempv, rod_norm;
 	uint8_t codes_and;
 	int i;
@@ -90,6 +125,7 @@ int calc_rod_corners(g3s_point* bot_point, fix bot_width, g3s_point* top_point, 
 		rod_points[i].p3_flags = 0;
 
 	return 0;
+#endif
 }
 
 //draw a polygon that is always facing you

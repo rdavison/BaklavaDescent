@@ -1567,3 +1567,202 @@ extern "C" CAMLprim value caml_c_scale_matrix_bc(value* argv, int argn)
         argv[5], argv[6], argv[7], argv[8], argv[9],
         argv[10], argv[11], argv[12]);
 }
+
+extern "C" CAMLprim value caml_c_g3_start_instance_matrix(
+    value vpx, value vpy, value vpz,
+    value r1, value r2, value r3,
+    value u1, value u2, value u3,
+    value f1, value f2, value f3,
+    value px, value py, value pz,
+    value has_orient,
+    value mr1, value mr2, value mr3,
+    value mu1, value mu2, value mu3,
+    value mf1, value mf2, value mf3)
+{
+    CAMLparam5(vpx, vpy, vpz, r1, r2);
+    CAMLxparam5(r3, u1, u2, u3, f1);
+    CAMLxparam5(f2, f3, px, py, pz);
+    CAMLxparam5(has_orient, mr1, mr2, mr3, mu1);
+    CAMLxparam5(mu2, mu3, mf1, mf2, mf3);
+    CAMLlocal1(out);
+    int32_t nvpx, nvpy, nvpz, nr1, nr2, nr3, nu1, nu2, nu3, nf1, nf2, nf3;
+    c_oracle_g3_start_instance_matrix(
+        Int_val(vpx), Int_val(vpy), Int_val(vpz),
+        Int_val(r1), Int_val(r2), Int_val(r3),
+        Int_val(u1), Int_val(u2), Int_val(u3),
+        Int_val(f1), Int_val(f2), Int_val(f3),
+        Int_val(px), Int_val(py), Int_val(pz),
+        Int_val(has_orient),
+        Int_val(mr1), Int_val(mr2), Int_val(mr3),
+        Int_val(mu1), Int_val(mu2), Int_val(mu3),
+        Int_val(mf1), Int_val(mf2), Int_val(mf3),
+        &nvpx, &nvpy, &nvpz, &nr1, &nr2, &nr3,
+        &nu1, &nu2, &nu3, &nf1, &nf2, &nf3);
+    out = caml_alloc_tuple(12);
+    Store_field(out, 0, Val_long(nvpx));
+    Store_field(out, 1, Val_long(nvpy));
+    Store_field(out, 2, Val_long(nvpz));
+    Store_field(out, 3, Val_long(nr1));
+    Store_field(out, 4, Val_long(nr2));
+    Store_field(out, 5, Val_long(nr3));
+    Store_field(out, 6, Val_long(nu1));
+    Store_field(out, 7, Val_long(nu2));
+    Store_field(out, 8, Val_long(nu3));
+    Store_field(out, 9, Val_long(nf1));
+    Store_field(out, 10, Val_long(nf2));
+    Store_field(out, 11, Val_long(nf3));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_start_instance_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_start_instance_matrix(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12], argv[13], argv[14],
+        argv[15], argv[16], argv[17], argv[18], argv[19],
+        argv[20], argv[21], argv[22], argv[23], argv[24]);
+}
+
+extern "C" CAMLprim value caml_c_g3_point_2_vec(
+    value sx, value sy,
+    value canv_w2, value canv_h2,
+    value msx, value msy, value msz,
+    value ur1, value ur2, value ur3,
+    value uu1, value uu2, value uu3,
+    value uf1, value uf2, value uf3)
+{
+    CAMLparam5(sx, sy, canv_w2, canv_h2, msx);
+    CAMLxparam5(msy, msz, ur1, ur2, ur3);
+    CAMLxparam5(uu1, uu2, uu3, uf1, uf2);
+    CAMLxparam1(uf3);
+    CAMLlocal1(out);
+    int32_t vx, vy, vz;
+    c_oracle_g3_point_2_vec(
+        Int_val(sx), Int_val(sy),
+        Int_val(canv_w2), Int_val(canv_h2),
+        Int_val(msx), Int_val(msy), Int_val(msz),
+        Int_val(ur1), Int_val(ur2), Int_val(ur3),
+        Int_val(uu1), Int_val(uu2), Int_val(uu3),
+        Int_val(uf1), Int_val(uf2), Int_val(uf3),
+        &vx, &vy, &vz);
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(vx));
+    Store_field(out, 1, Val_long(vy));
+    Store_field(out, 2, Val_long(vz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_g3_point_2_vec_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_point_2_vec(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12], argv[13], argv[14],
+        argv[15]);
+}
+
+extern "C" CAMLprim value caml_c_clip_edge(
+    value plane_flag,
+    value on_x, value on_y, value on_z,
+    value on_u, value on_v, value on_l, value on_flags,
+    value off_x, value off_y, value off_z,
+    value off_u, value off_v, value off_l)
+{
+    CAMLparam5(plane_flag, on_x, on_y, on_z, on_u);
+    CAMLxparam5(on_v, on_l, on_flags, off_x, off_y);
+    CAMLxparam4(off_z, off_u, off_v, off_l);
+    CAMLlocal1(out);
+    int32_t nx, ny, nz, nu, nv, nl, nflags;
+    uint8_t ncodes;
+    c_oracle_clip_edge(
+        Int_val(plane_flag),
+        Int_val(on_x), Int_val(on_y), Int_val(on_z),
+        Int_val(on_u), Int_val(on_v), Int_val(on_l), Int_val(on_flags),
+        Int_val(off_x), Int_val(off_y), Int_val(off_z),
+        Int_val(off_u), Int_val(off_v), Int_val(off_l),
+        &nx, &ny, &nz, &nu, &nv, &nl, &nflags, &ncodes);
+    out = caml_alloc_tuple(8);
+    Store_field(out, 0, Val_long(nx));
+    Store_field(out, 1, Val_long(ny));
+    Store_field(out, 2, Val_long(nz));
+    Store_field(out, 3, Val_long(nu));
+    Store_field(out, 4, Val_long(nv));
+    Store_field(out, 5, Val_long(nl));
+    Store_field(out, 6, Val_long(nflags));
+    Store_field(out, 7, Val_long((int32_t)ncodes));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_clip_edge_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_clip_edge(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12], argv[13]);
+}
+
+extern "C" CAMLprim value caml_c_g3_check_normal_facing(
+    value vpx, value vpy, value vpz,
+    value vx, value vy, value vz,
+    value nx, value ny, value nz)
+{
+    return Val_long(c_oracle_g3_check_normal_facing(
+        Int_val(vpx), Int_val(vpy), Int_val(vpz),
+        Int_val(vx), Int_val(vy), Int_val(vz),
+        Int_val(nx), Int_val(ny), Int_val(nz)));
+}
+
+extern "C" CAMLprim value caml_c_g3_check_normal_facing_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_g3_check_normal_facing(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8]);
+}
+
+extern "C" CAMLprim value caml_c_calc_rod_corners(
+    value bx, value by, value bz, value bw,
+    value tx, value ty, value tz, value tw,
+    value msx, value msy, value msz)
+{
+    CAMLparam5(bx, by, bz, bw, tx);
+    CAMLxparam5(ty, tz, tw, msx, msy);
+    CAMLxparam1(msz);
+    CAMLlocal1(out);
+    int32_t c0x, c0y, c0z, c1x, c1y, c1z, c2x, c2y, c2z, c3x, c3y, c3z;
+    uint8_t ca;
+    c_oracle_calc_rod_corners(
+        Int_val(bx), Int_val(by), Int_val(bz), Int_val(bw),
+        Int_val(tx), Int_val(ty), Int_val(tz), Int_val(tw),
+        Int_val(msx), Int_val(msy), Int_val(msz),
+        &c0x, &c0y, &c0z, &c1x, &c1y, &c1z,
+        &c2x, &c2y, &c2z, &c3x, &c3y, &c3z, &ca);
+    out = caml_alloc_tuple(13);
+    Store_field(out, 0, Val_long(c0x));
+    Store_field(out, 1, Val_long(c0y));
+    Store_field(out, 2, Val_long(c0z));
+    Store_field(out, 3, Val_long(c1x));
+    Store_field(out, 4, Val_long(c1y));
+    Store_field(out, 5, Val_long(c1z));
+    Store_field(out, 6, Val_long(c2x));
+    Store_field(out, 7, Val_long(c2y));
+    Store_field(out, 8, Val_long(c2z));
+    Store_field(out, 9, Val_long(c3x));
+    Store_field(out, 10, Val_long(c3y));
+    Store_field(out, 11, Val_long(c3z));
+    Store_field(out, 12, Val_long((int32_t)ca));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_calc_rod_corners_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_calc_rod_corners(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10]);
+}

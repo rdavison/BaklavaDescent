@@ -1196,3 +1196,218 @@ extern "C" void c_oracle_scale_matrix(
     *of1 = fixmul(f1, sz); *of2 = fixmul(f2, sz); *of3 = fixmul(f3, sz);
     *msx = sx; *msy = sy; *msz = sz;
 }
+
+extern "C" void c_oracle_g3_start_instance_matrix(
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t has_orient,
+    int32_t mr1, int32_t mr2, int32_t mr3,
+    int32_t mu1, int32_t mu2, int32_t mu3,
+    int32_t mf1, int32_t mf2, int32_t mf3,
+    int32_t* nvpx, int32_t* nvpy, int32_t* nvpz,
+    int32_t* nr1, int32_t* nr2, int32_t* nr3,
+    int32_t* nu1, int32_t* nu2, int32_t* nu3,
+    int32_t* nf1, int32_t* nf2, int32_t* nf3)
+{
+    c_oracle_vec3 tempv = { vpx - px, vpy - py, vpz - pz };
+    c_oracle_mat3 vm = { {r1, r2, r3}, {u1, u2, u3}, {f1, f2, f3} };
+
+    if (has_orient)
+    {
+        c_oracle_mat3 orient = { {mr1, mr2, mr3}, {mu1, mu2, mu3}, {mf1, mf2, mf3} };
+        c_oracle_vec3 new_vp;
+        c_oracle_vm_vec_rotate(&new_vp, &tempv, &orient);
+        *nvpx = new_vp.x; *nvpy = new_vp.y; *nvpz = new_vp.z;
+
+        c_oracle_mat3 tempm2;
+        c_oracle_vm_copy_transpose_matrix(&tempm2, &orient);
+        c_oracle_mat3 tempm;
+        c_oracle_vm_matrix_x_matrix(&tempm, &tempm2, &vm);
+        *nr1 = tempm.rvec.x; *nr2 = tempm.rvec.y; *nr3 = tempm.rvec.z;
+        *nu1 = tempm.uvec.x; *nu2 = tempm.uvec.y; *nu3 = tempm.uvec.z;
+        *nf1 = tempm.fvec.x; *nf2 = tempm.fvec.y; *nf3 = tempm.fvec.z;
+    }
+    else
+    {
+        *nvpx = tempv.x; *nvpy = tempv.y; *nvpz = tempv.z;
+        *nr1 = r1; *nr2 = r2; *nr3 = r3;
+        *nu1 = u1; *nu2 = u2; *nu3 = u3;
+        *nf1 = f1; *nf2 = f2; *nf3 = f3;
+    }
+}
+
+extern "C" void c_oracle_g3_point_2_vec(
+    int32_t sx, int32_t sy,
+    int32_t canv_w2, int32_t canv_h2,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t ur1, int32_t ur2, int32_t ur3,
+    int32_t uu1, int32_t uu2, int32_t uu3,
+    int32_t uf1, int32_t uf2, int32_t uf3,
+    int32_t* vx, int32_t* vy, int32_t* vz)
+{
+    c_oracle_vec3 tempv;
+    tempv.x = c_oracle_fixmuldiv(c_oracle_fixdiv((sx << 16) - canv_w2, canv_w2), msz, msx);
+    tempv.y = -c_oracle_fixmuldiv(c_oracle_fixdiv((sy << 16) - canv_h2, canv_h2), msz, msy);
+    tempv.z = f1_0;
+
+    c_oracle_vm_vec_normalize(&tempv);
+
+    c_oracle_mat3 unscaled = { {ur1, ur2, ur3}, {uu1, uu2, uu3}, {uf1, uf2, uf3} };
+    c_oracle_mat3 tempm;
+    c_oracle_vm_copy_transpose_matrix(&tempm, &unscaled);
+
+    c_oracle_vec3 dest;
+    c_oracle_vm_vec_rotate(&dest, &tempv, &tempm);
+    *vx = dest.x; *vy = dest.y; *vz = dest.z;
+}
+
+/* Clipping-code constants matching 3d/3d.h */
+#define CC_OFF_LEFT_O  1
+#define CC_OFF_RIGHT_O 2
+#define CC_OFF_BOT_O   4
+#define CC_OFF_TOP_O   8
+#define CC_BEHIND_O    0x80
+#define PF_UVS_O       8
+#define PF_LS_O        16
+
+static uint8_t c_oracle_g3_code_point_local(int32_t x, int32_t y, int32_t z)
+{
+    uint8_t cc = 0;
+    if (x > z) cc |= CC_OFF_RIGHT_O;
+    if (y > z) cc |= CC_OFF_TOP_O;
+    if (x < neg_i32_wrap(z)) cc |= CC_OFF_LEFT_O;
+    if (y < neg_i32_wrap(z)) cc |= CC_OFF_BOT_O;
+    if (z <= 0) cc |= CC_BEHIND_O;
+    return cc;
+}
+
+extern "C" void c_oracle_clip_edge(
+    int32_t plane_flag,
+    int32_t on_x, int32_t on_y, int32_t on_z,
+    int32_t on_u, int32_t on_v, int32_t on_l, int32_t on_flags,
+    int32_t off_x, int32_t off_y, int32_t off_z,
+    int32_t off_u, int32_t off_v, int32_t off_l,
+    int32_t* nx, int32_t* ny, int32_t* nz,
+    int32_t* nu, int32_t* nv, int32_t* nl,
+    int32_t* nflags, uint8_t* ncodes)
+{
+    int32_t a, b;
+    if (plane_flag & (CC_OFF_RIGHT_O | CC_OFF_LEFT_O))
+    {
+        a = on_x; b = off_x;
+    }
+    else
+    {
+        a = on_y; b = off_y;
+    }
+    if (plane_flag & (CC_OFF_LEFT_O | CC_OFF_BOT_O))
+    {
+        a = -a; b = -b;
+    }
+    int32_t kn = a - on_z;
+    int32_t kd = kn - b + off_z;
+    int32_t psx_ratio = c_oracle_fixdiv(kn, kd);
+
+    int32_t tmp_x = on_x + c_oracle_fixmul(off_x - on_x, psx_ratio);
+    int32_t tmp_y = on_y + c_oracle_fixmul(off_y - on_y, psx_ratio);
+    int32_t tmp_z;
+    if (plane_flag & (CC_OFF_TOP_O | CC_OFF_BOT_O))
+        tmp_z = tmp_y;
+    else
+        tmp_z = tmp_x;
+    if (plane_flag & (CC_OFF_LEFT_O | CC_OFF_BOT_O))
+        tmp_z = -tmp_z;
+
+    int32_t tmp_u = 0, tmp_v = 0;
+    int32_t new_flags = 0;
+    if (on_flags & PF_UVS_O)
+    {
+        tmp_u = on_u + c_oracle_fixmul(off_u - on_u, psx_ratio);
+        tmp_v = on_v + c_oracle_fixmul(off_v - on_v, psx_ratio);
+        new_flags |= PF_UVS_O;
+    }
+    int32_t tmp_l = 0;
+    if (on_flags & PF_LS_O)
+    {
+        tmp_l = on_l + c_oracle_fixmul(off_l - on_l, psx_ratio);
+        new_flags |= PF_LS_O;
+    }
+
+    *nx = tmp_x; *ny = tmp_y; *nz = tmp_z;
+    *nu = tmp_u; *nv = tmp_v; *nl = tmp_l;
+    *nflags = new_flags;
+    *ncodes = c_oracle_g3_code_point_local(tmp_x, tmp_y, tmp_z);
+}
+
+extern "C" int c_oracle_g3_check_normal_facing(
+    int32_t vpx, int32_t vpy, int32_t vpz,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t nx, int32_t ny, int32_t nz)
+{
+    c_oracle_vec3 tempv = { vpx - vx, vpy - vy, vpz - vz };
+    c_oracle_vec3 norm = { nx, ny, nz };
+    return c_oracle_vm_vec_dotprod(&tempv, &norm) > 0 ? 1 : 0;
+}
+
+extern "C" void c_oracle_calc_rod_corners(
+    int32_t bx, int32_t by, int32_t bz, int32_t bw,
+    int32_t tx, int32_t ty, int32_t tz, int32_t tw,
+    int32_t msx, int32_t msy, int32_t msz,
+    int32_t* c0x, int32_t* c0y, int32_t* c0z,
+    int32_t* c1x, int32_t* c1y, int32_t* c1z,
+    int32_t* c2x, int32_t* c2y, int32_t* c2z,
+    int32_t* c3x, int32_t* c3y, int32_t* c3z,
+    uint8_t* codes_and)
+{
+    c_oracle_vec3 bot = {bx, by, bz};
+    c_oracle_vec3 top = {tx, ty, tz};
+
+    c_oracle_vec3 delta_vec;
+    c_oracle_vm_vec_sub(&delta_vec, &bot, &top);
+    delta_vec.x = c_oracle_fixdiv(delta_vec.x, msx);
+    delta_vec.y = c_oracle_fixdiv(delta_vec.y, msy);
+
+    c_oracle_vm_vec_normalize(&delta_vec);
+
+    c_oracle_vec3 top_norm;
+    c_oracle_vm_vec_copy_normalize(&top_norm, &top);
+
+    c_oracle_vec3 rod_norm;
+    c_oracle_vm_vec_crossprod(&rod_norm, &delta_vec, &top_norm);
+    c_oracle_vm_vec_normalize(&rod_norm);
+
+    rod_norm.x = c_oracle_fixmul(rod_norm.x, msx);
+    rod_norm.y = c_oracle_fixmul(rod_norm.y, msy);
+
+    /* top corners */
+    c_oracle_vec3 tempv;
+    c_oracle_vm_vec_copy_scale(&tempv, &rod_norm, tw);
+    tempv.z = 0;
+
+    c_oracle_vec3 corner0, corner1;
+    c_oracle_vm_vec_add(&corner0, &top, &tempv);
+    c_oracle_vm_vec_sub(&corner1, &top, &tempv);
+
+    /* bot corners */
+    c_oracle_vm_vec_copy_scale(&tempv, &rod_norm, bw);
+    tempv.z = 0;
+
+    c_oracle_vec3 corner2, corner3;
+    c_oracle_vm_vec_sub(&corner2, &bot, &tempv);
+    c_oracle_vm_vec_add(&corner3, &bot, &tempv);
+
+    uint8_t ca = 0xff;
+    ca &= c_oracle_g3_code_point_local(corner0.x, corner0.y, corner0.z);
+    ca &= c_oracle_g3_code_point_local(corner1.x, corner1.y, corner1.z);
+    ca &= c_oracle_g3_code_point_local(corner2.x, corner2.y, corner2.z);
+    ca &= c_oracle_g3_code_point_local(corner3.x, corner3.y, corner3.z);
+
+    *c0x = corner0.x; *c0y = corner0.y; *c0z = corner0.z;
+    *c1x = corner1.x; *c1y = corner1.y; *c1z = corner1.z;
+    *c2x = corner2.x; *c2y = corner2.y; *c2z = corner2.z;
+    *c3x = corner3.x; *c3y = corner3.y; *c3z = corner3.z;
+    *codes_and = ca;
+}

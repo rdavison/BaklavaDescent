@@ -17,6 +17,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "texmap/texmap.h"
 #include "clipper.h"
 #include "misc/types.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#include <stdio.h>
+#endif
 
 void (*tmap_drawer_ptr)(grs_bitmap* bm, int nv, g3s_point** vertlist) = draw_tmap;
 void (*flat_drawer_ptr)(int nv, int* vertlist) = gr_upoly_tmap;
@@ -87,15 +91,28 @@ dbool g3_draw_line(g3s_point* p0, g3s_point* p1)
 	return (dbool)(*line_drawer_ptr)(p0->p3_sx, p0->p3_sy, p1->p3_sx, p1->p3_sy);
 }
 
-//returns true if a plane is facing the viewer. takes the unrotated surface 
+//returns true if a plane is facing the viewer. takes the unrotated surface
 //normal of the plane, and a point on it.  The normal need not be normalized
 dbool g3_check_normal_facing(vms_vector* v, vms_vector* norm)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] g3_check_normal_facing using cd_ox_g3_check_normal_facing.\n");
+		ox_bridge_logged = 1;
+	}
+	return cd_ox_g3_check_normal_facing(
+		View_position.x, View_position.y, View_position.z,
+		v->x, v->y, v->z,
+		norm->x, norm->y, norm->z);
+#else
 	vms_vector tempv;
 
 	vm_vec_sub(&tempv, &View_position, v);
 
 	return (vm_vec_dot(&tempv, norm) > 0);
+#endif
 }
 
 dbool do_facing_check(vms_vector* norm, g3s_point** vertlist, vms_vector* p)

@@ -544,3 +544,22 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - Updated `CMakeLists.txt` DEPENDS to track all Ox source files for rebuild detection.
 - **3d/ module fully wired:** all 12 math functions in `3d/points.cpp`, `3d/matrix.cpp`, and `3d/instance.cpp` now route through Ox. Remaining 3d/ functions are either thin glue calling already-wired functions, or rendering/setup code with no portable math.
 - Bridge function count: 56 total (was 55).
+
+### 36) Port 3d/ drawing helpers (clip_edge, facing checks, calc_rod_corners)
+
+- **3 new pure functions in `ox/ox_3d.ml`:**
+  - `clip_edge` — clips a point against one frustum plane using fixed-point interpolation (plane_flag selects x/y axis and sign). Takes flat scalar inputs for on/off point fields, returns new point fields + clipping codes.
+  - `g3_check_normal_facing` — tests if a surface plane faces the viewer: `dot(view_pos - v, norm) > 0`.
+  - `calc_rod_corners` — computes 4 billboard rod corners via normalize/cross/scale pipeline with `Matrix_scale` aspect correction. Returns 4 corner vec3s + codes_and.
+- Added `pf_uvs` (8) and `pf_ls` (16) point-flag constants to `ox_3d.ml`.
+- **Bridge layer (3 new callbacks, 3 new C functions):**
+  - `cd_ox_clip_edge` — 14 input args, returns 8-tuple (xyz, uvl, flags, codes)
+  - `cd_ox_g3_check_normal_facing` — 9 int args, returns int (0/1)
+  - `cd_ox_calc_rod_corners` — 11 input args, returns 13 values (4×vec3 + codes_and)
+- **C oracle implementations** added to `c_oracle.cpp` — use `c_oracle_fixdiv`/`c_oracle_fixmul` consistently (not game's `fixdiv`/`fixmul`) to avoid edge-case divergence with extreme inputs.
+- **Parity tests:** 3 new randomized tests (5000 cases each), all pass with 0 mismatches. `calc_rod_corners` test uses bounded generators (±500k) to avoid overflow-territory divergence between game and oracle `fixdiv` implementations.
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `3d/clipper.cpp` — `clip_edge`
+  - `3d/draw.cpp` — `g3_check_normal_facing`
+  - `3d/rod.cpp` — `calc_rod_corners`
+- Bridge function count: 59 total (was 56).

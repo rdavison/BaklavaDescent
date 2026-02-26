@@ -14,6 +14,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "globvars.h"
 #include "clipper.h"
 #include "misc/error.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#include <stdio.h>
+#endif
 
 int free_point_num = 0;
 
@@ -50,9 +54,40 @@ void free_temp_point(g3s_point* p)
 	p->p3_flags &= ~PF_TEMP_POINT;
 }
 
-//clips an edge against one plane. 
+//clips an edge against one plane.
 g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] clip_edge using cd_ox_clip_edge.\n");
+		ox_bridge_logged = 1;
+	}
+
+	g3s_point* tmp = get_temp_point();
+
+	int32_t nx, ny, nz, nu, nv, nl, nflags;
+	uint8_t ncodes;
+	cd_ox_clip_edge(
+		plane_flag,
+		on_pnt->p3_x, on_pnt->p3_y, on_pnt->p3_z,
+		on_pnt->p3_u, on_pnt->p3_v, on_pnt->p3_l, on_pnt->p3_flags,
+		off_pnt->p3_x, off_pnt->p3_y, off_pnt->p3_z,
+		off_pnt->p3_u, off_pnt->p3_v, off_pnt->p3_l,
+		&nx, &ny, &nz, &nu, &nv, &nl, &nflags, &ncodes);
+
+	tmp->p3_x = nx;
+	tmp->p3_y = ny;
+	tmp->p3_z = nz;
+	tmp->p3_u = nu;
+	tmp->p3_v = nv;
+	tmp->p3_l = nl;
+	tmp->p3_flags |= nflags;
+	tmp->p3_codes = ncodes;
+
+	return tmp;
+#else
 	fix psx_ratio;
 	fix a, b, kn, kd;
 	g3s_point* tmp;
@@ -60,12 +95,12 @@ g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 	//compute clipping value k = (xs-zs) / (xs-xe-zs+ze)
 	//use x or y as appropriate, and negate x/y value as appropriate
 
-	if (plane_flag & (CC_OFF_RIGHT | CC_OFF_LEFT)) 
+	if (plane_flag & (CC_OFF_RIGHT | CC_OFF_LEFT))
 	{
 		a = on_pnt->p3_x;
 		b = off_pnt->p3_x;
 	}
-	else 
+	else
 	{
 		a = on_pnt->p3_y;
 		b = off_pnt->p3_y;
@@ -100,7 +135,7 @@ g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 	if (plane_flag & (CC_OFF_LEFT | CC_OFF_BOT))
 		tmp->p3_z = -tmp->p3_z;
 
-	if (on_pnt->p3_flags & PF_UVS) 
+	if (on_pnt->p3_flags & PF_UVS)
 	{
 		// PSX_HACK!!!!
 		//		tmp->p3_u = on_pnt->p3_u + fixmuldiv(off_pnt->p3_u-on_pnt->p3_u,kn,kd);
@@ -111,7 +146,7 @@ g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 		tmp->p3_flags |= PF_UVS;
 	}
 
-	if (on_pnt->p3_flags & PF_LS) 
+	if (on_pnt->p3_flags & PF_LS)
 	{
 		// PSX_HACK
 		//		tmp->p3_r = on_pnt->p3_r + fixmuldiv(off_pnt->p3_r-on_pnt->p3_r,kn,kd);
@@ -126,6 +161,7 @@ g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 	g3_code_point(tmp);
 
 	return tmp;
+#endif
 }
 
 //clips a line to the viewing pyramid.
