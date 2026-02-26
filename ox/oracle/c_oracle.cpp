@@ -138,6 +138,13 @@ extern "C" int32_t c_oracle_fix_sqrt(int32_t a)
     return c_oracle_long_sqrt_ceil(a) << 8;
 }
 
+extern "C" void c_oracle_fix_fastsincos(int32_t a, int32_t* s, int32_t* c)
+{
+    const int i = (a >> 8) & 0xFF;
+    *s = c_oracle_sincos_lut_entry(i) << 2;
+    *c = c_oracle_sincos_lut_entry(i + 64) << 2;
+}
+
 extern "C" int16_t c_oracle_fix_asin(int32_t v)
 {
     int32_t vv = (int32_t)labs(v);

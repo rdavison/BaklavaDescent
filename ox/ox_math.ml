@@ -97,6 +97,10 @@ let fix_sincos a =
   let cosv = Int.shift_left (cc + (Int.shift_right ((sincos_lut.(i + 65) - cc) * f) 8)) 2 in
   sinv, cosv
 
+let fix_fastsincos a =
+  let i = Int.bit_and (Int.shift_right a 8) 0xFF in
+  Int.shift_left sincos_lut.(i) 2, Int.shift_left sincos_lut.(i + 64) 2
+
 let fix_acos v =
   let vv = abs_fix v in
   if vv >= 0x10000

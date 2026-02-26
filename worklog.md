@@ -230,3 +230,17 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - Verification:
   - `scripts/ox/build_c_oracle.sh` passes.
   - `dune runtest ox/tests --no-buffer -j 1` passes.
+
+### 22) Added pure trig helper parity: `fix_fastsincos`
+- Implemented in Ox:
+  - `fix_fastsincos a` (table lookup without interpolation, matching C `fix_fastsincos`).
+- Extended C oracle:
+  - `c_oracle_fix_fastsincos(int32_t a, int32_t* s, int32_t* c)`.
+- Extended parity FFI:
+  - `caml_c_fix_fastsincos`.
+- Extended parity harness:
+  - added pair-valued parity helpers (`check_unop_pair`, `run_random_unop_pair`).
+  - deterministic and seeded randomized differential tests for `fix_fastsincos`.
+- Verification:
+  - `scripts/ox/build_c_oracle.sh` passes.
+  - `dune runtest ox/tests --no-buffer -j 1` passes.

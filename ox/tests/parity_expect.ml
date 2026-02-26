@@ -4,6 +4,20 @@ let check_unop name c_impl ox_impl cases =
       let ox = ox_impl a in
       printf "%s a=%d c=%d ox=%d eq=%b\n" name a c ox (Int.equal c ox))
 
+let check_unop_pair name c_impl ox_impl cases =
+  List.iter cases ~f:(fun a ->
+      let c_s, c_c = c_impl a in
+      let ox_s, ox_c = ox_impl a in
+      printf
+        "%s a=%d c=(%d,%d) ox=(%d,%d) eq=%b\n"
+        name
+        a
+        c_s
+        c_c
+        ox_s
+        ox_c
+        (Int.equal c_s ox_s && Int.equal c_c ox_c))
+
 let check_binop name c_impl ox_impl cases =
   List.iter cases ~f:(fun (a, b) ->
       let c = c_impl a b in
@@ -147,6 +161,7 @@ external c_fixmul : int -> int -> int = "caml_c_fixmul"
 external c_fixdiv : int -> int -> int = "caml_c_fixdiv"
 external c_fixmuldiv : int -> int -> int -> int = "caml_c_fixmuldiv"
 external c_fix_sqrt : int -> int = "caml_c_fix_sqrt"
+external c_fix_fastsincos : int -> int * int = "caml_c_fix_fastsincos"
 external c_fix_asin : int -> int = "caml_c_fix_asin"
 external c_fix_atan2 : int -> int -> int = "caml_c_fix_atan2"
 external c_vm_vec_scale_add2
@@ -537,6 +552,23 @@ let muldiv_cases =
 
 let fix_sqrt_cases =
   [ -1; 0; 1; 2; 255; 256; 257; 65536; 262144; 2147395600; Int32.to_int_exn Int32.max_value ]
+
+let fix_fastsincos_cases =
+  [
+    Int32.to_int_exn Int32.min_value;
+    -0x10000;
+    -0x8000;
+    -1;
+    0;
+    1;
+    0x3FFF;
+    0x4000;
+    0x7FFF;
+    0x8000;
+    0xFFFF;
+    0x10000;
+    Int32.to_int_exn Int32.max_value;
+  ]
 
 let fix_asin_cases =
   [
@@ -969,6 +1001,34 @@ let run_random_unop ~name ~seed ~test_count c_impl ox_impl =
            incr mismatches;
            if Option.is_none !first_mismatch
            then first_mismatch := Some (sprintf "%s a=%d c=%d ox=%d" name a c ox)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_unop_pair ~name ~seed ~test_count c_impl ox_impl =
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count fix_gen
+  |> Sequence.iter ~f:(fun a ->
+         incr total;
+         let c_s, c_c = c_impl a in
+         let ox_s, ox_c = ox_impl a in
+         if not (Int.equal c_s ox_s && Int.equal c_c ox_c)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s a=%d c=(%d,%d) ox=(%d,%d)"
+                     name
+                     a
+                     c_s
+                     c_c
+                     ox_s
+                     ox_c)));
   printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
@@ -2495,6 +2555,24 @@ let%expect_test "fix_sqrt parity C vs Ox" =
     fix_sqrt a=2147483647 c=11863296 ox=11863296 eq=true
     |}]
 
+let%expect_test "fix_fastsincos parity C vs Ox" =
+  check_unop_pair "fix_fastsincos" c_fix_fastsincos Ox_math.fix_fastsincos fix_fastsincos_cases;
+  [%expect {|
+    fix_fastsincos a=-2147483648 c=(0,65536) ox=(0,65536) eq=true
+    fix_fastsincos a=-65536 c=(0,65536) ox=(0,65536) eq=true
+    fix_fastsincos a=-32768 c=(0,-65536) ox=(0,-65536) eq=true
+    fix_fastsincos a=-1 c=(-1608,65516) ox=(-1608,65516) eq=true
+    fix_fastsincos a=0 c=(0,65536) ox=(0,65536) eq=true
+    fix_fastsincos a=1 c=(0,65536) ox=(0,65536) eq=true
+    fix_fastsincos a=16383 c=(65516,1608) ox=(65516,1608) eq=true
+    fix_fastsincos a=16384 c=(65536,0) ox=(65536,0) eq=true
+    fix_fastsincos a=32767 c=(1608,-65516) ox=(1608,-65516) eq=true
+    fix_fastsincos a=32768 c=(0,-65536) ox=(0,-65536) eq=true
+    fix_fastsincos a=65535 c=(-1608,65516) ox=(-1608,65516) eq=true
+    fix_fastsincos a=65536 c=(0,65536) ox=(0,65536) eq=true
+    fix_fastsincos a=2147483647 c=(-1608,65516) ox=(-1608,65516) eq=true
+    |}]
+
 let%expect_test "fix_asin parity C vs Ox" =
   check_unop "fix_asin" c_fix_asin Ox_math.fix_asin fix_asin_cases;
   [%expect {|
@@ -3059,6 +3137,15 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
   run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;
   [%expect {| fix_sqrt random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized fix_fastsincos parity C vs Ox" =
+  run_random_unop_pair
+    ~name:"fix_fastsincos"
+    ~seed:"fix-fastsincos-seed-v1"
+    ~test_count:5000
+    c_fix_fastsincos
+    Ox_math.fix_fastsincos;
+  [%expect {| fix_fastsincos random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_asin parity C vs Ox" =
   run_random_unop ~name:"fix_asin" ~seed:"fix-asin-seed-v1" ~test_count:5000 c_fix_asin Ox_math.fix_asin;
