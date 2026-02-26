@@ -95,3 +95,19 @@ extern "C" CAMLprim value caml_c_vm_vec_scale_add_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_scale_add(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_scale2(value dx, value dy, value dz, value n, value d)
+{
+    CAMLparam5(dx, dy, dz, n, d);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { Int_val(dx), Int_val(dy), Int_val(dz) };
+    c_oracle_vm_vec_scale2(&dest, Int_val(n), Int_val(d));
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}

@@ -35,3 +35,6 @@ let vm_vec_scale_add (ax, ay, az) (bx, by, bz) k =
   ( wrap_add_i32 ax (fixmul bx k)
   , wrap_add_i32 ay (fixmul by k)
   , wrap_add_i32 az (fixmul bz k) )
+
+let vm_vec_scale2 (dx, dy, dz) n d =
+  if d = 0 then dx, dy, dz else fixmuldiv dx n d, fixmuldiv dy n d, fixmuldiv dz n d

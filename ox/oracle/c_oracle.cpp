@@ -44,3 +44,14 @@ extern "C" void c_oracle_vm_vec_scale_add(
     dest->y = src1->y + fixmul(src2->y, k);
     dest->z = src1->z + fixmul(src2->z, k);
 }
+
+extern "C" void c_oracle_vm_vec_scale2(c_oracle_vec3* dest, int32_t n, int32_t d)
+{
+    if (d == 0)
+    {
+        return;
+    }
+    dest->x = fixmuldiv(dest->x, n, d);
+    dest->y = fixmuldiv(dest->y, n, d);
+    dest->z = fixmuldiv(dest->z, n, d);
+}
