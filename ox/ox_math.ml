@@ -253,6 +253,51 @@ let vm_vec_normal p0 p1 p2 =
   let _, n = vm_vec_normalize (vm_vec_perp p0 p1 p2) in
   n
 
+let vm_vector_2_matrix fvec uvec rvec =
+  let bad_vector2 zvec =
+    let zx, zy, zz = zvec in
+    if zx = 0 && zz = 0
+    then
+      let rvec = 0x10000, 0, 0 in
+      let uvec = 0, 0, if zy < 0 then 0x10000 else -0x10000 in
+      rvec, uvec, zvec
+    else
+      let xvec0 = zz, 0, -zx in
+      let _, xvec = vm_vec_normalize xvec0 in
+      let yvec = vm_vec_crossprod zvec xvec in
+      xvec, yvec, zvec
+  in
+  let mz, zvec = vm_vec_copy_normalize fvec in
+  if mz = 0
+  then bad_vector2 zvec
+  else (
+    match uvec, rvec with
+    | None, None -> bad_vector2 zvec
+    | None, Some r ->
+      let mx, xvec = vm_vec_copy_normalize r in
+      if mx = 0
+      then bad_vector2 zvec
+      else (
+        let yvec0 = vm_vec_crossprod zvec xvec in
+        let my, yvec = vm_vec_normalize yvec0 in
+        if my = 0
+        then bad_vector2 zvec
+        else (
+          let xvec = vm_vec_crossprod yvec zvec in
+          xvec, yvec, zvec))
+    | Some u, _ ->
+      let my, yvec = vm_vec_copy_normalize u in
+      if my = 0
+      then bad_vector2 zvec
+      else (
+        let xvec0 = vm_vec_crossprod yvec zvec in
+        let mx, xvec = vm_vec_normalize xvec0 in
+        if mx = 0
+        then bad_vector2 zvec
+        else (
+          let yvec = vm_vec_crossprod zvec xvec in
+          xvec, yvec, zvec)))
+
 let vm_vec_rotate src (rvec, uvec, fvec) =
   vm_vec_dotprod src rvec, vm_vec_dotprod src uvec, vm_vec_dotprod src fvec
 

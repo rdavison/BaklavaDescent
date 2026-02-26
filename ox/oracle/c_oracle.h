@@ -89,6 +89,11 @@ void c_oracle_vm_vec_normal(
     const c_oracle_vec3* p0,
     const c_oracle_vec3* p1,
     const c_oracle_vec3* p2);
+void c_oracle_vm_vector_2_matrix(
+    c_oracle_mat3* dest,
+    const c_oracle_vec3* fvec,
+    const c_oracle_vec3* uvec,
+    const c_oracle_vec3* rvec);
 void c_oracle_vm_vec_rotate(c_oracle_vec3* dest, const c_oracle_vec3* src, const c_oracle_mat3* m);
 void c_oracle_vm_transpose_matrix(c_oracle_mat3* m);
 void c_oracle_vm_copy_transpose_matrix(c_oracle_mat3* dest, const c_oracle_mat3* src);

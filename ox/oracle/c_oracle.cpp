@@ -470,6 +470,84 @@ extern "C" void c_oracle_vm_vec_normal(
     c_oracle_vm_vec_normalize(dest);
 }
 
+extern "C" void c_oracle_vm_vector_2_matrix(
+    c_oracle_mat3* dest,
+    const c_oracle_vec3* fvec,
+    const c_oracle_vec3* uvec,
+    const c_oracle_vec3* rvec)
+{
+    c_oracle_vec3* xvec = &dest->rvec;
+    c_oracle_vec3* yvec = &dest->uvec;
+    c_oracle_vec3* zvec = &dest->fvec;
+
+    if (c_oracle_vm_vec_copy_normalize(zvec, fvec) == 0)
+    {
+        goto bad_vector2;
+    }
+
+    if (uvec == nullptr)
+    {
+        if (rvec == nullptr)
+        {
+            goto bad_vector2;
+        }
+        else
+        {
+            if (c_oracle_vm_vec_copy_normalize(xvec, rvec) == 0)
+            {
+                goto bad_vector2;
+            }
+
+            c_oracle_vm_vec_crossprod(yvec, zvec, xvec);
+
+            if (c_oracle_vm_vec_normalize(yvec) == 0)
+            {
+                goto bad_vector2;
+            }
+
+            c_oracle_vm_vec_crossprod(xvec, yvec, zvec);
+        }
+    }
+    else
+    {
+        if (c_oracle_vm_vec_copy_normalize(yvec, uvec) == 0)
+        {
+            goto bad_vector2;
+        }
+
+        c_oracle_vm_vec_crossprod(xvec, yvec, zvec);
+
+        if (c_oracle_vm_vec_normalize(xvec) == 0)
+        {
+            goto bad_vector2;
+        }
+
+        c_oracle_vm_vec_crossprod(yvec, zvec, xvec);
+    }
+
+    return;
+
+bad_vector2:
+    if (zvec->x == 0 && zvec->z == 0)
+    {
+        dest->rvec.x = f1_0;
+        dest->uvec.z = (zvec->y < 0) ? f1_0 : -f1_0;
+        dest->rvec.y = 0;
+        dest->rvec.z = 0;
+        dest->uvec.x = 0;
+        dest->uvec.y = 0;
+    }
+    else
+    {
+        xvec->x = zvec->z;
+        xvec->y = 0;
+        xvec->z = -zvec->x;
+
+        c_oracle_vm_vec_normalize(xvec);
+        c_oracle_vm_vec_crossprod(yvec, zvec, xvec);
+    }
+}
+
 extern "C" void c_oracle_vm_vec_rotate(c_oracle_vec3* dest, const c_oracle_vec3* src, const c_oracle_mat3* m)
 {
     dest->x = c_oracle_vm_vec_dot3(src->x, src->y, src->z, &m->rvec);
