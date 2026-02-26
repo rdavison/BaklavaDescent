@@ -89,3 +89,6 @@ let vm_vec_mag_quick (x, y, z) =
       b := t2));
   let bc = wrap_add_i32 (!b asr 2) (!c asr 3) in
   wrap_add_i32 !a (wrap_add_i32 bc (bc asr 1))
+
+let vm_vec_dist_quick (x0, y0, z0) (x1, y1, z1) =
+  vm_vec_mag_quick (vm_vec_sub (x0, y0, z0) (x1, y1, z1))

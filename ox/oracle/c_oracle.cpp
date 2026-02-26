@@ -149,3 +149,9 @@ extern "C" int32_t c_oracle_vm_vec_mag_quick(const c_oracle_vec3* v)
     int32_t bc = (b >> 2) + (c >> 3);
     return a + bc + (bc >> 1);
 }
+
+extern "C" int32_t c_oracle_vm_vec_dist_quick(const c_oracle_vec3* v0, const c_oracle_vec3* v1)
+{
+    c_oracle_vec3 t = { v0->x - v1->x, v0->y - v1->y, v0->z - v1->z };
+    return c_oracle_vm_vec_mag_quick(&t);
+}
