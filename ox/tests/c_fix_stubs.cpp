@@ -682,6 +682,47 @@ extern "C" CAMLprim value caml_c_vm_vec_normal_bc(value* argv, int argn)
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
 }
 
+extern "C" CAMLprim value caml_c_sincos_2_matrix(
+    value sinp,
+    value cosp,
+    value sinb,
+    value cosb,
+    value sinh,
+    value cosh)
+{
+    CAMLparam5(sinp, cosp, sinb, cosb, sinh);
+    CAMLxparam1(cosh);
+    CAMLlocal1(out);
+
+    c_oracle_mat3 dest = {};
+    c_oracle_sincos_2_matrix(
+        &dest,
+        Int_val(sinp),
+        Int_val(cosp),
+        Int_val(sinb),
+        Int_val(cosb),
+        Int_val(sinh),
+        Int_val(cosh));
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_sincos_2_matrix_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_sincos_2_matrix(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
 extern "C" CAMLprim value caml_c_vm_vector_2_matrix(
     value fx,
     value fy,

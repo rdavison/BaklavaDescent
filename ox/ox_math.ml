@@ -253,6 +253,26 @@ let vm_vec_normal p0 p1 p2 =
   let _, n = vm_vec_normalize (vm_vec_perp p0 p1 p2) in
   n
 
+let sincos_2_matrix sinp cosp sinb cosb sinh cosh =
+  let sbsh = fixmul sinb sinh in
+  let cbch = fixmul cosb cosh in
+  let cbsh = fixmul cosb sinh in
+  let sbch = fixmul sinb cosh in
+
+  let rvec_x = wrap_add_i32 cbch (fixmul sinp sbsh) in
+  let uvec_z = wrap_add_i32 sbsh (fixmul sinp cbch) in
+
+  let uvec_x = wrap_add_i32 (fixmul sinp cbsh) (-sbch) in
+  let rvec_z = wrap_add_i32 (fixmul sinp sbch) (-cbsh) in
+
+  let fvec_x = fixmul sinh cosp in
+  let rvec_y = fixmul sinb cosp in
+  let uvec_y = fixmul cosb cosp in
+  let fvec_z = fixmul cosh cosp in
+
+  let fvec_y = neg_i32 sinp in
+  (rvec_x, rvec_y, rvec_z), (uvec_x, uvec_y, uvec_z), (fvec_x, fvec_y, fvec_z)
+
 let vm_vector_2_matrix fvec uvec rvec =
   let bad_vector2 zvec =
     let zx, zy, zz = zvec in

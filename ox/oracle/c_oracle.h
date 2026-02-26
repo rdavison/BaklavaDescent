@@ -89,6 +89,14 @@ void c_oracle_vm_vec_normal(
     const c_oracle_vec3* p0,
     const c_oracle_vec3* p1,
     const c_oracle_vec3* p2);
+void c_oracle_sincos_2_matrix(
+    c_oracle_mat3* dest,
+    int32_t sinp,
+    int32_t cosp,
+    int32_t sinb,
+    int32_t cosb,
+    int32_t sinh,
+    int32_t cosh);
 void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,

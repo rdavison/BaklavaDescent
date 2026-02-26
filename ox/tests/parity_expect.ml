@@ -232,6 +232,15 @@ external c_vm_vec_normal
   -> int
   -> int * int * int
   = "caml_c_vm_vec_normal_bc" "caml_c_vm_vec_normal"
+external c_sincos_2_matrix_raw
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_sincos_2_matrix_bc" "caml_c_sincos_2_matrix"
 external c_vm_vector_2_matrix_raw
   :  int
   -> int
@@ -343,6 +352,9 @@ let c_vm_vector_2_matrix fvec uvec rvec =
     | None -> false, 0, 0, 0
   in
   mat3_of_flat (c_vm_vector_2_matrix_raw fx fy fz has_u ux uy uz has_r rx ry rz)
+
+let c_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
+  mat3_of_flat (c_sincos_2_matrix_raw sinp cosp sinb cosb sinh cosh)
 
 let c_vm_matrix_x_matrix m0 m1 =
   let r0x, r0y, r0z, u0x, u0y, u0z, f0x, f0y, f0z = flat_of_mat3 m0 in
@@ -658,6 +670,14 @@ let vm_vector_2_matrix_cases =
     ((0x10000, 0x2000, 0x3000), None, Some (0x10000, 0, 0));
     ((0x10000, 0x2000, 0x3000), Some (0, 0x10000, 0), Some (0x10000, 0, 0));
     ((0x10000, 0x2000, 0x3000), Some (0, 0, 0), Some (0x10000, 0, 0));
+  ]
+
+let sincos_2_matrix_cases =
+  [
+    (0, 0x10000, 0, 0x10000, 0, 0x10000);
+    (0x2000, 0xFF00, 0x1000, 0xF000, 0x0800, 0xF800);
+    (12345, -54321, 22222, -33333, 44444, -55555);
+    (Int32.to_int_exn Int32.max_value, 0x10000, Int32.to_int_exn Int32.min_value, 0x8000, -0x10000, 0x20000);
   ]
 
 let edge_fix_values =
@@ -1693,6 +1713,47 @@ let check_vec3_opt_opt_to_mat
         ox_f3
         eq)
 
+let check_six_fix_to_mat
+    (name : string)
+    (c_impl : int -> int -> int -> int -> int -> int -> mat3)
+    (ox_impl : int -> int -> int -> int -> int -> int -> mat3)
+    (cases : (int * int * int * int * int * int) list)
+  =
+  List.iter cases ~f:(fun (sinp, cosp, sinb, cosb, sinh, cosh) ->
+      let c_m = c_impl sinp cosp sinb cosb sinh cosh in
+      let ox_m = ox_impl sinp cosp sinb cosb sinh cosh in
+      let eq = if eq_mat3 c_m ox_m then "true" else "false" in
+      let c_r1, c_r2, c_r3, c_u1, c_u2, c_u3, c_f1, c_f2, c_f3 = flat_of_mat3 c_m in
+      let ox_r1, ox_r2, ox_r3, ox_u1, ox_u2, ox_u3, ox_f1, ox_f2, ox_f3 = flat_of_mat3 ox_m in
+      printf
+        "%s s=(%d,%d,%d,%d,%d,%d) c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%s\n"
+        name
+        sinp
+        cosp
+        sinb
+        cosb
+        sinh
+        cosh
+        c_r1
+        c_r2
+        c_r3
+        c_u1
+        c_u2
+        c_u3
+        c_f1
+        c_f2
+        c_f3
+        ox_r1
+        ox_r2
+        ox_r3
+        ox_u1
+        ox_u2
+        ox_u3
+        ox_f1
+        ox_f2
+        ox_f3
+        eq)
+
 let run_random_vec3_mat_to_vec3
     ~(name : string)
     ~(seed : string)
@@ -1798,6 +1859,41 @@ let run_random_vec3_opt_opt_to_mat
          incr total;
          let c_m = c_impl fvec uvec rvec in
          let ox_m = ox_impl fvec uvec rvec in
+         if not (eq_mat3 c_m ox_m)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then first_mismatch := Some (sprintf "%s matrix mismatch" name)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
+let run_random_six_fix_to_mat
+    ~(name : string)
+    ~(seed : string)
+    ~(test_count : int)
+    (c_impl : int -> int -> int -> int -> int -> int -> mat3)
+    (ox_impl : int -> int -> int -> int -> int -> int -> mat3)
+  =
+  let gen =
+    Quickcheck.Generator.both
+      fix_gen
+      (Quickcheck.Generator.both
+         fix_gen
+         (Quickcheck.Generator.both
+            fix_gen
+            (Quickcheck.Generator.both fix_gen (Quickcheck.Generator.both fix_gen fix_gen))))
+    |> Quickcheck.Generator.map ~f:(fun (sinp, (cosp, (sinb, (cosb, (sinh, cosh))))) ->
+           (sinp, cosp, sinb, cosb, sinh, cosh))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun (sinp, cosp, sinb, cosb, sinh, cosh) ->
+         incr total;
+         let c_m = c_impl sinp cosp sinb cosb sinh cosh in
+         let ox_m = ox_impl sinp cosp sinb cosb sinh cosh in
          if not (eq_mat3 c_m ox_m)
          then (
            incr mismatches;
@@ -2277,6 +2373,20 @@ let%expect_test "vm_vector_2_matrix parity C vs Ox" =
     vm_vector_2_matrix f=(65536,8192,12288) u=Some(0,0,0) r=Some(65536,0,0) c=[12077,0,-64412;-7854,65044,-1473;63932,7991,11987] ox=[12077,0,-64412;-7854,65044,-1473;63932,7991,11987] eq=true
     |}]
 
+let%expect_test "sincos_2_matrix parity C vs Ox" =
+  check_six_fix_to_mat
+    "sincos_2_matrix"
+    c_sincos_2_matrix
+    Ox_math.sincos_2_matrix
+    sincos_2_matrix_cases;
+  [%expect
+    {|
+    sincos_2_matrix s=(0,65536,0,65536,0,65536) c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
+    sincos_2_matrix s=(8192,65280,4096,61440,2048,63488) c=[59536,4080,-1424;-3728,61200,7568;2040,-8192,63240] ox=[59536,4080,-1424;-3728,61200,7568;2040,-8192,63240] eq=true
+    sincos_2_matrix s=(12345,-54321,22222,-33333,44444,-55555) c=[31094,-18420,19057;14579,27628,20392;-36839,-12345,46048] ox=[31094,-18420,19057;14579,27628,20392;-36839,-12345,46048] eq=true
+    sincos_2_matrix s=(2147483647,65536,-2147483648,32768,-65536,131072) c=[98304,-2147483648,32768;-1073741824,32768,-1;-65536,-2147483647,131072] ox=[98304,-2147483648,32768;-1073741824,32768,-1;-65536,-2147483647,131072] eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -2611,3 +2721,12 @@ let%expect_test "randomized vm_vector_2_matrix parity C vs Ox" =
     c_vm_vector_2_matrix
     Ox_math.vm_vector_2_matrix;
   [%expect {| vm_vector_2_matrix random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized sincos_2_matrix parity C vs Ox" =
+  run_random_six_fix_to_mat
+    ~name:"sincos_2_matrix"
+    ~seed:"sincos-2-matrix-seed-v1"
+    ~test_count:5000
+    c_sincos_2_matrix
+    Ox_math.sincos_2_matrix;
+  [%expect {| sincos_2_matrix random total=5000 mismatches=0 |}]

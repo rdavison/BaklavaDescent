@@ -470,6 +470,34 @@ extern "C" void c_oracle_vm_vec_normal(
     c_oracle_vm_vec_normalize(dest);
 }
 
+extern "C" void c_oracle_sincos_2_matrix(
+    c_oracle_mat3* dest,
+    int32_t sinp,
+    int32_t cosp,
+    int32_t sinb,
+    int32_t cosb,
+    int32_t sinh,
+    int32_t cosh)
+{
+    const int32_t sbsh = fixmul(sinb, sinh);
+    const int32_t cbch = fixmul(cosb, cosh);
+    const int32_t cbsh = fixmul(cosb, sinh);
+    const int32_t sbch = fixmul(sinb, cosh);
+
+    dest->rvec.x = cbch + fixmul(sinp, sbsh);
+    dest->uvec.z = sbsh + fixmul(sinp, cbch);
+
+    dest->uvec.x = fixmul(sinp, cbsh) - sbch;
+    dest->rvec.z = fixmul(sinp, sbch) - cbsh;
+
+    dest->fvec.x = fixmul(sinh, cosp);
+    dest->rvec.y = fixmul(sinb, cosp);
+    dest->uvec.y = fixmul(cosb, cosp);
+    dest->fvec.z = fixmul(cosh, cosp);
+
+    dest->fvec.y = -sinp;
+}
+
 extern "C" void c_oracle_vm_vector_2_matrix(
     c_oracle_mat3* dest,
     const c_oracle_vec3* fvec,
