@@ -50,3 +50,12 @@ let vm_vec_add2 (dx, dy, dz) (sx, sy, sz) =
 
 let vm_vec_sub2 (dx, dy, dz) (sx, sy, sz) =
   wrap_add_i32 dx (-sx), wrap_add_i32 dy (-sy), wrap_add_i32 dz (-sz)
+
+let vm_vec_avg (ax, ay, az) (bx, by, bz) =
+  (wrap_add_i32 ax bx) / 2, (wrap_add_i32 ay by) / 2, (wrap_add_i32 az bz) / 2
+
+let vm_vec_avg4 (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) =
+  let x = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a1 b1) c1) d1 in
+  let y = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a2 b2) c2) d2 in
+  let z = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a3 b3) c3) d3 in
+  x / 4, y / 4, z / 4

@@ -83,3 +83,22 @@ extern "C" void c_oracle_vm_vec_sub2(c_oracle_vec3* dest, const c_oracle_vec3* s
     dest->y -= src->y;
     dest->z -= src->z;
 }
+
+extern "C" void c_oracle_vm_vec_avg(c_oracle_vec3* dest, const c_oracle_vec3* src0, const c_oracle_vec3* src1)
+{
+    dest->x = (src0->x + src1->x) / 2;
+    dest->y = (src0->y + src1->y) / 2;
+    dest->z = (src0->z + src1->z) / 2;
+}
+
+extern "C" void c_oracle_vm_vec_avg4(
+    c_oracle_vec3* dest,
+    const c_oracle_vec3* src0,
+    const c_oracle_vec3* src1,
+    const c_oracle_vec3* src2,
+    const c_oracle_vec3* src3)
+{
+    dest->x = (src0->x + src1->x + src2->x + src3->x) / 4;
+    dest->y = (src0->y + src1->y + src2->y + src3->y) / 4;
+    dest->z = (src0->z + src1->z + src2->z + src3->z) / 4;
+}

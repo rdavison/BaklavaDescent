@@ -142,6 +142,23 @@ external c_vm_vec_add2 : int -> int -> int -> int -> int -> int -> int * int * i
   = "caml_c_vm_vec_add2_bc" "caml_c_vm_vec_add2"
 external c_vm_vec_sub2 : int -> int -> int -> int -> int -> int -> int * int * int
   = "caml_c_vm_vec_sub2_bc" "caml_c_vm_vec_sub2"
+external c_vm_vec_avg : int -> int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_vm_vec_avg_bc" "caml_c_vm_vec_avg"
+external c_vm_vec_avg4
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_vm_vec_avg4_bc" "caml_c_vm_vec_avg4"
 
 let i2f_cases = [ -10; -1; 0; 1; 10; 1234 ]
 let f2i_cases = [ -655360; -65536; -1; 0; 1; 65535; 65536; 131072; 12345678 ]
@@ -230,6 +247,21 @@ let vm_vec_sub2_cases =
     ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
     ((12345, -54321, 99999), (67890, 13579, -24680));
     ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_avg_cases =
+  [
+    ((0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000));
+    ((12345, -54321, 99999), (67890, 13579, -24680));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2));
+  ]
+
+let vm_vec_avg4_cases =
+  [
+    ((0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0));
+    ((0x10000, 0x20000, -0x10000), (0x10000, -0x10000, 0x8000), (12345, -54321, 99999), (67890, 13579, -24680));
+    ((Int32.to_int_exn Int32.max_value, 0, Int32.to_int_exn Int32.min_value), (1, -1, 2), (-1, 1, -2), (7, -7, 14));
   ]
 
 let edge_fix_values =
@@ -501,6 +533,79 @@ let run_random_stateful_vec3_add2 ~name ~seed ~test_count c_impl ox_impl =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
 
+let check_vec3_avg4 name c_impl ox_impl cases =
+  List.iter cases ~f:(fun ((a1, a2, a3), (b1, b2, b3), (c1, c2, c3), (d1, d2, d3)) ->
+      let c_x, c_y, c_z = c_impl a1 a2 a3 b1 b2 b3 c1 c2 c3 d1 d2 d3 in
+      let ox_x, ox_y, ox_z = ox_impl (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) in
+      printf
+        "%s a=(%d,%d,%d) b=(%d,%d,%d) c=(%d,%d,%d) d=(%d,%d,%d) out=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+        name
+        a1
+        a2
+        a3
+        b1
+        b2
+        b3
+        c1
+        c2
+        c3
+        d1
+        d2
+        d3
+        c_x
+        c_y
+        c_z
+        ox_x
+        ox_y
+        ox_z
+        (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z))
+
+let run_random_vec3_avg4 ~name ~seed ~test_count c_impl ox_impl =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen)))
+      ~f:(fun (a, (b, (c, d))) -> a, b, c, d)
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed ~test_count gen
+  |> Sequence.iter ~f:(fun ((a1, a2, a3), (b1, b2, b3), (c1, c2, c3), (d1, d2, d3)) ->
+         incr total;
+         let c_x, c_y, c_z = c_impl a1 a2 a3 b1 b2 b3 c1 c2 c3 d1 d2 d3 in
+         let ox_x, ox_y, ox_z = ox_impl (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) in
+         if not (Int.equal c_x ox_x && Int.equal c_y ox_y && Int.equal c_z ox_z)
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf
+                     "%s a=(%d,%d,%d) b=(%d,%d,%d) c=(%d,%d,%d) d=(%d,%d,%d) out=(%d,%d,%d) ox=(%d,%d,%d)"
+                     name
+                     a1
+                     a2
+                     a3
+                     b1
+                     b2
+                     b3
+                     c1
+                     c2
+                     c3
+                     d1
+                     d2
+                     d3
+                     c_x
+                     c_y
+                     c_z
+                     ox_x
+                     ox_y
+                     ox_z)));
+  printf "%s random total=%d mismatches=%d\n" name !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "%s randomized parity failed" name ()
+
 let%expect_test "i2f parity C vs Ox" =
   check_unop "i2f" c_i2f Ox_math.i2f i2f_cases;
   [%expect
@@ -634,6 +739,25 @@ let%expect_test "vm_vec_sub2 parity C vs Ox" =
     vm_vec_sub2 d=(2147483647,0,-2147483648) s=(1,-1,2) c=(2147483646,1,2147483646) ox=(2147483646,1,2147483646) eq=true
     |}]
 
+let%expect_test "vm_vec_avg parity C vs Ox" =
+  check_vec3_binop "vm_vec_avg" c_vm_vec_avg Ox_math.vm_vec_avg vm_vec_avg_cases;
+  [%expect
+    {|
+    vm_vec_avg a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_avg a=(65536,131072,-65536) b=(65536,-65536,32768) c=(65536,32768,-16384) ox=(65536,32768,-16384) eq=true
+    vm_vec_avg a=(12345,-54321,99999) b=(67890,13579,-24680) c=(40117,-20371,37659) ox=(40117,-20371,37659) eq=true
+    vm_vec_avg a=(2147483647,0,-2147483648) b=(1,-1,2) c=(-1073741824,0,-1073741823) ox=(-1073741824,0,-1073741823) eq=true
+    |}]
+
+let%expect_test "vm_vec_avg4 parity C vs Ox" =
+  check_vec3_avg4 "vm_vec_avg4" c_vm_vec_avg4 Ox_math.vm_vec_avg4 vm_vec_avg4_cases;
+  [%expect
+    {|
+    vm_vec_avg4 a=(0,0,0) b=(0,0,0) c=(0,0,0) d=(0,0,0) out=(0,0,0) ox=(0,0,0) eq=true
+    vm_vec_avg4 a=(65536,131072,-65536) b=(65536,-65536,32768) c=(12345,-54321,99999) d=(67890,13579,-24680) out=(52826,6198,10637) ox=(52826,6198,10637) eq=true
+    vm_vec_avg4 a=(2147483647,0,-2147483648) b=(1,-1,2) c=(-1,1,-2) d=(7,-7,14) out=(-536870910,-1,-536870908) ox=(-536870910,-1,-536870908) eq=true
+    |}]
+
 let%expect_test "randomized fixmul parity C vs Ox" =
   run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
   [%expect {| fixmul random total=5000 mismatches=0 |}]
@@ -713,3 +837,21 @@ let%expect_test "randomized vm_vec_sub2 parity C vs Ox" =
     c_vm_vec_sub2
     Ox_math.vm_vec_sub2;
   [%expect {| vm_vec_sub2 random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_avg parity C vs Ox" =
+  run_random_vec3_binop
+    ~name:"vm_vec_avg"
+    ~seed:"vm-vec-avg-seed-v1"
+    ~test_count:5000
+    c_vm_vec_avg
+    Ox_math.vm_vec_avg;
+  [%expect {| vm_vec_avg random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized vm_vec_avg4 parity C vs Ox" =
+  run_random_vec3_avg4
+    ~name:"vm_vec_avg4"
+    ~seed:"vm-vec-avg4-seed-v1"
+    ~test_count:5000
+    c_vm_vec_avg4
+    Ox_math.vm_vec_avg4;
+  [%expect {| vm_vec_avg4 random total=5000 mismatches=0 |}]

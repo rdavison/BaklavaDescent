@@ -213,3 +213,82 @@ extern "C" CAMLprim value caml_c_vm_vec_sub2_bc(value* argv, int argn)
     (void)argn;
     return caml_c_vm_vec_sub2(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
+
+extern "C" CAMLprim value caml_c_vm_vec_avg(value ax, value ay, value az, value bx, value by, value bz)
+{
+    CAMLparam5(ax, ay, az, bx, by);
+    CAMLxparam1(bz);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    const c_oracle_vec3 src0 = { Int_val(ax), Int_val(ay), Int_val(az) };
+    const c_oracle_vec3 src1 = { Int_val(bx), Int_val(by), Int_val(bz) };
+
+    c_oracle_vm_vec_avg(&dest, &src0, &src1);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_avg_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_avg(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_avg4(
+    value a1,
+    value a2,
+    value a3,
+    value b1,
+    value b2,
+    value b3,
+    value c1,
+    value c2,
+    value c3,
+    value d1,
+    value d2,
+    value d3)
+{
+    CAMLparam5(a1, a2, a3, b1, b2);
+    CAMLxparam5(b3, c1, c2, c3, d1);
+    CAMLxparam2(d2, d3);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 dest = { 0, 0, 0 };
+    const c_oracle_vec3 src0 = { Int_val(a1), Int_val(a2), Int_val(a3) };
+    const c_oracle_vec3 src1 = { Int_val(b1), Int_val(b2), Int_val(b3) };
+    const c_oracle_vec3 src2 = { Int_val(c1), Int_val(c2), Int_val(c3) };
+    const c_oracle_vec3 src3 = { Int_val(d1), Int_val(d2), Int_val(d3) };
+
+    c_oracle_vm_vec_avg4(&dest, &src0, &src1, &src2, &src3);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_vm_vec_avg4_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_vm_vec_avg4(
+        argv[0],
+        argv[1],
+        argv[2],
+        argv[3],
+        argv[4],
+        argv[5],
+        argv[6],
+        argv[7],
+        argv[8],
+        argv[9],
+        argv[10],
+        argv[11]);
+}
