@@ -79,6 +79,9 @@ static const value* g_get_seg_masks = NULL;
 static const value* g_get_side_dists = NULL;
 static const value* g_extract_vector_from_segment = NULL;
 static const value* g_extract_orient_from_segment = NULL;
+static const value* g_check_line_to_face = NULL;
+static const value* g_special_check_line_to_face = NULL;
+static const value* g_check_vector_to_sphere_1 = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -151,7 +154,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_get_seg_masks
           && g_get_side_dists
           && g_extract_vector_from_segment
-          && g_extract_orient_from_segment))
+          && g_extract_orient_from_segment
+          && g_check_line_to_face
+          && g_special_check_line_to_face
+          && g_check_vector_to_sphere_1))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -240,6 +246,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_get_side_dists = caml_named_value("cd_get_side_dists");
     g_extract_vector_from_segment = caml_named_value("cd_extract_vector_from_segment");
     g_extract_orient_from_segment = caml_named_value("cd_extract_orient_from_segment");
+    g_check_line_to_face = caml_named_value("cd_check_line_to_face");
+    g_special_check_line_to_face = caml_named_value("cd_special_check_line_to_face");
+    g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
 
     if (!g_i2f
         || !g_f2i
@@ -309,7 +318,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_get_seg_masks
         || !g_get_side_dists
         || !g_extract_vector_from_segment
-        || !g_extract_orient_from_segment)
+        || !g_extract_orient_from_segment
+        || !g_check_line_to_face
+        || !g_special_check_line_to_face
+        || !g_check_vector_to_sphere_1)
     {
         return 1;
     }
@@ -387,7 +399,10 @@ int cd_ox_is_ready(void)
            && g_get_seg_masks
            && g_get_side_dists
            && g_extract_vector_from_segment
-           && g_extract_orient_from_segment;
+           && g_extract_orient_from_segment
+           && g_check_line_to_face
+           && g_special_check_line_to_face
+           && g_check_vector_to_sphere_1;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1458,4 +1473,70 @@ void cd_ox_extract_orient_from_segment(
     *u1 = Int_val(Field(result, 3)); *u2 = Int_val(Field(result, 4)); *u3 = Int_val(Field(result, 5));
     *f1 = Int_val(Field(result, 6)); *f2 = Int_val(Field(result, 7)); *f3 = Int_val(Field(result, 8));
     CAMLreturn0;
+}
+
+/* FVI bridge functions */
+
+void cd_ox_check_line_to_face(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz)
+{
+    cd_ox_require_ready("cd_ox_check_line_to_face");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+
+    result = caml_callback(*g_check_line_to_face, arr);
+    *hit_type = Int_val(Field(result, 0));
+    *npx = Int_val(Field(result, 1));
+    *npy = Int_val(Field(result, 2));
+    *npz = Int_val(Field(result, 3));
+    CAMLreturn0;
+}
+
+void cd_ox_special_check_line_to_face(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz)
+{
+    cd_ox_require_ready("cd_ox_special_check_line_to_face");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+
+    result = caml_callback(*g_special_check_line_to_face, arr);
+    *hit_type = Int_val(Field(result, 0));
+    *npx = Int_val(Field(result, 1));
+    *npy = Int_val(Field(result, 2));
+    *npz = Int_val(Field(result, 3));
+    CAMLreturn0;
+}
+
+int32_t cd_ox_check_vector_to_sphere_1(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t spx, int32_t spy, int32_t spz,
+    int32_t srad,
+    int32_t* ix, int32_t* iy, int32_t* iz)
+{
+    cd_ox_require_ready("cd_ox_check_vector_to_sphere_1");
+    value args[10] = {
+        Val_long(p0x), Val_long(p0y), Val_long(p0z),
+        Val_long(p1x), Val_long(p1y), Val_long(p1z),
+        Val_long(spx), Val_long(spy), Val_long(spz),
+        Val_long(srad)
+    };
+    const value out = caml_callbackN(*g_check_vector_to_sphere_1, 10, args);
+    int32_t dist = Int_val(Field(out, 0));
+    *ix = Int_val(Field(out, 1));
+    *iy = Int_val(Field(out, 2));
+    *iz = Int_val(Field(out, 3));
+    return dist;
 }

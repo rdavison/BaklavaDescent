@@ -5344,3 +5344,274 @@ let%expect_test "extract_orient_from_segment parity C vs Ox" =
     cr1 cr2 cr3 cu1 cu2 cu3 cf1 cf2 cf3
     or1 or2 or3 ou1 ou2 ou3 of1 of2 of3 eq;
   [%expect {| extract_orient_from_segment c=[0,65536,0;-65536,0,0;0,0,65536] ox=[0,65536,0;-65536,0,0;0,0,65536] eq=true |}]
+
+(* ---- FVI parity tests ---- *)
+
+external c_check_point_to_face : int array -> int
+  = "caml_c_check_point_to_face"
+
+external c_find_plane_line_intersection : int array -> int * int * int * int
+  = "caml_c_find_plane_line_intersection"
+
+external c_check_sphere_to_face : int array -> int
+  = "caml_c_check_sphere_to_face"
+
+external c_calc_det_value
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int
+  = "caml_c_calc_det_value_bc" "caml_c_calc_det_value"
+
+external c_check_line_to_line : int array -> int * int * int
+  = "caml_c_check_line_to_line"
+
+external c_check_line_to_face : int array -> int * int * int * int
+  = "caml_c_check_line_to_face"
+
+external c_check_vector_to_sphere_1 : int array -> int * int * int * int
+  = "caml_c_check_vector_to_sphere_1"
+
+(* Helper: build a unit-cube-like segment for testing *)
+let test_seg_verts = [| 0; 1; 2; 3; 4; 5; 6; 7 |]
+let test_seg_vert_positions : Ox_fvi.vec3 array =
+  [| (0, 0, 0); (0x10000, 0, 0); (0x10000, 0x10000, 0); (0, 0x10000, 0);
+     (0, 0, 0x10000); (0x10000, 0, 0x10000); (0x10000, 0x10000, 0x10000); (0, 0x10000, 0x10000) |]
+
+let%expect_test "calc_det_value parity C vs Ox" =
+  let cases = [
+    ((0x10000, 0, 0), (0, 0x10000, 0), (0, 0, 0x10000));
+    ((0x10000, 0x8000, 0), (0, 0x10000, 0x4000), (0x2000, 0, 0x10000));
+    ((12345, -67890, 11111), (22222, -33333, 44444), (-55555, 66666, -77777));
+  ] in
+  List.iter cases ~f:(fun ((rx, ry, rz), (ux, uy, uz), (fx, fy, fz)) ->
+    let c_res = c_calc_det_value rx ry rz ux uy uz fx fy fz in
+    let ox_res = Ox_fvi.calc_det_value (rx, ry, rz) (ux, uy, uz) (fx, fy, fz) in
+    printf "calc_det_value c=%d ox=%d eq=%b\n" c_res ox_res (c_res = ox_res));
+  [%expect {|
+    calc_det_value c=65536 ox=65536 eq=true
+    calc_det_value c=66560 ox=66560 eq=true
+    calc_det_value c=9686 ox=9686 eq=true
+    |}]
+
+let%expect_test "randomized calc_det_value parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen (Quickcheck.Generator.both vec3_gen vec3_gen))
+      ~f:(fun (r, (u, f)) -> (r, u, f))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"calc-det-value-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((rx, ry, rz), (ux, uy, uz), (fx, fy, fz)) ->
+         incr total;
+         let c_res = c_calc_det_value rx ry rz ux uy uz fx fy fz in
+         let ox_res = Ox_fvi.calc_det_value (rx, ry, rz) (ux, uy, uz) (fx, fy, fz) in
+         if c_res <> ox_res then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "calc_det_value r=(%d,%d,%d) c=%d ox=%d"
+               rx ry rz c_res ox_res)));
+  printf "calc_det_value random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "calc_det_value randomized parity failed" ();
+  [%expect {| calc_det_value random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized check_line_to_line parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen))
+      ~f:(fun ((p1, v1), (p2, v2)) -> (p1, v1, p2, v2))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"check-line-to-line-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((p1x, p1y, p1z), (v1x, v1y, v1z), (p2x, p2y, p2z), (v2x, v2y, v2z)) ->
+         incr total;
+         let arr = [| p1x; p1y; p1z; v1x; v1y; v1z; p2x; p2y; p2z; v2x; v2y; v2z |] in
+         let (c_ok, c_t1, c_t2) = c_check_line_to_line arr in
+         let (ox_ok_b, ox_t1, ox_t2) = Ox_fvi.check_line_to_line
+           (p1x, p1y, p1z) (v1x, v1y, v1z) (p2x, p2y, p2z) (v2x, v2y, v2z) in
+         let ox_ok = if ox_ok_b then 1 else 0 in
+         let eq = c_ok = ox_ok && (c_ok = 0 || (c_t1 = ox_t1 && c_t2 = ox_t2)) in
+         if not eq then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "check_line_to_line c_ok=%d ox_ok=%d c_t1=%d ox_t1=%d"
+               c_ok ox_ok c_t1 ox_t1)));
+  printf "check_line_to_line random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "check_line_to_line randomized parity failed" ();
+  [%expect {| check_line_to_line random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized check_point_to_face parity C vs Ox" =
+  (* Generate a triangle face with 3 vertices, check a random point *)
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_mag_safe_gen
+         (Quickcheck.Generator.both vec3_mag_safe_gen
+            (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)))
+      ~f:(fun (cp, (n, (v0, v1))) -> (cp, n, v0, v1))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"check-point-to-face-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((cpx, cpy, cpz), (nx, ny, nz), (v0x, v0y, v0z), (v1x, v1y, v1z)) ->
+         (* Use 3 vertices for a triangle *)
+         let v2x = v0x + v1x in
+         let v2y = v0y + v1y in
+         let v2z = v0z + v1z in
+         let nv = 3 in
+         incr total;
+         let arr = [| cpx; cpy; cpz; nx; ny; nz; nv;
+                      v0x; v0y; v0z; v1x; v1y; v1z; v2x; v2y; v2z |] in
+         let c_res = c_check_point_to_face arr in
+         let verts = [| (v0x, v0y, v0z); (v1x, v1y, v1z); (v2x, v2y, v2z) |] in
+         let ox_res = Ox_fvi.check_point_to_face
+           ~checkp:(cpx, cpy, cpz) ~norm:(nx, ny, nz) ~nv ~vertex_positions:verts in
+         if c_res <> ox_res then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "check_point_to_face c=%d ox=%d cp=(%d,%d,%d)"
+               c_res ox_res cpx cpy cpz)));
+  printf "check_point_to_face random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "check_point_to_face randomized parity failed" ();
+  [%expect {| check_point_to_face random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized find_plane_line_intersection parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+         (Quickcheck.Generator.both
+            (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+            fix_gen))
+      ~f:(fun ((pp, pn), ((p0, p1), rad)) -> (pp, pn, p0, p1, rad))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"find-plane-line-int-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((ppx, ppy, ppz), (pnx, pny, pnz), (p0x, p0y, p0z), (p1x, p1y, p1z), rad) ->
+         incr total;
+         let arr = [| ppx; ppy; ppz; pnx; pny; pnz; p0x; p0y; p0z; p1x; p1y; p1z; rad |] in
+         let (c_found, c_nx, c_ny, c_nz) = c_find_plane_line_intersection arr in
+         let ox_result = Ox_fvi.find_plane_line_intersection
+           ~plane_pnt:(ppx, ppy, ppz) ~plane_norm:(pnx, pny, pnz)
+           ~p0:(p0x, p0y, p0z) ~p1:(p1x, p1y, p1z) ~rad in
+         let (ox_found, ox_nx, ox_ny, ox_nz) = match ox_result with
+           | None -> (0, 0, 0, 0)
+           | Some (_, (nx, ny, nz)) -> (1, nx, ny, nz)
+         in
+         let eq = c_found = ox_found && (c_found = 0 || (c_nx = ox_nx && c_ny = ox_ny && c_nz = ox_nz)) in
+         if not eq then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "find_plane_line_intersection c_found=%d ox_found=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+               c_found ox_found c_nx c_ny c_nz ox_nx ox_ny ox_nz)));
+  printf "find_plane_line_intersection random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "find_plane_line_intersection randomized parity failed" ();
+  [%expect {| find_plane_line_intersection random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized check_sphere_to_face parity C vs Ox" =
+  let rad_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    Int.max 1 (Int.abs v land 0xFFFF)) in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+         (Quickcheck.Generator.both rad_gen
+            (Quickcheck.Generator.both vec3_mag_safe_gen
+               (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen))))
+      ~f:(fun ((pnt, norm), (rad, (v0, (v1, v2)))) -> (pnt, norm, rad, v0, v1, v2))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"check-sphere-to-face-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((px, py, pz), (nx, ny, nz), rad, (v0x, v0y, v0z), (v1x, v1y, v1z), (v2x, v2y, v2z)) ->
+         let nv = 3 in
+         incr total;
+         let arr = [| px; py; pz; nx; ny; nz; nv; rad;
+                      v0x; v0y; v0z; v1x; v1y; v1z; v2x; v2y; v2z |] in
+         let c_res = c_check_sphere_to_face arr in
+         let verts = [| (v0x, v0y, v0z); (v1x, v1y, v1z); (v2x, v2y, v2z) |] in
+         let ox_res = Ox_fvi.check_sphere_to_face
+           ~pnt:(px, py, pz) ~norm:(nx, ny, nz) ~nv ~rad ~vertex_positions:verts in
+         if c_res <> ox_res then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "check_sphere_to_face c=%d ox=%d pnt=(%d,%d,%d)"
+               c_res ox_res px py pz)));
+  printf "check_sphere_to_face random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "check_sphere_to_face randomized parity failed" ();
+  [%expect {| check_sphere_to_face random total=5000 mismatches=0 |}]
+
+let%expect_test "check_line_to_face parity C vs Ox" =
+  (* Test with a simple quad face: front face of unit cube, side 5 *)
+  let p0 = (0x8000, 0x8000, -0x10000) in  (* behind the front face *)
+  let p1 = (0x8000, 0x8000, 0x10000) in   (* through the front face *)
+  let norm = (0, 0, -0x10000) in  (* front face normal points -z *)
+  let rad = 0 in
+  let facenum = 0 in
+  let nv = 4 in
+  let side_type = 1 in  (* SIDE_IS_QUAD *)
+  let sidenum = 5 in    (* front face *)
+  let (p0x, p0y, p0z) = p0 in
+  let (p1x, p1y, p1z) = p1 in
+  let (nx, ny, nz) = norm in
+  let arr = Array.create ~len:46 0 in
+  arr.(0) <- p0x; arr.(1) <- p0y; arr.(2) <- p0z;
+  arr.(3) <- p1x; arr.(4) <- p1y; arr.(5) <- p1z;
+  arr.(6) <- nx; arr.(7) <- ny; arr.(8) <- nz;
+  arr.(9) <- rad; arr.(10) <- facenum; arr.(11) <- nv;
+  arr.(12) <- side_type; arr.(13) <- sidenum;
+  for i = 0 to 7 do arr.(14 + i) <- test_seg_verts.(i) done;
+  Array.iteri test_seg_vert_positions ~f:(fun i (x, y, z) ->
+    arr.(22 + i * 3) <- x; arr.(22 + i * 3 + 1) <- y; arr.(22 + i * 3 + 2) <- z);
+  let (c_hit, c_nx, c_ny, c_nz) = c_check_line_to_face arr in
+  let num_faces, vertex_list = Ox_gameseg.create_abs_vertex_lists side_type test_seg_verts sidenum in
+  let (ox_hit, (ox_nx, ox_ny, ox_nz)) = Ox_fvi.check_line_to_face
+    ~p0 ~p1 ~norm ~rad ~facenum ~nv ~num_faces ~vertex_list
+    ~seg_verts:test_seg_verts ~seg_vert_positions:test_seg_vert_positions in
+  let eq = c_hit = ox_hit && (c_hit = 0 || (c_nx = ox_nx && c_ny = ox_ny && c_nz = ox_nz)) in
+  printf "check_line_to_face hit c=%d ox=%d newp c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    c_hit ox_hit c_nx c_ny c_nz ox_nx ox_ny ox_nz eq;
+  [%expect {| check_line_to_face hit c=1 ox=1 newp c=(32768,32768,0) ox=(32768,32768,0) eq=true |}]
+
+let%expect_test "randomized check_vector_to_sphere_1 parity C vs Ox" =
+  let sphere_rad_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    Int.max 0x100 (Int.abs v land 0x7FFFF)) in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+         (Quickcheck.Generator.both vec3_mag_safe_gen sphere_rad_gen))
+      ~f:(fun ((p0, p1), (sp, sr)) -> (p0, p1, sp, sr))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"check-vector-to-sphere-1-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((p0x, p0y, p0z), (p1x, p1y, p1z), (spx, spy, spz), srad) ->
+         incr total;
+         let arr = [| p0x; p0y; p0z; p1x; p1y; p1z; spx; spy; spz; srad |] in
+         let (c_dist, c_ix, c_iy, c_iz) = c_check_vector_to_sphere_1 arr in
+         let (ox_dist, (ox_ix, ox_iy, ox_iz)) = Ox_fvi.check_vector_to_sphere_1
+           ~p0:(p0x, p0y, p0z) ~p1:(p1x, p1y, p1z)
+           ~sphere_pos:(spx, spy, spz) ~sphere_rad:srad in
+         let eq = c_dist = ox_dist && (c_dist = 0 || (c_ix = ox_ix && c_iy = ox_iy && c_iz = ox_iz)) in
+         if not eq then (
+           incr mismatches;
+           if Option.is_none !first_mismatch then
+             first_mismatch := Some (sprintf "check_vector_to_sphere_1 c_dist=%d ox_dist=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+               c_dist ox_dist c_ix c_iy c_iz ox_ix ox_iy ox_iz)));
+  printf "check_vector_to_sphere_1 random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "check_vector_to_sphere_1 randomized parity failed" ();
+  [%expect {| check_vector_to_sphere_1 random total=5000 mismatches=0 |}]

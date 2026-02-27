@@ -17,6 +17,12 @@
  (flags (:standard -open Core)))
 
 (library
+ (name ox_fvi)
+ (libraries core ox_math ox_gameseg)
+ (modules ox_fvi)
+ (flags (:standard -open Core)))
+
+(library
  (name bridge_3d)
  (libraries core ox_math ox_3d)
  (modules g3d_bridge)
@@ -30,9 +36,16 @@
  (wrapped false)
  (flags (:standard -open Core)))
 
+(library
+ (name bridge_fvi)
+ (libraries core ox_math ox_gameseg ox_fvi)
+ (modules fvi_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
  (modules math_bridge)
- (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg)
+ (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg ox_fvi bridge_fvi)
  (flags (:standard -open Core)))

@@ -15,6 +15,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include <stdlib.h>
 
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
+
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
 #include <malloc.h>
 #endif
@@ -275,6 +279,37 @@ int check_sphere_to_face(vms_vector* pnt, segment* sp, side* s, int facenum, int
 //note: the seg parm is temporary, until the face itself has a point field
 int check_line_to_face(vms_vector* newp, vms_vector* p0, vms_vector* p1, segment* seg, int side, int facenum, int nv, fix rad)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] check_line_to_face using cd_ox_check_line_to_face.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t packed[46];
+	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
+	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
+	packed[6] = seg->sides[side].normals[facenum].x;
+	packed[7] = seg->sides[side].normals[facenum].y;
+	packed[8] = seg->sides[side].normals[facenum].z;
+	packed[9] = rad;
+	packed[10] = facenum;
+	packed[11] = nv;
+	packed[12] = seg->sides[side].type;
+	packed[13] = side;
+	for (int i = 0; i < 8; i++)
+		packed[14 + i] = seg->verts[i];
+	for (int i = 0; i < 8; i++)
+	{
+		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+	}
+	int32_t hit_type, npx, npy, npz;
+	cd_ox_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
+	newp->x = npx; newp->y = npy; newp->z = npz;
+	return hit_type;
+#else
 	vms_vector checkp;
 	int pli;
 	struct side* s = &seg->sides[side];
@@ -288,11 +323,11 @@ int check_line_to_face(vms_vector* newp, vms_vector* p0, vms_vector* p1, segment
 	create_abs_vertex_lists(&num_faces, vertex_list, seg - Segments, side);
 
 	//use lowest point number
-	if (num_faces == 2) 
+	if (num_faces == 2)
 	{
 		vertnum = std::min(vertex_list[0], vertex_list[2]);
 	}
-	else 
+	else
 	{
 		int i;
 		vertnum = vertex_list[0];
@@ -314,7 +349,7 @@ int check_line_to_face(vms_vector* newp, vms_vector* p0, vms_vector* p1, segment
 		vm_vec_scale_add2(&checkp, &norm, -rad);
 
 	return check_sphere_to_face(&checkp, seg, s, facenum, nv, rad, vertex_list);
-
+#endif
 }
 
 //returns the value of a determinant
@@ -370,6 +405,37 @@ int disable_new_fvi_stuff = 0;
 //of faces
 int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * p1, segment * seg, int side, int facenum, int nv, fix rad)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] special_check_line_to_face using cd_ox_special_check_line_to_face.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t packed[46];
+	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
+	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
+	packed[6] = seg->sides[side].normals[facenum].x;
+	packed[7] = seg->sides[side].normals[facenum].y;
+	packed[8] = seg->sides[side].normals[facenum].z;
+	packed[9] = rad;
+	packed[10] = facenum;
+	packed[11] = nv;
+	packed[12] = seg->sides[side].type;
+	packed[13] = side;
+	for (int i = 0; i < 8; i++)
+		packed[14 + i] = seg->verts[i];
+	for (int i = 0; i < 8; i++)
+	{
+		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+	}
+	int32_t hit_type, npx, npy, npz;
+	cd_ox_special_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
+	newp->x = npx; newp->y = npy; newp->z = npz;
+	return hit_type;
+#else
 	vms_vector move_vec;
 	fix edge_t, move_t, edge_t2, move_t2, closest_dist;
 	fix edge_len, move_len;
@@ -454,7 +520,7 @@ int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * 
 	}
 	else
 		return IT_NONE;			//no hit
-
+#endif
 }
 
 //maybe this routine should just return the distance and let the caller
@@ -465,6 +531,22 @@ int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * 
 //else returns 0
 int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, vms_vector* sphere_pos, fix sphere_rad)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] check_vector_to_sphere_1 using cd_ox_check_vector_to_sphere_1.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t ix, iy, iz;
+	int32_t dist = cd_ox_check_vector_to_sphere_1(
+		p0->x, p0->y, p0->z,
+		p1->x, p1->y, p1->z,
+		sphere_pos->x, sphere_pos->y, sphere_pos->z,
+		sphere_rad, &ix, &iy, &iz);
+	intp->x = ix; intp->y = iy; intp->z = iz;
+	return dist;
+#else
 	vms_vector d, dn, w, closest_point;
 	fix mag_d, dist, w_dist, int_dist;
 
@@ -526,6 +608,7 @@ int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, v
 	}
 	else
 		return 0;
+#endif
 }
 
 //determine if a vector intersects with an object

@@ -19,6 +19,8 @@ ocamlfind ocamlopt \
   "$OX_DIR/g3d_bridge.ml" \
   "$OX_DIR/ox_gameseg.ml" \
   "$OX_DIR/gameseg_bridge.ml" \
+  "$OX_DIR/ox_fvi.ml" \
+  "$OX_DIR/fvi_bridge.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG

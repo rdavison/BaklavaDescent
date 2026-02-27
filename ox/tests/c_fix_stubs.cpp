@@ -6,6 +6,7 @@ extern "C" {
 
 #include "c_oracle.h"
 #include "c_oracle_gameseg.h"
+#include "c_oracle_fvi.h"
 
 extern "C" CAMLprim value caml_c_i2f(value i)
 {
@@ -2004,5 +2005,186 @@ extern "C" CAMLprim value caml_c_extract_orient_from_segment(value arr)
     Store_field(out, 6, Val_long(dest.fvec.x));
     Store_field(out, 7, Val_long(dest.fvec.y));
     Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
+}
+
+/* ---- FVI oracle stubs ---- */
+
+extern "C" CAMLprim value caml_c_check_point_to_face(value arr)
+{
+    CAMLparam1(arr);
+
+    c_oracle_vec3 checkp = {
+        Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2))
+    };
+    c_oracle_vec3 norm = {
+        Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5))
+    };
+    int nv = Int_val(Field(arr, 6));
+    c_oracle_vec3 verts[4];
+    for (int i = 0; i < nv; i++)
+    {
+        int base = 7 + i * 3;
+        verts[i].x = Int_val(Field(arr, base));
+        verts[i].y = Int_val(Field(arr, base + 1));
+        verts[i].z = Int_val(Field(arr, base + 2));
+    }
+
+    uint32_t result = c_oracle_check_point_to_face(&checkp, &norm, nv, verts);
+    CAMLreturn(Val_long((int32_t)result));
+}
+
+extern "C" CAMLprim value caml_c_find_plane_line_intersection(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 plane_pnt = {
+        Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2))
+    };
+    c_oracle_vec3 plane_norm = {
+        Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5))
+    };
+    c_oracle_vec3 p0 = {
+        Int_val(Field(arr, 6)), Int_val(Field(arr, 7)), Int_val(Field(arr, 8))
+    };
+    c_oracle_vec3 p1 = {
+        Int_val(Field(arr, 9)), Int_val(Field(arr, 10)), Int_val(Field(arr, 11))
+    };
+    int32_t rad = Int_val(Field(arr, 12));
+
+    c_oracle_vec3 newp = {0, 0, 0};
+    int found = c_oracle_find_plane_line_intersection(&newp, &plane_pnt, &plane_norm, &p0, &p1, rad);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(found));
+    Store_field(out, 1, Val_long(newp.x));
+    Store_field(out, 2, Val_long(newp.y));
+    Store_field(out, 3, Val_long(newp.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_check_sphere_to_face(value arr)
+{
+    CAMLparam1(arr);
+
+    c_oracle_vec3 pnt = {
+        Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2))
+    };
+    c_oracle_vec3 norm = {
+        Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5))
+    };
+    int nv = Int_val(Field(arr, 6));
+    int32_t rad = Int_val(Field(arr, 7));
+    c_oracle_vec3 verts[4];
+    for (int i = 0; i < nv; i++)
+    {
+        int base = 8 + i * 3;
+        verts[i].x = Int_val(Field(arr, base));
+        verts[i].y = Int_val(Field(arr, base + 1));
+        verts[i].z = Int_val(Field(arr, base + 2));
+    }
+
+    int result = c_oracle_check_sphere_to_face(&pnt, &norm, nv, rad, verts);
+    CAMLreturn(Val_long(result));
+}
+
+extern "C" CAMLprim value caml_c_calc_det_value(
+    value rx, value ry, value rz,
+    value ux, value uy, value uz,
+    value fx, value fy, value fz)
+{
+    CAMLparam5(rx, ry, rz, ux, uy);
+    CAMLxparam4(uz, fx, fy, fz);
+
+    c_oracle_vec3 r = { Int_val(rx), Int_val(ry), Int_val(rz) };
+    c_oracle_vec3 u = { Int_val(ux), Int_val(uy), Int_val(uz) };
+    c_oracle_vec3 f = { Int_val(fx), Int_val(fy), Int_val(fz) };
+    int32_t result = c_oracle_calc_det_value(&r, &u, &f);
+    CAMLreturn(Val_long(result));
+}
+
+extern "C" CAMLprim value caml_c_calc_det_value_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_calc_det_value(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8]);
+}
+
+extern "C" CAMLprim value caml_c_check_line_to_line(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 p1 = { Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2)) };
+    c_oracle_vec3 v1 = { Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5)) };
+    c_oracle_vec3 p2 = { Int_val(Field(arr, 6)), Int_val(Field(arr, 7)), Int_val(Field(arr, 8)) };
+    c_oracle_vec3 v2 = { Int_val(Field(arr, 9)), Int_val(Field(arr, 10)), Int_val(Field(arr, 11)) };
+
+    int32_t t1 = 0, t2 = 0;
+    int found = c_oracle_check_line_to_line(&t1, &t2, &p1, &v1, &p2, &v2);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(found));
+    Store_field(out, 1, Val_long(t1));
+    Store_field(out, 2, Val_long(t2));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_check_line_to_face(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 p0 = { Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2)) };
+    c_oracle_vec3 p1 = { Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5)) };
+    c_oracle_vec3 side_norm = { Int_val(Field(arr, 6)), Int_val(Field(arr, 7)), Int_val(Field(arr, 8)) };
+    int32_t rad = Int_val(Field(arr, 9));
+    int facenum = Int_val(Field(arr, 10));
+    int nv = Int_val(Field(arr, 11));
+    int side_type = Int_val(Field(arr, 12));
+    int sidenum = Int_val(Field(arr, 13));
+    int32_t seg_verts[8];
+    for (int i = 0; i < 8; i++) seg_verts[i] = Int_val(Field(arr, 14 + i));
+    c_oracle_vec3 seg_vert_positions[8];
+    for (int i = 0; i < 8; i++)
+    {
+        int base = 22 + i * 3;
+        seg_vert_positions[i].x = Int_val(Field(arr, base));
+        seg_vert_positions[i].y = Int_val(Field(arr, base + 1));
+        seg_vert_positions[i].z = Int_val(Field(arr, base + 2));
+    }
+
+    c_oracle_vec3 newp = {0, 0, 0};
+    int hit = c_oracle_check_line_to_face(&newp, &p0, &p1, &side_norm,
+        rad, facenum, nv, side_type, sidenum, seg_verts, seg_vert_positions);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(hit));
+    Store_field(out, 1, Val_long(newp.x));
+    Store_field(out, 2, Val_long(newp.y));
+    Store_field(out, 3, Val_long(newp.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_check_vector_to_sphere_1(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 p0 = { Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2)) };
+    c_oracle_vec3 p1 = { Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5)) };
+    c_oracle_vec3 sphere_pos = { Int_val(Field(arr, 6)), Int_val(Field(arr, 7)), Int_val(Field(arr, 8)) };
+    int32_t sphere_rad = Int_val(Field(arr, 9));
+
+    c_oracle_vec3 intp = {0, 0, 0};
+    int32_t dist = c_oracle_check_vector_to_sphere_1(&intp, &p0, &p1, &sphere_pos, sphere_rad);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(dist));
+    Store_field(out, 1, Val_long(intp.x));
+    Store_field(out, 2, Val_long(intp.y));
+    Store_field(out, 3, Val_long(intp.z));
     CAMLreturn(out);
 }

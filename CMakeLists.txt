@@ -738,6 +738,8 @@ if (USE_OX_BRIDGE)
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/g3d_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_gameseg.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/gameseg_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_fvi.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/fvi_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		COMMENT "Building OxCaml bridge object"

@@ -634,3 +634,49 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `compute_center_point_on_side`, `compute_segment_center`, `create_abs_vertex_lists`, `get_seg_masks`, `get_side_dists`, `get_verts_for_normal`, `extract_vector_from_segment`, `extract_orient_from_segment`.
 
 - Bridge function count: 71 total (was 62). New OCaml module count: 4 (ox_math, ox_3d, ox_gameseg + bridges).
+
+### 40) Port FVI pure geometry to Ox
+
+- **New module `ox/ox_fvi.ml` — FVI (Find Vector Intersection) pure geometry functions:**
+  - `oflow_check` — overflow detection for 47+ bit products.
+  - `find_plane_line_intersection` — plane/line intersect with radius offset, returns `Some (k, newp)` or `None`.
+  - `check_point_to_face` — 2D point-in-polygon via ij_table projection, returns edgemask.
+  - `check_sphere_to_face` — sphere-face overlap test, returns IT_FACE/IT_EDGE/IT_POINT/IT_NONE.
+  - `calc_det_value` — 3×3 matrix determinant with 32-bit wrapping at each intermediate step.
+  - `check_line_to_line` — line-line closest approach via cross product and determinant.
+  - `check_line_to_face` — line-face intersection using plane intersect + sphere-to-face check.
+  - `special_check_line_to_face` — handles case where both endpoints poke through face plane, falls back to edge intersection.
+  - `check_vector_to_sphere_1` — ray-sphere intersection with inside-sphere handling.
+
+- **Critical 32-bit wrapping pattern:**
+  - C `int32_t` arithmetic naturally wraps on overflow; OCaml 63-bit ints don't.
+  - Added `wrap32` helper: `Ox_math.wrap_i64_to_fix (Int64.of_int x)`.
+  - Applied throughout all functions at every intermediate sum/difference that could overflow:
+    - `calc_det_value`: all 5 accumulation steps.
+    - `check_point_to_face`: edge vector subtractions, cross product difference.
+    - `find_plane_line_intersection`: `num`, `den`, `neg_num`.
+    - `check_sphere_to_face`: `d + rad`, `d - rad`.
+    - `check_vector_to_sphere_1`: `mag_d + sphere_rad`, `rad2 - dist2`, `w_dist - shorten`.
+    - `special_check_line_to_face`: `move_len + rad`, `fixmul rad 15`, `move_t - rad`.
+
+- **New bridge file `ox/fvi_bridge.ml` — 3 callback wrappers:**
+  - `cd_check_line_to_face` — unpacks 46-element int array (p0, p1, norm, rad, facenum, nv, side_type, sidenum, seg_verts[8], seg_vert_positions[8×3]), calls `create_abs_vertex_lists` then `check_line_to_face`.
+  - `cd_special_check_line_to_face` — same pack format, adds `num_faces` derivation.
+  - `cd_check_vector_to_sphere_1` — 10 scalar args, returns `(dist, ix, iy, iz)`.
+
+- **C bridge layer (3 new functions in `bridge.c`/`bridge.h`):**
+  - `cd_ox_check_line_to_face` — packs segment data into OCaml int array, calls callback, unpacks `(hit_type, npx, npy, npz)`.
+  - `cd_ox_special_check_line_to_face` — same pattern.
+  - `cd_ox_check_vector_to_sphere_1` — 10 `Val_long` args via `caml_callbackN`.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE` in `main_d1/fvi.cpp`:**
+  - `check_line_to_face` — packs `seg->verts[]`, `Vertices[]` positions, side normals into `int32_t packed[46]`.
+  - `special_check_line_to_face` — same packing.
+  - `check_vector_to_sphere_1` — scalar args (no segment data needed).
+
+- **Oracle + parity tests (`ox/oracle/c_oracle_fvi.cpp` + `ox/tests/parity_expect.ml`):**
+  - C oracle reimplements all FVI functions using `c_oracle_*` math primitives.
+  - 7 parity test suites (5000 random cases each): `calc_det_value`, `check_line_to_line`, `check_point_to_face`, `find_plane_line_intersection`, `check_sphere_to_face`, `check_line_to_face`, `check_vector_to_sphere_1`.
+  - All pass with 0 mismatches.
+
+- Bridge function count: 74 total (was 71). OCaml module count: 5 (ox_math, ox_3d, ox_gameseg, ox_fvi + bridges).

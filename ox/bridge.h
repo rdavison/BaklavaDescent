@@ -340,6 +340,20 @@ void cd_ox_extract_orient_from_segment(
     int32_t* u1, int32_t* u2, int32_t* u3,
     int32_t* f1, int32_t* f2, int32_t* f3);
 
+/* FVI functions */
+void cd_ox_check_line_to_face(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz);
+void cd_ox_special_check_line_to_face(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz);
+int32_t cd_ox_check_vector_to_sphere_1(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t spx, int32_t spy, int32_t spz,
+    int32_t srad,
+    int32_t* ix, int32_t* iy, int32_t* iz);
+
 #ifdef __cplusplus
 }
 #endif
