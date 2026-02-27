@@ -2321,3 +2321,55 @@ extern "C" CAMLprim value caml_c_physics_turn_towards_vector_bc(value* argv, int
         argv[0], argv[1], argv[2], argv[3], argv[4],
         argv[5], argv[6], argv[7], argv[8], argv[9], argv[10]);
 }
+
+extern "C" CAMLprim value caml_c_do_physics_sim_rot(
+    value rvx, value rvy, value rvz,
+    value rtx, value rty, value rtz,
+    value o_rx, value o_ry, value o_rz,
+    value o_ux, value o_uy, value o_uz,
+    value o_fx, value o_fy, value o_fz,
+    value drag, value mass, value flags,
+    value turnroll, value frame_time)
+{
+    CAMLparam5(rvx, rvy, rvz, rtx, rty);
+    CAMLxparam5(rtz, o_rx, o_ry, o_rz, o_ux);
+    CAMLxparam5(o_uy, o_uz, o_fx, o_fy, o_fz);
+    CAMLxparam5(drag, mass, flags, turnroll, frame_time);
+    CAMLlocal1(out);
+
+    int32_t out_tag;
+    int32_t out_orient[9];
+    int32_t out_rvx, out_rvy, out_rvz;
+    int32_t out_turnroll;
+
+    c_oracle_do_physics_sim_rot(
+        Int_val(rvx), Int_val(rvy), Int_val(rvz),
+        Int_val(rtx), Int_val(rty), Int_val(rtz),
+        Int_val(o_rx), Int_val(o_ry), Int_val(o_rz),
+        Int_val(o_ux), Int_val(o_uy), Int_val(o_uz),
+        Int_val(o_fx), Int_val(o_fy), Int_val(o_fz),
+        Int_val(drag), Int_val(mass), Int_val(flags),
+        Int_val(turnroll), Int_val(frame_time),
+        &out_tag, out_orient,
+        &out_rvx, &out_rvy, &out_rvz, &out_turnroll);
+
+    out = caml_alloc_tuple(14);
+    Store_field(out, 0, Val_long(out_tag));
+    for (int i = 0; i < 9; i++)
+        Store_field(out, 1 + i, Val_long(out_orient[i]));
+    Store_field(out, 10, Val_long(out_rvx));
+    Store_field(out, 11, Val_long(out_rvy));
+    Store_field(out, 12, Val_long(out_rvz));
+    Store_field(out, 13, Val_long(out_turnroll));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_do_physics_sim_rot_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_do_physics_sim_rot(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9],
+        argv[10], argv[11], argv[12], argv[13], argv[14],
+        argv[15], argv[16], argv[17], argv[18], argv[19]);
+}

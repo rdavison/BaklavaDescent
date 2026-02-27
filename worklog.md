@@ -775,3 +775,28 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
 
 - OCaml module count: 8 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves, ox_collide, ox_physics + bridges).
+
+### 15) Port do_physics_sim_rot + helpers to Ox
+
+- **3 new pure functions in `ox/ox_physics.ml`:**
+  - `check_and_fix_matrix` — rebuilds orthogonal matrix from forward+up vectors via `vm_vector_2_matrix`.
+  - `set_object_turnroll` — computes new turnroll angle from rotational velocity, with `fixang` (int16) wrapping to match C truncation behavior.
+  - `do_physics_sim_rot` — full rotational physics simulation per frame: drag integration (with thrust or pure damping), orientation update via angle-to-matrix, turnroll banking, and matrix orthogonality fix. Handles `PF_USES_THRUST`, `PF_TURNROLL`, and `PF_FREE_SPINNING` flags.
+
+- **Key fix: int32 wrapping in vector arithmetic.**
+  - With tiny mass values, `fixdiv(f1_0, mass)` produces huge acceleration that overflows int32 in additions. OCaml 63-bit ints don't wrap naturally. Added `w32` helper (`wrap_i64_to_fix`) to `vec_add` so additions wrap to int32, matching C behavior. Fixed 1/5000 randomized mismatch.
+
+- **Bridge layer (1 new callback, 1 new C function):**
+  - `cd_ox_do_physics_sim_rot` — 20 input args (rotvel, rotthrust, orient, drag, mass, flags, turnroll, frame_time), returns tag + orient[9] + rotvel[3] + turnroll via `caml_callbackN`. Tag=0 means no rotation needed (early exit).
+
+- **C oracle + parity tests:**
+  - `c_oracle_do_physics_sim_rot` — includes `c_oracle_set_object_turnroll` and `c_oracle_check_and_fix_matrix` helpers.
+  - 3 parity tests: zero rotvel (no change), simple heading rotation, drag-only damping. Plus 5000-case randomized test with random orientation matrices (generated via `vm_angles_2_matrix`), all pass with 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/physics.cpp` — `do_physics_sim_rot` routed through bridge after Assert.
+  - `main_d2/physics.cpp` — same wiring. D2's `PF_FREE_SPINNING` flag is handled by the OCaml implementation.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

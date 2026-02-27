@@ -1652,3 +1652,130 @@ extern "C" void c_oracle_physics_turn_towards_vector(
     *out_ry = c_oracle_physics_set_rotvel_and_saturate(cry, delta_h);
     *out_rz = 0;
 }
+
+static void c_oracle_check_and_fix_matrix(c_oracle_mat3* m)
+{
+    c_oracle_mat3 tempm;
+    c_oracle_vm_vector_2_matrix(&tempm, &m->fvec, &m->uvec, NULL);
+    *m = tempm;
+}
+
+#define TURNROLL_SCALE (0x4ec4/2)
+#define ROLL_RATE      0x2000
+
+static int32_t c_oracle_set_object_turnroll(int32_t turnroll, int32_t rotvel_y, int32_t frame_time)
+{
+    int32_t desired_bank = (int16_t)(-c_oracle_fixmul(rotvel_y, TURNROLL_SCALE));
+    if (turnroll != desired_bank) {
+        int32_t max_roll = (int16_t)c_oracle_fixmul(ROLL_RATE, frame_time);
+        int32_t delta_ang = desired_bank - turnroll;
+        if (labs(delta_ang) < max_roll)
+            max_roll = delta_ang;
+        else if (delta_ang < 0)
+            max_roll = -max_roll;
+        turnroll += max_roll;
+    }
+    return turnroll;
+}
+
+#define PF_TURNROLL      0x01
+#define PF_USES_THRUST   0x40
+#define PF_FREE_SPINNING 0x100
+#define FT_ORACLE (0x10000/64)
+
+extern "C" void c_oracle_do_physics_sim_rot(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t rtx, int32_t rty, int32_t rtz,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t drag, int32_t mass, int32_t flags,
+    int32_t turnroll, int32_t frame_time,
+    int32_t* out_tag,
+    int32_t* out_orient,  /* 9 values */
+    int32_t* out_rvx, int32_t* out_rvy, int32_t* out_rvz,
+    int32_t* out_turnroll)
+{
+    /* Early exit if nothing to do */
+    if (!(rvx || rvy || rvz || rtx || rty || rtz)) {
+        *out_tag = 0;
+        return;
+    }
+
+    c_oracle_vec3 rotvel = {rvx, rvy, rvz};
+    c_oracle_mat3 orient = {{o_rx, o_ry, o_rz}, {o_ux, o_uy, o_uz}, {o_fx, o_fy, o_fz}};
+
+    /* Apply drag */
+    if (drag) {
+        int32_t count = frame_time / FT_ORACLE;
+        int32_t r = frame_time % FT_ORACLE;
+        int32_t k = c_oracle_fixdiv(r, FT_ORACLE);
+        int32_t drag_scaled = (drag * 5) / 2;
+
+        if (flags & PF_USES_THRUST) {
+            c_oracle_vec3 accel;
+            c_oracle_vec3 rotthrust = {rtx, rty, rtz};
+            c_oracle_vm_vec_copy_scale(&accel, &rotthrust, c_oracle_fixdiv(0x10000, mass));
+
+            for (int i = 0; i < count; i++) {
+                c_oracle_vm_vec_add2(&rotvel, &accel);
+                c_oracle_vm_vec_scale(&rotvel, 0x10000 - drag_scaled);
+            }
+            c_oracle_vm_vec_scale_add2(&rotvel, &accel, k);
+            c_oracle_vm_vec_scale(&rotvel, 0x10000 - c_oracle_fixmul(k, drag_scaled));
+        }
+        else if (!(flags & PF_FREE_SPINNING)) {
+            int32_t total_drag = 0x10000;
+            for (int i = 0; i < count; i++)
+                total_drag = c_oracle_fixmul(total_drag, 0x10000 - drag_scaled);
+            total_drag = c_oracle_fixmul(total_drag, 0x10000 - c_oracle_fixmul(k, drag_scaled));
+            c_oracle_vm_vec_scale(&rotvel, total_drag);
+        }
+    }
+
+    /* Unrotate for bank caused by turnroll */
+    if (turnroll) {
+        c_oracle_ang3 tangles = {0, (int16_t)(-turnroll), 0};
+        c_oracle_mat3 rotmat, new_pm;
+        c_oracle_vm_angles_2_matrix(&rotmat, &tangles);
+        c_oracle_vm_matrix_x_matrix(&new_pm, &orient, &rotmat);
+        orient = new_pm;
+    }
+
+    /* Apply rotation */
+    {
+        c_oracle_ang3 tangles;
+        c_oracle_mat3 rotmat, new_orient;
+        tangles.p = c_oracle_fixmul(rotvel.x, frame_time);
+        tangles.b = c_oracle_fixmul(rotvel.z, frame_time);
+        tangles.h = c_oracle_fixmul(rotvel.y, frame_time);
+        c_oracle_vm_angles_2_matrix(&rotmat, &tangles);
+        c_oracle_vm_matrix_x_matrix(&new_orient, &orient, &rotmat);
+        orient = new_orient;
+    }
+
+    /* Apply turnroll update */
+    if (flags & PF_TURNROLL)
+        turnroll = c_oracle_set_object_turnroll(turnroll, rotvel.y, frame_time);
+
+    /* Re-rotate for bank caused by turnroll */
+    if (turnroll) {
+        c_oracle_ang3 tangles = {0, (int16_t)turnroll, 0};
+        c_oracle_mat3 rotmat, new_pm;
+        c_oracle_vm_angles_2_matrix(&rotmat, &tangles);
+        c_oracle_vm_matrix_x_matrix(&new_pm, &orient, &rotmat);
+        orient = new_pm;
+    }
+
+    /* Fix matrix orthogonality */
+    c_oracle_check_and_fix_matrix(&orient);
+
+    *out_tag = 1;
+    out_orient[0] = orient.rvec.x; out_orient[1] = orient.rvec.y; out_orient[2] = orient.rvec.z;
+    out_orient[3] = orient.uvec.x; out_orient[4] = orient.uvec.y; out_orient[5] = orient.uvec.z;
+    out_orient[6] = orient.fvec.x; out_orient[7] = orient.fvec.y; out_orient[8] = orient.fvec.z;
+    *out_rvx = rotvel.x;
+    *out_rvy = rotvel.y;
+    *out_rvz = rotvel.z;
+    *out_turnroll = turnroll;
+}

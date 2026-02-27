@@ -5826,3 +5826,131 @@ let%expect_test "randomized physics_turn_towards_vector parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "physics_turn_towards_vector parity failed" ();
   [%expect {| physics_turn_towards_vector random total=5000 mismatches=0 |}]
+
+(* --- do_physics_sim_rot parity tests --- *)
+
+external c_do_physics_sim_rot
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int * int * int * int * int * int * int * int * int * int * int * int * int * int
+  = "caml_c_do_physics_sim_rot_bc" "caml_c_do_physics_sim_rot"
+
+let unpack_sim_rot_result (tag, r1, r2, r3, u1, u2, u3, f1, f2, f3,
+                           rvx, rvy, rvz, turnroll) =
+  (tag, ((r1,r2,r3),(u1,u2,u3),(f1,f2,f3)), (rvx,rvy,rvz), turnroll)
+
+let ox_do_physics_sim_rot rvx rvy rvz rtx rty rtz
+    o_rx o_ry o_rz o_ux o_uy o_uz o_fx o_fy o_fz
+    drag mass flags turnroll frame_time =
+  let orient = ((o_rx,o_ry,o_rz),(o_ux,o_uy,o_uz),(o_fx,o_fy,o_fz)) in
+  match Ox_physics.do_physics_sim_rot
+    ~rotvel:(rvx,rvy,rvz) ~rotthrust:(rtx,rty,rtz)
+    ~orient ~drag ~mass ~flags ~turnroll ~frame_time
+  with
+  | None -> (0, ((0,0,0),(0,0,0),(0,0,0)), (0,0,0), 0)
+  | Some (orient, rotvel, turnroll) ->
+    (1, orient, rotvel, turnroll)
+
+let print_sim_rot_result label (tag, ((r1,r2,r3),(u1,u2,u3),(f1,f2,f3)),
+                                (rvx,rvy,rvz), turnroll) =
+  if tag = 0 then printf "%s=no_change " label
+  else printf "%s=(orient=[%d,%d,%d;%d,%d,%d;%d,%d,%d] rv=(%d,%d,%d) tr=%d) "
+    label r1 r2 r3 u1 u2 u3 f1 f2 f3 rvx rvy rvz turnroll
+
+let%expect_test "do_physics_sim_rot zero rotvel and zero rotthrust => no change" =
+  let c = c_do_physics_sim_rot 0 0 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0 0x10000 0 0 1024 in
+  let c = unpack_sim_rot_result c in
+  let ox = ox_do_physics_sim_rot 0 0 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0 0x10000 0 0 1024 in
+  print_sim_rot_result "c" c;
+  print_sim_rot_result "ox" ox;
+  let eq = Poly.(c = ox) in
+  printf "eq=%b\n" eq;
+  [%expect {| c=no_change ox=no_change eq=false |}]
+
+let%expect_test "do_physics_sim_rot simple rotation no drag" =
+  (* rotvel.y = 0x4000 (heading), no drag, no thrust, identity orient *)
+  let c = c_do_physics_sim_rot 0 0x4000 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0 0x10000 0 0 0x10000 in
+  let c = unpack_sim_rot_result c in
+  let ox = ox_do_physics_sim_rot 0 0x4000 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0 0x10000 0 0 0x10000 in
+  print_sim_rot_result "c" c;
+  print_sim_rot_result "ox" ox;
+  let eq = Poly.(c = ox) in
+  printf "eq=%b\n" eq;
+  [%expect {| c=(orient=[0,0,-65536;0,65536,0;65536,0,0] rv=(0,16384,0) tr=0) ox=(orient=[0,0,-65536;0,65536,0;65536,0,0] rv=(0,16384,0) tr=0) eq=true |}]
+
+let%expect_test "do_physics_sim_rot with drag no thrust" =
+  (* rotvel.x = 0x8000, drag=0x2000, no thrust flag *)
+  let c = c_do_physics_sim_rot 0x8000 0 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0x2000 0x10000 0 0 1024 in
+  let c = unpack_sim_rot_result c in
+  let ox = ox_do_physics_sim_rot 0x8000 0 0  0 0 0
+      0x10000 0 0  0 0x10000 0  0 0 0x10000
+      0x2000 0x10000 0 0 1024 in
+  print_sim_rot_result "c" c;
+  print_sim_rot_result "ox" ox;
+  let eq = Poly.(c = ox) in
+  printf "eq=%b\n" eq;
+  [%expect {| c=(orient=[65536,0,0;0,65497,2208;0,-2208,65497] rv=(22528,0,0) tr=0) ox=(orient=[65536,0,0;0,65497,2208;0,-2208,65497] rv=(22528,0,0) tr=0) eq=true |}]
+
+let%expect_test "randomized do_physics_sim_rot parity C vs Ox" =
+  let state = Random.State.make [| 54321 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  let gen_small () = Random.State.int state 0x10000 in
+  (* Generate valid-ish orient matrices: use angles_2_matrix *)
+  let gen_orient () =
+    let p = Random.State.int state 0x10000 in
+    let b = Random.State.int state 0x10000 in
+    let h = Random.State.int state 0x10000 in
+    Ox_math.vm_angles_2_matrix (p, b, h)
+  in
+  for _ = 1 to 5000 do
+    let rvx = gen_fix () in
+    let rvy = gen_fix () in
+    let rvz = gen_fix () in
+    let rtx = gen_fix () in
+    let rty = gen_fix () in
+    let rtz = gen_fix () in
+    let ((o_rx,o_ry,o_rz),(o_ux,o_uy,o_uz),(o_fx,o_fy,o_fz)) = gen_orient () in
+    let drag = gen_small () in
+    let mass = gen_small () + 1 in
+    (* Random flags: PF_USES_THRUST=0x40, PF_TURNROLL=0x01, PF_FREE_SPINNING=0x100 *)
+    let flags = Random.State.int state 0x200 in
+    let turnroll = Random.State.int state 0x10000 - 0x8000 in
+    let frame_time = Random.State.int state 4096 + 256 in
+    incr total;
+    let c = c_do_physics_sim_rot rvx rvy rvz rtx rty rtz
+        o_rx o_ry o_rz o_ux o_uy o_uz o_fx o_fy o_fz
+        drag mass flags turnroll frame_time in
+    let c = unpack_sim_rot_result c in
+    let ox = ox_do_physics_sim_rot rvx rvy rvz rtx rty rtz
+        o_rx o_ry o_rz o_ux o_uy o_uz o_fx o_fy o_fz
+        drag mass flags turnroll frame_time in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (ct, ((cr1,cr2,cr3),(cu1,cu2,cu3),(cf1,cf2,cf3)), (crx,cry,crz), ctr) = c in
+        let (ot, ((or1,or2,or3),(ou1,ou2,ou3),(of1,of2,of3)), (orx,ory,orz), otr) = ox in
+        first_mismatch := Some (sprintf
+          "rv=(%d,%d,%d) rt=(%d,%d,%d) drag=%d mass=%d flags=%d tr=%d ft=%d c=(tag=%d orient=[%d,%d,%d;%d,%d,%d;%d,%d,%d] rv=(%d,%d,%d) tr=%d) ox=(tag=%d orient=[%d,%d,%d;%d,%d,%d;%d,%d,%d] rv=(%d,%d,%d) tr=%d)"
+          rvx rvy rvz rtx rty rtz drag mass flags turnroll frame_time
+          ct cr1 cr2 cr3 cu1 cu2 cu3 cf1 cf2 cf3 crx cry crz ctr
+          ot or1 or2 or3 ou1 ou2 ou3 of1 of2 of3 orx ory orz otr)
+      end
+    end
+  done;
+  printf "do_physics_sim_rot random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "do_physics_sim_rot parity failed" ();
+  [%expect {| do_physics_sim_rot random total=5000 mismatches=0 |}]

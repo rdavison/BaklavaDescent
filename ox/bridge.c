@@ -84,6 +84,7 @@ static const value* g_special_check_line_to_face = NULL;
 static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
 static const value* g_physics_turn_towards_vector = NULL;
+static const value* g_do_physics_sim_rot = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -161,7 +162,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_special_check_line_to_face
           && g_check_vector_to_sphere_1
           && g_apply_damage_to_robot_d1
-          && g_physics_turn_towards_vector))
+          && g_physics_turn_towards_vector
+          && g_do_physics_sim_rot))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -255,6 +257,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
     g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
     g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
+    g_do_physics_sim_rot = caml_named_value("cd_do_physics_sim_rot");
 
     if (!g_i2f
         || !g_f2i
@@ -329,7 +332,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_special_check_line_to_face
         || !g_check_vector_to_sphere_1
         || !g_apply_damage_to_robot_d1
-        || !g_physics_turn_towards_vector)
+        || !g_physics_turn_towards_vector
+        || !g_do_physics_sim_rot)
     {
         return 1;
     }
@@ -412,7 +416,8 @@ int cd_ox_is_ready(void)
            && g_special_check_line_to_face
            && g_check_vector_to_sphere_1
            && g_apply_damage_to_robot_d1
-           && g_physics_turn_towards_vector;
+           && g_physics_turn_towards_vector
+           && g_do_physics_sim_rot;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1597,4 +1602,39 @@ void cd_ox_physics_turn_towards_vector(
     *out_rx = Int_val(Field(out, 0));
     *out_ry = Int_val(Field(out, 1));
     *out_rz = Int_val(Field(out, 2));
+}
+
+int cd_ox_do_physics_sim_rot(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t rtx, int32_t rty, int32_t rtz,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t drag, int32_t mass, int32_t flags,
+    int32_t turnroll, int32_t frame_time,
+    int32_t* out_orient,
+    int32_t* out_rvx, int32_t* out_rvy, int32_t* out_rvz,
+    int32_t* out_turnroll)
+{
+    cd_ox_require_ready("cd_ox_do_physics_sim_rot");
+    value args[20] = {
+        Val_long(rvx), Val_long(rvy), Val_long(rvz),
+        Val_long(rtx), Val_long(rty), Val_long(rtz),
+        Val_long(o_rx), Val_long(o_ry), Val_long(o_rz),
+        Val_long(o_ux), Val_long(o_uy), Val_long(o_uz),
+        Val_long(o_fx), Val_long(o_fy), Val_long(o_fz),
+        Val_long(drag), Val_long(mass), Val_long(flags),
+        Val_long(turnroll), Val_long(frame_time),
+    };
+    const value out = caml_callbackN(*g_do_physics_sim_rot, 20, args);
+    int32_t tag = Int_val(Field(out, 0));
+    if (tag == 0)
+        return 0;
+    for (int i = 0; i < 9; i++)
+        out_orient[i] = Int_val(Field(out, 1 + i));
+    *out_rvx = Int_val(Field(out, 10));
+    *out_rvy = Int_val(Field(out, 11));
+    *out_rvz = Int_val(Field(out, 12));
+    *out_turnroll = Int_val(Field(out, 13));
+    return 1;
 }

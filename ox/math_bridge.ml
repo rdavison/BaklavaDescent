@@ -140,4 +140,8 @@ let () =
     int -> int -> int -> int -> int -> int -> int -> int array);
   (* Force physics bridge module initialization so its callbacks are registered. *)
   ignore (Physics_bridge.cd_physics_turn_towards_vector :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int)
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int);
+  ignore (Physics_bridge.cd_do_physics_sim_rot :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int * int * int * int * int * int * int * int * int * int * int * int * int * int)

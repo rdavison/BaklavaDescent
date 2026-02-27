@@ -247,6 +247,40 @@ void do_physics_sim_rot(object *obj)
 
 	pi = &obj->mtype.phys_info;
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] do_physics_sim_rot using cd_ox_do_physics_sim_rot\n"); ox_logged = 1; }
+		int32_t out_orient[9];
+		int32_t out_rvx, out_rvy, out_rvz, out_turnroll;
+		int changed = cd_ox_do_physics_sim_rot(
+			pi->rotvel.x, pi->rotvel.y, pi->rotvel.z,
+			pi->rotthrust.x, pi->rotthrust.y, pi->rotthrust.z,
+			obj->orient.rvec.x, obj->orient.rvec.y, obj->orient.rvec.z,
+			obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
+			obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+			pi->drag, pi->mass, pi->flags,
+			pi->turnroll, FrameTime,
+			out_orient, &out_rvx, &out_rvy, &out_rvz, &out_turnroll);
+		if (changed) {
+			obj->orient.rvec.x = out_orient[0];
+			obj->orient.rvec.y = out_orient[1];
+			obj->orient.rvec.z = out_orient[2];
+			obj->orient.uvec.x = out_orient[3];
+			obj->orient.uvec.y = out_orient[4];
+			obj->orient.uvec.z = out_orient[5];
+			obj->orient.fvec.x = out_orient[6];
+			obj->orient.fvec.y = out_orient[7];
+			obj->orient.fvec.z = out_orient[8];
+			pi->rotvel.x = out_rvx;
+			pi->rotvel.y = out_rvy;
+			pi->rotvel.z = out_rvz;
+			pi->turnroll = out_turnroll;
+		}
+		return;
+	}
+#endif
+
 	if (!(pi->rotvel.x || pi->rotvel.y || pi->rotvel.z || pi->rotthrust.x || pi->rotthrust.y || pi->rotthrust.z))
 		return;
 

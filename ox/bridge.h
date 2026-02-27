@@ -375,6 +375,20 @@ void cd_ox_physics_turn_towards_vector(
     int32_t crx, int32_t cry, int32_t crz,
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
 
+/* Returns 0 if no rotation needed (early exit), 1 if rotation applied.
+   When returning 1, fills out_orient[9], out_rotvel[3], out_turnroll. */
+int cd_ox_do_physics_sim_rot(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t rtx, int32_t rty, int32_t rtz,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t drag, int32_t mass, int32_t flags,
+    int32_t turnroll, int32_t frame_time,
+    int32_t* out_orient,
+    int32_t* out_rvx, int32_t* out_rvy, int32_t* out_rvz,
+    int32_t* out_turnroll);
+
 #ifdef __cplusplus
 }
 #endif

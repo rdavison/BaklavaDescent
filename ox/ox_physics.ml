@@ -57,3 +57,147 @@ let physics_turn_towards_vector ~goal ~fvec ~rate ~is_morph ~cur_rotvel =
     let new_rx = physics_set_rotvel_and_saturate ~dest:cur_rx ~delta:delta_p in
     let new_ry = physics_set_rotvel_and_saturate ~dest:cur_ry ~delta:delta_h in
     (new_rx, new_ry, 0)
+
+(* Constants from physics.cpp *)
+let turnroll_scale = 0x4ec4 / 2
+let roll_rate = 0x2000
+let ft = f1_0 / 64
+
+(* Physics flags *)
+let pf_turnroll = 0x01
+let pf_uses_thrust = 0x40
+let pf_free_spinning = 0x100
+
+(* Rebuild orthogonal matrix from forward+up vectors.
+   C original: physics.cpp check_and_fix_matrix *)
+let check_and_fix_matrix ~orient =
+  let ((_rx, _ry, _rz), (ux, uy, uz), (fx, fy, fz)) = orient in
+  Ox_math.vm_vector_2_matrix (fx, fy, fz) (Some (ux, uy, uz)) None
+
+(* Compute new turnroll based on rotational velocity.
+   C original: physics.cpp set_object_turnroll
+
+   Inputs:
+     turnroll   - current turnroll angle (fixang)
+     rotvel_y   - y component of rotational velocity
+     frame_time - FrameTime global
+
+   Returns: new turnroll value *)
+let set_object_turnroll ~turnroll ~rotvel_y ~frame_time =
+  (* C casts to fixang (int16_t) *)
+  let fixang v = Ox_math.wrap_i64_to_fixang (Int64.of_int v) in
+  let desired_bank = fixang (- Ox_math.fixmul rotvel_y turnroll_scale) in
+  if turnroll = desired_bank then turnroll
+  else
+    let max_roll = fixang (Ox_math.fixmul roll_rate frame_time) in
+    let delta_ang = desired_bank - turnroll in
+    let max_roll =
+      if Int.abs delta_ang < max_roll then delta_ang
+      else if delta_ang < 0 then - max_roll
+      else max_roll
+    in
+    turnroll + max_roll
+
+(* Wrap to int32 range — C int32 arithmetic wraps on overflow *)
+let w32 v = Ox_math.wrap_i64_to_fix (Int64.of_int v)
+
+(* Helper: scale vector by fixpoint scalar — fixmul already wraps *)
+let vec_scale (x, y, z) s =
+  (Ox_math.fixmul x s, Ox_math.fixmul y s, Ox_math.fixmul z s)
+
+(* Helper: add two vectors with int32 wrapping *)
+let vec_add (ax, ay, az) (bx, by, bz) =
+  (w32 (ax + bx), w32 (ay + by), w32 (az + bz))
+
+(* Helper: scale_add2: v += other * s, with int32 wrapping *)
+let vec_scale_add2 v other s =
+  let scaled = vec_scale other s in
+  vec_add v scaled
+
+(* Simulate rotational physics for one frame.
+   C original: physics.cpp do_physics_sim_rot
+
+   Inputs:
+     rotvel     - current rotational velocity (rx, ry, rz)
+     rotthrust  - rotational thrust (tx, ty, tz)
+     orient     - object orientation matrix ((rx,ry,rz),(ux,uy,uz),(fx,fy,fz))
+     drag       - drag coefficient
+     mass       - object mass
+     flags      - physics flags (PF_USES_THRUST, PF_TURNROLL, PF_FREE_SPINNING)
+     turnroll   - current turnroll angle
+     frame_time - FrameTime global
+
+   Returns: (new_orient, new_rotvel, new_turnroll)
+   Returns None if no rotation needed (all rotvel and rotthrust zero) *)
+let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
+    ~turnroll ~frame_time =
+  let (rvx, rvy, rvz) = rotvel in
+  let (rtx, rty, rtz) = rotthrust in
+  (* Early exit if nothing to do *)
+  if rvx = 0 && rvy = 0 && rvz = 0 && rtx = 0 && rty = 0 && rtz = 0 then
+    None
+  else
+    (* Apply drag to rotational velocity *)
+    let rotvel =
+      if drag <> 0 then begin
+        let count = frame_time / ft in
+        let r = frame_time mod ft in
+        let k = Ox_math.fixdiv r ft in
+        let drag_scaled = (drag * 5) / 2 in
+        if flags land pf_uses_thrust <> 0 then begin
+          let accel = vec_scale rotthrust (Ox_math.fixdiv f1_0 mass) in
+          (* Iterate count times: rotvel += accel; rotvel *= (1 - drag) *)
+          let rv = ref rotvel in
+          for _ = 1 to count do
+            rv := vec_scale (vec_add !rv accel) (f1_0 - drag_scaled)
+          done;
+          (* Linear scale on remaining bit *)
+          let rv = vec_scale_add2 !rv accel k in
+          vec_scale rv (f1_0 - Ox_math.fixmul k drag_scaled)
+        end
+        else if flags land pf_free_spinning = 0 then begin
+          (* No thrust, not free spinning: just apply drag *)
+          let total_drag = ref f1_0 in
+          for _ = 1 to count do
+            total_drag := Ox_math.fixmul !total_drag (f1_0 - drag_scaled)
+          done;
+          let total_drag = Ox_math.fixmul !total_drag
+              (f1_0 - Ox_math.fixmul k drag_scaled) in
+          vec_scale rotvel total_drag
+        end
+        else
+          (* Free spinning: no drag applied *)
+          rotvel
+      end
+      else rotvel
+    in
+    (* Unrotate for bank caused by turnroll *)
+    let orient =
+      if turnroll <> 0 then
+        let rotmat = Ox_math.vm_angles_2_matrix (0, -turnroll, 0) in
+        Ox_math.vm_matrix_x_matrix orient rotmat
+      else orient
+    in
+    (* Apply rotation: tangles = rotvel * FrameTime *)
+    let tp = Ox_math.fixmul (let (x, _, _) = rotvel in x) frame_time in
+    let th = Ox_math.fixmul (let (_, y, _) = rotvel in y) frame_time in
+    let tb = Ox_math.fixmul (let (_, _, z) = rotvel in z) frame_time in
+    let rotmat = Ox_math.vm_angles_2_matrix (tp, tb, th) in
+    let orient = Ox_math.vm_matrix_x_matrix orient rotmat in
+    (* Apply turnroll update *)
+    let turnroll =
+      if flags land pf_turnroll <> 0 then
+        set_object_turnroll ~turnroll
+          ~rotvel_y:(let (_, y, _) = rotvel in y) ~frame_time
+      else turnroll
+    in
+    (* Re-rotate for bank caused by turnroll *)
+    let orient =
+      if turnroll <> 0 then
+        let rotmat = Ox_math.vm_angles_2_matrix (0, turnroll, 0) in
+        Ox_math.vm_matrix_x_matrix orient rotmat
+      else orient
+    in
+    (* Fix matrix orthogonality *)
+    let orient = check_and_fix_matrix ~orient in
+    Some (orient, rotvel, turnroll)
