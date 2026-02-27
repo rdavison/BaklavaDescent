@@ -57,6 +57,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "newdemo.h"
 #include "endlevel.h"
 #include "multibot.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 #include "main_shared/piggy.h"
 #include "stringtable.h"
 
@@ -856,6 +859,82 @@ void collide_weapon_and_clutter(object* weapon, object* clutter, vms_vector* col
 //	Return 1 if robot died, else return 0
 int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] apply_damage_to_robot using cd_ox_apply_damage_to_robot_d1.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t buf[32];
+	int buf_len;
+	cd_ox_apply_damage_to_robot_d1(
+		robot->flags, robot->shields, damage,
+		Robot_info[robot->id].boss_flag ? 1 : 0,
+		(Game_mode & GM_MULTI) ? 1 : 0,
+		(int)(robot - Objects), killer_objnum,
+		buf, &buf_len);
+
+	robot->shields = buf[0];
+	if (buf[1]) Boss_been_hit = 1;
+
+	/* Walk the effect tree starting at buf[2] */
+	int pos = 2;
+	/* Iterative tree walk — stack not needed since we always take one branch */
+	for (;;)
+	{
+		int tag = buf[pos];
+		if (tag == 0)
+		{
+			/* Leaf: [0, return_val, num_effects, effects...] */
+			int ret = buf[pos + 1];
+			int num_effects = buf[pos + 2];
+			int p = pos + 3;
+			for (int i = 0; i < num_effects; i++)
+			{
+				int etag = buf[p];
+				switch (etag)
+				{
+				case 0: /* Increment_kills */
+					Players[Player_num].num_kills_level++;
+					Players[Player_num].num_kills_total++;
+					p += 1;
+					break;
+				case 1: /* Start_boss_death(obj_id) */
+					start_boss_death_sequence(&Objects[buf[p + 1]]);
+					p += 2;
+					break;
+				case 2: /* Explode_object(obj_id) */
+					explode_object(&Objects[buf[p + 1]], STANDARD_EXPL_DELAY);
+					p += 2;
+					break;
+				case 3: /* Send_net_robot_explode(obj_id, killer) */
+#if defined(NETWORK) && !defined(SHAREWARE)
+					multi_send_robot_explode(buf[p + 1], buf[p + 2]);
+#endif
+					p += 3;
+					break;
+				}
+			}
+			return ret;
+		}
+		else /* tag == 1: Query_multi_explode */
+		{
+			int q_obj_id = buf[pos + 1];
+			int q_killer = buf[pos + 2];
+			int then_len = buf[pos + 3];
+			int then_start = pos + 4;
+#if defined(NETWORK) && !defined(SHAREWARE)
+			if (multi_explode_robot_sub(q_obj_id, q_killer))
+				pos = then_start;
+			else
+				pos = then_start + then_len;
+#else
+			pos = then_start + then_len;
+#endif
+		}
+	}
+#else
 	if (robot->flags & OF_EXPLODING) return 0;
 
 	if (robot->shields < 0) return 0;	//robot already dead...
@@ -897,6 +976,7 @@ int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 	}
 	else
 		return 0;
+#endif
 }
 
 //	------------------------------------------------------------------------------------------------------

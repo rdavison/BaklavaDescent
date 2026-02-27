@@ -708,3 +708,31 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - All pass with 0 mismatches.
 
 - OCaml module count: 6 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves + bridges).
+
+### 12) Port `apply_damage_to_robot` (D1) -- first game logic with effect tree pattern
+
+- **Effect tree pattern:** OCaml computes pure decision logic and returns a serialized tree of effects. C walks the tree, executing side effects (kill counters, explosions, network messages) and evaluating queries (`multi_explode_robot_sub`) to determine which branches to take. This keeps OCaml pure and testable.
+
+- **New files:**
+  - `ox/ox_collide.ml` -- pure game logic + effect/result tree types + flat-int serialization.
+  - `ox/collide_bridge.ml` -- bridge adapter, serializes to flat int array, registers callback.
+  - `ox/tests/collide_expect.ml` -- 12 expect tests covering all decision paths + serialization.
+
+- **Modified files:**
+  - `ox/dune` -- added `ox_collide` and `bridge_collide` libraries, updated `math_bridge` deps.
+  - `ox/math_bridge.ml` -- force-init `Collide_bridge` module.
+  - `ox/bridge.h` / `ox/bridge.c` -- added `cd_ox_apply_damage_to_robot_d1` (returns flat buffer).
+  - `main_d1/collide.cpp` -- `#ifdef USE_OX_BRIDGE` wiring with inline tree walker.
+  - `scripts/ox/build_bridge.sh` -- added new .ml files to compilation list.
+  - `CMakeLists.txt` -- added new .ml files to DEPENDS list.
+
+- **Design decisions:**
+  - Tree walker lives in `collide.cpp` (not `bridge.c`) because it needs C++ game functions (`multi_explode_robot_sub`, `start_boss_death_sequence`, `explode_object`, `multi_send_robot_explode`).
+  - Bridge returns raw flat int array; C++ walks it with an iterative loop (no recursion needed since Query nodes always branch into a single path).
+  - Multiplayer calls guarded with `#if defined(NETWORK) && !defined(SHAREWARE)` matching original code.
+  - `effect` renamed to `damage_effect` since `effect` is reserved in OCaml 5.x (algebraic effects).
+
+- **Verification:**
+  - `dune runtest ox/tests` -- all 12 new expect tests pass.
+  - `cmake --build build-ox -j8` -- both ChocolateDescent and ChocolateDescent2 build.
+  - OCaml module count: 7 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves, ox_collide + bridges).

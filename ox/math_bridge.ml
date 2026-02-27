@@ -134,4 +134,7 @@ let () =
   ignore (G3d_bridge.cd_g3_code_point : int -> int -> int -> int);
   (* Force FVI bridge module initialization so its callbacks are registered. *)
   ignore (Fvi_bridge.cd_check_vector_to_sphere_1 :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int)
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  (* Force collide bridge module initialization so its callbacks are registered. *)
+  ignore (Collide_bridge.cd_apply_damage_to_robot_d1 :
+    int -> int -> int -> int -> int -> int -> int -> int array)

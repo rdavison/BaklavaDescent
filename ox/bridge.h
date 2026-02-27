@@ -310,6 +310,20 @@ int cd_ox_calc_rod_corners(
     int32_t* c3x, int32_t* c3y, int32_t* c3z,
     uint8_t* codes_and);
 
+/* Collide / damage functions.
+   Calls OCaml, returns flat effect-tree buffer in out_buf (max 32 ints).
+   Layout: [new_shields, boss_been_hit, tree_node...]
+   Tree node encoding:
+     Leaf:  [0, return_val, num_effects, effect_tag, args...]
+     Query: [1, obj_id, killer, then_len, then_node..., else_node...]
+   Effect tags: 0=Increment_kills, 1=Start_boss_death(obj_id),
+     2=Explode_object(obj_id), 3=Send_net_robot_explode(obj_id,killer) */
+void cd_ox_apply_damage_to_robot_d1(
+    int32_t flags, int32_t shields, int32_t damage,
+    int is_boss, int is_multiplayer,
+    int obj_id, int killer_objnum,
+    int32_t* out_buf, int* out_len);
+
 /* Gameseg functions */
 void cd_ox_compute_center_point_on_side(
     int32_t v0x, int32_t v0y, int32_t v0z,

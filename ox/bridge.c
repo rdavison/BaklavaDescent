@@ -82,6 +82,7 @@ static const value* g_extract_orient_from_segment = NULL;
 static const value* g_check_line_to_face = NULL;
 static const value* g_special_check_line_to_face = NULL;
 static const value* g_check_vector_to_sphere_1 = NULL;
+static const value* g_apply_damage_to_robot_d1 = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -157,7 +158,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_extract_orient_from_segment
           && g_check_line_to_face
           && g_special_check_line_to_face
-          && g_check_vector_to_sphere_1))
+          && g_check_vector_to_sphere_1
+          && g_apply_damage_to_robot_d1))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -249,6 +251,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_check_line_to_face = caml_named_value("cd_check_line_to_face");
     g_special_check_line_to_face = caml_named_value("cd_special_check_line_to_face");
     g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
+    g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
 
     if (!g_i2f
         || !g_f2i
@@ -321,7 +324,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_extract_orient_from_segment
         || !g_check_line_to_face
         || !g_special_check_line_to_face
-        || !g_check_vector_to_sphere_1)
+        || !g_check_vector_to_sphere_1
+        || !g_apply_damage_to_robot_d1)
     {
         return 1;
     }
@@ -402,7 +406,8 @@ int cd_ox_is_ready(void)
            && g_extract_orient_from_segment
            && g_check_line_to_face
            && g_special_check_line_to_face
-           && g_check_vector_to_sphere_1;
+           && g_check_vector_to_sphere_1
+           && g_apply_damage_to_robot_d1;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1539,4 +1544,32 @@ int32_t cd_ox_check_vector_to_sphere_1(
     *iy = Int_val(Field(out, 2));
     *iz = Int_val(Field(out, 3));
     return dist;
+}
+
+/* -- Collide / damage bridge ------------------------------------------ */
+
+void cd_ox_apply_damage_to_robot_d1(
+    int32_t flags, int32_t shields, int32_t damage,
+    int is_boss, int is_multiplayer,
+    int obj_id, int killer_objnum,
+    int32_t* out_buf, int* out_len)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_robot_d1");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[7] = {
+        Val_long(flags), Val_long(shields), Val_long(damage),
+        Val_long(is_boss), Val_long(is_multiplayer),
+        Val_long(obj_id), Val_long(killer_objnum)
+    };
+    result = caml_callbackN(*g_apply_damage_to_robot_d1, 7, args);
+
+    int arr_len = Wosize_val(result);
+    for (int i = 0; i < arr_len; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    *out_len = arr_len;
+
+    CAMLreturn0;
 }

@@ -49,9 +49,22 @@
  (wrapped false)
  (flags (:standard -open Core)))
 
+(library
+ (name ox_collide)
+ (libraries core)
+ (modules ox_collide)
+ (flags (:standard -open Core)))
+
+(library
+ (name bridge_collide)
+ (libraries core ox_collide)
+ (modules collide_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
  (modules math_bridge)
- (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg ox_fvi bridge_fvi)
+ (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg ox_fvi bridge_fvi ox_collide bridge_collide)
  (flags (:standard -open Core)))
