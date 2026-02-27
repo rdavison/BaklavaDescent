@@ -273,6 +273,18 @@ void cd_ox_clip_edge(
     int32_t* nx, int32_t* ny, int32_t* nz,
     int32_t* nu, int32_t* nv, int32_t* nl,
     int32_t* nflags, uint8_t* ncodes);
+void cd_ox_clip_line(
+    int32_t p0x, int32_t p0y, int32_t p0z, int32_t p0_codes,
+    int32_t p1x, int32_t p1y, int32_t p1z, int32_t p1_codes,
+    int32_t codes_or,
+    int32_t* out_p0x, int32_t* out_p0y, int32_t* out_p0z, uint8_t* out_p0_codes,
+    int32_t* out_p1x, int32_t* out_p1y, int32_t* out_p1z, uint8_t* out_p1_codes,
+    int* out_clipped);
+void cd_ox_clip_polygon(
+    int32_t codes_or, int32_t codes_and,
+    int nv, const int32_t* flat_in,
+    int* out_nv, int32_t* out_flat,
+    int32_t* out_codes_or, int32_t* out_codes_and);
 int cd_ox_do_facing_check_computed(
     int32_t p0x, int32_t p0y, int32_t p0z,
     int32_t p1x, int32_t p1y, int32_t p1z,

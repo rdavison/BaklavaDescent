@@ -167,6 +167,41 @@ g3s_point* clip_edge(int plane_flag, g3s_point* on_pnt, g3s_point* off_pnt)
 //clips a line to the viewing pyramid.
 void clip_line(g3s_point** p0, g3s_point** p1, uint8_t codes_or)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] clip_line using cd_ox_clip_line.\n");
+		ox_bridge_logged = 1;
+	}
+
+	(*p0)->p3_flags &= ~(PF_UVS | PF_LS);
+	(*p1)->p3_flags &= ~(PF_UVS | PF_LS);
+
+	int32_t op0x, op0y, op0z, op1x, op1y, op1z;
+	uint8_t op0c, op1c;
+	int clipped;
+	cd_ox_clip_line(
+		(*p0)->p3_x, (*p0)->p3_y, (*p0)->p3_z, (*p0)->p3_codes,
+		(*p1)->p3_x, (*p1)->p3_y, (*p1)->p3_z, (*p1)->p3_codes,
+		codes_or,
+		&op0x, &op0y, &op0z, &op0c,
+		&op1x, &op1y, &op1z, &op1c,
+		&clipped);
+
+	if ((*p0)->p3_flags & PF_TEMP_POINT) free_temp_point(*p0);
+	if ((*p1)->p3_flags & PF_TEMP_POINT) free_temp_point(*p1);
+
+	g3s_point* np0 = get_temp_point();
+	np0->p3_x = op0x; np0->p3_y = op0y; np0->p3_z = op0z;
+	np0->p3_codes = op0c;
+	*p0 = np0;
+
+	g3s_point* np1 = get_temp_point();
+	np1->p3_x = op1x; np1->p3_y = op1y; np1->p3_z = op1z;
+	np1->p3_codes = op1c;
+	*p1 = np1;
+#else
 	int plane_flag;
 	g3s_point* old_p1;
 
@@ -175,7 +210,7 @@ void clip_line(g3s_point** p0, g3s_point** p1, uint8_t codes_or)
 	(*p1)->p3_flags &= ~(PF_UVS | PF_LS);
 
 	for (plane_flag = 1; plane_flag < 16; plane_flag <<= 1)
-		if (codes_or & plane_flag) 
+		if (codes_or & plane_flag)
 		{
 
 			if ((*p0)->p3_codes & plane_flag)
@@ -195,6 +230,7 @@ void clip_line(g3s_point** p0, g3s_point** p1, uint8_t codes_or)
 				return;
 			codes_or = (*p0)->p3_codes | (*p1)->p3_codes;
 		}
+#endif
 }
 
 
@@ -253,12 +289,67 @@ int clip_plane(int plane_flag, g3s_point** src, g3s_point** dest, int* nv, g3s_c
 
 g3s_point** clip_polygon(g3s_point** src, g3s_point** dest, int* nv, g3s_codes* cc)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] clip_polygon using cd_ox_clip_polygon.\n");
+		ox_bridge_logged = 1;
+	}
+
+	int32_t flat_in[MAX_POINTS_IN_POLY * 8];
+	for (int i = 0; i < *nv; i++)
+	{
+		flat_in[i * 8 + 0] = src[i]->p3_x;
+		flat_in[i * 8 + 1] = src[i]->p3_y;
+		flat_in[i * 8 + 2] = src[i]->p3_z;
+		flat_in[i * 8 + 3] = src[i]->p3_u;
+		flat_in[i * 8 + 4] = src[i]->p3_v;
+		flat_in[i * 8 + 5] = src[i]->p3_l;
+		flat_in[i * 8 + 6] = src[i]->p3_flags;
+		flat_in[i * 8 + 7] = src[i]->p3_codes;
+	}
+
+	int32_t flat_out[MAX_POINTS_IN_POLY * 8];
+	int out_nv;
+	int32_t out_codes_or, out_codes_and;
+	cd_ox_clip_polygon(
+		cc->low, cc->high,
+		*nv, flat_in,
+		&out_nv, flat_out,
+		&out_codes_or, &out_codes_and);
+
+	for (int i = 0; i < *nv; i++)
+	{
+		if (src[i]->p3_flags & PF_TEMP_POINT)
+			free_temp_point(src[i]);
+	}
+
+	for (int i = 0; i < out_nv; i++)
+	{
+		g3s_point* p = get_temp_point();
+		p->p3_x = flat_out[i * 8 + 0];
+		p->p3_y = flat_out[i * 8 + 1];
+		p->p3_z = flat_out[i * 8 + 2];
+		p->p3_u = flat_out[i * 8 + 3];
+		p->p3_v = flat_out[i * 8 + 4];
+		p->p3_l = flat_out[i * 8 + 5];
+		p->p3_flags |= (uint8_t)flat_out[i * 8 + 6];
+		p->p3_codes = (uint8_t)flat_out[i * 8 + 7];
+		dest[i] = p;
+	}
+
+	cc->low = (uint8_t)out_codes_or;
+	cc->high = (uint8_t)out_codes_and;
+	*nv = out_nv;
+	return dest;
+#else
 	int plane_flag;
 	g3s_point** t;
 
 	for (plane_flag = 1; plane_flag < 16; plane_flag <<= 1)
 
-		if (cc->low &plane_flag) 
+		if (cc->low &plane_flag)
 		{
 
 			*nv = clip_plane(plane_flag, src, dest, nv, cc);
@@ -271,4 +362,5 @@ g3s_point** clip_polygon(g3s_point** src, g3s_point** dest, int* nv, g3s_codes* 
 		}
 
 	return src;		//we swapped after we copied
+#endif
 }

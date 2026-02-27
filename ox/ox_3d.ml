@@ -198,6 +198,103 @@ let g3_check_normal_facing ~view_pos v norm =
   let tempv = Ox_math.vm_vec_sub view_pos v in
   Ox_math.vm_vec_dotprod tempv norm > 0
 
+(* Clip a line segment against the viewing pyramid.
+   Takes two endpoints (xyz + codes) and combined codes_or.
+   Returns (p0_xyz, p0_codes, p1_xyz, p1_codes, clipped_away). *)
+let clip_line (p0x, p0y, p0z) p0_codes (p1x, p1y, p1z) p1_codes codes_or =
+  let rec loop planes p0x p0y p0z p0c p1x p1y p1z p1c cor =
+    match planes with
+    | [] -> ((p0x, p0y, p0z), p0c, (p1x, p1y, p1z), p1c, false)
+    | pf :: rest ->
+      if cor land pf = 0 then
+        loop rest p0x p0y p0z p0c p1x p1y p1z p1c cor
+      else
+        let p0x, p0y, p0z, p0c, p1x, p1y, p1z =
+          if p0c land pf <> 0
+          then p1x, p1y, p1z, p1c, p0x, p0y, p0z
+          else p0x, p0y, p0z, p0c, p1x, p1y, p1z
+        in
+        let (p1x, p1y, p1z, _, _, _, _, p1c) =
+          clip_edge ~plane_flag:pf
+            ~on_x:p0x ~on_y:p0y ~on_z:p0z ~on_u:0 ~on_v:0 ~on_l:0 ~on_flags:0
+            ~off_x:p1x ~off_y:p1y ~off_z:p1z ~off_u:0 ~off_v:0 ~off_l:0
+        in
+        if p0c land p1c <> 0 then
+          ((p0x, p0y, p0z), p0c, (p1x, p1y, p1z), p1c, true)
+        else
+          loop rest p0x p0y p0z p0c p1x p1y p1z p1c (p0c lor p1c)
+  in
+  loop [1; 2; 4; 8] p0x p0y p0z p0_codes p1x p1y p1z p1_codes codes_or
+
+(* Sutherland-Hodgman: clip a polygon against one frustum plane.
+   Points are tuples (x, y, z, u, v, l, flags, codes).
+   Returns (clipped_points, codes_and, codes_or). *)
+let clip_plane plane_flag points =
+  let nv = List.length points in
+  if nv = 0 then ([], 0xff, 0)
+  else
+    let pts = Array.of_list points in
+    let get i = if i >= nv then pts.(i - nv) else pts.(i) in
+    let dest = ref [] in
+    let c_and = ref 0xff in
+    let c_or = ref 0 in
+    for i = 1 to nv do
+      let (_, _, _, _, _, _, _, ci_codes) = get i in
+      if ci_codes land plane_flag <> 0 then begin
+        let (_, _, _, _, _, _, _, prev_codes) = get (i - 1) in
+        if prev_codes land plane_flag = 0 then begin
+          let (on_x, on_y, on_z, on_u, on_v, on_l, on_flags, _) = get (i - 1) in
+          let (off_x, off_y, off_z, off_u, off_v, off_l, _, _) = get i in
+          let clipped = clip_edge ~plane_flag
+              ~on_x ~on_y ~on_z ~on_u ~on_v ~on_l ~on_flags
+              ~off_x ~off_y ~off_z ~off_u ~off_v ~off_l
+          in
+          let (_, _, _, _, _, _, _, nc) = clipped in
+          c_or := !c_or lor nc;
+          c_and := !c_and land nc;
+          dest := clipped :: !dest
+        end;
+        let (_, _, _, _, _, _, _, next_codes) = get (i + 1) in
+        if next_codes land plane_flag = 0 then begin
+          let (on_x, on_y, on_z, on_u, on_v, on_l, on_flags, _) = get (i + 1) in
+          let (off_x, off_y, off_z, off_u, off_v, off_l, _, _) = get i in
+          let clipped = clip_edge ~plane_flag
+              ~on_x ~on_y ~on_z ~on_u ~on_v ~on_l ~on_flags
+              ~off_x ~off_y ~off_z ~off_u ~off_v ~off_l
+          in
+          let (_, _, _, _, _, _, _, nc) = clipped in
+          c_or := !c_or lor nc;
+          c_and := !c_and land nc;
+          dest := clipped :: !dest
+        end
+      end else begin
+        let pt = get i in
+        let (_, _, _, _, _, _, _, cc) = pt in
+        c_or := !c_or lor cc;
+        c_and := !c_and land cc;
+        dest := pt :: !dest
+      end
+    done;
+    (List.rev !dest, !c_and, !c_or)
+
+(* Clip a polygon against all 4 frustum planes.
+   Returns (clipped_points, final_codes_or, final_codes_and). *)
+let clip_polygon ~codes_or ~codes_and points =
+  let rec loop planes pts c_or c_and =
+    match planes with
+    | [] -> (pts, c_or, c_and)
+    | pf :: rest ->
+      if c_or land pf = 0 then
+        loop rest pts c_or c_and
+      else
+        let (clipped, new_and, new_or) = clip_plane pf pts in
+        if new_and <> 0 then
+          (clipped, new_or, new_and)
+        else
+          loop rest clipped new_or new_and
+  in
+  loop [1; 2; 4; 8] points codes_or codes_and
+
 (* Compute facing check from 3 rotated vertices (no explicit normal).
    Returns true if the polygon faces the viewer. *)
 let do_facing_check_computed p0 p1 p2 =

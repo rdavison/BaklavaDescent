@@ -1412,6 +1412,51 @@ extern "C" void c_oracle_calc_rod_corners(
     *codes_and = ca;
 }
 
+extern "C" void c_oracle_clip_line(
+    int32_t p0x, int32_t p0y, int32_t p0z, int32_t p0_codes,
+    int32_t p1x, int32_t p1y, int32_t p1z, int32_t p1_codes,
+    int32_t codes_or,
+    int32_t* out_p0x, int32_t* out_p0y, int32_t* out_p0z, int32_t* out_p0_codes,
+    int32_t* out_p1x, int32_t* out_p1y, int32_t* out_p1z, int32_t* out_p1_codes,
+    int32_t* out_clipped)
+{
+    for (int plane_flag = 1; plane_flag < 16; plane_flag <<= 1)
+    {
+        if (codes_or & plane_flag)
+        {
+            if (p0_codes & plane_flag)
+            {
+                int32_t tx, ty, tz, tc;
+                tx = p0x; p0x = p1x; p1x = tx;
+                ty = p0y; p0y = p1y; p1y = ty;
+                tz = p0z; p0z = p1z; p1z = tz;
+                tc = p0_codes; p0_codes = p1_codes; p1_codes = tc;
+            }
+
+            int32_t nx, ny, nz, nu, nv, nl, nflags;
+            uint8_t ncodes;
+            c_oracle_clip_edge(plane_flag,
+                p0x, p0y, p0z, 0, 0, 0, 0,
+                p1x, p1y, p1z, 0, 0, 0,
+                &nx, &ny, &nz, &nu, &nv, &nl, &nflags, &ncodes);
+
+            p1x = nx; p1y = ny; p1z = nz; p1_codes = ncodes;
+
+            if (p0_codes & p1_codes)
+            {
+                *out_p0x = p0x; *out_p0y = p0y; *out_p0z = p0z; *out_p0_codes = p0_codes;
+                *out_p1x = p1x; *out_p1y = p1y; *out_p1z = p1z; *out_p1_codes = p1_codes;
+                *out_clipped = 1;
+                return;
+            }
+            codes_or = p0_codes | p1_codes;
+        }
+    }
+    *out_p0x = p0x; *out_p0y = p0y; *out_p0z = p0z; *out_p0_codes = p0_codes;
+    *out_p1x = p1x; *out_p1y = p1y; *out_p1z = p1z; *out_p1_codes = p1_codes;
+    *out_clipped = 0;
+}
+
 extern "C" int c_oracle_do_facing_check_computed(
     int32_t p0x, int32_t p0y, int32_t p0z,
     int32_t p1x, int32_t p1y, int32_t p1z,

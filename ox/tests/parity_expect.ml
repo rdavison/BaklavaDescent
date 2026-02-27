@@ -4922,6 +4922,59 @@ let%expect_test "randomized clip_edge parity C vs Ox" =
   if !mismatches <> 0 then failwithf "clip_edge randomized parity failed" ();
   [%expect {| clip_edge random total=5000 mismatches=0 |}]
 
+external c_clip_line
+  :  int -> int -> int -> int
+  -> int -> int -> int -> int
+  -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "caml_c_clip_line_bc" "caml_c_clip_line"
+
+let%expect_test "randomized clip_line parity C vs Ox" =
+  let codes_gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_gen vec3_gen)
+      ~f:(fun ((x, y, z), _) ->
+        let cc = Ox_3d.g3_code_point (x, y, z) in
+        (x, y, z, cc))
+  in
+  let gen =
+    Quickcheck.Generator.both codes_gen codes_gen
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"clip-line-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((p0x, p0y, p0z, p0c), (p1x, p1y, p1z, p1c)) ->
+         let codes_or = p0c lor p1c in
+         if codes_or land 0x80 = 0 && codes_or <> 0 then (
+           incr total;
+           let (cp0x, cp0y, cp0z, cp0c, cp1x, cp1y, cp1z, cp1c, c_clip) =
+             c_clip_line p0x p0y p0z p0c p1x p1y p1z p1c codes_or
+           in
+           let ((op0x, op0y, op0z), op0c,
+                (op1x, op1y, op1z), op1c,
+                o_clip_b) =
+             Ox_3d.clip_line (p0x, p0y, p0z) p0c (p1x, p1y, p1z) p1c codes_or
+           in
+           let o_clip = if o_clip_b then 1 else 0 in
+           let eq = cp0x = op0x && cp0y = op0y && cp0z = op0z && cp0c = op0c
+                    && cp1x = op1x && cp1y = op1y && cp1z = op1z && cp1c = op1c
+                    && c_clip = o_clip
+           in
+           if not eq
+           then (
+             incr mismatches;
+             if Option.is_none !first_mismatch
+             then
+               first_mismatch
+               := Some
+                    (sprintf "clip_line c_p0=(%d,%d,%d/%d) o_p0=(%d,%d,%d/%d) c_clip=%d o_clip=%d"
+                       cp0x cp0y cp0z cp0c op0x op0y op0z op0c c_clip o_clip))));
+  printf "clip_line random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "clip_line randomized parity failed" ();
+  [%expect {| clip_line random total=1133 mismatches=0 |}]
+
 let%expect_test "randomized g3_check_normal_facing parity C vs Ox" =
   let gen =
     Quickcheck.Generator.map

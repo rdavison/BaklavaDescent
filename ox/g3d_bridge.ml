@@ -86,6 +86,43 @@ let cd_do_facing_check_computed p0x p0y p0z p1x p1y p1z p2x p2y p2z =
   if Ox_3d.do_facing_check_computed (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
   then 1 else 0
 
+let cd_clip_line p0x p0y p0z p0_codes p1x p1y p1z p1_codes codes_or =
+  let ((rp0x, rp0y, rp0z), rp0c,
+       (rp1x, rp1y, rp1z), rp1c,
+       clipped) =
+    Ox_3d.clip_line (p0x, p0y, p0z) p0_codes (p1x, p1y, p1z) p1_codes codes_or
+  in
+  (rp0x, rp0y, rp0z, rp0c,
+   rp1x, rp1y, rp1z, rp1c,
+   (if clipped then 1 else 0))
+
+let cd_clip_polygon codes_or codes_and (arr : int array) =
+  let nv = arr.(0) in
+  let points = List.init nv ~f:(fun i ->
+    let b = 1 + i * 8 in
+    (arr.(b), arr.(b+1), arr.(b+2),
+     arr.(b+3), arr.(b+4), arr.(b+5),
+     arr.(b+6), arr.(b+7)))
+  in
+  let (clipped, final_or, final_and) =
+    Ox_3d.clip_polygon ~codes_or ~codes_and points
+  in
+  let out_nv = List.length clipped in
+  let result = Array.create ~len:(2 + out_nv * 8) 0 in
+  result.(0) <- final_or;
+  result.(1) <- final_and;
+  List.iteri clipped ~f:(fun i (x, y, z, u, v, l, flags, codes) ->
+    let b = 2 + i * 8 in
+    result.(b) <- x;
+    result.(b+1) <- y;
+    result.(b+2) <- z;
+    result.(b+3) <- u;
+    result.(b+4) <- v;
+    result.(b+5) <- l;
+    result.(b+6) <- flags;
+    result.(b+7) <- codes);
+  result
+
 let cd_calc_rod_corners bx by bz bw tx ty tz tw msx msy msz =
   let ((c0x, c0y, c0z), (c1x, c1y, c1z), (c2x, c2y, c2z), (c3x, c3y, c3z), codes_and) =
     Ox_3d.calc_rod_corners
@@ -108,6 +145,8 @@ let () =
   Callback.register "cd_g3_start_instance_matrix" cd_g3_start_instance_matrix;
   Callback.register "cd_g3_point_2_vec" cd_g3_point_2_vec;
   Callback.register "cd_clip_edge" cd_clip_edge;
+  Callback.register "cd_clip_line" cd_clip_line;
+  Callback.register "cd_clip_polygon" cd_clip_polygon;
   Callback.register "cd_g3_check_normal_facing" cd_g3_check_normal_facing;
   Callback.register "cd_do_facing_check_computed" cd_do_facing_check_computed;
   Callback.register "cd_calc_rod_corners" cd_calc_rod_corners

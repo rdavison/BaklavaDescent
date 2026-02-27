@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <caml/alloc.h>
 #include <caml/callback.h>
+#include <caml/memory.h>
 #include <caml/mlvalues.h>
 #include <caml/startup.h>
 
@@ -63,6 +65,8 @@ static const value* g_scale_matrix = NULL;
 static const value* g_g3_start_instance_matrix = NULL;
 static const value* g_g3_point_2_vec = NULL;
 static const value* g_clip_edge = NULL;
+static const value* g_clip_line = NULL;
+static const value* g_clip_polygon = NULL;
 static const value* g_g3_check_normal_facing = NULL;
 static const value* g_do_facing_check_computed = NULL;
 static const value* g_calc_rod_corners = NULL;
@@ -125,6 +129,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_g3_start_instance_matrix
           && g_g3_point_2_vec
           && g_clip_edge
+          && g_clip_line
+          && g_clip_polygon
           && g_g3_check_normal_facing
           && g_do_facing_check_computed
           && g_calc_rod_corners))
@@ -202,6 +208,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_g3_start_instance_matrix = caml_named_value("cd_g3_start_instance_matrix");
     g_g3_point_2_vec = caml_named_value("cd_g3_point_2_vec");
     g_clip_edge = caml_named_value("cd_clip_edge");
+    g_clip_line = caml_named_value("cd_clip_line");
+    g_clip_polygon = caml_named_value("cd_clip_polygon");
     g_g3_check_normal_facing = caml_named_value("cd_g3_check_normal_facing");
     g_do_facing_check_computed = caml_named_value("cd_do_facing_check_computed");
     g_calc_rod_corners = caml_named_value("cd_calc_rod_corners");
@@ -261,6 +269,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_g3_start_instance_matrix
         || !g_g3_point_2_vec
         || !g_clip_edge
+        || !g_clip_line
+        || !g_clip_polygon
         || !g_g3_check_normal_facing
         || !g_do_facing_check_computed
         || !g_calc_rod_corners)
@@ -1081,6 +1091,67 @@ void cd_ox_g3_point_2_vec(
     };
     const value out = caml_callbackN(*g_g3_point_2_vec, 16, args);
     *vx = Int_val(Field(out, 0)); *vy = Int_val(Field(out, 1)); *vz = Int_val(Field(out, 2));
+}
+
+void cd_ox_clip_line(
+    int32_t p0x, int32_t p0y, int32_t p0z, int32_t p0_codes,
+    int32_t p1x, int32_t p1y, int32_t p1z, int32_t p1_codes,
+    int32_t codes_or,
+    int32_t* out_p0x, int32_t* out_p0y, int32_t* out_p0z, uint8_t* out_p0_codes,
+    int32_t* out_p1x, int32_t* out_p1y, int32_t* out_p1z, uint8_t* out_p1_codes,
+    int* out_clipped)
+{
+    cd_ox_require_ready("cd_ox_clip_line");
+    value args[9] = {
+        Val_long(p0x), Val_long(p0y), Val_long(p0z), Val_long(p0_codes),
+        Val_long(p1x), Val_long(p1y), Val_long(p1z), Val_long(p1_codes),
+        Val_long(codes_or),
+    };
+    const value out = caml_callbackN(*g_clip_line, 9, args);
+    *out_p0x = Int_val(Field(out, 0));
+    *out_p0y = Int_val(Field(out, 1));
+    *out_p0z = Int_val(Field(out, 2));
+    *out_p0_codes = (uint8_t)Int_val(Field(out, 3));
+    *out_p1x = Int_val(Field(out, 4));
+    *out_p1y = Int_val(Field(out, 5));
+    *out_p1z = Int_val(Field(out, 6));
+    *out_p1_codes = (uint8_t)Int_val(Field(out, 7));
+    *out_clipped = Int_val(Field(out, 8));
+}
+
+void cd_ox_clip_polygon(
+    int32_t codes_or, int32_t codes_and,
+    int nv, const int32_t* flat_in,
+    int* out_nv, int32_t* out_flat,
+    int32_t* out_codes_or, int32_t* out_codes_and)
+{
+    cd_ox_require_ready("cd_ox_clip_polygon");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    int arr_len = 1 + nv * 8;
+    arr = caml_alloc(arr_len, 0);
+    Store_field(arr, 0, Val_long(nv));
+    for (int i = 0; i < nv * 8; i++)
+    {
+        Store_field(arr, 1 + i, Val_long(flat_in[i]));
+    }
+
+    value cb_args[3] = { Val_long(codes_or), Val_long(codes_and), arr };
+    result = caml_callbackN(*g_clip_polygon, 3, cb_args);
+
+    *out_codes_or = Int_val(Field(result, 0));
+    *out_codes_and = Int_val(Field(result, 1));
+    int result_size = Wosize_val(result);
+    int out_count = (result_size - 2) / 8;
+    *out_nv = out_count;
+    for (int i = 0; i < out_count * 8; i++)
+    {
+        out_flat[i] = Int_val(Field(result, 2 + i));
+    }
+
+    CAMLreturn0;
 }
 
 void cd_ox_clip_edge(

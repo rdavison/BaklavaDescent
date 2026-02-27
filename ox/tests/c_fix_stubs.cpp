@@ -1767,6 +1767,43 @@ extern "C" CAMLprim value caml_c_calc_rod_corners_bc(value* argv, int argn)
         argv[10]);
 }
 
+extern "C" CAMLprim value caml_c_clip_line(
+    value p0x, value p0y, value p0z, value p0_codes,
+    value p1x, value p1y, value p1z, value p1_codes,
+    value codes_or)
+{
+    CAMLparam5(p0x, p0y, p0z, p0_codes, p1x);
+    CAMLxparam4(p1y, p1z, p1_codes, codes_or);
+    CAMLlocal1(out);
+    int32_t op0x, op0y, op0z, op0c, op1x, op1y, op1z, op1c, clipped;
+    c_oracle_clip_line(
+        Int_val(p0x), Int_val(p0y), Int_val(p0z), Int_val(p0_codes),
+        Int_val(p1x), Int_val(p1y), Int_val(p1z), Int_val(p1_codes),
+        Int_val(codes_or),
+        &op0x, &op0y, &op0z, &op0c,
+        &op1x, &op1y, &op1z, &op1c,
+        &clipped);
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(op0x));
+    Store_field(out, 1, Val_long(op0y));
+    Store_field(out, 2, Val_long(op0z));
+    Store_field(out, 3, Val_long(op0c));
+    Store_field(out, 4, Val_long(op1x));
+    Store_field(out, 5, Val_long(op1y));
+    Store_field(out, 6, Val_long(op1z));
+    Store_field(out, 7, Val_long(op1c));
+    Store_field(out, 8, Val_long(clipped));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_clip_line_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_clip_line(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8]);
+}
+
 extern "C" CAMLprim value caml_c_do_facing_check_computed(
     value p0x, value p0y, value p0z,
     value p1x, value p1y, value p1z,
