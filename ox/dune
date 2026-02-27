@@ -11,9 +11,22 @@
  (flags (:standard -open Core)))
 
 (library
+ (name ox_gameseg)
+ (libraries core ox_math)
+ (modules ox_gameseg)
+ (flags (:standard -open Core)))
+
+(library
  (name bridge_3d)
  (libraries core ox_math ox_3d)
  (modules g3d_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
+(library
+ (name bridge_gameseg)
+ (libraries core ox_math ox_gameseg)
+ (modules gameseg_bridge)
  (wrapped false)
  (flags (:standard -open Core)))
 
@@ -21,5 +34,5 @@
  (name math_bridge)
  (modes native)
  (modules math_bridge)
- (libraries core ox_math ox_3d bridge_3d)
+ (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg)
  (flags (:standard -open Core)))

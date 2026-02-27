@@ -45,6 +45,7 @@ static const value* g_vm_vec_ang_2_matrix = NULL;
 static const value* g_vm_transpose_matrix = NULL;
 static const value* g_vm_matrix_x_matrix = NULL;
 static const value* g_vm_vector_2_matrix = NULL;
+static const value* g_vm_vector_2_matrix_norm = NULL;
 static const value* g_vm_extract_angles_matrix = NULL;
 static const value* g_vm_extract_angles_vector_normalized = NULL;
 static const value* g_vm_extract_angles_vector = NULL;
@@ -70,6 +71,14 @@ static const value* g_clip_polygon = NULL;
 static const value* g_g3_check_normal_facing = NULL;
 static const value* g_do_facing_check_computed = NULL;
 static const value* g_calc_rod_corners = NULL;
+static const value* g_compute_center_point_on_side = NULL;
+static const value* g_compute_segment_center = NULL;
+static const value* g_get_verts_for_normal = NULL;
+static const value* g_create_abs_vertex_lists = NULL;
+static const value* g_get_seg_masks = NULL;
+static const value* g_get_side_dists = NULL;
+static const value* g_extract_vector_from_segment = NULL;
+static const value* g_extract_orient_from_segment = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -109,6 +118,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_vm_transpose_matrix
           && g_vm_matrix_x_matrix
           && g_vm_vector_2_matrix
+          && g_vm_vector_2_matrix_norm
           && g_vm_extract_angles_matrix
           && g_vm_extract_angles_vector_normalized
           && g_vm_extract_angles_vector
@@ -133,7 +143,15 @@ static void cd_ox_require_ready(const char* fn)
           && g_clip_polygon
           && g_g3_check_normal_facing
           && g_do_facing_check_computed
-          && g_calc_rod_corners))
+          && g_calc_rod_corners
+          && g_compute_center_point_on_side
+          && g_compute_segment_center
+          && g_get_verts_for_normal
+          && g_create_abs_vertex_lists
+          && g_get_seg_masks
+          && g_get_side_dists
+          && g_extract_vector_from_segment
+          && g_extract_orient_from_segment))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -188,6 +206,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_vm_transpose_matrix = caml_named_value("cd_vm_transpose_matrix");
     g_vm_matrix_x_matrix = caml_named_value("cd_vm_matrix_x_matrix");
     g_vm_vector_2_matrix = caml_named_value("cd_vm_vector_2_matrix");
+    g_vm_vector_2_matrix_norm = caml_named_value("cd_vm_vector_2_matrix_norm");
     g_vm_extract_angles_matrix = caml_named_value("cd_vm_extract_angles_matrix");
     g_vm_extract_angles_vector_normalized = caml_named_value("cd_vm_extract_angles_vector_normalized");
     g_vm_extract_angles_vector = caml_named_value("cd_vm_extract_angles_vector");
@@ -213,6 +232,14 @@ int cd_ox_init_runtime(const char* executable_path)
     g_g3_check_normal_facing = caml_named_value("cd_g3_check_normal_facing");
     g_do_facing_check_computed = caml_named_value("cd_do_facing_check_computed");
     g_calc_rod_corners = caml_named_value("cd_calc_rod_corners");
+    g_compute_center_point_on_side = caml_named_value("cd_compute_center_point_on_side");
+    g_compute_segment_center = caml_named_value("cd_compute_segment_center");
+    g_get_verts_for_normal = caml_named_value("cd_get_verts_for_normal");
+    g_create_abs_vertex_lists = caml_named_value("cd_create_abs_vertex_lists");
+    g_get_seg_masks = caml_named_value("cd_get_seg_masks");
+    g_get_side_dists = caml_named_value("cd_get_side_dists");
+    g_extract_vector_from_segment = caml_named_value("cd_extract_vector_from_segment");
+    g_extract_orient_from_segment = caml_named_value("cd_extract_orient_from_segment");
 
     if (!g_i2f
         || !g_f2i
@@ -249,6 +276,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_vm_transpose_matrix
         || !g_vm_matrix_x_matrix
         || !g_vm_vector_2_matrix
+        || !g_vm_vector_2_matrix_norm
         || !g_vm_extract_angles_matrix
         || !g_vm_extract_angles_vector_normalized
         || !g_vm_extract_angles_vector
@@ -273,7 +301,15 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_clip_polygon
         || !g_g3_check_normal_facing
         || !g_do_facing_check_computed
-        || !g_calc_rod_corners)
+        || !g_calc_rod_corners
+        || !g_compute_center_point_on_side
+        || !g_compute_segment_center
+        || !g_get_verts_for_normal
+        || !g_create_abs_vertex_lists
+        || !g_get_seg_masks
+        || !g_get_side_dists
+        || !g_extract_vector_from_segment
+        || !g_extract_orient_from_segment)
     {
         return 1;
     }
@@ -320,6 +356,7 @@ int cd_ox_is_ready(void)
            && g_vm_transpose_matrix
            && g_vm_matrix_x_matrix
            && g_vm_vector_2_matrix
+           && g_vm_vector_2_matrix_norm
            && g_vm_extract_angles_matrix
            && g_vm_extract_angles_vector_normalized
            && g_vm_extract_angles_vector
@@ -342,7 +379,15 @@ int cd_ox_is_ready(void)
            && g_clip_edge
            && g_g3_check_normal_facing
            && g_do_facing_check_computed
-           && g_calc_rod_corners;
+           && g_calc_rod_corners
+           && g_compute_center_point_on_side
+           && g_compute_segment_center
+           && g_get_verts_for_normal
+           && g_create_abs_vertex_lists
+           && g_get_seg_masks
+           && g_get_side_dists
+           && g_extract_vector_from_segment
+           && g_extract_orient_from_segment;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -800,6 +845,23 @@ void cd_ox_vm_vector_2_matrix(
     cd_ox_unpack_matrix(caml_callbackN(*g_vm_vector_2_matrix, 11, args), or1, or2, or3, ou1, ou2, ou3, of1, of2, of3);
 }
 
+void cd_ox_vm_vector_2_matrix_norm(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t has_uvec, int32_t ux, int32_t uy, int32_t uz,
+    int32_t has_rvec, int32_t rx, int32_t ry, int32_t rz,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3)
+{
+    cd_ox_require_ready("cd_ox_vm_vector_2_matrix_norm");
+    value args[11] = {
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(has_uvec), Val_long(ux), Val_long(uy), Val_long(uz),
+        Val_long(has_rvec), Val_long(rx), Val_long(ry), Val_long(rz),
+    };
+    cd_ox_unpack_matrix(caml_callbackN(*g_vm_vector_2_matrix_norm, 11, args), or1, or2, or3, ou1, ou2, ou3, of1, of2, of3);
+}
+
 void cd_ox_vm_extract_angles_matrix(
     int32_t r1, int32_t r2, int32_t r3,
     int32_t u1, int32_t u2, int32_t u3,
@@ -1234,4 +1296,166 @@ int cd_ox_calc_rod_corners(
     *c3x = Int_val(Field(out, 9)); *c3y = Int_val(Field(out, 10)); *c3z = Int_val(Field(out, 11));
     *codes_and = (uint8_t)Int_val(Field(out, 12));
     return (*codes_and != 0) ? 1 : 0;
+}
+
+void cd_ox_compute_center_point_on_side(
+    int32_t v0x, int32_t v0y, int32_t v0z,
+    int32_t v1x, int32_t v1y, int32_t v1z,
+    int32_t v2x, int32_t v2y, int32_t v2z,
+    int32_t v3x, int32_t v3y, int32_t v3z,
+    int32_t* cx, int32_t* cy, int32_t* cz)
+{
+    cd_ox_require_ready("cd_ox_compute_center_point_on_side");
+    value args[12] = {
+        Val_long(v0x), Val_long(v0y), Val_long(v0z),
+        Val_long(v1x), Val_long(v1y), Val_long(v1z),
+        Val_long(v2x), Val_long(v2y), Val_long(v2z),
+        Val_long(v3x), Val_long(v3y), Val_long(v3z),
+    };
+    const value out = caml_callbackN(*g_compute_center_point_on_side, 12, args);
+    *cx = Int_val(Field(out, 0));
+    *cy = Int_val(Field(out, 1));
+    *cz = Int_val(Field(out, 2));
+}
+
+void cd_ox_compute_segment_center(
+    const int32_t* verts_24, int32_t* cx, int32_t* cy, int32_t* cz)
+{
+    cd_ox_require_ready("cd_ox_compute_segment_center");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(24, 0);
+    for (int i = 0; i < 24; i++)
+        Store_field(arr, i, Val_long(verts_24[i]));
+
+    result = caml_callback(*g_compute_segment_center, arr);
+    *cx = Int_val(Field(result, 0));
+    *cy = Int_val(Field(result, 1));
+    *cz = Int_val(Field(result, 2));
+    CAMLreturn0;
+}
+
+void cd_ox_get_verts_for_normal(
+    int32_t va, int32_t vb, int32_t vc, int32_t vd,
+    int32_t* v0, int32_t* v1, int32_t* v2, int32_t* v3, int32_t* negate_flag)
+{
+    cd_ox_require_ready("cd_ox_get_verts_for_normal");
+    value args[4] = { Val_long(va), Val_long(vb), Val_long(vc), Val_long(vd) };
+    const value out = caml_callbackN(*g_get_verts_for_normal, 4, args);
+    *v0 = Int_val(Field(out, 0));
+    *v1 = Int_val(Field(out, 1));
+    *v2 = Int_val(Field(out, 2));
+    *v3 = Int_val(Field(out, 3));
+    *negate_flag = Int_val(Field(out, 4));
+}
+
+void cd_ox_create_abs_vertex_lists(
+    int32_t side_type, const int32_t* seg_verts_8, int32_t sidenum,
+    int32_t* num_faces, int32_t* vertices_6)
+{
+    cd_ox_require_ready("cd_ox_create_abs_vertex_lists");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(8, 0);
+    for (int i = 0; i < 8; i++)
+        Store_field(arr, i, Val_long(seg_verts_8[i]));
+
+    value args[3] = { Val_long(side_type), arr, Val_long(sidenum) };
+    result = caml_callbackN(*g_create_abs_vertex_lists, 3, args);
+    *num_faces = Int_val(Field(result, 0));
+    for (int i = 0; i < 6; i++)
+        vertices_6[i] = Int_val(Field(result, 1 + i));
+    CAMLreturn0;
+}
+
+void cd_ox_get_seg_masks(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* facemask, int32_t* sidemask, int32_t* centermask)
+{
+    cd_ox_require_ready("cd_ox_get_seg_masks");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    /* packed_len = 78: checkp(3) + rad(1) + seg_verts(8) + side_types(6)
+       + normals(36) + seg_vert_positions(24) */
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+
+    result = caml_callback(*g_get_seg_masks, arr);
+    *facemask = Int_val(Field(result, 0));
+    *sidemask = Int_val(Field(result, 1));
+    *centermask = Int_val(Field(result, 2));
+    CAMLreturn0;
+}
+
+void cd_ox_get_side_dists(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* mask, int32_t* side_dists_6)
+{
+    cd_ox_require_ready("cd_ox_get_side_dists");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    /* packed_len = 77: checkp(3) + seg_verts(8) + side_types(6)
+       + normals(36) + seg_vert_positions(24) */
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+
+    result = caml_callback(*g_get_side_dists, arr);
+    *mask = Int_val(Field(result, 0));
+    for (int i = 0; i < 6; i++)
+        side_dists_6[i] = Int_val(Field(result, 1 + i));
+    CAMLreturn0;
+}
+
+void cd_ox_extract_vector_from_segment(
+    const int32_t* verts_24, int32_t start_side, int32_t end_side,
+    int32_t* vx, int32_t* vy, int32_t* vz)
+{
+    cd_ox_require_ready("cd_ox_extract_vector_from_segment");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(26, 0);
+    for (int i = 0; i < 24; i++)
+        Store_field(arr, i, Val_long(verts_24[i]));
+    Store_field(arr, 24, Val_long(start_side));
+    Store_field(arr, 25, Val_long(end_side));
+
+    result = caml_callback(*g_extract_vector_from_segment, arr);
+    *vx = Int_val(Field(result, 0));
+    *vy = Int_val(Field(result, 1));
+    *vz = Int_val(Field(result, 2));
+    CAMLreturn0;
+}
+
+void cd_ox_extract_orient_from_segment(
+    const int32_t* verts_24,
+    int32_t* r1, int32_t* r2, int32_t* r3,
+    int32_t* u1, int32_t* u2, int32_t* u3,
+    int32_t* f1, int32_t* f2, int32_t* f3)
+{
+    cd_ox_require_ready("cd_ox_extract_orient_from_segment");
+
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+
+    arr = caml_alloc(24, 0);
+    for (int i = 0; i < 24; i++)
+        Store_field(arr, i, Val_long(verts_24[i]));
+
+    result = caml_callback(*g_extract_orient_from_segment, arr);
+    *r1 = Int_val(Field(result, 0)); *r2 = Int_val(Field(result, 1)); *r3 = Int_val(Field(result, 2));
+    *u1 = Int_val(Field(result, 3)); *u2 = Int_val(Field(result, 4)); *u3 = Int_val(Field(result, 5));
+    *f1 = Int_val(Field(result, 6)); *f2 = Int_val(Field(result, 7)); *f3 = Int_val(Field(result, 8));
+    CAMLreturn0;
 }

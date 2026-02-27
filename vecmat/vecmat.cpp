@@ -903,11 +903,29 @@ vms_matrix* vm_vector_2_matrix(vms_matrix* m, vms_vector* fvec, vms_vector* uvec
 //quicker version of vm_vector_2_matrix() that takes normalized vectors
 vms_matrix* vm_vector_2_matrix_norm(vms_matrix* m, vms_vector* fvec, vms_vector* uvec, vms_vector* rvec)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] vm_vector_2_matrix_norm using cd_ox_vm_vector_2_matrix_norm.\n");
+		ox_bridge_logged = 1;
+	}
+	Assert(fvec != NULL);
+	cd_ox_vm_vector_2_matrix_norm(
+		fvec->x, fvec->y, fvec->z,
+		uvec ? 1 : 0,
+		uvec ? uvec->x : 0, uvec ? uvec->y : 0, uvec ? uvec->z : 0,
+		rvec ? 1 : 0,
+		rvec ? rvec->x : 0, rvec ? rvec->y : 0, rvec ? rvec->z : 0,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	vms_vector* xvec = &m->rvec, * yvec = &m->uvec, * zvec = &m->fvec;
 
 	Assert(fvec != NULL);
 
-	if (uvec == NULL) 
+	if (uvec == NULL)
 	{
 		if (rvec == NULL) 
 		{
@@ -961,6 +979,7 @@ vms_matrix* vm_vector_2_matrix_norm(vms_matrix* m, vms_vector* fvec, vms_vector*
 		//now recompute up vector, in case it wasn't entirely perpendiclar
 		vm_vec_crossprod(yvec, zvec, xvec);
 	}
+#endif
 
 	return m;
 }

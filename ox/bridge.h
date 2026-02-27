@@ -170,6 +170,13 @@ void cd_ox_vm_vector_2_matrix(
     int32_t* or1, int32_t* or2, int32_t* or3,
     int32_t* ou1, int32_t* ou2, int32_t* ou3,
     int32_t* of1, int32_t* of2, int32_t* of3);
+void cd_ox_vm_vector_2_matrix_norm(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t has_uvec, int32_t ux, int32_t uy, int32_t uz,
+    int32_t has_rvec, int32_t rx, int32_t ry, int32_t rz,
+    int32_t* or1, int32_t* or2, int32_t* or3,
+    int32_t* ou1, int32_t* ou2, int32_t* ou3,
+    int32_t* of1, int32_t* of2, int32_t* of3);
 void cd_ox_vm_extract_angles_matrix(
     int32_t r1, int32_t r2, int32_t r3,
     int32_t u1, int32_t u2, int32_t u3,
@@ -302,6 +309,36 @@ int cd_ox_calc_rod_corners(
     int32_t* c2x, int32_t* c2y, int32_t* c2z,
     int32_t* c3x, int32_t* c3y, int32_t* c3z,
     uint8_t* codes_and);
+
+/* Gameseg functions */
+void cd_ox_compute_center_point_on_side(
+    int32_t v0x, int32_t v0y, int32_t v0z,
+    int32_t v1x, int32_t v1y, int32_t v1z,
+    int32_t v2x, int32_t v2y, int32_t v2z,
+    int32_t v3x, int32_t v3y, int32_t v3z,
+    int32_t* cx, int32_t* cy, int32_t* cz);
+void cd_ox_compute_segment_center(
+    const int32_t* verts_24, int32_t* cx, int32_t* cy, int32_t* cz);
+void cd_ox_get_verts_for_normal(
+    int32_t va, int32_t vb, int32_t vc, int32_t vd,
+    int32_t* v0, int32_t* v1, int32_t* v2, int32_t* v3, int32_t* negate_flag);
+void cd_ox_create_abs_vertex_lists(
+    int32_t side_type, const int32_t* seg_verts_8, int32_t sidenum,
+    int32_t* num_faces, int32_t* vertices_6);
+void cd_ox_get_seg_masks(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* facemask, int32_t* sidemask, int32_t* centermask);
+void cd_ox_get_side_dists(
+    const int32_t* packed, int32_t packed_len,
+    int32_t* mask, int32_t* side_dists_6);
+void cd_ox_extract_vector_from_segment(
+    const int32_t* verts_24, int32_t start_side, int32_t end_side,
+    int32_t* vx, int32_t* vy, int32_t* vz);
+void cd_ox_extract_orient_from_segment(
+    const int32_t* verts_24,
+    int32_t* r1, int32_t* r2, int32_t* r3,
+    int32_t* u1, int32_t* u2, int32_t* u3,
+    int32_t* f1, int32_t* f2, int32_t* f3);
 
 #ifdef __cplusplus
 }

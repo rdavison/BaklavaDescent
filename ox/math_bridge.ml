@@ -55,6 +55,11 @@ let cd_vm_vector_2_matrix fx fy fz has_uvec ux uy uz has_rvec rx ry rz =
   let rvec = if has_rvec <> 0 then Some (rx, ry, rz) else None in
   Ox_math.vm_vector_2_matrix (fx, fy, fz) uvec rvec
 
+let cd_vm_vector_2_matrix_norm fx fy fz has_uvec ux uy uz has_rvec rx ry rz =
+  let uvec = if has_uvec <> 0 then Some (ux, uy, uz) else None in
+  let rvec = if has_rvec <> 0 then Some (rx, ry, rz) else None in
+  Ox_math.vm_vector_2_matrix_norm (fx, fy, fz) uvec rvec
+
 let cd_vm_extract_angles_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 =
   Ox_math.vm_extract_angles_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
 
@@ -116,6 +121,7 @@ let () =
   Callback.register "cd_vm_transpose_matrix" cd_vm_transpose_matrix;
   Callback.register "cd_vm_matrix_x_matrix" cd_vm_matrix_x_matrix;
   Callback.register "cd_vm_vector_2_matrix" cd_vm_vector_2_matrix;
+  Callback.register "cd_vm_vector_2_matrix_norm" cd_vm_vector_2_matrix_norm;
   Callback.register "cd_vm_extract_angles_matrix" cd_vm_extract_angles_matrix;
   Callback.register "cd_vm_extract_angles_vector_normalized" cd_vm_extract_angles_vector_normalized;
   Callback.register "cd_vm_extract_angles_vector" cd_vm_extract_angles_vector;

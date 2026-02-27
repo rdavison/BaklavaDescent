@@ -29,6 +29,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gameseg.h"
 #include "wall.h"
 #include "fuelcen.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 // How far a point can be from a plane, and still be "in" the plane
 #define PLANE_DIST_TOLERANCE	250
@@ -38,6 +41,21 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 //	The center point is defined to be the average of the 4 points defining the side.
 void compute_center_point_on_side(vms_vector * vp, segment * sp, int side)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] compute_center_point_on_side using cd_ox_compute_center_point_on_side.\n");
+		ox_bridge_logged = 1;
+	}
+	int8_t* sv = Side_to_verts[side];
+	cd_ox_compute_center_point_on_side(
+		Vertices[sp->verts[sv[0]]].x, Vertices[sp->verts[sv[0]]].y, Vertices[sp->verts[sv[0]]].z,
+		Vertices[sp->verts[sv[1]]].x, Vertices[sp->verts[sv[1]]].y, Vertices[sp->verts[sv[1]]].z,
+		Vertices[sp->verts[sv[2]]].x, Vertices[sp->verts[sv[2]]].y, Vertices[sp->verts[sv[2]]].z,
+		Vertices[sp->verts[sv[3]]].x, Vertices[sp->verts[sv[3]]].y, Vertices[sp->verts[sv[3]]].z,
+		&vp->x, &vp->y, &vp->z);
+#else
 	int			v;
 
 	vm_vec_zero(vp);
@@ -46,6 +64,7 @@ void compute_center_point_on_side(vms_vector * vp, segment * sp, int side)
 		vm_vec_add2(vp, &Vertices[sp->verts[Side_to_verts[side][v]]]);
 
 	vm_vec_scale(vp, F1_0 / 4);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------
@@ -53,6 +72,22 @@ void compute_center_point_on_side(vms_vector * vp, segment * sp, int side)
 //	The center point is defined to be the average of the 8 points defining the segment.
 void compute_segment_center(vms_vector* vp, segment* sp)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] compute_segment_center using cd_ox_compute_segment_center.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t verts_24[24];
+	for (int v = 0; v < 8; v++)
+	{
+		verts_24[v * 3 + 0] = Vertices[sp->verts[v]].x;
+		verts_24[v * 3 + 1] = Vertices[sp->verts[v]].y;
+		verts_24[v * 3 + 2] = Vertices[sp->verts[v]].z;
+	}
+	cd_ox_compute_segment_center(verts_24, &vp->x, &vp->y, &vp->z);
+#else
 	int			v;
 
 	vm_vec_zero(vp);
@@ -61,6 +96,7 @@ void compute_segment_center(vms_vector* vp, segment* sp)
 		vm_vec_add2(vp, &Vertices[sp->verts[v]]);
 
 	vm_vec_scale(vp, F1_0 / 8);
+#endif
 }
 
 // -----------------------------------------------------------------------------
@@ -240,6 +276,23 @@ void create_all_vertnum_lists(int* num_faces, int* vertnums, int segnum, int sid
 //like create_all_vertex_lists(), but generate absolute point numbers
 void create_abs_vertex_lists(int* num_faces, int* vertices, int segnum, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] create_abs_vertex_lists using cd_ox_create_abs_vertex_lists.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t seg_verts_8[8];
+	for (int i = 0; i < 8; i++)
+		seg_verts_8[i] = Segments[segnum].verts[i];
+	int32_t nf;
+	int32_t verts_6[6];
+	cd_ox_create_abs_vertex_lists(Segments[segnum].sides[sidenum].type, seg_verts_8, sidenum, &nf, verts_6);
+	*num_faces = nf;
+	for (int i = 0; i < 6; i++)
+		vertices[i] = verts_6[i];
+#else
 	short* vp = Segments[segnum].verts;
 	side* sidep = &Segments[segnum].sides[sidenum];
 	int* sv = Side_to_verts_int[sidenum];
@@ -289,7 +342,7 @@ void create_abs_vertex_lists(int* num_faces, int* vertices, int segnum, int side
 		Error("Illegal side type, type = %i, segment # = %i, side # = %i\n", sidep->type, segnum, sidenum);
 		break;
 	}
-
+#endif
 }
 
 
@@ -297,6 +350,45 @@ void create_abs_vertex_lists(int* num_faces, int* vertices, int segnum, int side
 //this segment.  See segmasks structure for info on fields   
 segmasks get_seg_masks(vms_vector* checkp, int segnum, fix rad)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] get_seg_masks using cd_ox_get_seg_masks.\n");
+		ox_bridge_logged = 1;
+	}
+	segment* seg = &Segments[segnum];
+	/* Pack: checkp(3) + rad(1) + seg_verts(8) + side_types(6) + normals(36) + seg_vert_positions(24) = 78 */
+	int32_t packed[78];
+	packed[0] = checkp->x; packed[1] = checkp->y; packed[2] = checkp->z;
+	packed[3] = rad;
+	for (int i = 0; i < 8; i++)
+		packed[4 + i] = seg->verts[i];
+	for (int i = 0; i < 6; i++)
+		packed[12 + i] = seg->sides[i].type;
+	for (int i = 0; i < 6; i++)
+	{
+		packed[18 + i * 6 + 0] = seg->sides[i].normals[0].x;
+		packed[18 + i * 6 + 1] = seg->sides[i].normals[0].y;
+		packed[18 + i * 6 + 2] = seg->sides[i].normals[0].z;
+		packed[18 + i * 6 + 3] = seg->sides[i].normals[1].x;
+		packed[18 + i * 6 + 4] = seg->sides[i].normals[1].y;
+		packed[18 + i * 6 + 5] = seg->sides[i].normals[1].z;
+	}
+	for (int i = 0; i < 8; i++)
+	{
+		packed[54 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+		packed[54 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+		packed[54 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+	}
+	int32_t fm, sm, cm;
+	cd_ox_get_seg_masks(packed, 78, &fm, &sm, &cm);
+	segmasks masks;
+	masks.facemask = (short)fm;
+	masks.sidemask = (int8_t)sm;
+	masks.centermask = (int8_t)cm;
+	return masks;
+#else
 	int			sn, facebit, sidebit;
 	segmasks		masks;
 	int			num_faces;
@@ -397,14 +489,52 @@ segmasks get_seg_masks(vms_vector* checkp, int segnum, fix rad)
 		}
 
 	}
+#endif
 	return masks;
 }
 
 //this was converted from get_seg_masks()...it fills in an array of 6
 //elements for the distace behind each side, or zero if not behind
-//only gets centermask, and assumes zero rad 
+//only gets centermask, and assumes zero rad
 uint8_t get_side_dists(vms_vector* checkp, int segnum, fix* side_dists)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] get_side_dists using cd_ox_get_side_dists.\n");
+		ox_bridge_logged = 1;
+	}
+	segment* seg = &Segments[segnum];
+	/* Pack: checkp(3) + seg_verts(8) + side_types(6) + normals(36) + seg_vert_positions(24) = 77 */
+	int32_t packed[77];
+	packed[0] = checkp->x; packed[1] = checkp->y; packed[2] = checkp->z;
+	for (int i = 0; i < 8; i++)
+		packed[3 + i] = seg->verts[i];
+	for (int i = 0; i < 6; i++)
+		packed[11 + i] = seg->sides[i].type;
+	for (int i = 0; i < 6; i++)
+	{
+		packed[17 + i * 6 + 0] = seg->sides[i].normals[0].x;
+		packed[17 + i * 6 + 1] = seg->sides[i].normals[0].y;
+		packed[17 + i * 6 + 2] = seg->sides[i].normals[0].z;
+		packed[17 + i * 6 + 3] = seg->sides[i].normals[1].x;
+		packed[17 + i * 6 + 4] = seg->sides[i].normals[1].y;
+		packed[17 + i * 6 + 5] = seg->sides[i].normals[1].z;
+	}
+	for (int i = 0; i < 8; i++)
+	{
+		packed[53 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+		packed[53 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+		packed[53 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+	}
+	int32_t mask_out;
+	int32_t sd[6];
+	cd_ox_get_side_dists(packed, 77, &mask_out, sd);
+	for (int i = 0; i < 6; i++)
+		side_dists[i] = sd[i];
+	return (uint8_t)mask_out;
+#else
 	int			sn, facebit, sidebit;
 	uint8_t			mask;
 	int			num_faces;
@@ -510,6 +640,7 @@ uint8_t get_side_dists(vms_vector* checkp, int segnum, fix* side_dists)
 	}
 
 	return mask;
+#endif
 }
 
 #ifndef NDEBUG 
@@ -1156,6 +1287,22 @@ void extract_shortpos(object* objp, shortpos* spp)
 //	The point on each face is the average of the four points forming the face.
 void extract_vector_from_segment(segment* sp, vms_vector* vp, int start, int end)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] extract_vector_from_segment using cd_ox_extract_vector_from_segment.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t verts_24[24];
+	for (int i = 0; i < 8; i++)
+	{
+		verts_24[i * 3 + 0] = Vertices[sp->verts[i]].x;
+		verts_24[i * 3 + 1] = Vertices[sp->verts[i]].y;
+		verts_24[i * 3 + 2] = Vertices[sp->verts[i]].z;
+	}
+	cd_ox_extract_vector_from_segment(verts_24, start, end, &vp->x, &vp->y, &vp->z);
+#else
 	int			i;
 	vms_vector	vs, ve;
 
@@ -1170,11 +1317,31 @@ void extract_vector_from_segment(segment* sp, vms_vector* vp, int start, int end
 
 	vm_vec_sub(vp, &ve, &vs);
 	vm_vec_scale(vp, F1_0 / 4);
+#endif
 }
 
 //create a matrix that describes the orientation of the given segment
 void extract_orient_from_segment(vms_matrix* m, segment* seg)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] extract_orient_from_segment using cd_ox_extract_orient_from_segment.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t verts_24[24];
+	for (int i = 0; i < 8; i++)
+	{
+		verts_24[i * 3 + 0] = Vertices[seg->verts[i]].x;
+		verts_24[i * 3 + 1] = Vertices[seg->verts[i]].y;
+		verts_24[i * 3 + 2] = Vertices[seg->verts[i]].z;
+	}
+	cd_ox_extract_orient_from_segment(verts_24,
+		&m->rvec.x, &m->rvec.y, &m->rvec.z,
+		&m->uvec.x, &m->uvec.y, &m->uvec.z,
+		&m->fvec.x, &m->fvec.y, &m->fvec.z);
+#else
 	vms_vector fvec, uvec;
 
 	extract_vector_from_segment(seg, &fvec, WFRONT, WBACK);
@@ -1182,6 +1349,7 @@ void extract_orient_from_segment(vms_matrix* m, segment* seg)
 
 	//vector to matrix does normalizations and orthogonalizations
 	vm_vector_2_matrix(m, &fvec, &uvec, NULL);
+#endif
 }
 
 #ifdef EDITOR
@@ -1238,6 +1406,17 @@ void add_side_as_quad(segment* sp, int sidenum, vms_vector* normal)
 //	small differences between normals which should merely be opposites of each other.
 void get_verts_for_normal(int va, int vb, int vc, int vd, int* v0, int* v1, int* v2, int* v3, int* negate_flag)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] get_verts_for_normal using cd_ox_get_verts_for_normal.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t ov0, ov1, ov2, ov3, onf;
+	cd_ox_get_verts_for_normal(va, vb, vc, vd, &ov0, &ov1, &ov2, &ov3, &onf);
+	*v0 = ov0; *v1 = ov1; *v2 = ov2; *v3 = ov3; *negate_flag = onf;
+#else
 	int	i, j;
 	int	v[4], w[4];
 
@@ -1271,7 +1450,7 @@ void get_verts_for_normal(int va, int vb, int vc, int vd, int* v0, int* v1, int*
 		*negate_flag = 1;
 	else
 		*negate_flag = 0;
-
+#endif
 }
 
 // -------------------------------------------------------------------------------

@@ -594,3 +594,43 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Bug fix: PF_PROJECTED flag leak through clip_polygon bridge.**
   Original code preserved vertex identity for passthrough vertices (same pointer = same screen coords already set). The bridge creates new temp points for ALL output, but was passing through all `p3_flags` including `PF_PROJECTED`. Callers seeing `PF_PROJECTED` on a new temp point would skip re-projection, using uninitialized `p3_sx`/`p3_sy` — causing wild rendering artifacts. Fix: mask flags to only clipping-relevant bits: `src[i]->p3_flags & (PF_UVS | PF_LS)`.
 - Bridge function count: 62 total (was 60).
+
+### 39) Wire vm_vector_2_matrix_norm + Port gameseg pure geometry to Ox
+
+- **Wire `vm_vector_2_matrix_norm`:**
+  - OCaml impl + oracle + parity test already existed (5000 cases, 0 mismatches). Added 4-layer bridge wiring: `math_bridge.ml`, `bridge.c`, `bridge.h`, `vecmat.cpp`.
+  - Identical pattern to `vm_vector_2_matrix`: 11 scalar args → 9 output scalars (3×3 matrix).
+
+- **New module `ox/ox_gameseg.ml` — first game-logic module beyond fix/vecmat/3d:**
+  - `side_to_verts` constant (compile-time duplicate of C global).
+  - `compute_center_point_on_side` — average of 4 vertex positions (delegates to `vm_vec_avg4`).
+  - `compute_segment_center` — average of 8 vertex positions.
+  - `get_verts_for_normal` — canonical vertex ordering for normals, pure combinatorics with insertion sort + parity check.
+  - `create_abs_vertex_lists` — face topology from side type + segment vertex array. Returns absolute vertex indices for 1–2 faces (4 or 6 vertices).
+  - `get_seg_masks` — sphere-in-segment bitmask test. Iterates 6 sides, calls `create_abs_vertex_lists` + `vm_dist_to_plane`, handles concave/convex sides. Returns facemask/sidemask/centermask.
+  - `get_side_dists` — per-side plane distances variant of `get_seg_masks`.
+  - `extract_vector_from_segment` — direction between face centers using `Side_to_verts`.
+  - `extract_orient_from_segment` — 3×3 orientation matrix via `extract_vector_from_segment` + `vm_vector_2_matrix`.
+
+- **Bridge architecture for global-dependent functions:**
+  - C bridge reads `Segments[]`/`Vertices[]` globals, passes extracted data as flat arrays.
+  - `get_seg_masks`/`get_side_dists` use packed int arrays (78/77 elements): checkp + rad + seg_verts + side_types + normals + vertex positions.
+  - `lookup_vpos` helper in OCaml maps absolute vertex indices back to segment-relative positions.
+  - `extract_vector_from_segment`/`extract_orient_from_segment` pass 24+2 / 24 ints (8 vertex positions + side indices).
+
+- **New bridge files:**
+  - `ox/gameseg_bridge.ml` — callback wrappers for all 8 gameseg functions.
+  - `ox/oracle/c_oracle_gameseg.cpp` + `.h` — C oracle implementations.
+
+- **Parity tests (all passing):**
+  - `compute_center_point_on_side` — 2 deterministic cases.
+  - `compute_segment_center` — unit cube test.
+  - `get_verts_for_normal` — 4 cases covering sort + negate_flag.
+  - `create_abs_vertex_lists` — 6 cases across all 3 side types and multiple sides.
+  - `extract_vector_from_segment` — 2 cases (front→back, bottom→top).
+  - `extract_orient_from_segment` — unit cube orientation matrix.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE` in `main_d1/gameseg.cpp`:**
+  - `compute_center_point_on_side`, `compute_segment_center`, `create_abs_vertex_lists`, `get_seg_masks`, `get_side_dists`, `get_verts_for_normal`, `extract_vector_from_segment`, `extract_orient_from_segment`.
+
+- Bridge function count: 71 total (was 62). New OCaml module count: 4 (ox_math, ox_3d, ox_gameseg + bridges).

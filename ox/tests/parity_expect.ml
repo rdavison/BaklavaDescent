@@ -5194,3 +5194,153 @@ let%expect_test "randomized do_facing_check_computed parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "do_facing_check_computed randomized parity failed" ();
   [%expect {| do_facing_check_computed random total=5000 mismatches=0 |}]
+
+(* ---- Gameseg parity tests ---- *)
+
+external c_compute_center_point_on_side_raw
+  :  int -> int -> int -> int -> int -> int
+  -> int -> int -> int -> int -> int -> int
+  -> int * int * int
+  = "caml_c_compute_center_point_on_side_bc" "caml_c_compute_center_point_on_side"
+
+let c_compute_center_point_on_side (v0x, v0y, v0z) (v1x, v1y, v1z) (v2x, v2y, v2z) (v3x, v3y, v3z) =
+  c_compute_center_point_on_side_raw v0x v0y v0z v1x v1y v1z v2x v2y v2z v3x v3y v3z
+
+external c_compute_segment_center : int array -> int * int * int
+  = "caml_c_compute_segment_center"
+
+let c_compute_segment_center_vecs verts =
+  let arr = Array.create ~len: 24 0 in
+  Array.iteri verts ~f:(fun i (x, y, z) ->
+    arr.(i * 3) <- x; arr.((i * 3) + 1) <- y; arr.((i * 3) + 2) <- z);
+  c_compute_segment_center arr
+
+external c_get_verts_for_normal : int -> int -> int -> int -> int * int * int * int * int
+  = "caml_c_get_verts_for_normal"
+
+external c_create_abs_vertex_lists : int -> int array -> int -> int * int * int * int * int * int * int
+  = "caml_c_create_abs_vertex_lists"
+
+let c_create_abs_vertex_lists_unpacked side_type seg_verts sidenum =
+  let nf, v0, v1, v2, v3, v4, v5 = c_create_abs_vertex_lists side_type seg_verts sidenum in
+  nf, [| v0; v1; v2; v3; v4; v5 |]
+
+external c_extract_vector_from_segment : int array -> int * int * int
+  = "caml_c_extract_vector_from_segment"
+
+external c_extract_orient_from_segment : int array -> int * int * int * int * int * int * int * int * int
+  = "caml_c_extract_orient_from_segment"
+
+let%expect_test "compute_center_point_on_side parity C vs Ox" =
+  let cases =
+    [ (0x10000, 0, 0), (0, 0x10000, 0), (0, 0, 0x10000), (-0x10000, 0, 0)
+    ; (100, 200, 300), (400, 500, 600), (700, 800, 900), (1000, 1100, 1200)
+    ]
+  in
+  List.iter cases ~f:(fun (v0, v1, v2, v3) ->
+    let cx, cy, cz = c_compute_center_point_on_side v0 v1 v2 v3 in
+    let ox, oy, oz = Ox_gameseg.compute_center_point_on_side v0 v1 v2 v3 in
+    printf "compute_center_point_on_side c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+      cx cy cz ox oy oz (cx = ox && cy = oy && cz = oz));
+  [%expect {|
+    compute_center_point_on_side c=(0,16384,16384) ox=(0,16384,16384) eq=true
+    compute_center_point_on_side c=(550,650,750) ox=(550,650,750) eq=true
+    |}]
+
+let%expect_test "compute_segment_center parity C vs Ox" =
+  let verts = [|
+    (0, 0, 0); (0x10000, 0, 0); (0x10000, 0x10000, 0); (0, 0x10000, 0);
+    (0, 0, 0x10000); (0x10000, 0, 0x10000); (0x10000, 0x10000, 0x10000); (0, 0x10000, 0x10000)
+  |] in
+  let cx, cy, cz = c_compute_segment_center_vecs verts in
+  let ox, oy, oz =
+    Ox_gameseg.compute_segment_center verts.(0) verts.(1) verts.(2) verts.(3)
+      verts.(4) verts.(5) verts.(6) verts.(7)
+  in
+  printf "compute_segment_center c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    cx cy cz ox oy oz (cx = ox && cy = oy && cz = oz);
+  [%expect {| compute_segment_center c=(32768,32768,32768) ox=(32768,32768,32768) eq=true |}]
+
+let%expect_test "get_verts_for_normal parity C vs Ox" =
+  let cases = [ (3, 1, 4, 2); (10, 5, 3, 7); (100, 200, 50, 150); (1, 2, 3, 32767) ] in
+  List.iter cases ~f:(fun (va, vb, vc, vd) ->
+    let cv0, cv1, cv2, cv3, cnf = c_get_verts_for_normal va vb vc vd in
+    let ov0, ov1, ov2, ov3, onf = Ox_gameseg.get_verts_for_normal va vb vc vd in
+    let eq = cv0 = ov0 && cv1 = ov1 && cv2 = ov2 && cv3 = ov3 && cnf = onf in
+    printf "get_verts_for_normal (%d,%d,%d,%d) c=(%d,%d,%d,%d,%d) ox=(%d,%d,%d,%d,%d) eq=%b\n"
+      va vb vc vd cv0 cv1 cv2 cv3 cnf ov0 ov1 ov2 ov3 onf eq);
+  [%expect {|
+    get_verts_for_normal (3,1,4,2) c=(1,2,3,4,0) ox=(1,2,3,4,0) eq=true
+    get_verts_for_normal (10,5,3,7) c=(3,5,7,10,1) ox=(3,5,7,10,1) eq=true
+    get_verts_for_normal (100,200,50,150) c=(50,100,150,200,1) ox=(50,100,150,200,1) eq=true
+    get_verts_for_normal (1,2,3,32767) c=(1,2,3,32767,0) ox=(1,2,3,32767,0) eq=true
+    |}]
+
+let%expect_test "create_abs_vertex_lists parity C vs Ox" =
+  let seg_verts = [| 10; 20; 30; 40; 50; 60; 70; 80 |] in
+  let cases = [ (1, 0); (1, 3); (2, 0); (2, 5); (3, 1); (3, 4) ] in
+  List.iter cases ~f:(fun (side_type, sidenum) ->
+    let cnf, cv0, cv1, cv2, cv3, cv4, cv5 = c_create_abs_vertex_lists side_type seg_verts sidenum in
+    let onf, overts = Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum in
+    let eq = cnf = onf && cv0 = overts.(0) && cv1 = overts.(1) && cv2 = overts.(2)
+             && cv3 = overts.(3) && cv4 = overts.(4) && cv5 = overts.(5) in
+    printf "create_abs_vertex_lists type=%d side=%d c=(%d,[%d,%d,%d,%d,%d,%d]) ox=(%d,[%d,%d,%d,%d,%d,%d]) eq=%b\n"
+      side_type sidenum cnf cv0 cv1 cv2 cv3 cv4 cv5 onf
+      overts.(0) overts.(1) overts.(2) overts.(3) overts.(4) overts.(5) eq);
+  [%expect {|
+    create_abs_vertex_lists type=1 side=0 c=(1,[80,70,30,40,0,0]) ox=(1,[80,70,30,40,0,0]) eq=true
+    create_abs_vertex_lists type=1 side=3 c=(1,[30,70,60,20,0,0]) ox=(1,[30,70,60,20,0,0]) eq=true
+    create_abs_vertex_lists type=2 side=0 c=(2,[80,70,30,30,40,80]) ox=(2,[80,70,30,30,40,80]) eq=true
+    create_abs_vertex_lists type=2 side=5 c=(2,[40,30,20,20,10,40]) ox=(2,[40,30,20,20,10,40]) eq=true
+    create_abs_vertex_lists type=3 side=1 c=(2,[40,10,50,50,80,40]) ox=(2,[40,10,50,50,80,40]) eq=true
+    create_abs_vertex_lists type=3 side=4 c=(2,[80,50,60,60,70,80]) ox=(2,[80,50,60,60,70,80]) eq=true
+    |}]
+
+let%expect_test "extract_vector_from_segment parity C vs Ox" =
+  (* Unit cube vertices *)
+  let verts = [|
+    (0, 0, 0); (0x10000, 0, 0); (0x10000, 0x10000, 0); (0, 0x10000, 0);
+    (0, 0, 0x10000); (0x10000, 0, 0x10000); (0x10000, 0x10000, 0x10000); (0, 0x10000, 0x10000)
+  |] in
+  let arr = Array.create ~len: 26 0 in
+  Array.iteri verts ~f:(fun i (x, y, z) ->
+    arr.(i * 3) <- x; arr.((i * 3) + 1) <- y; arr.((i * 3) + 2) <- z);
+  (* WFRONT=5, WBACK=4 *)
+  arr.(24) <- 5; arr.(25) <- 4;
+  let cx, cy, cz = c_extract_vector_from_segment arr in
+  let verts_arr = Array.init 8 ~f:(fun i ->
+    let b = i * 3 in arr.(b), arr.(b + 1), arr.(b + 2)) in
+  let ox, oy, oz = Ox_gameseg.extract_vector_from_segment verts_arr 5 4 in
+  printf "extract_vector_from_segment c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    cx cy cz ox oy oz (cx = ox && cy = oy && cz = oz);
+  (* WBOTTOM=3, WTOP=1 *)
+  arr.(24) <- 3; arr.(25) <- 1;
+  let cx, cy, cz = c_extract_vector_from_segment arr in
+  let ox, oy, oz = Ox_gameseg.extract_vector_from_segment verts_arr 3 1 in
+  printf "extract_vector_from_segment c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    cx cy cz ox oy oz (cx = ox && cy = oy && cz = oz);
+  [%expect {|
+    extract_vector_from_segment c=(0,0,65536) ox=(0,0,65536) eq=true
+    extract_vector_from_segment c=(-65536,0,0) ox=(-65536,0,0) eq=true
+    |}]
+
+let%expect_test "extract_orient_from_segment parity C vs Ox" =
+  let verts = [|
+    (0, 0, 0); (0x10000, 0, 0); (0x10000, 0x10000, 0); (0, 0x10000, 0);
+    (0, 0, 0x10000); (0x10000, 0, 0x10000); (0x10000, 0x10000, 0x10000); (0, 0x10000, 0x10000)
+  |] in
+  let arr = Array.create ~len: 24 0 in
+  Array.iteri verts ~f:(fun i (x, y, z) ->
+    arr.(i * 3) <- x; arr.((i * 3) + 1) <- y; arr.((i * 3) + 2) <- z);
+  let cr1, cr2, cr3, cu1, cu2, cu3, cf1, cf2, cf3 = c_extract_orient_from_segment arr in
+  let verts_arr = Array.init 8 ~f:(fun i ->
+    let b = i * 3 in arr.(b), arr.(b + 1), arr.(b + 2)) in
+  let (or1, or2, or3), (ou1, ou2, ou3), (of1, of2, of3) =
+    Ox_gameseg.extract_orient_from_segment verts_arr in
+  let eq = cr1 = or1 && cr2 = or2 && cr3 = or3
+    && cu1 = ou1 && cu2 = ou2 && cu3 = ou3
+    && cf1 = of1 && cf2 = of2 && cf3 = of3 in
+  printf "extract_orient_from_segment c=[%d,%d,%d;%d,%d,%d;%d,%d,%d] ox=[%d,%d,%d;%d,%d,%d;%d,%d,%d] eq=%b\n"
+    cr1 cr2 cr3 cu1 cu2 cu3 cf1 cf2 cf3
+    or1 or2 or3 ou1 ou2 ou3 of1 of2 of3 eq;
+  [%expect {| extract_orient_from_segment c=[0,65536,0;-65536,0,0;0,0,65536] ox=[0,65536,0;-65536,0,0;0,0,65536] eq=true |}]

@@ -5,6 +5,7 @@ extern "C" {
 }
 
 #include "c_oracle.h"
+#include "c_oracle_gameseg.h"
 
 extern "C" CAMLprim value caml_c_i2f(value i)
 {
@@ -1854,4 +1855,154 @@ extern "C" CAMLprim value caml_c_clip_polygon(
         Store_field(result, 2 + i, Val_long(flat_out[i]));
 
     CAMLreturn(result);
+}
+
+/* ---- Gameseg oracle stubs ---- */
+
+extern "C" CAMLprim value caml_c_compute_center_point_on_side(
+    value v0x, value v0y, value v0z,
+    value v1x, value v1y, value v1z,
+    value v2x, value v2y, value v2z,
+    value v3x, value v3y, value v3z)
+{
+    CAMLparam5(v0x, v0y, v0z, v1x, v1y);
+    CAMLxparam5(v1z, v2x, v2y, v2z, v3x);
+    CAMLxparam2(v3y, v3z);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 a = { Int_val(v0x), Int_val(v0y), Int_val(v0z) };
+    c_oracle_vec3 b = { Int_val(v1x), Int_val(v1y), Int_val(v1z) };
+    c_oracle_vec3 c = { Int_val(v2x), Int_val(v2y), Int_val(v2z) };
+    c_oracle_vec3 d = { Int_val(v3x), Int_val(v3y), Int_val(v3z) };
+    c_oracle_vec3 dest;
+    c_oracle_compute_center_point_on_side(&dest, &a, &b, &c, &d);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_compute_center_point_on_side_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_compute_center_point_on_side(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]);
+}
+
+extern "C" CAMLprim value caml_c_compute_segment_center(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 verts[8];
+    for (int i = 0; i < 8; i++)
+    {
+        verts[i].x = Int_val(Field(arr, i * 3));
+        verts[i].y = Int_val(Field(arr, i * 3 + 1));
+        verts[i].z = Int_val(Field(arr, i * 3 + 2));
+    }
+    c_oracle_vec3 dest;
+    c_oracle_compute_segment_center(&dest, verts);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_get_verts_for_normal(value va, value vb, value vc, value vd)
+{
+    CAMLparam4(va, vb, vc, vd);
+    CAMLlocal1(out);
+
+    int32_t v0, v1, v2, v3, nf;
+    c_oracle_get_verts_for_normal(Int_val(va), Int_val(vb), Int_val(vc), Int_val(vd),
+        &v0, &v1, &v2, &v3, &nf);
+
+    out = caml_alloc_tuple(5);
+    Store_field(out, 0, Val_long(v0));
+    Store_field(out, 1, Val_long(v1));
+    Store_field(out, 2, Val_long(v2));
+    Store_field(out, 3, Val_long(v3));
+    Store_field(out, 4, Val_long(nf));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_create_abs_vertex_lists(
+    value side_type, value seg_verts_arr, value sidenum)
+{
+    CAMLparam3(side_type, seg_verts_arr, sidenum);
+    CAMLlocal1(out);
+
+    int32_t sv[8];
+    for (int i = 0; i < 8; i++)
+        sv[i] = Int_val(Field(seg_verts_arr, i));
+
+    int32_t nf;
+    int32_t verts[6] = {0};
+    c_oracle_create_abs_vertex_lists(&nf, verts, Int_val(side_type), sv, Int_val(sidenum));
+
+    out = caml_alloc_tuple(7);
+    Store_field(out, 0, Val_long(nf));
+    for (int i = 0; i < 6; i++)
+        Store_field(out, 1 + i, Val_long(verts[i]));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_extract_vector_from_segment(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 verts[8];
+    for (int i = 0; i < 8; i++)
+    {
+        verts[i].x = Int_val(Field(arr, i * 3));
+        verts[i].y = Int_val(Field(arr, i * 3 + 1));
+        verts[i].z = Int_val(Field(arr, i * 3 + 2));
+    }
+    int32_t start_side = Int_val(Field(arr, 24));
+    int32_t end_side = Int_val(Field(arr, 25));
+
+    c_oracle_vec3 dest;
+    c_oracle_extract_vector_from_segment(&dest, verts, start_side, end_side);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dest.x));
+    Store_field(out, 1, Val_long(dest.y));
+    Store_field(out, 2, Val_long(dest.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_extract_orient_from_segment(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 verts[8];
+    for (int i = 0; i < 8; i++)
+    {
+        verts[i].x = Int_val(Field(arr, i * 3));
+        verts[i].y = Int_val(Field(arr, i * 3 + 1));
+        verts[i].z = Int_val(Field(arr, i * 3 + 2));
+    }
+
+    c_oracle_mat3 dest = {};
+    c_oracle_extract_orient_from_segment(&dest, verts);
+
+    out = caml_alloc_tuple(9);
+    Store_field(out, 0, Val_long(dest.rvec.x));
+    Store_field(out, 1, Val_long(dest.rvec.y));
+    Store_field(out, 2, Val_long(dest.rvec.z));
+    Store_field(out, 3, Val_long(dest.uvec.x));
+    Store_field(out, 4, Val_long(dest.uvec.y));
+    Store_field(out, 5, Val_long(dest.uvec.z));
+    Store_field(out, 6, Val_long(dest.fvec.x));
+    Store_field(out, 7, Val_long(dest.fvec.y));
+    Store_field(out, 8, Val_long(dest.fvec.z));
+    CAMLreturn(out);
 }
