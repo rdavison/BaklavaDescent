@@ -306,7 +306,7 @@ g3s_point** clip_polygon(g3s_point** src, g3s_point** dest, int* nv, g3s_codes* 
 		flat_in[i * 8 + 3] = src[i]->p3_u;
 		flat_in[i * 8 + 4] = src[i]->p3_v;
 		flat_in[i * 8 + 5] = src[i]->p3_l;
-		flat_in[i * 8 + 6] = src[i]->p3_flags;
+		flat_in[i * 8 + 6] = src[i]->p3_flags & (PF_UVS | PF_LS);
 		flat_in[i * 8 + 7] = src[i]->p3_codes;
 	}
 

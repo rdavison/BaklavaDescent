@@ -1822,3 +1822,36 @@ extern "C" CAMLprim value caml_c_do_facing_check_computed_bc(value* argv, int ar
         argv[0], argv[1], argv[2], argv[3], argv[4],
         argv[5], argv[6], argv[7], argv[8]);
 }
+
+/* clip_polygon stub: takes (codes_or, codes_and, int array) → int array
+   Input array: [nv, x0,y0,z0,u0,v0,l0,flags0,codes0, x1,...]
+   Output array: [codes_or, codes_and, x0,y0,...] */
+extern "C" CAMLprim value caml_c_clip_polygon(
+    value v_codes_or, value v_codes_and, value v_arr)
+{
+    CAMLparam3(v_codes_or, v_codes_and, v_arr);
+    CAMLlocal1(result);
+
+    int32_t codes_or = Int_val(v_codes_or);
+    int32_t codes_and = Int_val(v_codes_and);
+    int nv = Int_val(Field(v_arr, 0));
+
+    int32_t flat_in[200 * 8];
+    for (int i = 0; i < nv * 8; i++)
+        flat_in[i] = Int_val(Field(v_arr, 1 + i));
+
+    int32_t flat_out[200 * 8];
+    int out_nv;
+    int32_t out_codes_or, out_codes_and;
+    c_oracle_clip_polygon(codes_or, codes_and, nv, flat_in,
+                          &out_nv, flat_out, &out_codes_or, &out_codes_and);
+
+    int result_len = 2 + out_nv * 8;
+    result = caml_alloc(result_len, 0);
+    Store_field(result, 0, Val_long(out_codes_or));
+    Store_field(result, 1, Val_long(out_codes_and));
+    for (int i = 0; i < out_nv * 8; i++)
+        Store_field(result, 2 + i, Val_long(flat_out[i]));
+
+    CAMLreturn(result);
+}

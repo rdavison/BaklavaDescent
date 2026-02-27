@@ -576,3 +576,21 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `3d/interp.cpp` — `rotate_point_list` gets `[OX]` log marker (function body just loops calling already-wired `g3_rotate_point`, no new Ox function needed).
 - Bridge function count: 60 total (was 59).
 - **3d/ math layer essentially complete:** all pure math functions are now ported. Remaining 3d/ code is rendering, setup, or thin glue calling already-wired functions.
+
+### 38) Port clipping pipeline to Ox: clip_line, clip_plane, clip_polygon
+
+- **3 new pure functions in `ox/ox_3d.ml`:**
+  - `clip_line` — clips a line segment against up to 4 frustum planes, folding over plane flags `[1;2;4;8]`, swapping endpoints as needed, calling `clip_edge` per crossing.
+  - `clip_plane` — Sutherland-Hodgman: clips a polygon vertex list against one frustum plane. Wraps first two vertices to end, iterates edges, calls `clip_edge` for transitions, passes through on-plane vertices.
+  - `clip_polygon` — iterates all 4 plane flags, calling `clip_plane` for each active plane, with early exit when `codes_and != 0` (entirely clipped away).
+- **Bridge layer (2 new callbacks, 2 new C functions):**
+  - `cd_ox_clip_line` — 9 scalar args in (p0/p1 xyz+codes, codes_or), returns 9 values (final p0/p1 xyz+codes, clipped flag).
+  - `cd_ox_clip_polygon` — **new array bridge pattern**: packs input vertices into flat int array `[x,y,z,u,v,l,flags,codes, ...]` (8 ints per vertex), returns flat array of clipped vertices + codes_or/codes_and. C side frees old temp points, allocates new temp points for all output vertices.
+- **C oracle + parity tests:**
+  - `c_oracle_clip_line` — scalar C oracle for clip_line. Parity test: 5000 random cases, 0 mismatches.
+  - `c_oracle_clip_polygon` — C oracle implementing clip_plane + clip_polygon on flat arrays. Parity test: generates random 3–6 vertex polygons with mixed codes, filters to non-behind/needs-clipping cases (274 of 5000 pass filter), 0 mismatches.
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `3d/clipper.cpp` — `clip_line` and `clip_polygon`.
+- **Bug fix: PF_PROJECTED flag leak through clip_polygon bridge.**
+  Original code preserved vertex identity for passthrough vertices (same pointer = same screen coords already set). The bridge creates new temp points for ALL output, but was passing through all `p3_flags` including `PF_PROJECTED`. Callers seeing `PF_PROJECTED` on a new temp point would skip re-projection, using uninitialized `p3_sx`/`p3_sy` — causing wild rendering artifacts. Fix: mask flags to only clipping-relevant bits: `src[i]->p3_flags & (PF_UVS | PF_LS)`.
+- Bridge function count: 62 total (was 60).

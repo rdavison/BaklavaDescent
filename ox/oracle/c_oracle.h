@@ -242,6 +242,11 @@ int c_oracle_do_facing_check_computed(
     int32_t p0x, int32_t p0y, int32_t p0z,
     int32_t p1x, int32_t p1y, int32_t p1z,
     int32_t p2x, int32_t p2y, int32_t p2z);
+void c_oracle_clip_polygon(
+    int32_t codes_or, int32_t codes_and,
+    int nv, const int32_t* flat_in,
+    int* out_nv, int32_t* flat_out,
+    int32_t* out_codes_or, int32_t* out_codes_and);
 
 #ifdef __cplusplus
 }

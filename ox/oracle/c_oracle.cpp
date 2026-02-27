@@ -1469,3 +1469,125 @@ extern "C" int c_oracle_do_facing_check_computed(
     c_oracle_vm_vec_perp(&tempv, &p0, &p1, &p2);
     return c_oracle_vm_vec_dotprod(&tempv, &p1) < 0 ? 1 : 0;
 }
+
+/* clip_plane: Sutherland-Hodgman for one plane on flat arrays.
+   Each vertex = 8 ints: x,y,z,u,v,l,flags,codes.
+   src has nv vertices, dest receives clipped output.
+   Returns number of output vertices, updates *cc_or and *cc_and. */
+static int c_oracle_clip_plane(
+    int plane_flag,
+    const int32_t* src, int nv,
+    int32_t* dest,
+    int32_t* cc_or, int32_t* cc_and)
+{
+    /* wrap: copy first two verts to after last */
+    int32_t wrap_buf[(nv + 2) * 8];
+    for (int i = 0; i < nv * 8; i++) wrap_buf[i] = src[i];
+    for (int i = 0; i < 8; i++) wrap_buf[nv * 8 + i] = src[i]; /* src[0] */
+    for (int i = 0; i < 8; i++) wrap_buf[(nv + 1) * 8 + i] = src[8 + i]; /* src[1] */
+
+    *cc_or = 0;
+    *cc_and = 0xff;
+    int out = 0;
+
+    for (int i = 1; i <= nv; i++)
+    {
+        int32_t ci_codes = wrap_buf[i * 8 + 7];
+        if (ci_codes & plane_flag)
+        {
+            /* current off */
+            int32_t prev_codes = wrap_buf[(i - 1) * 8 + 7];
+            if (!(prev_codes & plane_flag))
+            {
+                /* prev on → clip(prev, cur) */
+                int32_t nx, ny, nz, nu, nv2, nl, nflags;
+                uint8_t ncodes;
+                c_oracle_clip_edge(plane_flag,
+                    wrap_buf[(i-1)*8+0], wrap_buf[(i-1)*8+1], wrap_buf[(i-1)*8+2],
+                    wrap_buf[(i-1)*8+3], wrap_buf[(i-1)*8+4], wrap_buf[(i-1)*8+5],
+                    wrap_buf[(i-1)*8+6],
+                    wrap_buf[i*8+0], wrap_buf[i*8+1], wrap_buf[i*8+2],
+                    wrap_buf[i*8+3], wrap_buf[i*8+4], wrap_buf[i*8+5],
+                    &nx, &ny, &nz, &nu, &nv2, &nl, &nflags, &ncodes);
+                dest[out*8+0] = nx; dest[out*8+1] = ny; dest[out*8+2] = nz;
+                dest[out*8+3] = nu; dest[out*8+4] = nv2; dest[out*8+5] = nl;
+                dest[out*8+6] = nflags; dest[out*8+7] = ncodes;
+                *cc_or |= ncodes;
+                *cc_and &= ncodes;
+                out++;
+            }
+            int32_t next_codes = wrap_buf[(i + 1) * 8 + 7];
+            if (!(next_codes & plane_flag))
+            {
+                /* next on → clip(next, cur) */
+                int32_t nx, ny, nz, nu, nv2, nl, nflags;
+                uint8_t ncodes;
+                c_oracle_clip_edge(plane_flag,
+                    wrap_buf[(i+1)*8+0], wrap_buf[(i+1)*8+1], wrap_buf[(i+1)*8+2],
+                    wrap_buf[(i+1)*8+3], wrap_buf[(i+1)*8+4], wrap_buf[(i+1)*8+5],
+                    wrap_buf[(i+1)*8+6],
+                    wrap_buf[i*8+0], wrap_buf[i*8+1], wrap_buf[i*8+2],
+                    wrap_buf[i*8+3], wrap_buf[i*8+4], wrap_buf[i*8+5],
+                    &nx, &ny, &nz, &nu, &nv2, &nl, &nflags, &ncodes);
+                dest[out*8+0] = nx; dest[out*8+1] = ny; dest[out*8+2] = nz;
+                dest[out*8+3] = nu; dest[out*8+4] = nv2; dest[out*8+5] = nl;
+                dest[out*8+6] = nflags; dest[out*8+7] = ncodes;
+                *cc_or |= ncodes;
+                *cc_and &= ncodes;
+                out++;
+            }
+        }
+        else
+        {
+            /* current on → pass through */
+            for (int j = 0; j < 8; j++)
+                dest[out * 8 + j] = wrap_buf[i * 8 + j];
+            *cc_or |= wrap_buf[i * 8 + 7];
+            *cc_and &= wrap_buf[i * 8 + 7];
+            out++;
+        }
+    }
+    return out;
+}
+
+/* clip_polygon: iterate all 4 frustum planes.
+   Input: codes_or, codes_and, nv vertices in flat_in (8 ints each).
+   Output: *out_nv vertices in flat_out, updated codes_or/and. */
+extern "C" void c_oracle_clip_polygon(
+    int32_t codes_or, int32_t codes_and,
+    int nv, const int32_t* flat_in,
+    int* out_nv, int32_t* flat_out,
+    int32_t* out_codes_or, int32_t* out_codes_and)
+{
+    int32_t buf_a[200 * 8];
+    int32_t buf_b[200 * 8];
+
+    /* copy input to buf_a */
+    for (int i = 0; i < nv * 8; i++) buf_a[i] = flat_in[i];
+
+    int32_t* src = buf_a;
+    int32_t* dest = buf_b;
+
+    for (int plane_flag = 1; plane_flag < 16; plane_flag <<= 1)
+    {
+        if (codes_or & plane_flag)
+        {
+            nv = c_oracle_clip_plane(plane_flag, src, nv, dest,
+                                      &codes_or, &codes_and);
+            if (codes_and) /* clipped away */
+            {
+                *out_nv = nv;
+                for (int i = 0; i < nv * 8; i++) flat_out[i] = dest[i];
+                *out_codes_or = codes_or;
+                *out_codes_and = codes_and;
+                return;
+            }
+            int32_t* t = src; src = dest; dest = t;
+        }
+    }
+    /* result is in src (we swapped after last copy) */
+    *out_nv = nv;
+    for (int i = 0; i < nv * 8; i++) flat_out[i] = src[i];
+    *out_codes_or = codes_or;
+    *out_codes_and = codes_and;
+}

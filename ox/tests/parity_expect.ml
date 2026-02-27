@@ -4975,6 +4975,97 @@ let%expect_test "randomized clip_line parity C vs Ox" =
   if !mismatches <> 0 then failwithf "clip_line randomized parity failed" ();
   [%expect {| clip_line random total=1133 mismatches=0 |}]
 
+external c_clip_polygon
+  :  int -> int -> int array -> int array
+  = "caml_c_clip_polygon"
+
+let%expect_test "randomized clip_polygon parity C vs Ox" =
+  (* Generate random polygons (3-6 vertices) with mixed codes *)
+  let vert_gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both fix_gen fix_gen)
+         (Quickcheck.Generator.both fix_gen
+            (Quickcheck.Generator.both fix_gen fix_gen)))
+      ~f:(fun ((x, y), (z, (u, v))) -> (x, y, z, u, v))
+  in
+  let flag_gen = Quickcheck.Generator.of_list [0; 8; 16; 24] in
+  let poly_gen =
+    Quickcheck.Generator.bind
+      (Quickcheck.Generator.of_list [3; 4; 5; 6])
+      ~f:(fun nv ->
+        Quickcheck.Generator.map
+          (Quickcheck.Generator.list_with_length nv
+             (Quickcheck.Generator.both vert_gen flag_gen))
+          ~f:(fun verts -> (nv, verts)))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"clip-polygon-seed-v1" ~test_count:5000 poly_gen
+  |> Sequence.iter ~f:(fun (nv, verts) ->
+         (* Build flat input array *)
+         let codes_list = List.map verts ~f:(fun ((x, y, z, _u, _v), _flags) ->
+           Ox_3d.g3_code_point (x, y, z)) in
+         let codes_or = List.fold codes_list ~init:0 ~f:(lor) in
+         let codes_and = List.fold codes_list ~init:0xff ~f:(land) in
+         (* Skip if all behind or no clipping needed *)
+         if codes_or land 0x80 = 0 && codes_or <> 0 && codes_and = 0 then begin
+           incr total;
+           let arr = Array.create ~len:(1 + nv * 8) 0 in
+           arr.(0) <- nv;
+           List.iteri verts ~f:(fun i ((x, y, z, u, v), flags) ->
+             let codes = List.nth_exn codes_list i in
+             let b = 1 + i * 8 in
+             arr.(b) <- x; arr.(b+1) <- y; arr.(b+2) <- z;
+             arr.(b+3) <- u; arr.(b+4) <- v; arr.(b+5) <- 0;
+             arr.(b+6) <- flags; arr.(b+7) <- codes);
+           (* C oracle *)
+           let c_result = c_clip_polygon codes_or codes_and arr in
+           (* OCaml *)
+           let points = List.mapi verts ~f:(fun i ((x, y, z, u, v), flags) ->
+             let codes = List.nth_exn codes_list i in
+             (x, y, z, u, v, 0, flags, codes)) in
+           let (o_clipped, o_codes_or, o_codes_and) =
+             Ox_3d.clip_polygon ~codes_or ~codes_and points in
+           let o_nv = List.length o_clipped in
+           let o_result = Array.create ~len:(2 + o_nv * 8) 0 in
+           o_result.(0) <- o_codes_or;
+           o_result.(1) <- o_codes_and;
+           List.iteri o_clipped ~f:(fun i (x, y, z, u, v, l, flags, codes) ->
+             let b = 2 + i * 8 in
+             o_result.(b) <- x; o_result.(b+1) <- y; o_result.(b+2) <- z;
+             o_result.(b+3) <- u; o_result.(b+4) <- v; o_result.(b+5) <- l;
+             o_result.(b+6) <- flags; o_result.(b+7) <- codes);
+           (* Compare *)
+           let c_len = Array.length c_result in
+           let o_len = Array.length o_result in
+           let mismatch =
+             if c_len <> o_len then true
+             else
+               let m = ref false in
+               for i = 0 to c_len - 1 do
+                 if c_result.(i) <> o_result.(i) then m := true
+               done;
+               !m
+           in
+           if mismatch then begin
+             incr mismatches;
+             if Option.is_none !first_mismatch then begin
+               let c_nv = (c_len - 2) / 8 in
+               first_mismatch :=
+                 Some (sprintf
+                   "clip_polygon nv_in=%d codes_or=%d c_nv=%d o_nv=%d c_cor=%d o_cor=%d c_cand=%d o_cand=%d"
+                   nv codes_or c_nv o_nv
+                   c_result.(0) o_result.(0) c_result.(1) o_result.(1))
+             end
+           end
+         end);
+  printf "clip_polygon random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "clip_polygon randomized parity failed" ();
+  [%expect {| clip_polygon random total=274 mismatches=0 |}]
+
 let%expect_test "randomized g3_check_normal_facing parity C vs Ox" =
   let gen =
     Quickcheck.Generator.map
