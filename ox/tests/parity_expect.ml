@@ -5014,3 +5014,39 @@ let%expect_test "randomized calc_rod_corners parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "calc_rod_corners randomized parity failed" ();
   [%expect {| calc_rod_corners random total=5000 mismatches=0 |}]
+
+external c_do_facing_check_computed
+  : int -> int -> int -> int -> int -> int -> int -> int -> int
+  -> int
+  = "caml_c_do_facing_check_computed_bc" "caml_c_do_facing_check_computed"
+
+let%expect_test "randomized do_facing_check_computed parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both vec3_mag_safe_gen (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen))
+      ~f:(fun (p0, (p1, p2)) -> (p0, p1, p2))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"do-facing-check-computed-seed-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((p0x, p0y, p0z), (p1x, p1y, p1z), (p2x, p2y, p2z)) ->
+         incr total;
+         let c_res = c_do_facing_check_computed p0x p0y p0z p1x p1y p1z p2x p2y p2z in
+         let ox_res =
+           if Ox_3d.do_facing_check_computed (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
+           then 1 else 0
+         in
+         if c_res <> ox_res
+         then (
+           incr mismatches;
+           if Option.is_none !first_mismatch
+           then
+             first_mismatch
+             := Some
+                  (sprintf "do_facing_check_computed p0=(%d,%d,%d) p1=(%d,%d,%d) p2=(%d,%d,%d) c=%d ox=%d"
+                     p0x p0y p0z p1x p1y p1z p2x p2y p2z c_res ox_res)));
+  printf "do_facing_check_computed random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "do_facing_check_computed randomized parity failed" ();
+  [%expect {| do_facing_check_computed random total=5000 mismatches=0 |}]

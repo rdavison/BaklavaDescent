@@ -124,7 +124,18 @@ dbool do_facing_check(vms_vector* norm, g3s_point** vertlist, vms_vector* p)
 		return g3_check_normal_facing(p, norm);
 	}
 	else {	//normal not specified, so must compute
-
+#ifdef USE_OX_BRIDGE
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] do_facing_check (computed) using cd_ox_do_facing_check_computed.\n");
+			ox_bridge_logged = 1;
+		}
+		return cd_ox_do_facing_check_computed(
+			vertlist[0]->p3_x, vertlist[0]->p3_y, vertlist[0]->p3_z,
+			vertlist[1]->p3_x, vertlist[1]->p3_y, vertlist[1]->p3_z,
+			vertlist[2]->p3_x, vertlist[2]->p3_y, vertlist[2]->p3_z);
+#else
 		vms_vector tempv;
 
 		//get three points (rotated) and compute normal
@@ -132,6 +143,7 @@ dbool do_facing_check(vms_vector* norm, g3s_point** vertlist, vms_vector* p)
 		vm_vec_perp(&tempv, &vertlist[0]->p3_vec, &vertlist[1]->p3_vec, &vertlist[2]->p3_vec);
 
 		return (vm_vec_dot(&tempv, &vertlist[1]->p3_vec) < 0);
+#endif
 	}
 }
 

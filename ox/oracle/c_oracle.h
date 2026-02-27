@@ -231,6 +231,10 @@ void c_oracle_calc_rod_corners(
     int32_t* c2x, int32_t* c2y, int32_t* c2z,
     int32_t* c3x, int32_t* c3y, int32_t* c3z,
     uint8_t* codes_and);
+int c_oracle_do_facing_check_computed(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z);
 
 #ifdef __cplusplus
 }

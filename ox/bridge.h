@@ -273,6 +273,10 @@ void cd_ox_clip_edge(
     int32_t* nx, int32_t* ny, int32_t* nz,
     int32_t* nu, int32_t* nv, int32_t* nl,
     int32_t* nflags, uint8_t* ncodes);
+int cd_ox_do_facing_check_computed(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z);
 int cd_ox_g3_check_normal_facing(
     int32_t vpx, int32_t vpy, int32_t vpz,
     int32_t vx, int32_t vy, int32_t vz,

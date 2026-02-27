@@ -563,3 +563,16 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `3d/draw.cpp` — `g3_check_normal_facing`
   - `3d/rod.cpp` — `calc_rod_corners`
 - Bridge function count: 59 total (was 56).
+
+### 37) Port do_facing_check (computed branch) and wire rotate_point_list
+
+- **1 new pure function in `ox/ox_3d.ml`:**
+  - `do_facing_check_computed` — facing check when no precomputed normal is available: computes perpendicular via `vm_vec_perp(p0, p1, p2)` then tests `dot(perp, p1) < 0`.
+- **Bridge layer (1 new callback, 1 new C function):**
+  - `cd_ox_do_facing_check_computed` — 9 int args (3 vertex positions), returns int (0/1).
+- **C oracle + parity test:** `c_oracle_do_facing_check_computed` added. Parity test uses simple `Random.State` loop (5000 cases, ±500k range) instead of Quickcheck generators — avoids pathological slowness observed with deeply-nested Quickcheck `random_sequence`.
+- **Engine callsite wiring:**
+  - `3d/draw.cpp` — `do_facing_check` else-branch (when no precomputed normal) routed through `cd_ox_do_facing_check_computed`.
+  - `3d/interp.cpp` — `rotate_point_list` gets `[OX]` log marker (function body just loops calling already-wired `g3_rotate_point`, no new Ox function needed).
+- Bridge function count: 60 total (was 59).
+- **3d/ math layer essentially complete:** all pure math functions are now ported. Remaining 3d/ code is rendering, setup, or thin glue calling already-wired functions.

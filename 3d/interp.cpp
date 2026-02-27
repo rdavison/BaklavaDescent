@@ -18,6 +18,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "2d/gr.h"
 #include "misc/byteswap.h"
 #include "2d/palette.h"
+#ifdef USE_OX_BRIDGE
+#include <stdio.h>
+#endif
 
 #define OP_EOF				0	//eof
 #define OP_DEFPOINTS		1	//defpoints
@@ -60,6 +63,14 @@ void g3_set_interp_points(g3s_point* pointlist)
 
 void rotate_point_list(g3s_point* dest, vms_vector* src, int n)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] rotate_point_list delegates to wired g3_rotate_point.\n");
+		ox_bridge_logged = 1;
+	}
+#endif
 	while (n--)
 		g3_rotate_point(dest++, src++);
 }

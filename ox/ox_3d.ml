@@ -198,6 +198,12 @@ let g3_check_normal_facing ~view_pos v norm =
   let tempv = Ox_math.vm_vec_sub view_pos v in
   Ox_math.vm_vec_dotprod tempv norm > 0
 
+(* Compute facing check from 3 rotated vertices (no explicit normal).
+   Returns true if the polygon faces the viewer. *)
+let do_facing_check_computed p0 p1 p2 =
+  let tempv = Ox_math.vm_vec_perp p0 p1 p2 in
+  Ox_math.vm_vec_dotprod tempv p1 < 0
+
 (* Compute the 4 billboard rod corners.
    Takes bot_vec, bot_width, top_vec, top_width, matrix_scale.
    Returns (corner0, corner1, corner2, corner3, codes_and). *)

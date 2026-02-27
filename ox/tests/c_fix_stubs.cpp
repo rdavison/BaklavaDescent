@@ -1766,3 +1766,22 @@ extern "C" CAMLprim value caml_c_calc_rod_corners_bc(value* argv, int argn)
         argv[5], argv[6], argv[7], argv[8], argv[9],
         argv[10]);
 }
+
+extern "C" CAMLprim value caml_c_do_facing_check_computed(
+    value p0x, value p0y, value p0z,
+    value p1x, value p1y, value p1z,
+    value p2x, value p2y, value p2z)
+{
+    return Val_long(c_oracle_do_facing_check_computed(
+        Int_val(p0x), Int_val(p0y), Int_val(p0z),
+        Int_val(p1x), Int_val(p1y), Int_val(p1z),
+        Int_val(p2x), Int_val(p2y), Int_val(p2z)));
+}
+
+extern "C" CAMLprim value caml_c_do_facing_check_computed_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_do_facing_check_computed(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8]);
+}

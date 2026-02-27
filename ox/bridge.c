@@ -64,6 +64,7 @@ static const value* g_g3_start_instance_matrix = NULL;
 static const value* g_g3_point_2_vec = NULL;
 static const value* g_clip_edge = NULL;
 static const value* g_g3_check_normal_facing = NULL;
+static const value* g_do_facing_check_computed = NULL;
 static const value* g_calc_rod_corners = NULL;
 
 static void cd_ox_require_ready(const char* fn)
@@ -125,6 +126,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_g3_point_2_vec
           && g_clip_edge
           && g_g3_check_normal_facing
+          && g_do_facing_check_computed
           && g_calc_rod_corners))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
@@ -201,6 +203,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_g3_point_2_vec = caml_named_value("cd_g3_point_2_vec");
     g_clip_edge = caml_named_value("cd_clip_edge");
     g_g3_check_normal_facing = caml_named_value("cd_g3_check_normal_facing");
+    g_do_facing_check_computed = caml_named_value("cd_do_facing_check_computed");
     g_calc_rod_corners = caml_named_value("cd_calc_rod_corners");
 
     if (!g_i2f
@@ -259,6 +262,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_g3_point_2_vec
         || !g_clip_edge
         || !g_g3_check_normal_facing
+        || !g_do_facing_check_computed
         || !g_calc_rod_corners)
     {
         return 1;
@@ -327,6 +331,7 @@ int cd_ox_is_ready(void)
            && g_g3_point_2_vec
            && g_clip_edge
            && g_g3_check_normal_facing
+           && g_do_facing_check_computed
            && g_calc_rod_corners;
 }
 
@@ -1119,6 +1124,20 @@ int cd_ox_g3_check_normal_facing(
         Val_long(nx), Val_long(ny), Val_long(nz),
     };
     return Int_val(caml_callbackN(*g_g3_check_normal_facing, 9, args));
+}
+
+int cd_ox_do_facing_check_computed(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z)
+{
+    cd_ox_require_ready("cd_ox_do_facing_check_computed");
+    value args[9] = {
+        Val_long(p0x), Val_long(p0y), Val_long(p0z),
+        Val_long(p1x), Val_long(p1y), Val_long(p1z),
+        Val_long(p2x), Val_long(p2y), Val_long(p2z),
+    };
+    return Int_val(caml_callbackN(*g_do_facing_check_computed, 9, args));
 }
 
 int cd_ox_calc_rod_corners(

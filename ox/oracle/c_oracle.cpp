@@ -1411,3 +1411,16 @@ extern "C" void c_oracle_calc_rod_corners(
     *c3x = corner3.x; *c3y = corner3.y; *c3z = corner3.z;
     *codes_and = ca;
 }
+
+extern "C" int c_oracle_do_facing_check_computed(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t p2x, int32_t p2y, int32_t p2z)
+{
+    c_oracle_vec3 p0 = {p0x, p0y, p0z};
+    c_oracle_vec3 p1 = {p1x, p1y, p1z};
+    c_oracle_vec3 p2 = {p2x, p2y, p2z};
+    c_oracle_vec3 tempv;
+    c_oracle_vm_vec_perp(&tempv, &p0, &p1, &p2);
+    return c_oracle_vm_vec_dotprod(&tempv, &p1) < 0 ? 1 : 0;
+}

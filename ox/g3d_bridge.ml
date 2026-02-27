@@ -82,6 +82,10 @@ let cd_g3_check_normal_facing vpx vpy vpz vx vy vz nx ny nz =
   in
   if facing then 1 else 0
 
+let cd_do_facing_check_computed p0x p0y p0z p1x p1y p1z p2x p2y p2z =
+  if Ox_3d.do_facing_check_computed (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
+  then 1 else 0
+
 let cd_calc_rod_corners bx by bz bw tx ty tz tw msx msy msz =
   let ((c0x, c0y, c0z), (c1x, c1y, c1z), (c2x, c2y, c2z), (c3x, c3y, c3z), codes_and) =
     Ox_3d.calc_rod_corners
@@ -105,4 +109,5 @@ let () =
   Callback.register "cd_g3_point_2_vec" cd_g3_point_2_vec;
   Callback.register "cd_clip_edge" cd_clip_edge;
   Callback.register "cd_g3_check_normal_facing" cd_g3_check_normal_facing;
+  Callback.register "cd_do_facing_check_computed" cd_do_facing_check_computed;
   Callback.register "cd_calc_rod_corners" cd_calc_rod_corners
