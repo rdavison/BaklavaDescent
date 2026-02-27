@@ -2240,3 +2240,30 @@ extern "C" void c_oracle_lead_player(
     *out_fy = fire_vec.y;
     *out_fz = fire_vec.z;
 }
+
+/* homing_missile_turn_towards_velocity:
+   Blend normalized velocity into forward vector and re-derive orientation.
+   HOMING_MISSILE_SCALE = 8 */
+void c_oracle_homing_missile_turn_towards_velocity(
+    int32_t nvx, int32_t nvy, int32_t nvz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time,
+    int32_t* out_orient)
+{
+    const int32_t hms = 8;
+    int32_t s = frame_time * hms;
+
+    c_oracle_vec3 new_fvec;
+    new_fvec.x = c_oracle_fixmul(nvx, s) + fx;
+    new_fvec.y = c_oracle_fixmul(nvy, s) + fy;
+    new_fvec.z = c_oracle_fixmul(nvz, s) + fz;
+
+    c_oracle_vm_vec_normalize_quick(&new_fvec);
+
+    c_oracle_mat3 orient;
+    c_oracle_vm_vector_2_matrix(&orient, &new_fvec, NULL, NULL);
+
+    out_orient[0] = orient.rvec.x; out_orient[1] = orient.rvec.y; out_orient[2] = orient.rvec.z;
+    out_orient[3] = orient.uvec.x; out_orient[4] = orient.uvec.y; out_orient[5] = orient.uvec.z;
+    out_orient[6] = orient.fvec.x; out_orient[7] = orient.fvec.y; out_orient[8] = orient.fvec.z;
+}

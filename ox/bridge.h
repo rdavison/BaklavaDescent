@@ -481,6 +481,14 @@ int cd_ox_lead_player(
     int is_matter, int32_t difficulty_level,
     int32_t* out_fx, int32_t* out_fy, int32_t* out_fz);
 
+/* homing_missile_turn_towards_velocity: blend velocity into orient.
+   out_orient is 9 ints: rvec(3), uvec(3), fvec(3). */
+void cd_ox_homing_missile_turn_towards_velocity(
+    int32_t nvx, int32_t nvy, int32_t nvz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time,
+    int32_t* out_orient);
+
 #ifdef __cplusplus
 }
 #endif

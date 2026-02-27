@@ -2710,3 +2710,33 @@ extern "C" CAMLprim value caml_c_lead_player_bc(value* argv, int argn)
         argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
         argv[12], argv[13], argv[14], argv[15]);
 }
+
+/* homing_missile_turn_towards_velocity: 7 args → 9-tuple */
+extern "C" CAMLprim value caml_c_homing_missile_turn_towards_velocity(
+    value nvx, value nvy, value nvz,
+    value fx, value fy, value fz,
+    value frame_time)
+{
+    CAMLparam5(nvx, nvy, nvz, fx, fy);
+    CAMLxparam2(fz, frame_time);
+    CAMLlocal1(out);
+
+    int32_t orient[9];
+    c_oracle_homing_missile_turn_towards_velocity(
+        Int_val(nvx), Int_val(nvy), Int_val(nvz),
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(frame_time),
+        orient);
+
+    out = caml_alloc_tuple(9);
+    for (int i = 0; i < 9; i++)
+        Store_field(out, i, Val_long(orient[i]));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_homing_missile_turn_towards_velocity_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_homing_missile_turn_towards_velocity(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}

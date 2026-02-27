@@ -95,6 +95,7 @@ static const value* g_move_around_player = NULL;
 static const value* g_move_away_from_player = NULL;
 static const value* g_set_object_turnroll = NULL;
 static const value* g_lead_player = NULL;
+static const value* g_homing_missile_turn_towards_velocity = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -183,7 +184,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_move_around_player
           && g_move_away_from_player
           && g_set_object_turnroll
-          && g_lead_player))
+          && g_lead_player
+          && g_homing_missile_turn_towards_velocity))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -288,6 +290,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_move_away_from_player = caml_named_value("cd_move_away_from_player");
     g_set_object_turnroll = caml_named_value("cd_set_object_turnroll");
     g_lead_player = caml_named_value("cd_lead_player");
+    g_homing_missile_turn_towards_velocity = caml_named_value("cd_homing_missile_turn_towards_velocity");
 
     if (!g_i2f
         || !g_f2i
@@ -373,7 +376,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_move_around_player
         || !g_move_away_from_player
         || !g_set_object_turnroll
-        || !g_lead_player)
+        || !g_lead_player
+        || !g_homing_missile_turn_towards_velocity)
     {
         return 1;
     }
@@ -467,7 +471,8 @@ int cd_ox_is_ready(void)
            && g_move_around_player
            && g_move_away_from_player
            && g_set_object_turnroll
-           && g_lead_player;
+           && g_lead_player
+           && g_homing_missile_turn_towards_velocity;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1888,4 +1893,21 @@ int cd_ox_lead_player(
         *out_fz = Int_val(Field(out, 3));
     }
     return success;
+}
+
+void cd_ox_homing_missile_turn_towards_velocity(
+    int32_t nvx, int32_t nvy, int32_t nvz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time,
+    int32_t* out_orient)
+{
+    cd_ox_require_ready("cd_ox_homing_missile_turn_towards_velocity");
+    value args[7] = {
+        Val_long(nvx), Val_long(nvy), Val_long(nvz),
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(frame_time),
+    };
+    const value out = caml_callbackN(*g_homing_missile_turn_towards_velocity, 7, args);
+    for (int i = 0; i < 9; i++)
+        out_orient[i] = Int_val(Field(out, i));
 }

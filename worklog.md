@@ -929,3 +929,26 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 21) Port `homing_missile_turn_towards_velocity` to Ox with parity tests
+
+**What:** Ported `homing_missile_turn_towards_velocity` from `laser.cpp` (D1+D2, identical) to OxCaml. This function smoothly blends a homing missile's normalized velocity into its forward vector and re-derives the full orientation matrix. Used by all homing weapons.
+
+- **1 new pure function in `ox/ox_physics.ml`:**
+  - `homing_missile_turn_towards_velocity` — scales `norm_vel` by `frame_time * 8` (HOMING_MISSILE_SCALE), adds to current fvec, normalizes, calls `vm_vector_2_matrix` to derive full orientation.
+
+- **Bridge layer:**
+  - `cd_homing_missile_turn_towards_velocity` (7 scalar args → 9-tuple orient) in `physics_bridge.ml`.
+  - `cd_ox_homing_missile_turn_towards_velocity` in `bridge.c` — 7-arg `caml_callbackN`, returns 9 ints via `out_orient` array.
+
+- **C oracle + parity tests:**
+  - `c_oracle_homing_missile_turn_towards_velocity` in `c_oracle.cpp`.
+  - 1 deterministic (zero velocity, forward-facing) + 5000 randomized — 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/laser.cpp` — wired at function definition, extracts norm_vel + orient.fvec + FrameTime, writes back full orient.
+  - `main_d2/laser.cpp` — wired identically. Added `#include "ox/bridge.h"` to both laser.cpp files (first bridge use in these files).
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

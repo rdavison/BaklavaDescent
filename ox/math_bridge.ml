@@ -166,4 +166,7 @@ let () =
     int -> int -> int -> int);
   ignore (Physics_bridge.cd_lead_player :
     int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int -> int -> int * int * int * int)
+    int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  ignore (Physics_bridge.cd_homing_missile_turn_towards_velocity :
+    int -> int -> int -> int -> int -> int -> int ->
+    int * int * int * int * int * int * int * int * int)

@@ -187,6 +187,19 @@ let cd_lead_player
   | None -> (0, 0, 0, 0)
   | Some (rx, ry, rz) -> (1, rx, ry, rz)
 
+(* homing_missile_turn_towards_velocity: 7 scalar args → 9 ints
+   norm_vel(3) + fvec(3) + frame_time(1) = 7 in
+   Returns: orient (rvec(3), uvec(3), fvec(3)) = 9 values *)
+let cd_homing_missile_turn_towards_velocity
+    nvx nvy nvz fx fy fz frame_time =
+  let ((nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz)) =
+    Ox_physics.homing_missile_turn_towards_velocity
+      ~norm_vel:(nvx, nvy, nvz)
+      ~fvec:(fx, fy, fz)
+      ~frame_time
+  in
+  (nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz)
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
@@ -211,4 +224,6 @@ let () =
   Callback.register "cd_set_object_turnroll"
     cd_set_object_turnroll;
   Callback.register "cd_lead_player"
-    cd_lead_player
+    cd_lead_player;
+  Callback.register "cd_homing_missile_turn_towards_velocity"
+    cd_homing_missile_turn_towards_velocity

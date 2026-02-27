@@ -344,6 +344,12 @@ void c_oracle_lead_player(
     int32_t difficulty_level,
     int32_t* out_success, int32_t* out_fx, int32_t* out_fy, int32_t* out_fz);
 
+void c_oracle_homing_missile_turn_towards_velocity(
+    int32_t nvx, int32_t nvy, int32_t nvz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time,
+    int32_t* out_orient);
+
 #ifdef __cplusplus
 }
 #endif

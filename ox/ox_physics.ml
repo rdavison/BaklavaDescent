@@ -590,3 +590,19 @@ let lead_player ~fire_point ~believed_player_pos ~player_velocity
               if dot2 < f1_0 / 2 then None
               else Some adjusted
             else Some (fvx, fvy, fvz)
+
+(* homing_missile_turn_towards_velocity:
+   Blend normalized velocity into forward vector and re-derive orientation.
+   C original: laser.cpp homing_missile_turn_towards_velocity
+   HOMING_MISSILE_SCALE = 8, identical in D1 and D2 *)
+let homing_missile_turn_towards_velocity ~norm_vel ~fvec ~frame_time =
+  let homing_missile_scale = 8 in
+  let (nvx, nvy, nvz) = norm_vel in
+  let s = frame_time * homing_missile_scale in
+  let new_fvec =
+    Ox_math.vm_vec_add
+      (Ox_math.fixmul nvx s, Ox_math.fixmul nvy s, Ox_math.fixmul nvz s)
+      fvec
+  in
+  let (_mag, new_fvec_n) = Ox_math.vm_vec_normalize_quick new_fvec in
+  Ox_math.vm_vector_2_matrix new_fvec_n None None

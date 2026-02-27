@@ -39,6 +39,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "powerup.h"
 #include "multi.h"
 #include "physics.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 int Laser_rapid_fire = 0;
 
@@ -891,6 +894,16 @@ void Flare_create(object* obj)
 //	Set object *objp's orientation to (or towards if I'm ambitious) its velocity.
 void homing_missile_turn_towards_velocity(object * objp, vms_vector * norm_vel)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out_orient[9];
+	cd_ox_homing_missile_turn_towards_velocity(
+		norm_vel->x, norm_vel->y, norm_vel->z,
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+		FrameTime, out_orient);
+	objp->orient.rvec.x = out_orient[0]; objp->orient.rvec.y = out_orient[1]; objp->orient.rvec.z = out_orient[2];
+	objp->orient.uvec.x = out_orient[3]; objp->orient.uvec.y = out_orient[4]; objp->orient.uvec.z = out_orient[5];
+	objp->orient.fvec.x = out_orient[6]; objp->orient.fvec.y = out_orient[7]; objp->orient.fvec.z = out_orient[8];
+#else
 	vms_vector	new_fvec;
 
 	new_fvec = *norm_vel;
@@ -903,6 +916,7 @@ void homing_missile_turn_towards_velocity(object * objp, vms_vector * norm_vel)
 	//		return;
 
 	vm_vector_2_matrix(&objp->orient, &new_fvec, NULL, NULL);
+#endif
 }
 
 //-------------------------------------------------------------------------------------------

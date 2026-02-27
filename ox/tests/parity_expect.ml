@@ -6772,3 +6772,68 @@ let%expect_test "randomized lead_player parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "lead_player parity failed" ();
   [%expect {| lead_player random total=5000 mismatches=0 |}]
+
+(* ---------- homing_missile_turn_towards_velocity ---------- *)
+
+external c_homing_missile_turn_towards_velocity
+  : int -> int -> int -> int -> int -> int -> int ->
+    int * int * int * int * int * int * int * int * int
+  = "caml_c_homing_missile_turn_towards_velocity_bc" "caml_c_homing_missile_turn_towards_velocity"
+
+let%expect_test "homing_missile_turn_towards_velocity zero velocity" =
+  let c = c_homing_missile_turn_towards_velocity
+    0 0 0  0 0 0x10000  0x1000 in
+  let ((nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz)) =
+    Ox_physics.homing_missile_turn_towards_velocity
+      ~norm_vel:(0, 0, 0)
+      ~fvec:(0, 0, 0x10000)
+      ~frame_time:0x1000
+  in
+  let ox = (nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz) in
+  printf "c=(%d,%d,%d,%d,%d,%d,%d,%d,%d) ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d) eq=%b\n"
+    (let (a,_,_,_,_,_,_,_,_) = c in a) (let (_,b,_,_,_,_,_,_,_) = c in b)
+    (let (_,_,c_,_,_,_,_,_,_) = c in c_) (let (_,_,_,d,_,_,_,_,_) = c in d)
+    (let (_,_,_,_,e,_,_,_,_) = c in e) (let (_,_,_,_,_,f,_,_,_) = c in f)
+    (let (_,_,_,_,_,_,g,_,_) = c in g) (let (_,_,_,_,_,_,_,h,_) = c in h)
+    (let (_,_,_,_,_,_,_,_,i) = c in i)
+    (let (a,_,_,_,_,_,_,_,_) = ox in a) (let (_,b,_,_,_,_,_,_,_) = ox in b)
+    (let (_,_,c_,_,_,_,_,_,_) = ox in c_) (let (_,_,_,d,_,_,_,_,_) = ox in d)
+    (let (_,_,_,_,e,_,_,_,_) = ox in e) (let (_,_,_,_,_,f,_,_,_) = ox in f)
+    (let (_,_,_,_,_,_,g,_,_) = ox in g) (let (_,_,_,_,_,_,_,h,_) = ox in h)
+    (let (_,_,_,_,_,_,_,_,i) = ox in i)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0,0,65536,0,0,0,65536) ox=(65536,0,0,0,65536,0,0,0,65536) eq=true |}]
+
+let%expect_test "randomized homing_missile_turn_towards_velocity parity C vs Ox" =
+  let state = Random.State.make [| 77777 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let nvx = gen_fix () in let nvy = gen_fix () in let nvz = gen_fix () in
+    let fx = gen_fix () in let fy = gen_fix () in let fz = gen_fix () in
+    let frame_time = Random.State.int state 0x4000 + 1 in
+    incr total;
+    let c = c_homing_missile_turn_towards_velocity nvx nvy nvz fx fy fz frame_time in
+    let ((nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz)) =
+      Ox_physics.homing_missile_turn_towards_velocity
+        ~norm_vel:(nvx, nvy, nvz) ~fvec:(fx, fy, fz) ~frame_time
+    in
+    let ox = (nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "nv=(%d,%d,%d) f=(%d,%d,%d) ft=%d c=%s ox=%s"
+          nvx nvy nvz fx fy fz frame_time
+          (let (a,b,c_,d,e,f,g,h,i) = c in
+           sprintf "(%d,%d,%d,%d,%d,%d,%d,%d,%d)" a b c_ d e f g h i)
+          (let (a,b,c_,d,e,f,g,h,i) = ox in
+           sprintf "(%d,%d,%d,%d,%d,%d,%d,%d,%d)" a b c_ d e f g h i))
+    end
+  done;
+  printf "homing_missile_turn_towards_velocity random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "homing_missile_turn_towards_velocity parity failed" ();
+  [%expect {| homing_missile_turn_towards_velocity random total=5000 mismatches=0 |}]
