@@ -277,3 +277,54 @@ let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
     let new_rv = physics_turn_towards_vector
         ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel in
     (new_rv, is_robot)
+
+(* AI turn towards vector — smooth orientation interpolation.
+   C original: ai.cpp ai_turn_towards_vector (non-baby-spider path)
+
+   Inputs:
+     goal       - target direction vector (vec3)
+     fvec       - object's current forward vector (vec3)
+     rvec       - object's current right vector (vec3)
+     rate       - turning rate (higher = slower turn)
+     frame_time - FrameTime global
+     seismic_mag - Seismic_tremor_magnitude (D2 only, 0 for D1)
+     robot_mass  - Robot_info[id].mass (D2 only, 0 for D1)
+     rand_vec    - pre-generated random vector for seismic (D2 only, (0,0,0) for D1)
+
+   Returns: new orientation matrix (rvec, uvec, fvec) as 9 fix values.
+   Baby spider check is handled at the C callsite, not here. *)
+let ai_turn_towards_vector ~goal ~fvec ~rvec ~rate ~frame_time
+    ~seismic_mag ~robot_mass ~rand_vec =
+  let new_fvec =
+    let dot = Ox_math.vm_vec_dotprod goal fvec in
+    if dot < (f1_0 - frame_time / 2) then
+      let new_scale = Ox_math.fixdiv (frame_time * 1) rate in
+      let scaled = Ox_math.vm_vec_scale goal new_scale in
+      let combined = Ox_math.vm_vec_add scaled fvec in
+      let (mag, normalized) = Ox_math.vm_vec_normalize_quick combined in
+      if mag < f1_0 / 256 then goal
+      else normalized
+    else goal
+  in
+  (* D2 seismic tremor perturbation *)
+  let new_fvec =
+    if seismic_mag <> 0 then
+      let scale = Ox_math.fixdiv (2 * seismic_mag) robot_mass in
+      Ox_math.vm_vec_scale_add2 new_fvec rand_vec scale
+    else new_fvec
+  in
+  Ox_math.vm_vector_2_matrix new_fvec None (Some rvec)
+
+(* Compute thrust to maintain current velocity under drag.
+   C original: physics.cpp set_thrust_from_velocity
+
+   Inputs:
+     mass     - object mass (fix)
+     drag     - object drag coefficient (fix)
+     velocity - current velocity (vec3)
+
+   Returns: thrust vector (vec3)
+   Formula: k = mass * drag / (F1_0 - drag); thrust = velocity * k *)
+let set_thrust_from_velocity ~mass ~drag ~velocity =
+  let k = Ox_math.fixmuldiv mass drag (f1_0 - drag) in
+  Ox_math.vm_vec_copy_scale velocity k

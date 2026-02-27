@@ -97,6 +97,36 @@ let cd_phys_apply_rot fx fy fz mass is_robot
   in
   (nx, ny, nz, (if set_skip_ai then 1 else 0))
 
+(* ai_turn_towards_vector: 16 scalar args → 9 ints
+   goal(3) + fvec(3) + rvec(3) + rate(1) + frame_time(1) +
+   seismic_mag(1) + robot_mass(1) + rand_vec(3) = 16 in
+   Returns: orient (rvec(3), uvec(3), fvec(3)) = 9 values *)
+let cd_ai_turn_towards_vector
+    gx gy gz fx fy fz rx ry rz rate frame_time
+    seismic_mag robot_mass rvx rvy rvz =
+  let ((nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz)) =
+    Ox_physics.ai_turn_towards_vector
+      ~goal:(gx, gy, gz)
+      ~fvec:(fx, fy, fz)
+      ~rvec:(rx, ry, rz)
+      ~rate
+      ~frame_time
+      ~seismic_mag
+      ~robot_mass
+      ~rand_vec:(rvx, rvy, rvz)
+  in
+  (nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz)
+
+(* set_thrust_from_velocity: 5 scalar args → 3 ints
+   mass(1) + drag(1) + velocity(3) = 5 in
+   Returns: thrust (tx, ty, tz) *)
+let cd_set_thrust_from_velocity mass drag vx vy vz =
+  let (tx, ty, tz) =
+    Ox_physics.set_thrust_from_velocity
+      ~mass ~drag ~velocity:(vx, vy, vz)
+  in
+  (tx, ty, tz)
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
@@ -107,4 +137,8 @@ let () =
   Callback.register "cd_phys_apply_force"
     cd_phys_apply_force;
   Callback.register "cd_phys_apply_rot"
-    cd_phys_apply_rot
+    cd_phys_apply_rot;
+  Callback.register "cd_ai_turn_towards_vector"
+    cd_ai_turn_towards_vector;
+  Callback.register "cd_set_thrust_from_velocity"
+    cd_set_thrust_from_velocity

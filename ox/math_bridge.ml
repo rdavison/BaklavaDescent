@@ -149,4 +149,9 @@ let () =
   ignore (Physics_bridge.cd_phys_apply_force :
     int -> int -> int -> int -> int -> int -> int -> int * int * int);
   ignore (Physics_bridge.cd_phys_apply_rot :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int)
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  ignore (Physics_bridge.cd_ai_turn_towards_vector :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int * int * int * int * int * int * int * int * int);
+  ignore (Physics_bridge.cd_set_thrust_from_velocity :
+    int -> int -> int -> int -> int -> int * int * int)

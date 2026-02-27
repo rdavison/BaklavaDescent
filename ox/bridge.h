@@ -415,6 +415,27 @@ int cd_ox_do_physics_sim_rot(
     int32_t* out_rvx, int32_t* out_rvy, int32_t* out_rvz,
     int32_t* out_turnroll);
 
+/* ai_turn_towards_vector: AI smooth turn interpolation.
+   Baby spider check done at callsite (delegates to physics_turn_towards_vector).
+   For D1: seismic_mag=0, robot_mass=0, rand_vec=(0,0,0).
+   For D2: pass Seismic_tremor_magnitude, Robot_info[id].mass, and pre-generated rand_vec.
+   Returns new orient in out_orient[9] (rvec, uvec, fvec). */
+void cd_ox_ai_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t rate, int32_t frame_time,
+    int32_t seismic_mag, int32_t robot_mass,
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_orient);
+
+/* set_thrust_from_velocity: compute thrust to maintain velocity.
+   Returns thrust in out_tx/ty/tz. */
+void cd_ox_set_thrust_from_velocity(
+    int32_t mass, int32_t drag,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t* out_tx, int32_t* out_ty, int32_t* out_tz);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1847,6 +1847,64 @@ extern "C" void c_oracle_phys_apply_force(
     *out_vx = vel.x; *out_vy = vel.y; *out_vz = vel.z;
 }
 
+extern "C" void c_oracle_ai_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t rate, int32_t frame_time,
+    int32_t seismic_mag, int32_t robot_mass,
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_orient)
+{
+    c_oracle_vec3 goal = { gx, gy, gz };
+    c_oracle_vec3 fvec = { fx, fy, fz };
+    c_oracle_vec3 rvec_in = { rx, ry, rz };
+    c_oracle_vec3 new_fvec = goal;
+
+    int32_t dot = c_oracle_vm_vec_dotprod(&goal, &fvec);
+
+    if (dot < (0x10000 - frame_time / 2))
+    {
+        int32_t new_scale = c_oracle_fixdiv(frame_time * 1, rate);
+        c_oracle_vm_vec_scale(&new_fvec, new_scale);
+        c_oracle_vm_vec_add2(&new_fvec, &fvec);
+        int32_t mag = c_oracle_vm_vec_normalize_quick(&new_fvec);
+        if (mag < 0x10000 / 256)
+        {
+            new_fvec = goal;
+        }
+    }
+
+    /* D2 seismic tremor perturbation */
+    if (seismic_mag != 0)
+    {
+        c_oracle_vec3 rand_vec = { rvx, rvy, rvz };
+        int32_t scale = c_oracle_fixdiv(2 * seismic_mag, robot_mass);
+        c_oracle_vm_vec_scale_add2(&new_fvec, &rand_vec, scale);
+    }
+
+    c_oracle_mat3 orient;
+    c_oracle_vm_vector_2_matrix(&orient, &new_fvec, nullptr, &rvec_in);
+
+    out_orient[0] = orient.rvec.x; out_orient[1] = orient.rvec.y; out_orient[2] = orient.rvec.z;
+    out_orient[3] = orient.uvec.x; out_orient[4] = orient.uvec.y; out_orient[5] = orient.uvec.z;
+    out_orient[6] = orient.fvec.x; out_orient[7] = orient.fvec.y; out_orient[8] = orient.fvec.z;
+}
+
+extern "C" void c_oracle_set_thrust_from_velocity(
+    int32_t mass, int32_t drag,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t* out_tx, int32_t* out_ty, int32_t* out_tz)
+{
+    int32_t k = c_oracle_fixmuldiv(mass, drag, 0x10000 - drag);
+    c_oracle_vec3 vel = { vx, vy, vz };
+    c_oracle_vec3 thrust;
+    c_oracle_vm_vec_copy_scale(&thrust, &vel, k);
+    *out_tx = thrust.x;
+    *out_ty = thrust.y;
+    *out_tz = thrust.z;
+}
+
 extern "C" void c_oracle_phys_apply_rot(
     int32_t fx, int32_t fy, int32_t fz,
     int32_t mass, int is_robot,

@@ -6264,3 +6264,206 @@ let%expect_test "randomized phys_apply_rot parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "phys_apply_rot parity failed" ();
   [%expect {| phys_apply_rot random total=5000 mismatches=0 |}]
+
+(* ---------- ai_turn_towards_vector ---------- *)
+
+external c_ai_turn_towards_vector
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int * int * int * int * int * int * int * int * int
+  = "caml_c_ai_turn_towards_vector_bc" "caml_c_ai_turn_towards_vector"
+
+let%expect_test "ai_turn_towards_vector facing goal (no interpolation)" =
+  (* When dot >= F1_0 - frame_time/2, no interpolation — just vm_vector_2_matrix *)
+  let gx = 0 and gy = 0 and gz = 0x10000 in
+  let fx = 0 and fy = 0 and fz = 0x10000 in  (* already facing goal *)
+  let rx = 0x10000 and ry = 0 and rz = 0 in
+  let rate = 0x10000 and frame_time = 0x1000 in
+  let c = c_ai_turn_towards_vector gx gy gz fx fy fz rx ry rz rate frame_time 0 0 0 0 0 in
+  let ox = Ox_physics.ai_turn_towards_vector
+    ~goal:(gx, gy, gz) ~fvec:(fx, fy, fz) ~rvec:(rx, ry, rz)
+    ~rate ~frame_time ~seismic_mag:0 ~robot_mass:0 ~rand_vec:(0, 0, 0) in
+  let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) = ox in
+  let (crx, cry, crz, cux, cuy, cuz, cfx, cfy, cfz) = c in
+  printf "c=(%d,%d,%d,%d,%d,%d,%d,%d,%d)\n" crx cry crz cux cuy cuz cfx cfy cfz;
+  printf "ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d)\n" orx ory orz oux ouy ouz ofx ofy ofz;
+  printf "eq=%b\n" (crx=orx && cry=ory && crz=orz && cux=oux && cuy=ouy && cuz=ouz && cfx=ofx && cfy=ofy && cfz=ofz);
+  [%expect {|
+    c=(65536,0,0,0,65536,0,0,0,65536)
+    ox=(65536,0,0,0,65536,0,0,0,65536)
+    eq=true
+    |}]
+
+let%expect_test "ai_turn_towards_vector 90-degree turn" =
+  (* Goal is +x, facing +z, should interpolate *)
+  let gx = 0x10000 and gy = 0 and gz = 0 in
+  let fx = 0 and fy = 0 and fz = 0x10000 in
+  let rx = 0x10000 and ry = 0 and rz = 0 in
+  let rate = 0x10000 and frame_time = 0x1000 in
+  let c = c_ai_turn_towards_vector gx gy gz fx fy fz rx ry rz rate frame_time 0 0 0 0 0 in
+  let ox = Ox_physics.ai_turn_towards_vector
+    ~goal:(gx, gy, gz) ~fvec:(fx, fy, fz) ~rvec:(rx, ry, rz)
+    ~rate ~frame_time ~seismic_mag:0 ~robot_mass:0 ~rand_vec:(0, 0, 0) in
+  let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) = ox in
+  let (crx, cry, crz, cux, cuy, cuz, cfx, cfy, cfz) = c in
+  printf "c=(%d,%d,%d,%d,%d,%d,%d,%d,%d)\n" crx cry crz cux cuy cuz cfx cfy cfz;
+  printf "ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d)\n" orx ory orz oux ouy ouz ofx ofy ofz;
+  printf "eq=%b\n" (crx=orx && cry=ory && crz=orz && cux=oux && cuy=ouy && cuz=ouz && cfx=ofx && cfy=ofy && cfz=ofz);
+  [%expect {|
+    c=(65408,0,-4087,0,65536,0,4087,0,65408)
+    ox=(65408,0,-4087,0,65536,0,4087,0,65408)
+    eq=true
+    |}]
+
+let%expect_test "randomized ai_turn_towards_vector parity C vs Ox (D1, no seismic)" =
+  let state = Random.State.make [| 99999 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let gx = gen_fix () in
+    let gy = gen_fix () in
+    let gz = gen_fix () in
+    let fx = gen_fix () in
+    let fy = gen_fix () in
+    let fz = gen_fix () in
+    let rx = gen_fix () in
+    let ry = gen_fix () in
+    let rz = gen_fix () in
+    let rate = Random.State.int state 0x40000 + 1 in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    incr total;
+    let c = c_ai_turn_towards_vector gx gy gz fx fy fz rx ry rz rate frame_time 0 0 0 0 0 in
+    let ox =
+      let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) =
+        Ox_physics.ai_turn_towards_vector
+          ~goal:(gx, gy, gz) ~fvec:(fx, fy, fz) ~rvec:(rx, ry, rz)
+          ~rate ~frame_time ~seismic_mag:0 ~robot_mass:0 ~rand_vec:(0, 0, 0) in
+      (orx, ory, orz, oux, ouy, ouz, ofx, ofy, ofz) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (crx, cry, crz, cux, cuy, cuz, cfx, cfy, cfz) = c in
+        let (orx, ory, orz, oux, ouy, ouz, ofx, ofy, ofz) = ox in
+        first_mismatch := Some (sprintf
+          "g=(%d,%d,%d) f=(%d,%d,%d) r=(%d,%d,%d) rate=%d ft=%d c=(%d,%d,%d,%d,%d,%d,%d,%d,%d) ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d)"
+          gx gy gz fx fy fz rx ry rz rate frame_time
+          crx cry crz cux cuy cuz cfx cfy cfz
+          orx ory orz oux ouy ouz ofx ofy ofz)
+      end
+    end
+  done;
+  printf "ai_turn_towards_vector random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "ai_turn_towards_vector parity failed" ();
+  [%expect {| ai_turn_towards_vector random total=5000 mismatches=0 |}]
+
+let%expect_test "randomized ai_turn_towards_vector parity C vs Ox (D2, with seismic)" =
+  let state = Random.State.make [| 77777 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let gx = gen_fix () in
+    let gy = gen_fix () in
+    let gz = gen_fix () in
+    let fx = gen_fix () in
+    let fy = gen_fix () in
+    let fz = gen_fix () in
+    let rx = gen_fix () in
+    let ry = gen_fix () in
+    let rz = gen_fix () in
+    let rate = Random.State.int state 0x40000 + 1 in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    let seismic_mag = Random.State.int state 0x10000 in
+    let robot_mass = Random.State.int state 0x80000 + 1 in
+    let rvx = gen_fix () in
+    let rvy = gen_fix () in
+    let rvz = gen_fix () in
+    incr total;
+    let c = c_ai_turn_towards_vector gx gy gz fx fy fz rx ry rz rate frame_time
+        seismic_mag robot_mass rvx rvy rvz in
+    let ox =
+      let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) =
+        Ox_physics.ai_turn_towards_vector
+          ~goal:(gx, gy, gz) ~fvec:(fx, fy, fz) ~rvec:(rx, ry, rz)
+          ~rate ~frame_time ~seismic_mag ~robot_mass ~rand_vec:(rvx, rvy, rvz) in
+      (orx, ory, orz, oux, ouy, ouz, ofx, ofy, ofz) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (crx, cry, crz, cux, cuy, cuz, cfx, cfy, cfz) = c in
+        let (orx, ory, orz, oux, ouy, ouz, ofx, ofy, ofz) = ox in
+        first_mismatch := Some (sprintf
+          "g=(%d,%d,%d) f=(%d,%d,%d) r=(%d,%d,%d) rate=%d ft=%d sm=%d rm=%d rv=(%d,%d,%d) c=(%d,%d,%d,%d,%d,%d,%d,%d,%d) ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d)"
+          gx gy gz fx fy fz rx ry rz rate frame_time seismic_mag robot_mass rvx rvy rvz
+          crx cry crz cux cuy cuz cfx cfy cfz
+          orx ory orz oux ouy ouz ofx ofy ofz)
+      end
+    end
+  done;
+  printf "ai_turn_towards_vector seismic random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "ai_turn_towards_vector seismic parity failed" ();
+  [%expect {| ai_turn_towards_vector seismic random total=5000 mismatches=0 |}]
+
+(* ---------- set_thrust_from_velocity ---------- *)
+
+external c_set_thrust_from_velocity
+  : int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_set_thrust_from_velocity"
+
+let%expect_test "set_thrust_from_velocity zero velocity" =
+  let c = c_set_thrust_from_velocity 0x10000 0x8000 0 0 0 in
+  let ox = Ox_physics.set_thrust_from_velocity
+    ~mass:0x10000 ~drag:0x8000 ~velocity:(0, 0, 0) in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(0,0,0) ox=(0,0,0) eq=true |}]
+
+let%expect_test "set_thrust_from_velocity unit velocity" =
+  (* mass=F1_0, drag=F1_0/2: k = fixmuldiv(F1_0, F1_0/2, F1_0/2) = F1_0 *)
+  let c = c_set_thrust_from_velocity 0x10000 0x8000 0x10000 0 0 in
+  let ox = Ox_physics.set_thrust_from_velocity
+    ~mass:0x10000 ~drag:0x8000 ~velocity:(0x10000, 0, 0) in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+
+let%expect_test "randomized set_thrust_from_velocity parity C vs Ox" =
+  let state = Random.State.make [| 55555 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let mass = Random.State.int state 0x80000 + 1 in
+    (* drag must be < F1_0 to avoid div-by-zero in F1_0 - drag *)
+    let drag = Random.State.int state 0xFFFE + 1 in
+    let vx = gen_fix () in
+    let vy = gen_fix () in
+    let vz = gen_fix () in
+    incr total;
+    let c = c_set_thrust_from_velocity mass drag vx vy vz in
+    let ox = Ox_physics.set_thrust_from_velocity
+      ~mass ~drag ~velocity:(vx, vy, vz) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "mass=%d drag=%d v=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+          mass drag vx vy vz cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "set_thrust_from_velocity random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "set_thrust_from_velocity parity failed" ();
+  [%expect {| set_thrust_from_velocity random total=5000 mismatches=0 |}]

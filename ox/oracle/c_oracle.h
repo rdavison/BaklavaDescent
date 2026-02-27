@@ -295,6 +295,20 @@ void c_oracle_do_physics_sim_rot(
     int32_t* out_rvx, int32_t* out_rvy, int32_t* out_rvz,
     int32_t* out_turnroll);
 
+void c_oracle_ai_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t rate, int32_t frame_time,
+    int32_t seismic_mag, int32_t robot_mass,
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_orient);
+
+void c_oracle_set_thrust_from_velocity(
+    int32_t mass, int32_t drag,
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t* out_tx, int32_t* out_ty, int32_t* out_tz);
+
 #ifdef __cplusplus
 }
 #endif

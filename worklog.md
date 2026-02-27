@@ -849,3 +849,30 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 18) Port `ai_turn_towards_vector` and `set_thrust_from_velocity` to Ox with parity tests
+
+**What:** Ported `ai_turn_towards_vector` from `main_d1/ai.cpp` and `main_d2/ai2.cpp`, and `set_thrust_from_velocity` from `main_d1/physics.cpp` and `main_d2/physics.cpp` to OxCaml. `ai_turn_towards_vector` is the AI robot turning workhorse — smoothly interpolates a robot's orientation toward a goal vector using FrameTime-scaled blending, then rebuilds the orientation matrix via `vm_vector_2_matrix`. `set_thrust_from_velocity` computes the thrust needed to maintain current velocity under drag: `k = mass * drag / (F1_0 - drag); thrust = velocity * k`.
+
+- **2 new pure functions in `ox/ox_physics.ml`:**
+  - `ai_turn_towards_vector` — handles the non-baby-spider interpolation path. Takes seismic tremor parameters (D2) as extra args (zeros for D1). Baby spider check handled at C callsite by delegating to already-bridged `physics_turn_towards_vector`.
+  - `set_thrust_from_velocity` — uses `fixmuldiv` and `vm_vec_copy_scale`, both already ported.
+
+- **Bridge layer:**
+  - `cd_ai_turn_towards_vector` (16 scalar args → 9 ints) and `cd_set_thrust_from_velocity` (5 args → 3 ints) in `physics_bridge.ml`.
+  - `cd_ox_ai_turn_towards_vector` and `cd_ox_set_thrust_from_velocity` in `bridge.c` using `caml_callbackN`.
+
+- **C oracle + parity tests:**
+  - `c_oracle_ai_turn_towards_vector` and `c_oracle_set_thrust_from_velocity`.
+  - `ai_turn_towards_vector`: 2 deterministic tests (facing goal, 90-degree turn) + 5000 randomized without seismic + 5000 randomized with seismic — all pass with 0 mismatches.
+  - `set_thrust_from_velocity`: 2 deterministic tests (zero velocity, unit velocity) + 5000 randomized — 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/ai.cpp` — `ai_turn_towards_vector` wired (first bridge usage in this file). Baby spider case delegates to existing `physics_turn_towards_vector` bridge. Seismic args all zero for D1.
+  - `main_d2/ai2.cpp` — `ai_turn_towards_vector` wired. D2 seismic tremor handled by generating `rand_vec` via `make_random_vector()` on C side before calling bridge, passing `Seismic_tremor_magnitude` and `Robot_info[id].mass`.
+  - `main_d1/physics.cpp` — `set_thrust_from_velocity` wired.
+  - `main_d2/physics.cpp` — `set_thrust_from_velocity` wired. D1 and D2 implementations are identical.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

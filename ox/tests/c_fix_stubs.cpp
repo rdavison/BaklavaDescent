@@ -2493,3 +2493,64 @@ extern "C" CAMLprim value caml_c_phys_apply_rot_bc(value* argv, int argn)
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
         argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]);
 }
+
+/* ai_turn_towards_vector: 16 args → 9-tuple (orient) */
+extern "C" CAMLprim value caml_c_ai_turn_towards_vector(
+    value gx, value gy, value gz,
+    value fx, value fy, value fz,
+    value rx, value ry, value rz,
+    value rate, value frame_time,
+    value seismic_mag, value robot_mass,
+    value rvx, value rvy, value rvz)
+{
+    CAMLparam5(gx, gy, gz, fx, fy);
+    CAMLxparam5(fz, rx, ry, rz, rate);
+    CAMLxparam5(frame_time, seismic_mag, robot_mass, rvx, rvy);
+    CAMLxparam1(rvz);
+    CAMLlocal1(out);
+
+    int32_t out_orient[9];
+    c_oracle_ai_turn_towards_vector(
+        Int_val(gx), Int_val(gy), Int_val(gz),
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(rx), Int_val(ry), Int_val(rz),
+        Int_val(rate), Int_val(frame_time),
+        Int_val(seismic_mag), Int_val(robot_mass),
+        Int_val(rvx), Int_val(rvy), Int_val(rvz),
+        out_orient);
+
+    out = caml_alloc_tuple(9);
+    for (int i = 0; i < 9; i++)
+        Store_field(out, i, Val_long(out_orient[i]));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_ai_turn_towards_vector_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_ai_turn_towards_vector(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
+        argv[12], argv[13], argv[14], argv[15]);
+}
+
+/* set_thrust_from_velocity: 5 args → 3-tuple (thrust) */
+extern "C" CAMLprim value caml_c_set_thrust_from_velocity(
+    value mass, value drag,
+    value vx, value vy, value vz)
+{
+    CAMLparam5(mass, drag, vx, vy, vz);
+    CAMLlocal1(out);
+
+    int32_t out_tx, out_ty, out_tz;
+    c_oracle_set_thrust_from_velocity(
+        Int_val(mass), Int_val(drag),
+        Int_val(vx), Int_val(vy), Int_val(vz),
+        &out_tx, &out_ty, &out_tz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_tx));
+    Store_field(out, 1, Val_long(out_ty));
+    Store_field(out, 2, Val_long(out_tz));
+    CAMLreturn(out);
+}

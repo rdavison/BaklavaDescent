@@ -50,6 +50,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gauges.h"
 #include "stringtable.h"
 #include "misc/rand.h"
+#include "ox/bridge.h"
 
 #ifdef EDITOR
 #include "editor\editor.h"
@@ -466,6 +467,53 @@ extern fix Seismic_tremor_magnitude;
 //-------------------------------------------------------------------------------------------
 void ai_turn_towards_vector(vms_vector *goal_vector, object *objp, fix rate)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] ai_turn_towards_vector (D2) using cd_ox_ai_turn_towards_vector.\n");
+		ox_bridge_logged = 1;
+	}
+
+	//	Not all robots can turn, eg, SPECIAL_REACTOR_ROBOT
+	if (rate == 0)
+		return;
+
+	// Baby spider: delegate to physics_turn_towards_vector (already bridged)
+	if ((objp->id == BABY_SPIDER_ID) && (objp->type == OBJ_ROBOT)) {
+		physics_turn_towards_vector(goal_vector, objp, rate);
+		return;
+	}
+
+	// For seismic: generate random vector on C side, pass to OCaml
+	int32_t seismic_mag = Seismic_tremor_magnitude;
+	int32_t robot_mass = seismic_mag ? Robot_info[objp->id].mass : 0;
+	vms_vector rand_vec = {0, 0, 0};
+	if (seismic_mag)
+		make_random_vector(&rand_vec);
+
+	int32_t out_orient[9];
+	cd_ox_ai_turn_towards_vector(
+		goal_vector->x, goal_vector->y, goal_vector->z,
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+		objp->orient.rvec.x, objp->orient.rvec.y, objp->orient.rvec.z,
+		rate, FrameTime,
+		seismic_mag, robot_mass,
+		rand_vec.x, rand_vec.y, rand_vec.z,
+		out_orient);
+
+	objp->orient.rvec.x = out_orient[0];
+	objp->orient.rvec.y = out_orient[1];
+	objp->orient.rvec.z = out_orient[2];
+	objp->orient.uvec.x = out_orient[3];
+	objp->orient.uvec.y = out_orient[4];
+	objp->orient.uvec.z = out_orient[5];
+	objp->orient.fvec.x = out_orient[6];
+	objp->orient.fvec.y = out_orient[7];
+	objp->orient.fvec.z = out_orient[8];
+	return;
+#endif
+
 	vms_vector	new_fvec;
 	fix			dot;
 

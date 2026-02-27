@@ -1208,6 +1208,20 @@ void phys_apply_rot(object *obj,vms_vector *force_vec)
 //(hopefully) maintain the object's current velocity
 void set_thrust_from_velocity(object *obj)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] set_thrust_from_velocity (D2) using cd_ox_set_thrust_from_velocity.\n");
+		ox_bridge_logged = 1;
+	}
+	Assert(obj->movement_type == MT_PHYSICS);
+	cd_ox_set_thrust_from_velocity(
+		obj->mtype.phys_info.mass, obj->mtype.phys_info.drag,
+		obj->mtype.phys_info.velocity.x, obj->mtype.phys_info.velocity.y, obj->mtype.phys_info.velocity.z,
+		&obj->mtype.phys_info.thrust.x, &obj->mtype.phys_info.thrust.y, &obj->mtype.phys_info.thrust.z);
+	return;
+#endif
 	fix k;
 
 	Assert(obj->movement_type == MT_PHYSICS);
