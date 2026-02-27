@@ -137,4 +137,7 @@ let () =
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
   (* Force collide bridge module initialization so its callbacks are registered. *)
   ignore (Collide_bridge.cd_apply_damage_to_robot_d1 :
-    int -> int -> int -> int -> int -> int -> int -> int array)
+    int -> int -> int -> int -> int -> int -> int -> int array);
+  (* Force physics bridge module initialization so its callbacks are registered. *)
+  ignore (Physics_bridge.cd_physics_turn_towards_vector :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int)

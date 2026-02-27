@@ -29,6 +29,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "ai.h"
 #include "wall.h"
 #include "laser.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#include <stdio.h>
+#endif
 
 //Global variables for physics system
 
@@ -959,6 +963,25 @@ void physics_set_rotvel_and_saturate(fix* dest, fix delta)
 //	phys_apply_rot used to call ai_turn_towards_vector until I fixed it, which broke phys_apply_rot.
 void physics_turn_towards_vector(vms_vector* goal_vector, object* obj, fix rate)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] physics_turn_towards_vector using cd_ox_physics_turn_towards_vector.\n");
+		ox_bridge_logged = 1;
+	}
+	vms_vector* rotvel_ptr = &obj->mtype.phys_info.rotvel;
+	int32_t out_rx, out_ry, out_rz;
+	cd_ox_physics_turn_towards_vector(
+		goal_vector->x, goal_vector->y, goal_vector->z,
+		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+		rate, (obj->control_type == CT_MORPH) ? 1 : 0,
+		rotvel_ptr->x, rotvel_ptr->y, rotvel_ptr->z,
+		&out_rx, &out_ry, &out_rz);
+	rotvel_ptr->x = out_rx;
+	rotvel_ptr->y = out_ry;
+	rotvel_ptr->z = out_rz;
+#else
 	vms_angvec	dest_angles, cur_angles;
 	fix			delta_p, delta_h;
 	vms_vector* rotvel_ptr = &obj->mtype.phys_info.rotvel;
@@ -994,6 +1017,7 @@ void physics_turn_towards_vector(vms_vector* goal_vector, object* obj, fix rate)
 	physics_set_rotvel_and_saturate(&rotvel_ptr->x, delta_p);
 	physics_set_rotvel_and_saturate(&rotvel_ptr->y, delta_h);
 	rotvel_ptr->z = 0;
+#endif
 }
 
 //	-----------------------------------------------------------------------------

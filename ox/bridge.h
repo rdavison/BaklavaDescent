@@ -368,6 +368,13 @@ int32_t cd_ox_check_vector_to_sphere_1(
     int32_t srad,
     int32_t* ix, int32_t* iy, int32_t* iz);
 
+void cd_ox_physics_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rate, int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
+
 #ifdef __cplusplus
 }
 #endif

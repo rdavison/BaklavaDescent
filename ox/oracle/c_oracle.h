@@ -248,6 +248,13 @@ void c_oracle_clip_polygon(
     int* out_nv, int32_t* flat_out,
     int32_t* out_codes_or, int32_t* out_codes_and);
 
+void c_oracle_physics_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rate, int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
+
 #ifdef __cplusplus
 }
 #endif

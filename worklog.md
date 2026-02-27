@@ -743,3 +743,35 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Root cause:** The Ox bridge path in `calc_rod_corners` (`3d/rod.cpp`) set rod point coordinates from OCaml output but never called `g3_code_point()` on each point. The original C path did this at line 117. Without `p3_codes` set, `g3_draw_tmap` saw zero codes, thought all points were fully on-screen, skipped clipping, and projection overflowed on points behind the camera.
 - **Fix:** Added `g3_code_point(&rod_points[i])` loop after setting coordinates, matching the original C path. Also recomputes `codes_and` from the per-point codes rather than relying on the OCaml-returned value (which was correct but now redundant).
 - **Repro:** Stand inside matcen on level 1, wait for robot spawn. Previously crashed; now renders correctly.
+
+### 14) Port physics_turn_towards_vector to Ox
+
+- **New module `ox/ox_physics.ml` — first physics module:**
+  - `physics_set_rotvel_and_saturate` — XOR sign check + deadband logic for rotational velocity clamping.
+  - `physics_turn_towards_vector` — robot AI steering algorithm: extracts heading/pitch angles from goal and forward vectors, computes deltas with fixang wrapping, divides by rate, applies deadband amplification, clamps via `physics_set_rotvel_and_saturate`.
+  - Key detail: angle wrapping to `[-F1_0/2, F1_0/2]` range, and XOR sign check `(delta lxor dest) < 0` works correctly for 32-bit values in OCaml 63-bit ints.
+
+- **New files:**
+  - `ox/ox_physics.ml` — pure implementations.
+  - `ox/physics_bridge.ml` — 11-arg bridge wrapper, registers `"cd_physics_turn_towards_vector"` callback.
+
+- **Modified files:**
+  - `ox/dune` — added `ox_physics` library and `bridge_physics` library, updated `math_bridge` deps.
+  - `ox/math_bridge.ml` — force-init `Physics_bridge` module via `ignore`.
+  - `ox/bridge.h` / `ox/bridge.c` — added `cd_ox_physics_turn_towards_vector` (11 inputs + 3 output pointers). Uses `caml_callbackN` with 11 args, unpacks 3-tuple return.
+  - `main_d1/physics.cpp` — `#ifdef USE_OX_BRIDGE` block in `physics_turn_towards_vector`.
+  - `main_d2/physics.cpp` — same wiring as D1.
+  - `scripts/ox/build_bridge.sh` — added `ox_physics.ml` and `physics_bridge.ml` to compilation list.
+  - `CMakeLists.txt` — added new .ml files to DEPENDS list.
+
+- **Oracle + parity tests:**
+  - `ox/oracle/c_oracle.cpp` — added `c_oracle_physics_turn_towards_vector` (reuses existing oracle math primitives).
+  - `ox/tests/c_fix_stubs.cpp` — added 11-arg native stub + bytecode wrapper (`_bc`).
+  - `ox/tests/parity_expect.ml` — 3 tests: zero goal (deterministic), basic forward (deterministic), randomized 5000-case differential test. All pass with 0 mismatches.
+  - `ox/tests/dune` — added `ox_physics` to parity_expect library deps.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+- OCaml module count: 8 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves, ox_collide, ox_physics + bridges).

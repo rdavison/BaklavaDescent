@@ -5758,3 +5758,71 @@ let%expect_test "curve_dir randomized parity C vs Ox" =
   printf "curve_dir random total=%d mismatches=%d\n" !total !mismatches;
   if !mismatches <> 0 then failwithf "curve_dir randomized parity failed" ();
   [%expect {| curve_dir random total=3000 mismatches=0 |}]
+
+(* --- physics_turn_towards_vector parity tests --- *)
+
+external c_physics_turn_towards_vector
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int
+  -> int * int * int
+  = "caml_c_physics_turn_towards_vector_bc" "caml_c_physics_turn_towards_vector"
+
+let%expect_test "physics_turn_towards_vector zero goal returns unchanged rotvel" =
+  let c = c_physics_turn_towards_vector 0 0 0  100 0 200  0x10000 0  500 600 700 in
+  let ox = Ox_physics.physics_turn_towards_vector
+    ~goal:(0, 0, 0) ~fvec:(100, 0, 200) ~rate:0x10000
+    ~is_morph:false ~cur_rotvel:(500, 600, 700) in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (a,_,_) = c in a) (let (_,a,_) = c in a) (let (_,_,a) = c in a)
+    (let (a,_,_) = ox in a) (let (_,a,_) = ox in a) (let (_,_,a) = ox in a)
+    ([%compare.equal: int * int * int] c ox);
+  [%expect {| c=(500,600,700) ox=(500,600,700) eq=true |}]
+
+let%expect_test "physics_turn_towards_vector basic forward" =
+  let c = c_physics_turn_towards_vector 0 0 0x10000  0x10000 0 0  0x10000 0  0 0 0 in
+  let ox = Ox_physics.physics_turn_towards_vector
+    ~goal:(0, 0, 0x10000) ~fvec:(0x10000, 0, 0) ~rate:0x10000
+    ~is_morph:false ~cur_rotvel:(0, 0, 0) in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (a,_,_) = c in a) (let (_,a,_) = c in a) (let (_,_,a) = c in a)
+    (let (a,_,_) = ox in a) (let (_,a,_) = ox in a) (let (_,_,a) = ox in a)
+    ([%compare.equal: int * int * int] c ox);
+  [%expect {| c=(0,-16384,0) ox=(0,-16384,0) eq=true |}]
+
+let%expect_test "randomized physics_turn_towards_vector parity C vs Ox" =
+  let rate_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    let v = Int.abs v land 0x1FFFF in
+    if v = 0 then 0x10000 else v) in
+  let bool_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    v land 1) in
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+        (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+        (Quickcheck.Generator.both
+          (Quickcheck.Generator.both rate_gen bool_gen)
+          vec3_mag_safe_gen))
+      ~f:(fun ((goal, fvec), ((rate, is_morph), rotvel)) ->
+        (goal, fvec, rate, is_morph, rotvel))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  random_values ~seed:"physics-turn-towards-v1" ~test_count:5000 gen
+  |> Sequence.iter ~f:(fun ((gx,gy,gz), (fx,fy,fz), rate, is_morph, (crx,cry,crz)) ->
+       incr total;
+       let c = c_physics_turn_towards_vector gx gy gz fx fy fz rate is_morph crx cry crz in
+       let ox = Ox_physics.physics_turn_towards_vector
+         ~goal:(gx,gy,gz) ~fvec:(fx,fy,fz) ~rate
+         ~is_morph:(is_morph <> 0) ~cur_rotvel:(crx,cry,crz) in
+       if not ([%compare.equal: int * int * int] c ox) then (
+         incr mismatches;
+         if Option.is_none !first_mismatch then
+           first_mismatch := Some (
+             sprintf "goal=(%d,%d,%d) fvec=(%d,%d,%d) rate=%d morph=%d rotvel=(%d,%d,%d) c=(%d,%d,%d) ox=(%d,%d,%d)"
+               gx gy gz fx fy fz rate is_morph crx cry crz
+               (let (a,_,_) = c in a) (let (_,a,_) = c in a) (let (_,_,a) = c in a)
+               (let (a,_,_) = ox in a) (let (_,a,_) = ox in a) (let (_,_,a) = ox in a))));
+  printf "physics_turn_towards_vector random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "physics_turn_towards_vector parity failed" ();
+  [%expect {| physics_turn_towards_vector random total=5000 mismatches=0 |}]

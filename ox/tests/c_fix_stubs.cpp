@@ -2287,3 +2287,37 @@ extern "C" CAMLprim value caml_c_curve_dir(value arr)
     Store_field(out, 2, Val_long(dir.z));
     CAMLreturn(out);
 }
+
+extern "C" CAMLprim value caml_c_physics_turn_towards_vector(
+    value gx, value gy, value gz,
+    value fx, value fy, value fz,
+    value rate, value is_morph,
+    value crx, value cry, value crz)
+{
+    CAMLparam5(gx, gy, gz, fx, fy);
+    CAMLxparam5(fz, rate, is_morph, crx, cry);
+    CAMLxparam1(crz);
+    CAMLlocal1(out);
+
+    int32_t out_rx, out_ry, out_rz;
+    c_oracle_physics_turn_towards_vector(
+        Int_val(gx), Int_val(gy), Int_val(gz),
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(rate), Int_val(is_morph),
+        Int_val(crx), Int_val(cry), Int_val(crz),
+        &out_rx, &out_ry, &out_rz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_rx));
+    Store_field(out, 1, Val_long(out_ry));
+    Store_field(out, 2, Val_long(out_rz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_physics_turn_towards_vector_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_physics_turn_towards_vector(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9], argv[10]);
+}

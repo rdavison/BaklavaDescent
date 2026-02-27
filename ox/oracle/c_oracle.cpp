@@ -1591,3 +1591,64 @@ extern "C" void c_oracle_clip_polygon(
     *out_codes_or = codes_or;
     *out_codes_and = codes_and;
 }
+
+static int32_t c_oracle_physics_set_rotvel_and_saturate(int32_t dest, int32_t delta)
+{
+    if ((delta ^ dest) < 0)
+    {
+        if (labs(delta) < 0x10000 / 8)
+            return delta / 4;
+        else
+            return delta;
+    }
+    else
+    {
+        return delta;
+    }
+}
+
+extern "C" void c_oracle_physics_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rate, int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz)
+{
+    if (gx == 0 && gy == 0 && gz == 0)
+    {
+        *out_rx = crx;
+        *out_ry = cry;
+        *out_rz = crz;
+        return;
+    }
+
+    if (is_morph)
+        rate *= 2;
+
+    c_oracle_vec3 goal = { gx, gy, gz };
+    c_oracle_vec3 fvec = { fx, fy, fz };
+    c_oracle_ang3 dest_angles, cur_angles;
+    /* c_oracle_vm_extract_angles_vector doesn't init fields on zero-mag */
+    dest_angles.p = 0; dest_angles.b = 0; dest_angles.h = 0;
+    cur_angles.p = 0; cur_angles.b = 0; cur_angles.h = 0;
+    c_oracle_vm_extract_angles_vector(&dest_angles, &goal);
+    c_oracle_vm_extract_angles_vector(&cur_angles, &fvec);
+
+    int32_t delta_p = dest_angles.p - cur_angles.p;
+    int32_t delta_h = dest_angles.h - cur_angles.h;
+
+    if (delta_p > 0x10000 / 2) delta_p = dest_angles.p - cur_angles.p - 0x10000;
+    if (delta_p < -0x10000 / 2) delta_p = dest_angles.p - cur_angles.p + 0x10000;
+    if (delta_h > 0x10000 / 2) delta_h = dest_angles.h - cur_angles.h - 0x10000;
+    if (delta_h < -0x10000 / 2) delta_h = dest_angles.h - cur_angles.h + 0x10000;
+
+    delta_p = c_oracle_fixdiv(delta_p, rate);
+    delta_h = c_oracle_fixdiv(delta_h, rate);
+
+    if (labs(delta_p) < 0x10000 / 16) delta_p *= 4;
+    if (labs(delta_h) < 0x10000 / 16) delta_h *= 4;
+
+    *out_rx = c_oracle_physics_set_rotvel_and_saturate(crx, delta_p);
+    *out_ry = c_oracle_physics_set_rotvel_and_saturate(cry, delta_h);
+    *out_rz = 0;
+}

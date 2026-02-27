@@ -23,6 +23,8 @@ ocamlfind ocamlopt \
   "$OX_DIR/fvi_bridge.ml" \
   "$OX_DIR/ox_collide.ml" \
   "$OX_DIR/collide_bridge.ml" \
+  "$OX_DIR/ox_physics.ml" \
+  "$OX_DIR/physics_bridge.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG

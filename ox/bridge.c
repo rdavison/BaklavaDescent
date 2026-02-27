@@ -83,6 +83,7 @@ static const value* g_check_line_to_face = NULL;
 static const value* g_special_check_line_to_face = NULL;
 static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
+static const value* g_physics_turn_towards_vector = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -159,7 +160,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_check_line_to_face
           && g_special_check_line_to_face
           && g_check_vector_to_sphere_1
-          && g_apply_damage_to_robot_d1))
+          && g_apply_damage_to_robot_d1
+          && g_physics_turn_towards_vector))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -252,6 +254,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_special_check_line_to_face = caml_named_value("cd_special_check_line_to_face");
     g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
     g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
+    g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
 
     if (!g_i2f
         || !g_f2i
@@ -325,7 +328,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_check_line_to_face
         || !g_special_check_line_to_face
         || !g_check_vector_to_sphere_1
-        || !g_apply_damage_to_robot_d1)
+        || !g_apply_damage_to_robot_d1
+        || !g_physics_turn_towards_vector)
     {
         return 1;
     }
@@ -407,7 +411,8 @@ int cd_ox_is_ready(void)
            && g_check_line_to_face
            && g_special_check_line_to_face
            && g_check_vector_to_sphere_1
-           && g_apply_damage_to_robot_d1;
+           && g_apply_damage_to_robot_d1
+           && g_physics_turn_towards_vector;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1572,4 +1577,24 @@ void cd_ox_apply_damage_to_robot_d1(
     *out_len = arr_len;
 
     CAMLreturn0;
+}
+
+void cd_ox_physics_turn_towards_vector(
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t rate, int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz)
+{
+    cd_ox_require_ready("cd_ox_physics_turn_towards_vector");
+    value args[11] = {
+        Val_long(gx), Val_long(gy), Val_long(gz),
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(rate), Val_long(is_morph ? 1 : 0),
+        Val_long(crx), Val_long(cry), Val_long(crz),
+    };
+    const value out = caml_callbackN(*g_physics_turn_towards_vector, 11, args);
+    *out_rx = Int_val(Field(out, 0));
+    *out_ry = Int_val(Field(out, 1));
+    *out_rz = Int_val(Field(out, 2));
 }
