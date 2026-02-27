@@ -1,6 +1,6 @@
 (library
  (name parity_expect)
- (libraries core ox_math ox_3d ox_gameseg ox_fvi)
+ (libraries core ox_math ox_3d ox_gameseg ox_fvi ox_curves)
  (preprocess (pps ppx_jane))
  (inline_tests)
  (flags (:standard -open Core))

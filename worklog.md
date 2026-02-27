@@ -680,3 +680,31 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - All pass with 0 mismatches.
 
 - Bridge function count: 74 total (was 71). OCaml module count: 5 (ox_math, ox_3d, ox_gameseg, ox_fvi + bridges).
+
+### 14) Wire D2 gameseg/fvi + Port curves pure math
+
+- **D2 gameseg.cpp wiring (`main_d2/gameseg.cpp`):**
+  - Added `#include "ox/bridge.h"` + 8 `#ifdef USE_OX_BRIDGE` blocks.
+  - Functions: `compute_center_point_on_side`, `compute_segment_center`, `create_abs_vertex_lists`, `get_seg_masks`, `get_side_dists`, `extract_vector_from_segment`, `extract_orient_from_segment`, `get_verts_for_normal`.
+  - D2 has extra `segnum == -1` Error guards — bridge blocks placed after guards.
+
+- **D2 fvi.cpp wiring (`main_d2/fvi.cpp`):**
+  - Added `#include "ox/bridge.h"` + 3 `#ifdef USE_OX_BRIDGE` blocks.
+  - Functions: `check_line_to_face`, `special_check_line_to_face`, `check_vector_to_sphere_1`.
+  - `special_check_line_to_face` bridge placed after `disable_new_fvi_stuff` early return and `segnum == -1` guard.
+
+- **No new bridge functions or OCaml code for D2** — reuses existing D1 implementations and bridge callbacks. Bridge count stays at 74.
+
+- **Curves pure math port (`ox/ox_curves.ml`):**
+  - New `vms_equation` record type (12 fix coefficients for cubic in x, y, z).
+  - 4 pure functions: `create_curve`, `evaluate_curve`, `curve_dist`, `curve_dir`.
+  - Key detail: arithmetic results wrapped to int32 via `wrap_i64_to_fix` to match C overflow behavior.
+  - No bridge wiring (editor-only, `#ifdef EDITOR` is OFF).
+
+- **Oracle + parity tests:**
+  - `ox/oracle/c_oracle_curves.cpp` + `.h` — C oracle for all 4 functions.
+  - OCaml stubs in `ox/tests/c_fix_stubs.cpp`.
+  - 7 parity test suites: `create_curve` (deterministic + 3000 random), `evaluate_curve` (deterministic + 3000 random), `curve_dist` (deterministic), `curve_dir` (deterministic + 3000 random).
+  - All pass with 0 mismatches.
+
+- OCaml module count: 6 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves + bridges).

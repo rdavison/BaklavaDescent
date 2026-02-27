@@ -7,6 +7,7 @@ extern "C" {
 #include "c_oracle.h"
 #include "c_oracle_gameseg.h"
 #include "c_oracle_fvi.h"
+#include "c_oracle_curves.h"
 
 extern "C" CAMLprim value caml_c_i2f(value i)
 {
@@ -2186,5 +2187,103 @@ extern "C" CAMLprim value caml_c_check_vector_to_sphere_1(value arr)
     Store_field(out, 1, Val_long(intp.x));
     Store_field(out, 2, Val_long(intp.y));
     Store_field(out, 3, Val_long(intp.z));
+    CAMLreturn(out);
+}
+
+/* ---------- curves ---------- */
+
+static c_oracle_vms_equation decode_equation(value arr, int offset)
+{
+    c_oracle_vms_equation eq;
+    eq.x3 = Int_val(Field(arr, offset + 0));
+    eq.x2 = Int_val(Field(arr, offset + 1));
+    eq.x1 = Int_val(Field(arr, offset + 2));
+    eq.x0 = Int_val(Field(arr, offset + 3));
+    eq.y3 = Int_val(Field(arr, offset + 4));
+    eq.y2 = Int_val(Field(arr, offset + 5));
+    eq.y1 = Int_val(Field(arr, offset + 6));
+    eq.y0 = Int_val(Field(arr, offset + 7));
+    eq.z3 = Int_val(Field(arr, offset + 8));
+    eq.z2 = Int_val(Field(arr, offset + 9));
+    eq.z1 = Int_val(Field(arr, offset + 10));
+    eq.z0 = Int_val(Field(arr, offset + 11));
+    return eq;
+}
+
+extern "C" CAMLprim value caml_c_create_curve(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vec3 p1 = { Int_val(Field(arr, 0)), Int_val(Field(arr, 1)), Int_val(Field(arr, 2)) };
+    c_oracle_vec3 p4 = { Int_val(Field(arr, 3)), Int_val(Field(arr, 4)), Int_val(Field(arr, 5)) };
+    c_oracle_vec3 r1 = { Int_val(Field(arr, 6)), Int_val(Field(arr, 7)), Int_val(Field(arr, 8)) };
+    c_oracle_vec3 r4 = { Int_val(Field(arr, 9)), Int_val(Field(arr, 10)), Int_val(Field(arr, 11)) };
+
+    c_oracle_vms_equation coeffs;
+    c_oracle_create_curve(&p1, &p4, &r1, &r4, &coeffs);
+
+    out = caml_alloc_tuple(12);
+    Store_field(out, 0, Val_long(coeffs.x3));
+    Store_field(out, 1, Val_long(coeffs.x2));
+    Store_field(out, 2, Val_long(coeffs.x1));
+    Store_field(out, 3, Val_long(coeffs.x0));
+    Store_field(out, 4, Val_long(coeffs.y3));
+    Store_field(out, 5, Val_long(coeffs.y2));
+    Store_field(out, 6, Val_long(coeffs.y1));
+    Store_field(out, 7, Val_long(coeffs.y0));
+    Store_field(out, 8, Val_long(coeffs.z3));
+    Store_field(out, 9, Val_long(coeffs.z2));
+    Store_field(out, 10, Val_long(coeffs.z1));
+    Store_field(out, 11, Val_long(coeffs.z0));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_evaluate_curve(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vms_equation eq = decode_equation(arr, 0);
+    int32_t t = Int_val(Field(arr, 12));
+
+    c_oracle_vec3 result;
+    c_oracle_evaluate_curve(&eq, t, &result);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(result.x));
+    Store_field(out, 1, Val_long(result.y));
+    Store_field(out, 2, Val_long(result.z));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_curve_dist(value arr)
+{
+    CAMLparam1(arr);
+
+    c_oracle_vms_equation eq = decode_equation(arr, 0);
+    int32_t t0 = Int_val(Field(arr, 12));
+    c_oracle_vec3 p0 = { Int_val(Field(arr, 13)), Int_val(Field(arr, 14)), Int_val(Field(arr, 15)) };
+    int32_t dist = Int_val(Field(arr, 16));
+
+    int32_t result = c_oracle_curve_dist(&eq, t0, &p0, dist);
+    CAMLreturn(Val_long(result));
+}
+
+extern "C" CAMLprim value caml_c_curve_dir(value arr)
+{
+    CAMLparam1(arr);
+    CAMLlocal1(out);
+
+    c_oracle_vms_equation eq = decode_equation(arr, 0);
+    int32_t t0 = Int_val(Field(arr, 12));
+
+    c_oracle_vec3 dir;
+    c_oracle_curve_dir(&eq, t0, &dir);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(dir.x));
+    Store_field(out, 1, Val_long(dir.y));
+    Store_field(out, 2, Val_long(dir.z));
     CAMLreturn(out);
 }

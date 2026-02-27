@@ -23,6 +23,12 @@
  (flags (:standard -open Core)))
 
 (library
+ (name ox_curves)
+ (libraries core ox_math)
+ (modules ox_curves)
+ (flags (:standard -open Core)))
+
+(library
  (name bridge_3d)
  (libraries core ox_math ox_3d)
  (modules g3d_bridge)

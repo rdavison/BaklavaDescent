@@ -5615,3 +5615,146 @@ let%expect_test "randomized check_vector_to_sphere_1 parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "check_vector_to_sphere_1 randomized parity failed" ();
   [%expect {| check_vector_to_sphere_1 random total=5000 mismatches=0 |}]
+
+(* ============================================================ *)
+(* Curves parity tests                                          *)
+(* ============================================================ *)
+
+external c_create_curve : int array -> int * int * int * int * int * int * int * int * int * int * int * int = "caml_c_create_curve"
+external c_evaluate_curve : int array -> int * int * int = "caml_c_evaluate_curve"
+external c_curve_dist : int array -> int = "caml_c_curve_dist"
+external c_curve_dir : int array -> int * int * int = "caml_c_curve_dir"
+
+let eq_of_ox (eq : Ox_curves.vms_equation) =
+  (eq.x3, eq.x2, eq.x1, eq.x0, eq.y3, eq.y2, eq.y1, eq.y0, eq.z3, eq.z2, eq.z1, eq.z0)
+
+let eq_arr (eq : Ox_curves.vms_equation) =
+  [| eq.x3; eq.x2; eq.x1; eq.x0; eq.y3; eq.y2; eq.y1; eq.y0; eq.z3; eq.z2; eq.z1; eq.z0 |]
+
+let%expect_test "create_curve deterministic parity C vs Ox" =
+  let cases =
+    [ ((0x10000, 0, 0), (0x20000, 0, 0), (0x10000, 0, 0), (0x10000, 0, 0))
+    ; ((0, 0x10000, 0), (0, 0x20000, 0x10000), (0, 0x10000, 0), (0, 0, 0x10000))
+    ; ((0x8000, 0x8000, 0x8000), (-0x8000, -0x8000, -0x8000), (0x10000, 0x10000, 0x10000), (-0x10000, -0x10000, -0x10000))
+    ]
+  in
+  List.iter cases ~f:(fun ((p1x,p1y,p1z),(p4x,p4y,p4z),(r1x,r1y,r1z),(r4x,r4y,r4z)) ->
+    let arr = [| p1x;p1y;p1z;p4x;p4y;p4z;r1x;r1y;r1z;r4x;r4y;r4z |] in
+    let c = c_create_curve arr in
+    let ox = eq_of_ox (Ox_curves.create_curve ~p1:(p1x,p1y,p1z) ~p4:(p4x,p4y,p4z) ~r1:(r1x,r1y,r1z) ~r4:(r4x,r4y,r4z)) in
+    let eq = [%compare.equal: int * int * int * int * int * int * int * int * int * int * int * int] c ox in
+    printf "create_curve eq=%b\n" eq);
+  [%expect {|
+    create_curve eq=true
+    create_curve eq=true
+    create_curve eq=true |}]
+
+let%expect_test "create_curve randomized parity C vs Ox" =
+  let gen =
+    Quickcheck.Generator.map
+      (Quickcheck.Generator.both
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
+         (Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen))
+      ~f:(fun ((a,b),(c,d)) -> (a,b,c,d))
+  in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  random_values ~seed:"create-curve-seed-v1" ~test_count:3000 gen
+  |> Sequence.iter ~f:(fun ((p1x,p1y,p1z),(p4x,p4y,p4z),(r1x,r1y,r1z),(r4x,r4y,r4z)) ->
+       incr total;
+       let arr = [| p1x;p1y;p1z;p4x;p4y;p4z;r1x;r1y;r1z;r4x;r4y;r4z |] in
+       let c = c_create_curve arr in
+       let ox = eq_of_ox (Ox_curves.create_curve ~p1:(p1x,p1y,p1z) ~p4:(p4x,p4y,p4z) ~r1:(r1x,r1y,r1z) ~r4:(r4x,r4y,r4z)) in
+       if not ([%compare.equal: int * int * int * int * int * int * int * int * int * int * int * int] c ox) then
+         incr mismatches);
+  printf "create_curve random total=%d mismatches=%d\n" !total !mismatches;
+  if !mismatches <> 0 then failwithf "create_curve randomized parity failed" ();
+  [%expect {| create_curve random total=3000 mismatches=0 |}]
+
+let%expect_test "evaluate_curve deterministic parity C vs Ox" =
+  let eq = Ox_curves.create_curve
+    ~p1:(0x10000, 0, 0) ~p4:(0x20000, 0, 0)
+    ~r1:(0x10000, 0, 0) ~r4:(0x10000, 0, 0) in
+  let ts = [ 0; 0x4000; 0x8000; 0xC000; 0x10000 ] in
+  List.iter ts ~f:(fun t ->
+    let arr = Array.append (eq_arr eq) [| t |] in
+    let c = c_evaluate_curve arr in
+    let ox = Ox_curves.evaluate_curve eq ~t in
+    let eq_v = [%compare.equal: int * int * int] c ox in
+    printf "evaluate_curve t=%d eq=%b\n" t eq_v);
+  [%expect {|
+    evaluate_curve t=0 eq=true
+    evaluate_curve t=16384 eq=true
+    evaluate_curve t=32768 eq=true
+    evaluate_curve t=49152 eq=true
+    evaluate_curve t=65536 eq=true |}]
+
+let%expect_test "evaluate_curve randomized parity C vs Ox" =
+  let eq = Ox_curves.create_curve
+    ~p1:(0x10000, 0x20000, 0x30000) ~p4:(0x40000, 0x50000, 0x60000)
+    ~r1:(0x10000, 0x10000, 0x10000) ~r4:(-0x10000, -0x10000, -0x10000) in
+  let t_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    Int.abs v land 0xFFFF) in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  random_values ~seed:"evaluate-curve-seed-v1" ~test_count:3000 t_gen
+  |> Sequence.iter ~f:(fun t ->
+       incr total;
+       let arr = Array.append (eq_arr eq) [| t |] in
+       let c = c_evaluate_curve arr in
+       let ox = Ox_curves.evaluate_curve eq ~t in
+       if not ([%compare.equal: int * int * int] c ox) then
+         incr mismatches);
+  printf "evaluate_curve random total=%d mismatches=%d\n" !total !mismatches;
+  if !mismatches <> 0 then failwithf "evaluate_curve randomized parity failed" ();
+  [%expect {| evaluate_curve random total=3000 mismatches=0 |}]
+
+let%expect_test "curve_dist deterministic parity C vs Ox" =
+  let eq = Ox_curves.create_curve
+    ~p1:(0x10000, 0, 0) ~p4:(0x50000, 0, 0)
+    ~r1:(0x40000, 0, 0) ~r4:(0x40000, 0, 0) in
+  let p0 = Ox_curves.evaluate_curve eq ~t:0 in
+  let (p0x, p0y, p0z) = p0 in
+  let dist = 0x10000 in
+  let arr = Array.concat [ eq_arr eq; [| 0; p0x; p0y; p0z; dist |] ] in
+  let c = c_curve_dist arr in
+  let ox = Ox_curves.curve_dist eq ~t0:0 ~p0 ~dist in
+  printf "curve_dist c=%d ox=%d eq=%b\n" c ox (c = ox);
+  [%expect {| curve_dist c=14755 ox=14755 eq=true |}]
+
+let%expect_test "curve_dir deterministic parity C vs Ox" =
+  let eq = Ox_curves.create_curve
+    ~p1:(0x10000, 0, 0) ~p4:(0x20000, 0, 0)
+    ~r1:(0x10000, 0, 0) ~r4:(0x10000, 0, 0) in
+  let ts = [ 0; 0x4000; 0x8000; 0xC000 ] in
+  List.iter ts ~f:(fun t0 ->
+    let arr = Array.append (eq_arr eq) [| t0 |] in
+    let c = c_curve_dir arr in
+    let (_, ox) = Ox_curves.curve_dir eq ~t0 in
+    let eq_v = [%compare.equal: int * int * int] c ox in
+    printf "curve_dir t0=%d eq=%b\n" t0 eq_v);
+  [%expect {|
+    curve_dir t0=0 eq=true
+    curve_dir t0=16384 eq=true
+    curve_dir t0=32768 eq=true
+    curve_dir t0=49152 eq=true |}]
+
+let%expect_test "curve_dir randomized parity C vs Ox" =
+  let eq = Ox_curves.create_curve
+    ~p1:(0x10000, 0x20000, 0x30000) ~p4:(0x40000, 0x50000, 0x60000)
+    ~r1:(0x10000, 0x10000, 0x10000) ~r4:(-0x10000, -0x10000, -0x10000) in
+  let t_gen = Quickcheck.Generator.map Int.quickcheck_generator ~f:(fun v ->
+    Int.abs v land 0xFFFF) in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  random_values ~seed:"curve-dir-seed-v1" ~test_count:3000 t_gen
+  |> Sequence.iter ~f:(fun t0 ->
+       incr total;
+       let arr = Array.append (eq_arr eq) [| t0 |] in
+       let c = c_curve_dir arr in
+       let (_, ox) = Ox_curves.curve_dir eq ~t0 in
+       if not ([%compare.equal: int * int * int] c ox) then
+         incr mismatches);
+  printf "curve_dir random total=%d mismatches=%d\n" !total !mismatches;
+  if !mismatches <> 0 then failwithf "curve_dir randomized parity failed" ();
+  [%expect {| curve_dir random total=3000 mismatches=0 |}]
