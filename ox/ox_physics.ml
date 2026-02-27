@@ -232,3 +232,48 @@ let calc_gun_point ~gun_point ~start_mn ~anim_angles ~offsets ~parents
   let m = Ox_math.vm_transpose_matrix orient in
   let rotated = Ox_math.vm_vec_rotate !pnt m in
   Ox_math.vm_vec_add rotated pos
+
+(* Apply instantaneous force to object velocity.
+   C original: physics.cpp phys_apply_force
+   velocity += force_vec * (F1_0 / mass)
+   D2 adds mass==0 guard (Omega blobs with 0 mass). *)
+let phys_apply_force ~velocity ~force_vec ~mass =
+  if mass = 0 then velocity
+  else
+    let scale = Ox_math.fixdiv f1_0 mass in
+    Ox_math.vm_vec_scale_add2 velocity force_vec scale
+
+(* Compute turning rate for rotational whack and apply turn.
+   C original: physics.cpp phys_apply_rot (D1 version)
+
+   Inputs:
+     force_vec - whack direction (vec3)
+     mass      - object mass
+     is_robot  - true if obj->type == OBJ_ROBOT
+     fvec      - object's forward vector (vec3)
+     is_morph  - true if control_type == CT_MORPH
+     cur_rotvel - current rotational velocity (vec3)
+
+   Returns: (new_rotvel, set_skip_ai) where set_skip_ai indicates
+   that SKIP_AI_COUNT should be set to 2 on the C side. *)
+let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
+  let vecmag = Ox_math.vm_vec_mag force_vec / 8 in
+  if vecmag < f1_0 / 256 then
+    let rate = 4 * f1_0 in
+    let new_rv = physics_turn_towards_vector
+        ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel in
+    (new_rv, false)
+  else if vecmag < mass asr 14 then
+    let rate = 4 * f1_0 in
+    let new_rv = physics_turn_towards_vector
+        ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel in
+    (new_rv, false)
+  else
+    let rate = Ox_math.fixdiv mass vecmag in
+    let rate =
+      if is_robot then max rate (f1_0 / 4)
+      else max rate (f1_0 / 2)
+    in
+    let new_rv = physics_turn_towards_vector
+        ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel in
+    (new_rv, is_robot)

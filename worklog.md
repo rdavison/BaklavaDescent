@@ -824,3 +824,28 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 17) Port `phys_apply_force` and `phys_apply_rot` to Ox with parity tests
+
+**What:** Ported `phys_apply_force` and `phys_apply_rot` from `main_d1/physics.cpp` to OxCaml. These functions apply forces to objects: `phys_apply_force` scales a force vector by inverse mass and adds to velocity; `phys_apply_rot` computes a turn rate from force magnitude vs mass and calls `physics_turn_towards_vector` to apply rotational force. Both compose already-ported primitives (`fixdiv`, `vm_vec_scale_add2`, `vm_vec_mag`, `physics_turn_towards_vector`).
+
+- **2 new pure functions in `ox/ox_physics.ml`:**
+  - `phys_apply_force` — scales force by `1/mass`, adds to velocity via `vm_vec_scale_add2`. Returns velocity unchanged if mass=0.
+  - `phys_apply_rot` — computes `vecmag = vm_vec_mag(force)/8`, determines rate from mass/vecmag ratio (with floor of F1_0/4 for robots, F1_0/2 otherwise), calls `physics_turn_towards_vector`. Returns `(new_rotvel, set_skip_ai)` where `set_skip_ai` is true when a robot gets a significant enough rotational push.
+
+- **Bridge layer:**
+  - `cd_phys_apply_force` (7 scalar args → vec3) and `cd_phys_apply_rot` (12 scalar args → 4 ints) in `physics_bridge.ml`.
+  - `cd_ox_phys_apply_force` and `cd_ox_phys_apply_rot` in `bridge.c` using `caml_callbackN`.
+
+- **C oracle + parity tests:**
+  - `c_oracle_phys_apply_force` and `c_oracle_phys_apply_rot` replicate exact C logic.
+  - `phys_apply_force`: 3 deterministic tests (zero force, unit force, mass-zero guard) + 5000 randomized — 0 mismatches.
+  - `phys_apply_rot`: 2 deterministic tests (zero force, robot skip_ai case) + 5000 randomized — 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/physics.cpp` — both `phys_apply_force` and `phys_apply_rot` wired.
+  - `main_d2/physics.cpp` — only `phys_apply_force` wired. D2 `phys_apply_rot` has different SKIP_AI_COUNT logic involving thief/attack_type checks and `P_Rand()` RNG, so it is not ported.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

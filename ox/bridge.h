@@ -375,6 +375,25 @@ void cd_ox_physics_turn_towards_vector(
     int32_t crx, int32_t cry, int32_t crz,
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
 
+/* phys_apply_force: applies instantaneous force to velocity.
+   Returns new velocity in out_vx/vy/vz. */
+void cd_ox_phys_apply_force(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
+
+/* phys_apply_rot: applies rotational whack (D1 version).
+   Returns new rotvel in out_rx/ry/rz, and set_skip_ai flag. */
+void cd_ox_phys_apply_rot(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_set_skip_ai);
+
 /* calc_gun_point: computes world-space gun position via bone hierarchy.
    packed[] is 86 ints (see physics_bridge.ml for layout).
    Writes result to out_x/y/z. */

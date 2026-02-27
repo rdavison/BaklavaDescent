@@ -145,4 +145,8 @@ let () =
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
     int * int * int * int * int * int * int * int * int * int * int * int * int * int);
-  ignore (Physics_bridge.cd_calc_gun_point : int array -> int * int * int)
+  ignore (Physics_bridge.cd_calc_gun_point : int array -> int * int * int);
+  ignore (Physics_bridge.cd_phys_apply_force :
+    int -> int -> int -> int -> int -> int -> int -> int * int * int);
+  ignore (Physics_bridge.cd_phys_apply_rot :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int)

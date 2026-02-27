@@ -86,6 +86,8 @@ static const value* g_apply_damage_to_robot_d1 = NULL;
 static const value* g_physics_turn_towards_vector = NULL;
 static const value* g_do_physics_sim_rot = NULL;
 static const value* g_calc_gun_point = NULL;
+static const value* g_phys_apply_force = NULL;
+static const value* g_phys_apply_rot = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -165,7 +167,9 @@ static void cd_ox_require_ready(const char* fn)
           && g_apply_damage_to_robot_d1
           && g_physics_turn_towards_vector
           && g_do_physics_sim_rot
-          && g_calc_gun_point))
+          && g_calc_gun_point
+          && g_phys_apply_force
+          && g_phys_apply_rot))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -261,6 +265,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
     g_do_physics_sim_rot = caml_named_value("cd_do_physics_sim_rot");
     g_calc_gun_point = caml_named_value("cd_calc_gun_point");
+    g_phys_apply_force = caml_named_value("cd_phys_apply_force");
+    g_phys_apply_rot = caml_named_value("cd_phys_apply_rot");
 
     if (!g_i2f
         || !g_f2i
@@ -337,7 +343,9 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_apply_damage_to_robot_d1
         || !g_physics_turn_towards_vector
         || !g_do_physics_sim_rot
-        || !g_calc_gun_point)
+        || !g_calc_gun_point
+        || !g_phys_apply_force
+        || !g_phys_apply_rot)
     {
         return 1;
     }
@@ -422,7 +430,9 @@ int cd_ox_is_ready(void)
            && g_apply_damage_to_robot_d1
            && g_physics_turn_towards_vector
            && g_do_physics_sim_rot
-           && g_calc_gun_point;
+           && g_calc_gun_point
+           && g_phys_apply_force
+           && g_phys_apply_rot;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1659,4 +1669,46 @@ void cd_ox_calc_gun_point(
     *out_y = Int_val(Field(result, 1));
     *out_z = Int_val(Field(result, 2));
     CAMLreturn0;
+}
+
+void cd_ox_phys_apply_force(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    cd_ox_require_ready("cd_ox_phys_apply_force");
+    value args[7] = {
+        Val_long(vx), Val_long(vy), Val_long(vz),
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(mass),
+    };
+    const value out = caml_callbackN(*g_phys_apply_force, 7, args);
+    *out_vx = Int_val(Field(out, 0));
+    *out_vy = Int_val(Field(out, 1));
+    *out_vz = Int_val(Field(out, 2));
+}
+
+void cd_ox_phys_apply_rot(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_set_skip_ai)
+{
+    cd_ox_require_ready("cd_ox_phys_apply_rot");
+    value args[12] = {
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(mass), Val_long(is_robot),
+        Val_long(fvx), Val_long(fvy), Val_long(fvz),
+        Val_long(is_morph),
+        Val_long(crx), Val_long(cry), Val_long(crz),
+    };
+    const value out = caml_callbackN(*g_phys_apply_rot, 12, args);
+    *out_rx = Int_val(Field(out, 0));
+    *out_ry = Int_val(Field(out, 1));
+    *out_rz = Int_val(Field(out, 2));
+    *out_set_skip_ai = Int_val(Field(out, 3));
 }

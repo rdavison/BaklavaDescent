@@ -1052,7 +1052,24 @@ void phys_apply_force(object *obj,vms_vector *force_vec)
    if (TactileStick && obj==&Objects[Players[Player_num].objnum])
 		Tactile_apply_force (force_vec,&obj->orient);
 #endif
- 
+
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] phys_apply_force using cd_ox_phys_apply_force\n"); ox_logged = 1; }
+		int32_t out_vx, out_vy, out_vz;
+		cd_ox_phys_apply_force(
+			obj->mtype.phys_info.velocity.x, obj->mtype.phys_info.velocity.y, obj->mtype.phys_info.velocity.z,
+			force_vec->x, force_vec->y, force_vec->z,
+			obj->mtype.phys_info.mass,
+			&out_vx, &out_vy, &out_vz);
+		obj->mtype.phys_info.velocity.x = out_vx;
+		obj->mtype.phys_info.velocity.y = out_vy;
+		obj->mtype.phys_info.velocity.z = out_vz;
+		return;
+	}
+#endif
+
 	//Add in acceleration due to force
 	vm_vec_scale_add2(&obj->mtype.phys_info.velocity,force_vec,fixdiv(f1_0,obj->mtype.phys_info.mass));
 

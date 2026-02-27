@@ -2423,3 +2423,73 @@ extern "C" CAMLprim value caml_c_calc_gun_point(value packed_arr)
     Store_field(out, 2, Val_long(out_z));
     CAMLreturn(out);
 }
+
+/* phys_apply_force: 7 args → vec3 tuple */
+extern "C" CAMLprim value caml_c_phys_apply_force(
+    value vx, value vy, value vz,
+    value fx, value fy, value fz,
+    value mass)
+{
+    CAMLparam5(vx, vy, vz, fx, fy);
+    CAMLxparam2(fz, mass);
+    CAMLlocal1(out);
+
+    int32_t out_vx, out_vy, out_vz;
+    c_oracle_phys_apply_force(
+        Int_val(vx), Int_val(vy), Int_val(vz),
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(mass),
+        &out_vx, &out_vy, &out_vz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_vx));
+    Store_field(out, 1, Val_long(out_vy));
+    Store_field(out, 2, Val_long(out_vz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_phys_apply_force_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_phys_apply_force(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+/* phys_apply_rot: 12 args → (rx, ry, rz, skip_ai) tuple */
+extern "C" CAMLprim value caml_c_phys_apply_rot(
+    value fx, value fy, value fz,
+    value mass, value is_robot,
+    value fvx, value fvy, value fvz,
+    value is_morph,
+    value crx, value cry, value crz)
+{
+    CAMLparam5(fx, fy, fz, mass, is_robot);
+    CAMLxparam5(fvx, fvy, fvz, is_morph, crx);
+    CAMLxparam2(cry, crz);
+    CAMLlocal1(out);
+
+    int32_t out_rx, out_ry, out_rz;
+    int out_skip_ai;
+    c_oracle_phys_apply_rot(
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(mass), Int_val(is_robot),
+        Int_val(fvx), Int_val(fvy), Int_val(fvz),
+        Int_val(is_morph),
+        Int_val(crx), Int_val(cry), Int_val(crz),
+        &out_rx, &out_ry, &out_rz, &out_skip_ai);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(out_rx));
+    Store_field(out, 1, Val_long(out_ry));
+    Store_field(out, 2, Val_long(out_rz));
+    Store_field(out, 3, Val_long(out_skip_ai));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_phys_apply_rot_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_phys_apply_rot(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]);
+}

@@ -69,10 +69,42 @@ let cd_calc_gun_point (packed : int array) =
     ~gun_point ~start_mn ~anim_angles ~offsets ~parents ~orient ~pos in
   (gx, gy, gz)
 
+(* phys_apply_force: 7 scalar args → 3 ints
+   velocity(3) + force_vec(3) + mass(1) = 7 in
+   Returns: (new_vx, new_vy, new_vz) *)
+let cd_phys_apply_force vx vy vz fx fy fz mass =
+  let (nx, ny, nz) =
+    Ox_physics.phys_apply_force
+      ~velocity:(vx, vy, vz)
+      ~force_vec:(fx, fy, fz)
+      ~mass
+  in
+  (nx, ny, nz)
+
+(* phys_apply_rot: 10 scalar args → 4 ints
+   force_vec(3) + mass(1) + is_robot(1) + fvec(3) + is_morph(1) + cur_rotvel(3) = 12 in
+   Returns: (new_rx, new_ry, new_rz, set_skip_ai) *)
+let cd_phys_apply_rot fx fy fz mass is_robot
+    fvx fvy fvz is_morph crx cry crz =
+  let ((nx, ny, nz), set_skip_ai) =
+    Ox_physics.phys_apply_rot
+      ~force_vec:(fx, fy, fz)
+      ~mass
+      ~is_robot:(is_robot <> 0)
+      ~fvec:(fvx, fvy, fvz)
+      ~is_morph:(is_morph <> 0)
+      ~cur_rotvel:(crx, cry, crz)
+  in
+  (nx, ny, nz, (if set_skip_ai then 1 else 0))
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
   Callback.register "cd_do_physics_sim_rot"
     cd_do_physics_sim_rot;
   Callback.register "cd_calc_gun_point"
-    cd_calc_gun_point
+    cd_calc_gun_point;
+  Callback.register "cd_phys_apply_force"
+    cd_phys_apply_force;
+  Callback.register "cd_phys_apply_rot"
+    cd_phys_apply_rot

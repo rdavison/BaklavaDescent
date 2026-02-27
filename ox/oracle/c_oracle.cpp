@@ -1828,3 +1828,62 @@ extern "C" void c_oracle_calc_gun_point(
     *out_y = rotated.y + py;
     *out_z = rotated.z + pz;
 }
+
+extern "C" void c_oracle_phys_apply_force(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    if (mass == 0)
+    {
+        *out_vx = vx; *out_vy = vy; *out_vz = vz;
+        return;
+    }
+    int32_t scale = c_oracle_fixdiv(0x10000, mass);
+    c_oracle_vec3 vel = { vx, vy, vz };
+    c_oracle_vec3 force = { fx, fy, fz };
+    c_oracle_vm_vec_scale_add2(&vel, &force, scale);
+    *out_vx = vel.x; *out_vy = vel.y; *out_vz = vel.z;
+}
+
+extern "C" void c_oracle_phys_apply_rot(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_set_skip_ai)
+{
+    c_oracle_vec3 force = { fx, fy, fz };
+    int32_t vecmag = c_oracle_vm_vec_mag(&force) / 8;
+    int32_t rate;
+    int set_skip_ai = 0;
+
+    if (vecmag < 0x10000 / 256)
+        rate = 4 * 0x10000;
+    else if (vecmag < (mass >> 14))
+        rate = 4 * 0x10000;
+    else
+    {
+        rate = c_oracle_fixdiv(mass, vecmag);
+        if (is_robot)
+        {
+            if (rate < 0x10000 / 4)
+                rate = 0x10000 / 4;
+            set_skip_ai = 1;
+        }
+        else
+        {
+            if (rate < 0x10000 / 2)
+                rate = 0x10000 / 2;
+        }
+    }
+
+    c_oracle_physics_turn_towards_vector(
+        fx, fy, fz, fvx, fvy, fvz,
+        rate, is_morph, crx, cry, crz,
+        out_rx, out_ry, out_rz);
+    *out_set_skip_ai = set_skip_ai;
+}

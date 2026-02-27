@@ -6104,3 +6104,163 @@ let%expect_test "randomized calc_gun_point parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "calc_gun_point parity failed" ();
   [%expect {| calc_gun_point random total=5000 mismatches=0 |}]
+
+(* --- phys_apply_force parity tests --- *)
+
+external c_phys_apply_force
+  : int -> int -> int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_phys_apply_force_bc" "caml_c_phys_apply_force"
+
+let%expect_test "phys_apply_force zero force" =
+  let c = c_phys_apply_force 0x10000 0 0  0 0 0  0x10000 in
+  let ox = Ox_physics.phys_apply_force
+    ~velocity:(0x10000, 0, 0)
+    ~force_vec:(0, 0, 0)
+    ~mass:0x10000 in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+
+let%expect_test "phys_apply_force unit force unit mass" =
+  (* velocity=(0,0,0), force=(f1_0,0,0), mass=f1_0
+     scale = fixdiv(f1_0, f1_0) = f1_0
+     new_vel = (0,0,0) + (f1_0,0,0) * f1_0 = (f1_0,0,0) *)
+  let c = c_phys_apply_force 0 0 0  0x10000 0 0  0x10000 in
+  let ox = Ox_physics.phys_apply_force
+    ~velocity:(0, 0, 0) ~force_vec:(0x10000, 0, 0) ~mass:0x10000 in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+
+let%expect_test "phys_apply_force mass zero guard" =
+  (* D2: mass=0 should return velocity unchanged *)
+  let c = c_phys_apply_force 100 200 300  1000 2000 3000  0 in
+  let ox = Ox_physics.phys_apply_force
+    ~velocity:(100, 200, 300) ~force_vec:(1000, 2000, 3000) ~mass:0 in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(100,200,300) ox=(100,200,300) eq=true |}]
+
+let%expect_test "randomized phys_apply_force parity C vs Ox" =
+  let state = Random.State.make [| 77777 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let vx = gen_fix () in
+    let vy = gen_fix () in
+    let vz = gen_fix () in
+    let fx = gen_fix () in
+    let fy = gen_fix () in
+    let fz = gen_fix () in
+    let mass = Random.State.int state 0x80000 + 1 in
+    incr total;
+    let c = c_phys_apply_force vx vy vz fx fy fz mass in
+    let ox = Ox_physics.phys_apply_force
+      ~velocity:(vx, vy, vz) ~force_vec:(fx, fy, fz) ~mass in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "v=(%d,%d,%d) f=(%d,%d,%d) mass=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+          vx vy vz fx fy fz mass cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "phys_apply_force random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "phys_apply_force parity failed" ();
+  [%expect {| phys_apply_force random total=5000 mismatches=0 |}]
+
+(* --- phys_apply_rot parity tests --- *)
+
+external c_phys_apply_rot
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int * int * int * int
+  = "caml_c_phys_apply_rot_bc" "caml_c_phys_apply_rot"
+
+let%expect_test "phys_apply_rot zero force" =
+  (* Zero force vec → physics_turn_towards_vector returns cur_rotvel unchanged *)
+  let c = c_phys_apply_rot 0 0 0  0x10000 0  0x10000 0 0  0  100 200 0 in
+  let ox =
+    let ((rx, ry, rz), skip_ai) = Ox_physics.phys_apply_rot
+      ~force_vec:(0, 0, 0) ~mass:0x10000 ~is_robot:false
+      ~fvec:(0x10000, 0, 0) ~is_morph:false ~cur_rotvel:(100, 200, 0) in
+    (rx, ry, rz, if skip_ai then 1 else 0) in
+  let (cx,cy,cz,cs) = c in
+  let (oxx,oxy,oxz,oxs) = ox in
+  printf "c=(%d,%d,%d,%d) ox=(%d,%d,%d,%d) eq=%b\n"
+    cx cy cz cs oxx oxy oxz oxs Poly.(c = ox);
+  [%expect {| c=(100,200,0,0) ox=(100,200,0,0) eq=true |}]
+
+let%expect_test "phys_apply_rot robot sets skip_ai" =
+  (* Large force relative to mass, is_robot=true => skip_ai=1 *)
+  let c = c_phys_apply_rot 0 0x10000 0  0x10000 1  0x10000 0 0  0  0 0 0 in
+  let ox =
+    let ((rx, ry, rz), skip_ai) = Ox_physics.phys_apply_rot
+      ~force_vec:(0, 0x10000, 0) ~mass:0x10000 ~is_robot:true
+      ~fvec:(0x10000, 0, 0) ~is_morph:false ~cur_rotvel:(0, 0, 0) in
+    (rx, ry, rz, if skip_ai then 1 else 0) in
+  let (cx,cy,cz,cs) = c in
+  let (oxx,oxy,oxz,oxs) = ox in
+  printf "c=(%d,%d,%d,%d) ox=(%d,%d,%d,%d) eq=%b\n"
+    cx cy cz cs oxx oxy oxz oxs Poly.(c = ox);
+  printf "skip_ai c=%d ox=%d\n" cs oxs;
+  [%expect {|
+    c=(8192,-8192,0,1) ox=(8192,-8192,0,1) eq=true
+    skip_ai c=1 ox=1
+    |}]
+
+let%expect_test "randomized phys_apply_rot parity C vs Ox" =
+  let state = Random.State.make [| 88888 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let fx = gen_fix () in
+    let fy = gen_fix () in
+    let fz = gen_fix () in
+    let mass = Random.State.int state 0x80000 + 1 in
+    let is_robot = Random.State.int state 2 in
+    (* Generate valid fvec via normalize *)
+    let fvx = gen_fix () in
+    let fvy = gen_fix () in
+    let fvz = gen_fix () in
+    let is_morph = Random.State.int state 2 in
+    let crx = gen_fix () in
+    let cry = gen_fix () in
+    let crz = 0 in
+    incr total;
+    let c = c_phys_apply_rot fx fy fz mass is_robot fvx fvy fvz is_morph crx cry crz in
+    let ox =
+      let ((rx, ry, rz), skip_ai) = Ox_physics.phys_apply_rot
+        ~force_vec:(fx, fy, fz) ~mass ~is_robot:(is_robot <> 0)
+        ~fvec:(fvx, fvy, fvz) ~is_morph:(is_morph <> 0)
+        ~cur_rotvel:(crx, cry, crz) in
+      (rx, ry, rz, if skip_ai then 1 else 0) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz, cs) = c in
+        let (oxx, oxy, oxz, oxs) = ox in
+        first_mismatch := Some (sprintf
+          "f=(%d,%d,%d) mass=%d robot=%d fvec=(%d,%d,%d) morph=%d rv=(%d,%d,%d) c=(%d,%d,%d,%d) ox=(%d,%d,%d,%d)"
+          fx fy fz mass is_robot fvx fvy fvz is_morph crx cry crz
+          cx cy cz cs oxx oxy oxz oxs)
+      end
+    end
+  done;
+  printf "phys_apply_rot random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "phys_apply_rot parity failed" ();
+  [%expect {| phys_apply_rot random total=5000 mismatches=0 |}]

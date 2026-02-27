@@ -964,6 +964,23 @@ void phys_apply_force(object* obj, vms_vector* force_vec)
 	if (obj->movement_type != MT_PHYSICS)
 		return;
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] phys_apply_force using cd_ox_phys_apply_force\n"); ox_logged = 1; }
+		int32_t out_vx, out_vy, out_vz;
+		cd_ox_phys_apply_force(
+			obj->mtype.phys_info.velocity.x, obj->mtype.phys_info.velocity.y, obj->mtype.phys_info.velocity.z,
+			force_vec->x, force_vec->y, force_vec->z,
+			obj->mtype.phys_info.mass,
+			&out_vx, &out_vy, &out_vz);
+		obj->mtype.phys_info.velocity.x = out_vx;
+		obj->mtype.phys_info.velocity.y = out_vy;
+		obj->mtype.phys_info.velocity.z = out_vz;
+		return;
+	}
+#endif
+
 	//Add in acceleration due to force
 	vm_vec_scale_add2(&obj->mtype.phys_info.velocity, force_vec, fixdiv(f1_0, obj->mtype.phys_info.mass));
 }
@@ -1059,26 +1076,49 @@ void physics_turn_towards_vector(vms_vector* goal_vector, object* obj, fix rate)
 //	change in orientation.
 void phys_apply_rot(object* obj, vms_vector* force_vec)
 {
-	fix	rate, vecmag;
-
 	if (obj->movement_type != MT_PHYSICS)
 		return;
+
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] phys_apply_rot using cd_ox_phys_apply_rot\n"); ox_logged = 1; }
+		int32_t out_rx, out_ry, out_rz;
+		int set_skip_ai;
+		cd_ox_phys_apply_rot(
+			force_vec->x, force_vec->y, force_vec->z,
+			obj->mtype.phys_info.mass,
+			(obj->type == OBJ_ROBOT) ? 1 : 0,
+			obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+			(obj->control_type == CT_MORPH) ? 1 : 0,
+			obj->mtype.phys_info.rotvel.x, obj->mtype.phys_info.rotvel.y, obj->mtype.phys_info.rotvel.z,
+			&out_rx, &out_ry, &out_rz, &set_skip_ai);
+		obj->mtype.phys_info.rotvel.x = out_rx;
+		obj->mtype.phys_info.rotvel.y = out_ry;
+		obj->mtype.phys_info.rotvel.z = out_rz;
+		if (set_skip_ai)
+			obj->ctype.ai_info.SKIP_AI_COUNT = 2;
+		return;
+	}
+#endif
+
+	fix	rate, vecmag;
 
 	vecmag = vm_vec_mag(force_vec) / 8;
 	if (vecmag < F1_0 / 256)
 		rate = 4 * F1_0;
 	else if (vecmag < obj->mtype.phys_info.mass >> 14)
 		rate = 4 * F1_0;
-	else 
+	else
 	{
 		rate = fixdiv(obj->mtype.phys_info.mass, vecmag);
-		if (obj->type == OBJ_ROBOT) 
+		if (obj->type == OBJ_ROBOT)
 		{
 			if (rate < F1_0 / 4)
 				rate = F1_0 / 4;
 			obj->ctype.ai_info.SKIP_AI_COUNT = 2;
 		}
-		else 
+		else
 		{
 			if (rate < F1_0 / 2)
 				rate = F1_0 / 2;

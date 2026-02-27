@@ -267,6 +267,21 @@ void c_oracle_calc_gun_point(
     int32_t px, int32_t py, int32_t pz,
     int32_t* out_x, int32_t* out_y, int32_t* out_z);
 
+void c_oracle_phys_apply_force(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
+
+void c_oracle_phys_apply_rot(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_set_skip_ai);
+
 void c_oracle_do_physics_sim_rot(
     int32_t rvx, int32_t rvy, int32_t rvz,
     int32_t rtx, int32_t rty, int32_t rtz,
