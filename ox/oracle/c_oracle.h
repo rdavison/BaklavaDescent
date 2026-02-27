@@ -331,6 +331,19 @@ void c_oracle_move_away_from_player(
     int32_t objnum, int32_t attack_type, int32_t max_speed,
     int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
 
+void c_oracle_set_object_turnroll(
+    int32_t rotvel_y, int32_t turnroll, int32_t frame_time,
+    int32_t* out_turnroll);
+
+void c_oracle_lead_player(
+    int32_t fpx, int32_t fpy, int32_t fpz,
+    int32_t bpx, int32_t bpy, int32_t bpz,
+    int32_t pvx, int32_t pvy, int32_t pvz,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int32_t player_cloaked, int32_t max_weapon_speed, int32_t is_matter,
+    int32_t difficulty_level,
+    int32_t* out_success, int32_t* out_fx, int32_t* out_fy, int32_t* out_fz);
+
 #ifdef __cplusplus
 }
 #endif

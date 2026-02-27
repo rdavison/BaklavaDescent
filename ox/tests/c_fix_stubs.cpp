@@ -2656,3 +2656,57 @@ extern "C" CAMLprim value caml_c_move_away_from_player_bc(value* argv, int argn)
         argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
         argv[12], argv[13], argv[14], argv[15], argv[16]);
 }
+
+/* set_object_turnroll: 3 args → int */
+extern "C" CAMLprim value caml_c_set_object_turnroll(
+    value rotvel_y, value turnroll, value frame_time)
+{
+    CAMLparam3(rotvel_y, turnroll, frame_time);
+    int32_t out_turnroll;
+    c_oracle_set_object_turnroll(
+        Int_val(rotvel_y), Int_val(turnroll), Int_val(frame_time),
+        &out_turnroll);
+    CAMLreturn(Val_long(out_turnroll));
+}
+
+/* lead_player: 16 args → (success, fx, fy, fz) tuple */
+extern "C" CAMLprim value caml_c_lead_player(
+    value fpx, value fpy, value fpz,
+    value bpx, value bpy, value bpz,
+    value pvx, value pvy, value pvz,
+    value fvx, value fvy, value fvz,
+    value player_cloaked, value max_weapon_speed, value is_matter,
+    value difficulty_level)
+{
+    CAMLparam5(fpx, fpy, fpz, bpx, bpy);
+    CAMLxparam5(bpz, pvx, pvy, pvz, fvx);
+    CAMLxparam5(fvy, fvz, player_cloaked, max_weapon_speed, is_matter);
+    CAMLxparam1(difficulty_level);
+    CAMLlocal1(out);
+
+    int32_t out_success, out_fx, out_fy, out_fz;
+    c_oracle_lead_player(
+        Int_val(fpx), Int_val(fpy), Int_val(fpz),
+        Int_val(bpx), Int_val(bpy), Int_val(bpz),
+        Int_val(pvx), Int_val(pvy), Int_val(pvz),
+        Int_val(fvx), Int_val(fvy), Int_val(fvz),
+        Int_val(player_cloaked), Int_val(max_weapon_speed),
+        Int_val(is_matter), Int_val(difficulty_level),
+        &out_success, &out_fx, &out_fy, &out_fz);
+
+    out = caml_alloc_tuple(4);
+    Store_field(out, 0, Val_long(out_success));
+    Store_field(out, 1, Val_long(out_fx));
+    Store_field(out, 2, Val_long(out_fy));
+    Store_field(out, 3, Val_long(out_fz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_lead_player_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_lead_player(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
+        argv[12], argv[13], argv[14], argv[15]);
+}

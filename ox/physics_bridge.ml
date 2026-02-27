@@ -166,6 +166,27 @@ let cd_move_away_from_player
     ~uvec:(ux, uy, uz) ~rvec:(rx, ry, rz)
     ~frame_time ~frame_count ~objnum ~attack_type ~max_speed
 
+(* set_object_turnroll: 3 scalar args → 1 int *)
+let cd_set_object_turnroll rotvel_y turnroll frame_time =
+  Ox_physics.set_object_turnroll ~rotvel_y ~turnroll ~frame_time
+
+(* lead_player: 17 scalar args → 4 ints (success, fx, fy, fz) *)
+let cd_lead_player
+    fpx fpy fpz bpx bpy bpz pvx pvy pvz
+    fvx fvy fvz player_cloaked max_weapon_speed is_matter difficulty_level =
+  match Ox_physics.lead_player
+    ~fire_point:(fpx, fpy, fpz)
+    ~believed_player_pos:(bpx, bpy, bpz)
+    ~player_velocity:(pvx, pvy, pvz)
+    ~fvec:(fvx, fvy, fvz)
+    ~player_cloaked:(player_cloaked <> 0)
+    ~max_weapon_speed
+    ~is_matter:(is_matter <> 0)
+    ~difficulty_level
+  with
+  | None -> (0, 0, 0, 0)
+  | Some (rx, ry, rz) -> (1, rx, ry, rz)
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
@@ -186,4 +207,8 @@ let () =
   Callback.register "cd_move_around_player"
     cd_move_around_player;
   Callback.register "cd_move_away_from_player"
-    cd_move_away_from_player
+    cd_move_away_from_player;
+  Callback.register "cd_set_object_turnroll"
+    cd_set_object_turnroll;
+  Callback.register "cd_lead_player"
+    cd_lead_player

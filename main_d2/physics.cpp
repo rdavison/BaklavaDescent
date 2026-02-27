@@ -187,6 +187,12 @@ void do_physics_align_object( object * obj )
 
 void set_object_turnroll(object *obj)
 {
+#ifdef USE_OX_BRIDGE
+	obj->mtype.phys_info.turnroll = cd_ox_set_object_turnroll(
+		obj->mtype.phys_info.rotvel.y,
+		obj->mtype.phys_info.turnroll,
+		FrameTime);
+#else
 	fixang desired_bank;
 
 	desired_bank = -fixmul(obj->mtype.phys_info.rotvel.y,TURNROLL_SCALE);
@@ -206,7 +212,7 @@ void set_object_turnroll(object *obj)
 
 		obj->mtype.phys_info.turnroll += max_roll;
 	}
-
+#endif
 }
 
 //list of segments went through

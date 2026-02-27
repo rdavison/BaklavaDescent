@@ -6662,3 +6662,113 @@ let%expect_test "randomized move_away_from_player parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "move_away_from_player parity failed" ();
   [%expect {| move_away_from_player random total=5000 mismatches=0 |}]
+
+(* ---------- set_object_turnroll ---------- *)
+
+external c_set_object_turnroll
+  : int -> int -> int -> int
+  = "caml_c_set_object_turnroll"
+
+let%expect_test "set_object_turnroll zero rotvel" =
+  let c = c_set_object_turnroll 0 0 0x1000 in
+  let ox = Ox_physics.set_object_turnroll
+    ~rotvel_y:0 ~turnroll:0 ~frame_time:0x1000 in
+  printf "c=%d ox=%d eq=%b\n" c ox (c = ox);
+  [%expect {| c=0 ox=0 eq=true |}]
+
+let%expect_test "randomized set_object_turnroll parity C vs Ox" =
+  let state = Random.State.make [| 44444 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let rotvel_y = gen_fix () in
+    let turnroll = gen_fix () in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    incr total;
+    let c = c_set_object_turnroll rotvel_y turnroll frame_time in
+    let ox = Ox_physics.set_object_turnroll ~rotvel_y ~turnroll ~frame_time in
+    if c <> ox then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "rotvel_y=%d turnroll=%d ft=%d c=%d ox=%d"
+          rotvel_y turnroll frame_time c ox)
+    end
+  done;
+  printf "set_object_turnroll random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "set_object_turnroll parity failed" ();
+  [%expect {| set_object_turnroll random total=5000 mismatches=0 |}]
+
+(* ---------- lead_player ---------- *)
+
+external c_lead_player
+  : int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int -> int * int * int * int
+  = "caml_c_lead_player_bc" "caml_c_lead_player"
+
+let%expect_test "lead_player cloaked returns failure" =
+  let c = c_lead_player
+    0 0 0  0x100000 0 0  0x40000 0 0  0x10000 0 0
+    1 0x80000 0 2 in
+  let ox =
+    match Ox_physics.lead_player
+      ~fire_point:(0, 0, 0) ~believed_player_pos:(0x100000, 0, 0)
+      ~player_velocity:(0x40000, 0, 0) ~fvec:(0x10000, 0, 0)
+      ~player_cloaked:true ~max_weapon_speed:0x80000
+      ~is_matter:false ~difficulty_level:2
+    with None -> (0, 0, 0, 0) | Some (x, y, z) -> (1, x, y, z)
+  in
+  printf "c=(%d,%d,%d,%d) ox=(%d,%d,%d,%d) eq=%b\n"
+    (let (a,_,_,_) = c in a) (let (_,b,_,_) = c in b)
+    (let (_,_,c_,_) = c in c_) (let (_,_,_,d) = c in d)
+    (let (a,_,_,_) = ox in a) (let (_,b,_,_) = ox in b)
+    (let (_,_,c_,_) = ox in c_) (let (_,_,_,d) = ox in d)
+    Poly.(c = ox);
+  [%expect {| c=(0,0,0,0) ox=(0,0,0,0) eq=true |}]
+
+let%expect_test "randomized lead_player parity C vs Ox" =
+  let state = Random.State.make [| 55555 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x400000 - 0x200000 in
+  let gen_vel () = Random.State.int state 0x100000 - 0x80000 in
+  for _ = 1 to 5000 do
+    let fpx = gen_fix () in let fpy = gen_fix () in let fpz = gen_fix () in
+    let bpx = fpx + gen_fix () in let bpy = fpy + gen_fix () in let bpz = fpz + gen_fix () in
+    let pvx = gen_vel () in let pvy = gen_vel () in let pvz = gen_vel () in
+    let fvx = gen_fix () in let fvy = gen_fix () in let fvz = gen_fix () in
+    let player_cloaked = if Random.State.int state 10 = 0 then 1 else 0 in
+    let max_weapon_speed = Random.State.int state 0x200000 + 0x10000 in
+    let is_matter = if Random.State.int state 4 = 0 then 1 else 0 in
+    let difficulty_level = Random.State.int state 5 in
+    incr total;
+    let c = c_lead_player fpx fpy fpz bpx bpy bpz pvx pvy pvz
+        fvx fvy fvz player_cloaked max_weapon_speed is_matter difficulty_level in
+    let ox =
+      match Ox_physics.lead_player
+        ~fire_point:(fpx, fpy, fpz) ~believed_player_pos:(bpx, bpy, bpz)
+        ~player_velocity:(pvx, pvy, pvz) ~fvec:(fvx, fvy, fvz)
+        ~player_cloaked:(player_cloaked <> 0) ~max_weapon_speed
+        ~is_matter:(is_matter <> 0) ~difficulty_level
+      with None -> (0, 0, 0, 0) | Some (x, y, z) -> (1, x, y, z)
+    in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cs, cfx, cfy, cfz) = c in
+        let (os, ofx, ofy, ofz) = ox in
+        first_mismatch := Some (sprintf
+          "fp=(%d,%d,%d) bp=(%d,%d,%d) pv=(%d,%d,%d) cloak=%d ws=%d mat=%d diff=%d c=(%d,%d,%d,%d) ox=(%d,%d,%d,%d)"
+          fpx fpy fpz bpx bpy bpz pvx pvy pvz player_cloaked max_weapon_speed is_matter difficulty_level
+          cs cfx cfy cfz os ofx ofy ofz)
+      end
+    end
+  done;
+  printf "lead_player random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "lead_player parity failed" ();
+  [%expect {| lead_player random total=5000 mismatches=0 |}]

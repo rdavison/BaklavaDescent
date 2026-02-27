@@ -495,3 +495,98 @@ let move_away_from_player ~velocity ~vec_to_player ~uvec ~rvec
     (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
   else
     (nvx, nvy, nvz)
+
+(* set_object_turnroll: compute new turnroll (banking angle) based on rotvel.y.
+   C original: physics.cpp set_object_turnroll
+   Constants: TURNROLL_SCALE = 0x4ec4/2, ROLL_RATE = 0x2000.
+   Inputs:
+     rotvel_y   - y component of rotational velocity
+     turnroll   - current turnroll angle (fixang, wraps at 16 bits)
+     frame_time - FrameTime
+   Returns: new turnroll value *)
+let set_object_turnroll ~rotvel_y ~turnroll ~frame_time =
+  let turnroll_scale = 0x4ec4 / 2 in
+  let roll_rate = 0x2000 in
+  let desired_bank = - Ox_math.fixmul rotvel_y turnroll_scale in
+  if turnroll <> desired_bank then
+    let max_roll = Ox_math.fixmul roll_rate frame_time in
+    let delta_ang = desired_bank - turnroll in
+    let max_roll =
+      if Int.abs delta_ang < max_roll then delta_ang
+      else if delta_ang < 0 then - max_roll
+      else max_roll
+    in
+    turnroll + max_roll
+  else turnroll
+
+(* compute_lead_component: compute one axis of lead firing vector.
+   C original: ai2.cpp compute_lead_component (D2 only)
+   Returns: fixdiv(player_pos - robot_pos, elapsed_time) + player_vel *)
+let compute_lead_component ~player_pos ~robot_pos ~player_vel ~elapsed_time =
+  Ox_math.fixdiv (player_pos - robot_pos) elapsed_time + player_vel
+
+(* lead_player: compute lead firing solution for AI robot targeting.
+   C original: ai2.cpp lead_player (D2 only)
+   All globals/struct data extracted at callsite.
+   Inputs:
+     fire_point        - robot's gun position (vec3)
+     believed_player_pos - where robot thinks player is (vec3)
+     player_velocity   - player's velocity (vec3)
+     fvec              - robot's forward vector (vec3)
+     player_cloaked    - is player cloaked?
+     max_weapon_speed  - weapon speed at difficulty level
+     is_matter         - is it a matter weapon?
+     difficulty_level  - current difficulty (0..4)
+   Returns: None if can't lead, Some fire_vec if successful *)
+let lead_player ~fire_point ~believed_player_pos ~player_velocity
+    ~fvec ~player_cloaked ~max_weapon_speed ~is_matter ~difficulty_level =
+  let ndl = 5 in
+  let min_lead_speed = f1_0 * 4 in
+  let max_lead_distance = f1_0 * 200 in
+  let lead_range = f1_0 / 2 in
+  if player_cloaked then None
+  else
+    let (pvx, pvy, pvz) = player_velocity in
+    let (_mag, player_movement_dir) =
+      Ox_math.vm_vec_normalize_quick (pvx, pvy, pvz) in
+    let player_speed = Ox_math.vm_vec_mag_quick (pvx, pvy, pvz) in
+    if player_speed < min_lead_speed then None
+    else
+      let vec_to_player = Ox_math.vm_vec_sub believed_player_pos fire_point in
+      let (_mag, vec_to_player_norm) =
+        Ox_math.vm_vec_normalize_quick vec_to_player in
+      let dist_to_player = Ox_math.vm_vec_mag_quick vec_to_player in
+      if dist_to_player > max_lead_distance then None
+      else
+        let dot = Ox_math.vm_vec_dotprod vec_to_player_norm player_movement_dir in
+        if dot < - lead_range || dot > lead_range then None
+        else if max_weapon_speed < f1_0 then None
+        else
+          let max_weapon_speed =
+            if is_matter then
+              if difficulty_level <= 1 then 0
+              else max_weapon_speed * (ndl - difficulty_level)
+            else max_weapon_speed
+          in
+          if max_weapon_speed = 0 then None
+          else
+            let (fpx, fpy, fpz) = fire_point in
+            let (bpx, bpy, bpz) = believed_player_pos in
+            let projected_time = Ox_math.fixdiv dist_to_player max_weapon_speed in
+            let fvx = compute_lead_component ~player_pos:bpx ~robot_pos:fpx
+                ~player_vel:pvx ~elapsed_time:projected_time in
+            let fvy = compute_lead_component ~player_pos:bpy ~robot_pos:fpy
+                ~player_vel:pvy ~elapsed_time:projected_time in
+            let fvz = compute_lead_component ~player_pos:bpz ~robot_pos:fpz
+                ~player_vel:pvz ~elapsed_time:projected_time in
+            let (_mag, fire_vec) =
+              Ox_math.vm_vec_normalize_quick (fvx, fvy, fvz) in
+            let (fvx, fvy, fvz) = fire_vec in
+            let dot_fvec = Ox_math.vm_vec_dotprod fire_vec fvec in
+            if dot_fvec < f1_0 / 2 then
+              let (ax, ay, az) = Ox_math.vm_vec_add fire_vec vec_to_player_norm in
+              let adjusted = (ax / 2, ay / 2, az / 2) in
+              let dot2 = Ox_math.vm_vec_dotprod adjusted fvec in
+              if dot2 < f1_0 / 2 then None
+              else Some adjusted
+            else Some (fvx, fvy, fvz)

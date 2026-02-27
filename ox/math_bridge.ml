@@ -161,4 +161,9 @@ let () =
   ignore (Physics_bridge.cd_move_around_player : int array -> int * int * int);
   ignore (Physics_bridge.cd_move_away_from_player :
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int * int * int)
+    int -> int -> int -> int -> int -> int * int * int);
+  ignore (Physics_bridge.cd_set_object_turnroll :
+    int -> int -> int -> int);
+  ignore (Physics_bridge.cd_lead_player :
+    int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int -> int * int * int * int)

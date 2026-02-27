@@ -1116,8 +1116,32 @@ void ai_fire_laser_at_player(object *obj, vms_vector *fire_point, int gun_num, v
 	//	Note that when leading the player, aim is perfect.  This is probably acceptable since leading is so hacked in.
 	//	Problem is all robots will lead equally badly.
 	if (P_Rand() < 16384) {
+#ifdef USE_OX_BRIDGE
+		{
+			int weapon_type = robptr->weapon_type;
+			if (robptr->weapon_type2 != -1)
+				if (gun_num == 0)
+					weapon_type = robptr->weapon_type2;
+			weapon_info *wptr = &Weapon_info[weapon_type];
+			int32_t max_weapon_speed = wptr->speed[Difficulty_level];
+			if (cd_ox_lead_player(
+				fire_point->x, fire_point->y, fire_point->z,
+				believed_player_pos->x, believed_player_pos->y, believed_player_pos->z,
+				ConsoleObject->mtype.phys_info.velocity.x,
+				ConsoleObject->mtype.phys_info.velocity.y,
+				ConsoleObject->mtype.phys_info.velocity.z,
+				obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+				(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0,
+				max_weapon_speed,
+				wptr->matter ? 1 : 0,
+				Difficulty_level,
+				&fire_vec.x, &fire_vec.y, &fire_vec.z))
+				goto player_led;
+		}
+#else
 		if (lead_player(obj, fire_point, believed_player_pos, gun_num, &fire_vec))		//	Stuff direction to fire at in fire_point.
 			goto player_led;
+#endif
 	}
 
 	dot = 0;

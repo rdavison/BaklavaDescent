@@ -902,3 +902,30 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 20) Port `set_object_turnroll` + `lead_player`/`compute_lead_component` to Ox with parity tests
+
+**What:** Ported `set_object_turnroll` (D1+D2 physics) and `lead_player`/`compute_lead_component` (D2 AI targeting) to OxCaml.
+
+- **3 new pure functions in `ox/ox_physics.ml`:**
+  - `set_object_turnroll` — computes banking from rotvel_y. Identical in D1 and D2. Constants TURNROLL_SCALE=0x4ec4/2, ROLL_RATE=0x2000 hardcoded.
+  - `compute_lead_component` — helper for lead_player, computes per-axis lead offset.
+  - `lead_player` — AI lead-firing prediction. Checks cloaking, player speed, distance, dot range, weapon speed, matter weapon difficulty scaling. Returns `None` (don't lead) or `Some (fx, fy, fz)` (lead firing vector). D2-only (D1 has no lead_player).
+
+- **Bridge layer:**
+  - `cd_set_object_turnroll` (3 scalar args → 1 int) and `cd_lead_player` (16 scalar args → 4-tuple: success + vec3) in `physics_bridge.ml`.
+  - `cd_ox_set_object_turnroll` and `cd_ox_lead_player` in `bridge.c`.
+
+- **C oracle + parity tests:**
+  - `c_oracle_set_object_turnroll` and `c_oracle_lead_player` in `c_oracle.cpp`. Used local variable names to avoid macro conflicts with `fix.h` constants (TURNROLL_SCALE, ROLL_RATE, F1_0).
+  - `set_object_turnroll`: 1 deterministic + 5000 randomized — 0 mismatches.
+  - `lead_player`: 1 deterministic + 5000 randomized — 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/physics.cpp` — `set_object_turnroll` wired: extracts rotvel_y, turnroll, FrameTime, assigns result back.
+  - `main_d2/physics.cpp` — `set_object_turnroll` wired identically.
+  - `main_d2/ai2.cpp` — `lead_player` callsite wired: extracts weapon_type, max_weapon_speed, is_matter from Robot_info/Weapon_info at the callsite, passes player_cloaked, player_velocity, fvec, Difficulty_level as scalars.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

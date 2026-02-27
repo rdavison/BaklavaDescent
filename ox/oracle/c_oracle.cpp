@@ -2112,3 +2112,131 @@ extern "C" void c_oracle_move_away_from_player(
     }
     *out_vx = nvx; *out_vy = nvy; *out_vz = nvz;
 }
+
+extern "C" void c_oracle_set_object_turnroll(
+    int32_t rotvel_y, int32_t turnroll, int32_t frame_time,
+    int32_t* out_turnroll)
+{
+    int32_t trs = 0x4ec4 / 2;  /* TURNROLL_SCALE */
+    int32_t rr = 0x2000;       /* ROLL_RATE */
+
+    int32_t desired_bank = -c_oracle_fixmul(rotvel_y, trs);
+
+    if (turnroll != desired_bank)
+    {
+        int32_t max_roll = c_oracle_fixmul(rr, frame_time);
+        int32_t delta_ang = desired_bank - turnroll;
+
+        if (labs(delta_ang) < max_roll)
+            max_roll = delta_ang;
+        else if (delta_ang < 0)
+            max_roll = -max_roll;
+
+        *out_turnroll = turnroll + max_roll;
+    }
+    else
+    {
+        *out_turnroll = turnroll;
+    }
+}
+
+static int32_t c_oracle_compute_lead_component(
+    int32_t player_pos, int32_t robot_pos, int32_t player_vel, int32_t elapsed_time)
+{
+    return c_oracle_fixdiv(player_pos - robot_pos, elapsed_time) + player_vel;
+}
+
+extern "C" void c_oracle_lead_player(
+    int32_t fpx, int32_t fpy, int32_t fpz,
+    int32_t bpx, int32_t bpy, int32_t bpz,
+    int32_t pvx, int32_t pvy, int32_t pvz,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int32_t player_cloaked, int32_t max_weapon_speed, int32_t is_matter,
+    int32_t difficulty_level,
+    int32_t* out_success, int32_t* out_fx, int32_t* out_fy, int32_t* out_fz)
+{
+    int32_t one = 0x10000;
+    int32_t ndl = 5;
+    int32_t min_lead_spd = one * 4;
+    int32_t max_lead_dist = one * 200;
+    int32_t lead_rng = one / 2;
+
+    *out_success = 0; *out_fx = 0; *out_fy = 0; *out_fz = 0;
+
+    if (player_cloaked)
+        return;
+
+    c_oracle_vec3 player_movement_dir = { pvx, pvy, pvz };
+    c_oracle_vm_vec_normalize_quick(&player_movement_dir);
+    c_oracle_vec3 pvel = { pvx, pvy, pvz };
+    int32_t player_speed = c_oracle_vm_vec_mag_quick(&pvel);
+
+    if (player_speed < min_lead_spd)
+        return;
+
+    c_oracle_vec3 fire_pt = { fpx, fpy, fpz };
+    c_oracle_vec3 bpp = { bpx, bpy, bpz };
+    c_oracle_vec3 vec_to_player;
+    c_oracle_vm_vec_sub(&vec_to_player, &bpp, &fire_pt);
+    int32_t dist_to_player = c_oracle_vm_vec_mag_quick(&vec_to_player);
+    c_oracle_vec3 vec_to_player_norm = vec_to_player;
+    c_oracle_vm_vec_normalize_quick(&vec_to_player_norm);
+
+    if (dist_to_player > max_lead_dist)
+        return;
+
+    int32_t dot = c_oracle_vm_vec_dotprod(&vec_to_player_norm, &player_movement_dir);
+
+    if (dot < -lead_rng || dot > lead_rng)
+        return;
+
+    if (max_weapon_speed < one)
+        return;
+
+    if (is_matter)
+    {
+        if (difficulty_level <= 1)
+            return;
+        else
+            max_weapon_speed *= (ndl - difficulty_level);
+    }
+
+    if (max_weapon_speed == 0)
+        return;
+
+    int32_t projected_time = c_oracle_fixdiv(dist_to_player, max_weapon_speed);
+
+    c_oracle_vec3 fire_vec;
+    fire_vec.x = c_oracle_compute_lead_component(bpx, fpx, pvx, projected_time);
+    fire_vec.y = c_oracle_compute_lead_component(bpy, fpy, pvy, projected_time);
+    fire_vec.z = c_oracle_compute_lead_component(bpz, fpz, pvz, projected_time);
+
+    c_oracle_vm_vec_normalize_quick(&fire_vec);
+
+    c_oracle_vec3 fwd = { fvx, fvy, fvz };
+    int32_t dot_fvec = c_oracle_vm_vec_dotprod(&fire_vec, &fwd);
+
+    if (dot_fvec < one / 2)
+    {
+        c_oracle_vec3 adjusted;
+        c_oracle_vm_vec_add(&adjusted, &fire_vec, &vec_to_player_norm);
+        adjusted.x /= 2;
+        adjusted.y /= 2;
+        adjusted.z /= 2;
+
+        int32_t dot2 = c_oracle_vm_vec_dotprod(&adjusted, &fwd);
+        if (dot2 < one / 2)
+            return;
+
+        *out_success = 1;
+        *out_fx = adjusted.x;
+        *out_fy = adjusted.y;
+        *out_fz = adjusted.z;
+        return;
+    }
+
+    *out_success = 1;
+    *out_fx = fire_vec.x;
+    *out_fy = fire_vec.y;
+    *out_fz = fire_vec.z;
+}

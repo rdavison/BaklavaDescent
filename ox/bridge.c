@@ -93,6 +93,8 @@ static const value* g_set_thrust_from_velocity = NULL;
 static const value* g_move_towards_vector = NULL;
 static const value* g_move_around_player = NULL;
 static const value* g_move_away_from_player = NULL;
+static const value* g_set_object_turnroll = NULL;
+static const value* g_lead_player = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -179,7 +181,9 @@ static void cd_ox_require_ready(const char* fn)
           && g_set_thrust_from_velocity
           && g_move_towards_vector
           && g_move_around_player
-          && g_move_away_from_player))
+          && g_move_away_from_player
+          && g_set_object_turnroll
+          && g_lead_player))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -282,6 +286,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_move_towards_vector = caml_named_value("cd_move_towards_vector");
     g_move_around_player = caml_named_value("cd_move_around_player");
     g_move_away_from_player = caml_named_value("cd_move_away_from_player");
+    g_set_object_turnroll = caml_named_value("cd_set_object_turnroll");
+    g_lead_player = caml_named_value("cd_lead_player");
 
     if (!g_i2f
         || !g_f2i
@@ -365,7 +371,9 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_set_thrust_from_velocity
         || !g_move_towards_vector
         || !g_move_around_player
-        || !g_move_away_from_player)
+        || !g_move_away_from_player
+        || !g_set_object_turnroll
+        || !g_lead_player)
     {
         return 1;
     }
@@ -457,7 +465,9 @@ int cd_ox_is_ready(void)
            && g_set_thrust_from_velocity
            && g_move_towards_vector
            && g_move_around_player
-           && g_move_away_from_player;
+           && g_move_away_from_player
+           && g_set_object_turnroll
+           && g_lead_player;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1840,4 +1850,42 @@ void cd_ox_move_away_from_player(
     *out_vx = Int_val(Field(out, 0));
     *out_vy = Int_val(Field(out, 1));
     *out_vz = Int_val(Field(out, 2));
+}
+
+int32_t cd_ox_set_object_turnroll(
+    int32_t rotvel_y, int32_t turnroll, int32_t frame_time)
+{
+    cd_ox_require_ready("cd_ox_set_object_turnroll");
+    value args[3] = {
+        Val_long(rotvel_y), Val_long(turnroll), Val_long(frame_time),
+    };
+    return Int_val(caml_callbackN(*g_set_object_turnroll, 3, args));
+}
+
+int cd_ox_lead_player(
+    int32_t fpx, int32_t fpy, int32_t fpz,
+    int32_t bpx, int32_t bpy, int32_t bpz,
+    int32_t pvx, int32_t pvy, int32_t pvz,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int player_cloaked, int32_t max_weapon_speed,
+    int is_matter, int32_t difficulty_level,
+    int32_t* out_fx, int32_t* out_fy, int32_t* out_fz)
+{
+    cd_ox_require_ready("cd_ox_lead_player");
+    value args[16] = {
+        Val_long(fpx), Val_long(fpy), Val_long(fpz),
+        Val_long(bpx), Val_long(bpy), Val_long(bpz),
+        Val_long(pvx), Val_long(pvy), Val_long(pvz),
+        Val_long(fvx), Val_long(fvy), Val_long(fvz),
+        Val_long(player_cloaked), Val_long(max_weapon_speed),
+        Val_long(is_matter), Val_long(difficulty_level),
+    };
+    const value out = caml_callbackN(*g_lead_player, 16, args);
+    int success = Int_val(Field(out, 0));
+    if (success) {
+        *out_fx = Int_val(Field(out, 1));
+        *out_fy = Int_val(Field(out, 2));
+        *out_fz = Int_val(Field(out, 3));
+    }
+    return success;
 }
