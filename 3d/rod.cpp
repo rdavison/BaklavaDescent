@@ -54,6 +54,11 @@ int calc_rod_corners(g3s_point* bot_point, fix bot_width, g3s_point* top_point, 
 	rod_points[2].p3_x = c2x; rod_points[2].p3_y = c2y; rod_points[2].p3_z = c2z;
 	rod_points[3].p3_x = c3x; rod_points[3].p3_y = c3y; rod_points[3].p3_z = c3z;
 
+	//code each point so p3_codes is set for downstream clipping decisions
+	codes_and = 0xff;
+	for (int i = 0; i < 4; i++)
+		codes_and &= g3_code_point(&rod_points[i]);
+
 	if (codes_and)
 		return 1;
 
