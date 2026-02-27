@@ -39,8 +39,40 @@ let cd_do_physics_sim_rot
     (1, nrx,nry,nrz, nux,nuy,nuz, nfx,nfy,nfz,
      new_rvx, new_rvy, new_rvz, new_turnroll)
 
+(* calc_gun_point: flat int array → vec3
+   Array layout (MAX_SUBMODELS=10):
+     [0..2]     gun_point (x,y,z)
+     [3]        start_mn
+     [4..33]    anim_angles (10 * (p,b,h))
+     [34..63]   submodel_offsets (10 * (x,y,z))
+     [64..73]   submodel_parents (10 ints)
+     [74..82]   orient (9 values: rx,ry,rz,ux,uy,uz,fx,fy,fz)
+     [83..85]   pos (x,y,z)
+   Total: 86 ints *)
+let cd_calc_gun_point (packed : int array) =
+  let gun_point = (packed.(0), packed.(1), packed.(2)) in
+  let start_mn = packed.(3) in
+  let n = 10 in
+  let anim_angles = Array.init n ~f:(fun i ->
+    let base = 4 + i * 3 in
+    (packed.(base), packed.(base + 1), packed.(base + 2))) in
+  let offsets = Array.init n ~f:(fun i ->
+    let base = 34 + i * 3 in
+    (packed.(base), packed.(base + 1), packed.(base + 2))) in
+  let parents = Array.init n ~f:(fun i -> packed.(64 + i)) in
+  let orient = (
+    (packed.(74), packed.(75), packed.(76)),
+    (packed.(77), packed.(78), packed.(79)),
+    (packed.(80), packed.(81), packed.(82))) in
+  let pos = (packed.(83), packed.(84), packed.(85)) in
+  let (gx, gy, gz) = Ox_physics.calc_gun_point
+    ~gun_point ~start_mn ~anim_angles ~offsets ~parents ~orient ~pos in
+  (gx, gy, gz)
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
   Callback.register "cd_do_physics_sim_rot"
-    cd_do_physics_sim_rot
+    cd_do_physics_sim_rot;
+  Callback.register "cd_calc_gun_point"
+    cd_calc_gun_point

@@ -5954,3 +5954,153 @@ let%expect_test "randomized do_physics_sim_rot parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "do_physics_sim_rot parity failed" ();
   [%expect {| do_physics_sim_rot random total=5000 mismatches=0 |}]
+
+(* --- calc_gun_point parity tests --- *)
+
+external c_calc_gun_point : int array -> int * int * int
+  = "caml_c_calc_gun_point"
+
+let pack_gun_point_args ~gun_point:(gpx,gpy,gpz) ~start_mn
+    ~anim_angles ~offsets ~parents
+    ~orient:((r1,r2,r3),(u1,u2,u3),(f1,f2,f3))
+    ~pos:(px,py,pz) =
+  let a = Array.create ~len:86 0 in
+  a.(0) <- gpx; a.(1) <- gpy; a.(2) <- gpz;
+  a.(3) <- start_mn;
+  Array.iteri anim_angles ~f:(fun i (p,b,h) ->
+    let base = 4 + i * 3 in
+    a.(base) <- p; a.(base+1) <- b; a.(base+2) <- h);
+  Array.iteri offsets ~f:(fun i (x,y,z) ->
+    let base = 34 + i * 3 in
+    a.(base) <- x; a.(base+1) <- y; a.(base+2) <- z);
+  Array.iteri parents ~f:(fun i v -> a.(64 + i) <- v);
+  a.(74) <- r1; a.(75) <- r2; a.(76) <- r3;
+  a.(77) <- u1; a.(78) <- u2; a.(79) <- u3;
+  a.(80) <- f1; a.(81) <- f2; a.(82) <- f3;
+  a.(83) <- px; a.(84) <- py; a.(85) <- pz;
+  a
+
+let%expect_test "calc_gun_point identity orient no hierarchy" =
+  (* gun_point at (0x10000, 0, 0), start_mn=0 (no hierarchy walk),
+     identity orient, pos at origin => result = gun_point *)
+  let n = 10 in
+  let anim_angles = Array.init n ~f:(fun _ -> (0,0,0)) in
+  let offsets = Array.init n ~f:(fun _ -> (0,0,0)) in
+  let parents = Array.init n ~f:(fun _ -> 0) in
+  let orient = ((0x10000,0,0),(0,0x10000,0),(0,0,0x10000)) in
+  let pos = (0, 0, 0) in
+  let packed = pack_gun_point_args
+    ~gun_point:(0x10000, 0, 0) ~start_mn:0
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  let c = c_calc_gun_point packed in
+  let ox = Ox_physics.calc_gun_point
+    ~gun_point:(0x10000, 0, 0) ~start_mn:0
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+
+let%expect_test "calc_gun_point with one hierarchy level" =
+  (* gun at origin, start_mn=1, parent[1]=0, offset[1]=(0x10000,0,0),
+     anim_angles[1]=(0,0,0) => identity rotation, pnt = gun + offset = (0x10000,0,0)
+     identity orient, pos=(0x20000,0,0) => result = (0x30000,0,0) *)
+  let n = 10 in
+  let anim_angles = Array.init n ~f:(fun _ -> (0,0,0)) in
+  let offsets = Array.init n ~f:(fun i ->
+    if i = 1 then (0x10000, 0, 0) else (0, 0, 0)) in
+  let parents = Array.init n ~f:(fun _ -> 0) in
+  let orient = ((0x10000,0,0),(0,0x10000,0),(0,0,0x10000)) in
+  let pos = (0x20000, 0, 0) in
+  let packed = pack_gun_point_args
+    ~gun_point:(0, 0, 0) ~start_mn:1
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  let c = c_calc_gun_point packed in
+  let ox = Ox_physics.calc_gun_point
+    ~gun_point:(0, 0, 0) ~start_mn:1
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(196608,0,0) ox=(196608,0,0) eq=true |}]
+
+let%expect_test "calc_gun_point with two hierarchy levels" =
+  (* gun at (0x8000,0,0), start_mn=2, parent[2]=1, parent[1]=0
+     anim_angles all zero (identity), offsets[2]=(0,0x4000,0), offsets[1]=(0x10000,0,0)
+     identity orient, pos=(0,0,0)
+     Walk: mn=2: rotate pnt by identity, add offset[2] => (0x8000,0x4000,0)
+           mn=1: rotate by identity, add offset[1] => (0x18000,0x4000,0)
+     Then transpose identity orient, rotate => same, add pos => (0x18000,0x4000,0) *)
+  let n = 10 in
+  let anim_angles = Array.init n ~f:(fun _ -> (0,0,0)) in
+  let offsets = Array.init n ~f:(fun i ->
+    if i = 2 then (0, 0x4000, 0)
+    else if i = 1 then (0x10000, 0, 0)
+    else (0, 0, 0)) in
+  let parents = Array.init n ~f:(fun i ->
+    if i = 2 then 1 else 0) in
+  let orient = ((0x10000,0,0),(0,0x10000,0),(0,0,0x10000)) in
+  let pos = (0, 0, 0) in
+  let packed = pack_gun_point_args
+    ~gun_point:(0x8000, 0, 0) ~start_mn:2
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  let c = c_calc_gun_point packed in
+  let ox = Ox_physics.calc_gun_point
+    ~gun_point:(0x8000, 0, 0) ~start_mn:2
+    ~anim_angles ~offsets ~parents ~orient ~pos in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(98304,16384,0) ox=(98304,16384,0) eq=true |}]
+
+let%expect_test "randomized calc_gun_point parity C vs Ox" =
+  let state = Random.State.make [| 99999 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let n = 10 in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  let gen_angle () = Random.State.int state 0x10000 in
+  let gen_orient () =
+    let p = gen_angle () in
+    let b = gen_angle () in
+    let h = gen_angle () in
+    Ox_math.vm_angles_2_matrix (p, b, h)
+  in
+  for _ = 1 to 5000 do
+    let gun_point = (gen_fix (), gen_fix (), gen_fix ()) in
+    (* Random hierarchy depth 0-3 *)
+    let depth = Random.State.int state 4 in
+    let anim_angles = Array.init n ~f:(fun _ -> (gen_angle (), gen_angle (), gen_angle ())) in
+    let offsets = Array.init n ~f:(fun _ -> (gen_fix (), gen_fix (), gen_fix ())) in
+    (* Build parent chain: 1->0, 2->1, 3->2, etc. up to depth *)
+    let parents = Array.init n ~f:(fun i ->
+      if i > 0 && i <= depth then i - 1 else 0) in
+    let start_mn = if depth = 0 then 0 else depth in
+    let orient = gen_orient () in
+    let pos = (gen_fix (), gen_fix (), gen_fix ()) in
+    incr total;
+    let packed = pack_gun_point_args
+      ~gun_point ~start_mn ~anim_angles ~offsets ~parents ~orient ~pos in
+    let c = c_calc_gun_point packed in
+    let ox = Ox_physics.calc_gun_point
+      ~gun_point ~start_mn ~anim_angles ~offsets ~parents ~orient ~pos in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "gun=(%d,%d,%d) start_mn=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+          (let (x,_,_) = gun_point in x) (let (_,y,_) = gun_point in y) (let (_,_,z) = gun_point in z)
+          start_mn cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "calc_gun_point random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "calc_gun_point parity failed" ();
+  [%expect {| calc_gun_point random total=5000 mismatches=0 |}]

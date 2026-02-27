@@ -85,6 +85,7 @@ static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
 static const value* g_physics_turn_towards_vector = NULL;
 static const value* g_do_physics_sim_rot = NULL;
+static const value* g_calc_gun_point = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -163,7 +164,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_check_vector_to_sphere_1
           && g_apply_damage_to_robot_d1
           && g_physics_turn_towards_vector
-          && g_do_physics_sim_rot))
+          && g_do_physics_sim_rot
+          && g_calc_gun_point))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -258,6 +260,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
     g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
     g_do_physics_sim_rot = caml_named_value("cd_do_physics_sim_rot");
+    g_calc_gun_point = caml_named_value("cd_calc_gun_point");
 
     if (!g_i2f
         || !g_f2i
@@ -333,7 +336,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_check_vector_to_sphere_1
         || !g_apply_damage_to_robot_d1
         || !g_physics_turn_towards_vector
-        || !g_do_physics_sim_rot)
+        || !g_do_physics_sim_rot
+        || !g_calc_gun_point)
     {
         return 1;
     }
@@ -417,7 +421,8 @@ int cd_ox_is_ready(void)
            && g_check_vector_to_sphere_1
            && g_apply_damage_to_robot_d1
            && g_physics_turn_towards_vector
-           && g_do_physics_sim_rot;
+           && g_do_physics_sim_rot
+           && g_calc_gun_point;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1637,4 +1642,21 @@ int cd_ox_do_physics_sim_rot(
     *out_rvz = Int_val(Field(out, 12));
     *out_turnroll = Int_val(Field(out, 13));
     return 1;
+}
+
+void cd_ox_calc_gun_point(
+    const int32_t* packed, int packed_len,
+    int32_t* out_x, int32_t* out_y, int32_t* out_z)
+{
+    cd_ox_require_ready("cd_ox_calc_gun_point");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_calc_gun_point, arr);
+    *out_x = Int_val(Field(result, 0));
+    *out_y = Int_val(Field(result, 1));
+    *out_z = Int_val(Field(result, 2));
+    CAMLreturn0;
 }

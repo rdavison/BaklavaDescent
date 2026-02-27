@@ -2373,3 +2373,53 @@ extern "C" CAMLprim value caml_c_do_physics_sim_rot_bc(value* argv, int argn)
         argv[10], argv[11], argv[12], argv[13], argv[14],
         argv[15], argv[16], argv[17], argv[18], argv[19]);
 }
+
+/* calc_gun_point: takes flat int array (86 elements), returns vec3 tuple */
+extern "C" CAMLprim value caml_c_calc_gun_point(value packed_arr)
+{
+    CAMLparam1(packed_arr);
+    CAMLlocal1(out);
+
+    /* Unpack the flat array */
+    int32_t gpx = Int_val(Field(packed_arr, 0));
+    int32_t gpy = Int_val(Field(packed_arr, 1));
+    int32_t gpz = Int_val(Field(packed_arr, 2));
+    int32_t start_mn = Int_val(Field(packed_arr, 3));
+
+    int32_t anim_angles[30]; /* 10 * 3 */
+    for (int i = 0; i < 30; i++)
+        anim_angles[i] = Int_val(Field(packed_arr, 4 + i));
+
+    int32_t sub_offsets[30]; /* 10 * 3 */
+    for (int i = 0; i < 30; i++)
+        sub_offsets[i] = Int_val(Field(packed_arr, 34 + i));
+
+    int32_t sub_parents[10];
+    for (int i = 0; i < 10; i++)
+        sub_parents[i] = Int_val(Field(packed_arr, 64 + i));
+
+    int32_t o_rx = Int_val(Field(packed_arr, 74));
+    int32_t o_ry = Int_val(Field(packed_arr, 75));
+    int32_t o_rz = Int_val(Field(packed_arr, 76));
+    int32_t o_ux = Int_val(Field(packed_arr, 77));
+    int32_t o_uy = Int_val(Field(packed_arr, 78));
+    int32_t o_uz = Int_val(Field(packed_arr, 79));
+    int32_t o_fx = Int_val(Field(packed_arr, 80));
+    int32_t o_fy = Int_val(Field(packed_arr, 81));
+    int32_t o_fz = Int_val(Field(packed_arr, 82));
+    int32_t px = Int_val(Field(packed_arr, 83));
+    int32_t py = Int_val(Field(packed_arr, 84));
+    int32_t pz = Int_val(Field(packed_arr, 85));
+
+    int32_t out_x, out_y, out_z;
+    c_oracle_calc_gun_point(gpx, gpy, gpz, start_mn,
+        anim_angles, sub_offsets, sub_parents,
+        o_rx, o_ry, o_rz, o_ux, o_uy, o_uz, o_fx, o_fy, o_fz,
+        px, py, pz, &out_x, &out_y, &out_z);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_x));
+    Store_field(out, 1, Val_long(out_y));
+    Store_field(out, 2, Val_long(out_z));
+    CAMLreturn(out);
+}

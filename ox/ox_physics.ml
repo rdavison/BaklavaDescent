@@ -201,3 +201,34 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
     (* Fix matrix orthogonality *)
     let orient = check_and_fix_matrix ~orient in
     Some (orient, rotvel, turnroll)
+
+(* Compute world-space gun position by walking bone hierarchy.
+   C original: robot.cpp calc_gun_point
+
+   Inputs:
+     gun_point    - initial gun position in submodel-local space (vec3)
+     start_mn     - starting submodel number for this gun
+     anim_angles  - array of (p, b, h) per submodel (MAX_SUBMODELS = 10)
+     offsets       - array of vec3 per submodel (submodel_offsets)
+     parents       - array of int per submodel (submodel_parents)
+     orient        - object orientation matrix
+     pos           - object world position
+
+   Returns: world-space gun position (vec3) *)
+let calc_gun_point ~gun_point ~start_mn ~anim_angles ~offsets ~parents
+    ~orient ~pos =
+  (* Walk up bone hierarchy from gun submodel to root *)
+  let pnt = ref gun_point in
+  let mn = ref start_mn in
+  while !mn <> 0 do
+    let (ap, ab, ah) = anim_angles.(!mn) in
+    let m = Ox_math.vm_angles_2_matrix (ap, ab, ah) in
+    let m = Ox_math.vm_transpose_matrix m in
+    let tpnt = Ox_math.vm_vec_rotate !pnt m in
+    pnt := Ox_math.vm_vec_add tpnt (offsets.(!mn));
+    mn := parents.(!mn)
+  done;
+  (* Instance for the entire object *)
+  let m = Ox_math.vm_transpose_matrix orient in
+  let rotated = Ox_math.vm_vec_rotate !pnt m in
+  Ox_math.vm_vec_add rotated pos

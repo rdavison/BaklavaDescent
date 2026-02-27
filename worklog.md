@@ -800,3 +800,27 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 16) Port `calc_gun_point` to Ox with parity tests
+
+**What:** Ported `calc_gun_point` from `main_d1/robot.cpp` (and identically `main_d2/robot.cpp`) to OxCaml. This function computes world-space gun positions for robots by walking a bone hierarchy (up to MAX_SUBMODELS=10 submodels) with matrix transforms at each joint, then transforming by the object's orientation and position.
+
+- **1 new pure function in `ox/ox_physics.ml`:**
+  - `calc_gun_point` — walks bone hierarchy from `start_mn` to root (mn=0), applying `vm_angles_2_matrix` + transpose + rotate + offset at each level, then final orient transpose + rotate + position add.
+
+- **Bridge layer:**
+  - `cd_calc_gun_point` in `physics_bridge.ml` — unpacks flat int array (86 elements: gun_point[3], start_mn, anim_angles[10×3], offsets[10×3], parents[10], orient[9], pos[3]) and calls OCaml function.
+  - `cd_ox_calc_gun_point` in `bridge.c` — allocates OCaml array, packs 86 ints, calls callback, extracts vec3 result.
+
+- **C oracle + parity tests:**
+  - `c_oracle_calc_gun_point` — replicates exact C logic using oracle math primitives.
+  - 3 deterministic tests: identity orient with no hierarchy, one hierarchy level, two hierarchy levels.
+  - 5000-case randomized test with random hierarchy depths (0–3), random angles, offsets, and orientations — all pass with 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/robot.cpp` — packs bone data into flat array, calls bridge, writes result to gun_point.
+  - `main_d2/robot.cpp` — identical wiring. D1 and D2 implementations are the same.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

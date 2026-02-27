@@ -1779,3 +1779,52 @@ extern "C" void c_oracle_do_physics_sim_rot(
     *out_rvz = rotvel.z;
     *out_turnroll = turnroll;
 }
+
+#define MAX_SUBMODELS_ORACLE 10
+
+extern "C" void c_oracle_calc_gun_point(
+    int32_t gpx, int32_t gpy, int32_t gpz,
+    int32_t start_mn,
+    const int32_t* anim_angles,   /* MAX_SUBMODELS * 3 (p,b,h) */
+    const int32_t* sub_offsets,   /* MAX_SUBMODELS * 3 (x,y,z) */
+    const int32_t* sub_parents,   /* MAX_SUBMODELS */
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t* out_x, int32_t* out_y, int32_t* out_z)
+{
+    c_oracle_vec3 pnt = {gpx, gpy, gpz};
+    int mn = start_mn;
+
+    /* Walk up bone hierarchy */
+    while (mn != 0) {
+        c_oracle_ang3 angles = {
+            (int16_t)anim_angles[mn * 3],
+            (int16_t)anim_angles[mn * 3 + 1],
+            (int16_t)anim_angles[mn * 3 + 2]
+        };
+        c_oracle_mat3 m;
+        c_oracle_vm_angles_2_matrix(&m, &angles);
+        c_oracle_vm_transpose_matrix(&m);
+        c_oracle_vec3 tpnt;
+        c_oracle_vm_vec_rotate(&tpnt, &pnt, &m);
+        c_oracle_vec3 offset = {
+            sub_offsets[mn * 3],
+            sub_offsets[mn * 3 + 1],
+            sub_offsets[mn * 3 + 2]
+        };
+        c_oracle_vm_vec_add(&pnt, &tpnt, &offset);
+        mn = sub_parents[mn];
+    }
+
+    /* Instance for entire object */
+    c_oracle_mat3 obj_orient = {{o_rx, o_ry, o_rz}, {o_ux, o_uy, o_uz}, {o_fx, o_fy, o_fz}};
+    c_oracle_mat3 m_t;
+    c_oracle_vm_copy_transpose_matrix(&m_t, &obj_orient);
+    c_oracle_vec3 rotated;
+    c_oracle_vm_vec_rotate(&rotated, &pnt, &m_t);
+    *out_x = rotated.x + px;
+    *out_y = rotated.y + py;
+    *out_z = rotated.z + pz;
+}

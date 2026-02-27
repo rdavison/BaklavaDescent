@@ -19,6 +19,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "object.h"
 #include "polyobj.h"
 #include "platform/mono.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#include <stdio.h>
+#endif
 
 int	N_robot_types = 0;
 int	N_robot_joints = 0;
@@ -108,8 +112,38 @@ void calc_gun_point(vms_vector *gun_point,object *obj,int gun_num)
 	pnt = r->gun_points[gun_num];
 	mn = r->gun_submodels[gun_num];
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] calc_gun_point using cd_ox_calc_gun_point\n"); ox_logged = 1; }
+		int32_t packed[86];
+		packed[0] = pnt.x; packed[1] = pnt.y; packed[2] = pnt.z;
+		packed[3] = mn;
+		for (int i = 0; i < MAX_SUBMODELS; i++) {
+			packed[4 + i*3 + 0] = obj->rtype.pobj_info.anim_angles[i].p;
+			packed[4 + i*3 + 1] = obj->rtype.pobj_info.anim_angles[i].b;
+			packed[4 + i*3 + 2] = obj->rtype.pobj_info.anim_angles[i].h;
+		}
+		for (int i = 0; i < MAX_SUBMODELS; i++) {
+			packed[34 + i*3 + 0] = pm->submodel_offsets[i].x;
+			packed[34 + i*3 + 1] = pm->submodel_offsets[i].y;
+			packed[34 + i*3 + 2] = pm->submodel_offsets[i].z;
+		}
+		for (int i = 0; i < MAX_SUBMODELS; i++)
+			packed[64 + i] = pm->submodel_parents[i];
+		packed[74] = obj->orient.rvec.x; packed[75] = obj->orient.rvec.y; packed[76] = obj->orient.rvec.z;
+		packed[77] = obj->orient.uvec.x; packed[78] = obj->orient.uvec.y; packed[79] = obj->orient.uvec.z;
+		packed[80] = obj->orient.fvec.x; packed[81] = obj->orient.fvec.y; packed[82] = obj->orient.fvec.z;
+		packed[83] = obj->pos.x; packed[84] = obj->pos.y; packed[85] = obj->pos.z;
+		int32_t ox, oy, oz;
+		cd_ox_calc_gun_point(packed, 86, &ox, &oy, &oz);
+		gun_point->x = ox; gun_point->y = oy; gun_point->z = oz;
+		return;
+	}
+#endif
+
 	//instance up the tree for this gun
-	while (mn != 0) 
+	while (mn != 0)
 	{
 		vms_vector tpnt;
 

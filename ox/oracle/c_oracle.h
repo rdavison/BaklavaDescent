@@ -255,6 +255,18 @@ void c_oracle_physics_turn_towards_vector(
     int32_t crx, int32_t cry, int32_t crz,
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
 
+void c_oracle_calc_gun_point(
+    int32_t gpx, int32_t gpy, int32_t gpz,
+    int32_t start_mn,
+    const int32_t* anim_angles,
+    const int32_t* sub_offsets,
+    const int32_t* sub_parents,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t* out_x, int32_t* out_y, int32_t* out_z);
+
 void c_oracle_do_physics_sim_rot(
     int32_t rvx, int32_t rvy, int32_t rvz,
     int32_t rtx, int32_t rty, int32_t rtz,

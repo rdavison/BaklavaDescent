@@ -375,6 +375,13 @@ void cd_ox_physics_turn_towards_vector(
     int32_t crx, int32_t cry, int32_t crz,
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
 
+/* calc_gun_point: computes world-space gun position via bone hierarchy.
+   packed[] is 86 ints (see physics_bridge.ml for layout).
+   Writes result to out_x/y/z. */
+void cd_ox_calc_gun_point(
+    const int32_t* packed, int packed_len,
+    int32_t* out_x, int32_t* out_y, int32_t* out_z);
+
 /* Returns 0 if no rotation needed (early exit), 1 if rotation applied.
    When returning 1, fills out_orient[9], out_rotvel[3], out_turnroll. */
 int cd_ox_do_physics_sim_rot(

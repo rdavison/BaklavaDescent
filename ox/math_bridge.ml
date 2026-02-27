@@ -144,4 +144,5 @@ let () =
   ignore (Physics_bridge.cd_do_physics_sim_rot :
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int * int * int * int * int * int * int * int * int * int * int * int * int * int)
+    int * int * int * int * int * int * int * int * int * int * int * int * int * int);
+  ignore (Physics_bridge.cd_calc_gun_point : int array -> int * int * int)
