@@ -736,3 +736,10 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune runtest ox/tests` -- all 12 new expect tests pass.
   - `cmake --build build-ox -j8` -- both ChocolateDescent and ChocolateDescent2 build.
   - OCaml module count: 7 (ox_math, ox_3d, ox_gameseg, ox_fvi, ox_curves, ox_collide + bridges).
+
+### 13) Fix crash in `calc_rod_corners` Ox bridge path
+
+- **Bug:** Standing inside a matcen (robot generator) when an enemy spawned caused a crash -- `Int3()` assertion in `g3_draw_tmap` at `draw.cpp:309` ("should not overflow after clip").
+- **Root cause:** The Ox bridge path in `calc_rod_corners` (`3d/rod.cpp`) set rod point coordinates from OCaml output but never called `g3_code_point()` on each point. The original C path did this at line 117. Without `p3_codes` set, `g3_draw_tmap` saw zero codes, thought all points were fully on-screen, skipped clipping, and projection overflowed on points behind the camera.
+- **Fix:** Added `g3_code_point(&rod_points[i])` loop after setting coordinates, matching the original C path. Also recomputes `codes_and` from the per-point codes rather than relying on the OCaml-returned value (which was correct but now redundant).
+- **Repro:** Stand inside matcen on level 1, wait for robot spawn. Previously crashed; now renders correctly.
