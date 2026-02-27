@@ -6467,3 +6467,198 @@ let%expect_test "randomized set_thrust_from_velocity parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "set_thrust_from_velocity parity failed" ();
   [%expect {| set_thrust_from_velocity random total=5000 mismatches=0 |}]
+
+(* ---------- move_towards_vector ---------- *)
+
+external c_move_towards_vector
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_move_towards_vector_bc" "caml_c_move_towards_vector"
+
+let%expect_test "move_towards_vector zero goal" =
+  let c = c_move_towards_vector 0x10000 0 0  0 0 0  0x10000 0 0
+      0x1000 0 0x20000 0 1 0 0 in
+  let ox = Ox_physics.move_towards_vector
+    ~velocity:(0x10000, 0, 0) ~vec_goal:(0, 0, 0) ~fvec:(0x10000, 0, 0)
+    ~frame_time:0x1000 ~difficulty:0 ~max_speed:0x20000
+    ~attack_type:0 ~dot_based:true ~is_thief:false ~is_kamikaze:false in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+
+let%expect_test "randomized move_towards_vector parity C vs Ox" =
+  let state = Random.State.make [| 11111 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let vx = gen_fix () in
+    let vy = gen_fix () in
+    let vz = gen_fix () in
+    let gx = gen_fix () in
+    let gy = gen_fix () in
+    let gz = gen_fix () in
+    let fx = gen_fix () in
+    let fy = gen_fix () in
+    let fz = gen_fix () in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    let difficulty = Random.State.int state 5 in
+    let max_speed = Random.State.int state 0x40000 + 1 in
+    let attack_type = Random.State.int state 2 in
+    let dot_based = Random.State.int state 2 in
+    let is_thief = Random.State.int state 2 in
+    let is_kamikaze = Random.State.int state 2 in
+    incr total;
+    let c = c_move_towards_vector vx vy vz gx gy gz fx fy fz
+        frame_time difficulty max_speed attack_type dot_based is_thief is_kamikaze in
+    let ox = Ox_physics.move_towards_vector
+      ~velocity:(vx, vy, vz) ~vec_goal:(gx, gy, gz) ~fvec:(fx, fy, fz)
+      ~frame_time ~difficulty ~max_speed ~attack_type
+      ~dot_based:(dot_based <> 0) ~is_thief:(is_thief <> 0) ~is_kamikaze:(is_kamikaze <> 0) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "v=(%d,%d,%d) g=(%d,%d,%d) f=(%d,%d,%d) ft=%d diff=%d ms=%d at=%d db=%d th=%d kam=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+          vx vy vz gx gy gz fx fy fz frame_time difficulty max_speed attack_type dot_based is_thief is_kamikaze
+          cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "move_towards_vector random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "move_towards_vector parity failed" ();
+  [%expect {| move_towards_vector random total=5000 mismatches=0 |}]
+
+(* ---------- move_around_player ---------- *)
+
+external c_move_around_player
+  : int array -> int * int * int
+  = "caml_c_move_around_player"
+
+let%expect_test "move_around_player fast_flag=0 returns unchanged" =
+  let packed = [| 100; 200; 300; 0;0;0; 0;0;0x10000; 0x1000; 0; 5; 0;
+                  0;0;0; 0x20000; 0; 0 |] in
+  let c = c_move_around_player packed in
+  let ox = Ox_physics.move_around_player
+    ~velocity:(100, 200, 300) ~vec_to_player:(0, 0, 0) ~fvec:(0, 0, 0x10000)
+    ~frame_time:0x1000 ~frame_count:0 ~objnum:5 ~fast_flag:0
+    ~shields:0 ~strength:0 ~field_of_view:0 ~max_speed:0x20000
+    ~player_cloaked:false ~skip_objnum1:false in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(100,200,300) ox=(100,200,300) eq=true |}]
+
+let%expect_test "randomized move_around_player parity C vs Ox" =
+  let state = Random.State.make [| 22222 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let vx = gen_fix () in let vy = gen_fix () in let vz = gen_fix () in
+    let px = gen_fix () in let py = gen_fix () in let pz = gen_fix () in
+    let fx = gen_fix () in let fy = gen_fix () in let fz = gen_fix () in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    let frame_count = Random.State.int state 10000 in
+    let objnum = Random.State.int state 200 in
+    let fast_flag = Random.State.int state 5 - 1 in (* -1 to 3 *)
+    let shields = gen_fix () in
+    let strength = Random.State.int state 0x40000 + 1 in
+    let field_of_view = gen_fix () in
+    let max_speed = Random.State.int state 0x40000 + 1 in
+    let player_cloaked = Random.State.int state 2 in
+    let skip_objnum1 = Random.State.int state 2 in
+    let packed = [| vx; vy; vz; px; py; pz; fx; fy; fz;
+                    frame_time; frame_count; objnum; fast_flag;
+                    shields; strength; field_of_view; max_speed;
+                    player_cloaked; skip_objnum1 |] in
+    incr total;
+    let c = c_move_around_player packed in
+    let ox = Ox_physics.move_around_player
+      ~velocity:(vx, vy, vz) ~vec_to_player:(px, py, pz) ~fvec:(fx, fy, fz)
+      ~frame_time ~frame_count ~objnum ~fast_flag
+      ~shields ~strength ~field_of_view ~max_speed
+      ~player_cloaked:(player_cloaked <> 0) ~skip_objnum1:(skip_objnum1 <> 0) in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "v=(%d,%d,%d) p=(%d,%d,%d) ff=%d fc=%d obj=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+          vx vy vz px py pz fast_flag frame_count objnum cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "move_around_player random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "move_around_player parity failed" ();
+  [%expect {| move_around_player random total=5000 mismatches=0 |}]
+
+(* ---------- move_away_from_player ---------- *)
+
+external c_move_away_from_player
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int * int * int
+  = "caml_c_move_away_from_player_bc" "caml_c_move_away_from_player"
+
+let%expect_test "move_away_from_player no attack" =
+  let c = c_move_away_from_player
+      0 0 0  0x10000 0 0  0 0x10000 0  0x10000 0 0
+      0x1000 0 5 0 0x20000 in
+  let ox = Ox_physics.move_away_from_player
+    ~velocity:(0, 0, 0) ~vec_to_player:(0x10000, 0, 0)
+    ~uvec:(0, 0x10000, 0) ~rvec:(0x10000, 0, 0)
+    ~frame_time:0x1000 ~frame_count:0 ~objnum:5 ~attack_type:0 ~max_speed:0x20000 in
+  printf "c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    (let (x,_,_) = c in x) (let (_,y,_) = c in y) (let (_,_,z) = c in z)
+    (let (x,_,_) = ox in x) (let (_,y,_) = ox in y) (let (_,_,z) = ox in z)
+    Poly.(c = ox);
+  [%expect {| c=(-65536,0,0) ox=(-65536,0,0) eq=true |}]
+
+let%expect_test "randomized move_away_from_player parity C vs Ox" =
+  let state = Random.State.make [| 33333 |] in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  let gen_fix () = Random.State.int state 0x40000 - 0x20000 in
+  for _ = 1 to 5000 do
+    let vx = gen_fix () in let vy = gen_fix () in let vz = gen_fix () in
+    let px = gen_fix () in let py = gen_fix () in let pz = gen_fix () in
+    let ux = gen_fix () in let uy = gen_fix () in let uz = gen_fix () in
+    let rx = gen_fix () in let ry = gen_fix () in let rz = gen_fix () in
+    let frame_time = Random.State.int state 0x2000 + 1 in
+    let frame_count = Random.State.int state 10000 in
+    let objnum = Random.State.int state 200 in
+    let attack_type = Random.State.int state 2 in
+    let max_speed = Random.State.int state 0x40000 + 1 in
+    incr total;
+    let c = c_move_away_from_player vx vy vz px py pz ux uy uz rx ry rz
+        frame_time frame_count objnum attack_type max_speed in
+    let ox = Ox_physics.move_away_from_player
+      ~velocity:(vx, vy, vz) ~vec_to_player:(px, py, pz)
+      ~uvec:(ux, uy, uz) ~rvec:(rx, ry, rz)
+      ~frame_time ~frame_count ~objnum ~attack_type ~max_speed in
+    if Poly.(c <> ox) then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then begin
+        let (cx, cy, cz) = c in
+        let (oxx, oxy, oxz) = ox in
+        first_mismatch := Some (sprintf
+          "v=(%d,%d,%d) p=(%d,%d,%d) at=%d fc=%d obj=%d c=(%d,%d,%d) ox=(%d,%d,%d)"
+          vx vy vz px py pz attack_type frame_count objnum cx cy cz oxx oxy oxz)
+      end
+    end
+  done;
+  printf "move_away_from_player random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "move_away_from_player parity failed" ();
+  [%expect {| move_away_from_player random total=5000 mismatches=0 |}]

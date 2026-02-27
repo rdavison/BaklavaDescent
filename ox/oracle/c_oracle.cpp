@@ -1945,3 +1945,170 @@ extern "C" void c_oracle_phys_apply_rot(
         out_rx, out_ry, out_rz);
     *out_set_skip_ai = set_skip_ai;
 }
+
+extern "C" void c_oracle_move_towards_vector(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time, int32_t difficulty,
+    int32_t max_speed, int32_t attack_type,
+    int dot_based, int is_thief, int is_kamikaze,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    /* Normalize velocity and compute dot with fvec */
+    c_oracle_vec3 vel = { vx, vy, vz };
+    c_oracle_vm_vec_normalize_quick(&vel);
+    c_oracle_vec3 fvec = { fx, fy, fz };
+    int32_t dot = c_oracle_vm_vec_dotprod(&vel, &fvec);
+
+    /* D2 thief: bias dot */
+    if (is_thief)
+        dot = (0x10000 + dot) / 2;
+
+    int32_t nvx, nvy, nvz;
+    if (dot_based && dot < 3 * 0x10000 / 4)
+    {
+        nvx = vx / 2 + c_oracle_fixmul(gx, frame_time * 32);
+        nvy = vy / 2 + c_oracle_fixmul(gy, frame_time * 32);
+        nvz = vz / 2 + c_oracle_fixmul(gz, frame_time * 32);
+    }
+    else
+    {
+        int32_t scale = frame_time * 64;
+        nvx = vx + c_oracle_fixmul(gx, scale) * (difficulty + 5) / 4;
+        nvy = vy + c_oracle_fixmul(gy, scale) * (difficulty + 5) / 4;
+        nvz = vz + c_oracle_fixmul(gz, scale) * (difficulty + 5) / 4;
+    }
+
+    int32_t ms = max_speed;
+    if (attack_type == 1 || is_thief || is_kamikaze)
+        ms *= 2;
+
+    c_oracle_vec3 nv = { nvx, nvy, nvz };
+    int32_t speed = c_oracle_vm_vec_mag_quick(&nv);
+    if (speed > ms)
+    {
+        nvx = nvx * 3 / 4;
+        nvy = nvy * 3 / 4;
+        nvz = nvz * 3 / 4;
+    }
+    *out_vx = nvx; *out_vy = nvy; *out_vz = nvz;
+}
+
+extern "C" void c_oracle_move_around_player(
+    const int32_t* packed,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    int32_t vx = packed[0], vy = packed[1], vz = packed[2];
+    int32_t px = packed[3], py = packed[4], pz = packed[5];
+    int32_t fx = packed[6], fy = packed[7], fz = packed[8];
+    int32_t frame_time = packed[9];
+    int32_t frame_count = packed[10];
+    int32_t objnum = packed[11];
+    int32_t fast_flag = packed[12];
+    int32_t shields = packed[13];
+    int32_t strength = packed[14];
+    int32_t field_of_view = packed[15];
+    int32_t max_speed = packed[16];
+    int player_cloaked = packed[17];
+    int skip_objnum1 = packed[18];
+
+    if (fast_flag == 0)
+    {
+        *out_vx = vx; *out_vy = vy; *out_vz = vz;
+        return;
+    }
+
+    int dir_change = 48;
+    int32_t ft = frame_time;
+    int count = 0;
+    if (ft < 0x10000 / 32) { dir_change *= 8; count += 3; }
+    else while (ft < 0x10000 / 4) { dir_change *= 2; ft *= 2; count++; }
+
+    int dir = (frame_count + (count + 1) * (objnum * 8 + objnum * 4 + objnum)) & dir_change;
+    dir >>= (4 + count);
+
+    int32_t scale = frame_time * 32;
+    int32_t ex, ey, ez;
+    switch (dir)
+    {
+    case 0: ex = c_oracle_fixmul(pz, scale); ey = c_oracle_fixmul(py, scale); ez = c_oracle_fixmul(-px, scale); break;
+    case 1: ex = c_oracle_fixmul(-pz, scale); ey = c_oracle_fixmul(py, scale); ez = c_oracle_fixmul(px, scale); break;
+    case 2: ex = c_oracle_fixmul(-py, scale); ey = c_oracle_fixmul(px, scale); ez = c_oracle_fixmul(pz, scale); break;
+    default: ex = c_oracle_fixmul(py, scale); ey = c_oracle_fixmul(-px, scale); ez = c_oracle_fixmul(pz, scale); break;
+    }
+
+    if (fast_flag > 0)
+    {
+        c_oracle_vec3 vtp = { px, py, pz };
+        c_oracle_vec3 fvec = { fx, fy, fz };
+        int32_t dot = c_oracle_vm_vec_dotprod(&vtp, &fvec);
+        if (dot > field_of_view && !player_cloaked)
+        {
+            int32_t damage_scale;
+            if (strength != 0)
+            {
+                damage_scale = c_oracle_fixdiv(shields, strength);
+                if (damage_scale > 0x10000) damage_scale = 0x10000;
+                else if (damage_scale < 0) damage_scale = 0;
+            }
+            else
+                damage_scale = 0x10000;
+
+            int32_t s = (fast_flag << 16) + damage_scale;
+            ex = c_oracle_fixmul(ex, s);
+            ey = c_oracle_fixmul(ey, s);
+            ez = c_oracle_fixmul(ez, s);
+        }
+    }
+
+    int32_t nvx = vx + ex, nvy = vy + ey, nvz = vz + ez;
+    c_oracle_vec3 nv = { nvx, nvy, nvz };
+    int32_t speed = c_oracle_vm_vec_mag_quick(&nv);
+    if ((!skip_objnum1 || objnum != 1) && speed > max_speed)
+    {
+        nvx = nvx * 3 / 4;
+        nvy = nvy * 3 / 4;
+        nvz = nvz * 3 / 4;
+    }
+    *out_vx = nvx; *out_vy = nvy; *out_vz = nvz;
+}
+
+extern "C" void c_oracle_move_away_from_player(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t ux, int32_t uy, int32_t uz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t frame_time, int32_t frame_count,
+    int32_t objnum, int32_t attack_type, int32_t max_speed,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    int32_t nvx = vx - c_oracle_fixmul(px, frame_time * 16);
+    int32_t nvy = vy - c_oracle_fixmul(py, frame_time * 16);
+    int32_t nvz = vz - c_oracle_fixmul(pz, frame_time * 16);
+
+    if (attack_type)
+    {
+        int objref = (objnum ^ ((frame_count + 3 * objnum) >> 5)) & 3;
+        int32_t s = frame_time << 5;
+        c_oracle_vec3 vel = { nvx, nvy, nvz };
+        switch (objref)
+        {
+        case 0: { c_oracle_vec3 u = { ux, uy, uz }; c_oracle_vm_vec_scale_add2(&vel, &u, s); break; }
+        case 1: { c_oracle_vec3 u = { ux, uy, uz }; c_oracle_vm_vec_scale_add2(&vel, &u, -s); break; }
+        case 2: { c_oracle_vec3 r = { rx, ry, rz }; c_oracle_vm_vec_scale_add2(&vel, &r, s); break; }
+        default: { c_oracle_vec3 r = { rx, ry, rz }; c_oracle_vm_vec_scale_add2(&vel, &r, -s); break; }
+        }
+        nvx = vel.x; nvy = vel.y; nvz = vel.z;
+    }
+
+    c_oracle_vec3 nv = { nvx, nvy, nvz };
+    int32_t speed = c_oracle_vm_vec_mag_quick(&nv);
+    if (speed > max_speed)
+    {
+        nvx = nvx * 3 / 4;
+        nvy = nvy * 3 / 4;
+        nvz = nvz * 3 / 4;
+    }
+    *out_vx = nvx; *out_vy = nvy; *out_vz = nvz;
+}

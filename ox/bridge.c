@@ -90,6 +90,9 @@ static const value* g_phys_apply_force = NULL;
 static const value* g_phys_apply_rot = NULL;
 static const value* g_ai_turn_towards_vector = NULL;
 static const value* g_set_thrust_from_velocity = NULL;
+static const value* g_move_towards_vector = NULL;
+static const value* g_move_around_player = NULL;
+static const value* g_move_away_from_player = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -173,7 +176,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_phys_apply_force
           && g_phys_apply_rot
           && g_ai_turn_towards_vector
-          && g_set_thrust_from_velocity))
+          && g_set_thrust_from_velocity
+          && g_move_towards_vector
+          && g_move_around_player
+          && g_move_away_from_player))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -273,6 +279,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_phys_apply_rot = caml_named_value("cd_phys_apply_rot");
     g_ai_turn_towards_vector = caml_named_value("cd_ai_turn_towards_vector");
     g_set_thrust_from_velocity = caml_named_value("cd_set_thrust_from_velocity");
+    g_move_towards_vector = caml_named_value("cd_move_towards_vector");
+    g_move_around_player = caml_named_value("cd_move_around_player");
+    g_move_away_from_player = caml_named_value("cd_move_away_from_player");
 
     if (!g_i2f
         || !g_f2i
@@ -353,7 +362,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_phys_apply_force
         || !g_phys_apply_rot
         || !g_ai_turn_towards_vector
-        || !g_set_thrust_from_velocity)
+        || !g_set_thrust_from_velocity
+        || !g_move_towards_vector
+        || !g_move_around_player
+        || !g_move_away_from_player)
     {
         return 1;
     }
@@ -442,7 +454,10 @@ int cd_ox_is_ready(void)
            && g_phys_apply_force
            && g_phys_apply_rot
            && g_ai_turn_towards_vector
-           && g_set_thrust_from_velocity;
+           && g_set_thrust_from_velocity
+           && g_move_towards_vector
+           && g_move_around_player
+           && g_move_away_from_player;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1760,4 +1775,69 @@ void cd_ox_set_thrust_from_velocity(
     *out_tx = Int_val(Field(out, 0));
     *out_ty = Int_val(Field(out, 1));
     *out_tz = Int_val(Field(out, 2));
+}
+
+void cd_ox_move_towards_vector(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time, int32_t difficulty,
+    int32_t max_speed, int32_t attack_type,
+    int dot_based, int is_thief, int is_kamikaze,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    cd_ox_require_ready("cd_ox_move_towards_vector");
+    value args[16] = {
+        Val_long(vx), Val_long(vy), Val_long(vz),
+        Val_long(gx), Val_long(gy), Val_long(gz),
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(frame_time), Val_long(difficulty),
+        Val_long(max_speed), Val_long(attack_type),
+        Val_long(dot_based), Val_long(is_thief), Val_long(is_kamikaze),
+    };
+    const value out = caml_callbackN(*g_move_towards_vector, 16, args);
+    *out_vx = Int_val(Field(out, 0));
+    *out_vy = Int_val(Field(out, 1));
+    *out_vz = Int_val(Field(out, 2));
+}
+
+void cd_ox_move_around_player(
+    const int32_t* packed, int packed_len,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    cd_ox_require_ready("cd_ox_move_around_player");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_move_around_player, arr);
+    *out_vx = Int_val(Field(result, 0));
+    *out_vy = Int_val(Field(result, 1));
+    *out_vz = Int_val(Field(result, 2));
+    CAMLreturn0;
+}
+
+void cd_ox_move_away_from_player(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t ux, int32_t uy, int32_t uz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t frame_time, int32_t frame_count,
+    int32_t objnum, int32_t attack_type, int32_t max_speed,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz)
+{
+    cd_ox_require_ready("cd_ox_move_away_from_player");
+    value args[17] = {
+        Val_long(vx), Val_long(vy), Val_long(vz),
+        Val_long(px), Val_long(py), Val_long(pz),
+        Val_long(ux), Val_long(uy), Val_long(uz),
+        Val_long(rx), Val_long(ry), Val_long(rz),
+        Val_long(frame_time), Val_long(frame_count),
+        Val_long(objnum), Val_long(attack_type), Val_long(max_speed),
+    };
+    const value out = caml_callbackN(*g_move_away_from_player, 17, args);
+    *out_vx = Int_val(Field(out, 0));
+    *out_vy = Int_val(Field(out, 1));
+    *out_vz = Int_val(Field(out, 2));
 }

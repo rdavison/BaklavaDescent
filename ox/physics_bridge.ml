@@ -127,6 +127,45 @@ let cd_set_thrust_from_velocity mass drag vx vy vz =
   in
   (tx, ty, tz)
 
+(* move_towards_vector: 16 scalar args → 3 ints *)
+let cd_move_towards_vector
+    vx vy vz gx gy gz fx fy fz frame_time difficulty
+    max_speed attack_type dot_based is_thief is_kamikaze =
+  Ox_physics.move_towards_vector
+    ~velocity:(vx, vy, vz) ~vec_goal:(gx, gy, gz) ~fvec:(fx, fy, fz)
+    ~frame_time ~difficulty ~max_speed ~attack_type
+    ~dot_based:(dot_based <> 0) ~is_thief:(is_thief <> 0)
+    ~is_kamikaze:(is_kamikaze <> 0)
+
+(* move_around_player: 16 scalar args → 3 ints (packed as flat int array) *)
+let cd_move_around_player (packed : int array) =
+  let velocity = (packed.(0), packed.(1), packed.(2)) in
+  let vec_to_player = (packed.(3), packed.(4), packed.(5)) in
+  let fvec = (packed.(6), packed.(7), packed.(8)) in
+  let frame_time = packed.(9) in
+  let frame_count = packed.(10) in
+  let objnum = packed.(11) in
+  let fast_flag = packed.(12) in
+  let shields = packed.(13) in
+  let strength = packed.(14) in
+  let field_of_view = packed.(15) in
+  let max_speed = packed.(16) in
+  let player_cloaked = packed.(17) <> 0 in
+  let skip_objnum1 = packed.(18) <> 0 in
+  Ox_physics.move_around_player
+    ~velocity ~vec_to_player ~fvec ~frame_time ~frame_count
+    ~objnum ~fast_flag ~shields ~strength ~field_of_view ~max_speed
+    ~player_cloaked ~skip_objnum1
+
+(* move_away_from_player: 17 scalar args → 3 ints *)
+let cd_move_away_from_player
+    vx vy vz px py pz ux uy uz rx ry rz
+    frame_time frame_count objnum attack_type max_speed =
+  Ox_physics.move_away_from_player
+    ~velocity:(vx, vy, vz) ~vec_to_player:(px, py, pz)
+    ~uvec:(ux, uy, uz) ~rvec:(rx, ry, rz)
+    ~frame_time ~frame_count ~objnum ~attack_type ~max_speed
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
@@ -141,4 +180,10 @@ let () =
   Callback.register "cd_ai_turn_towards_vector"
     cd_ai_turn_towards_vector;
   Callback.register "cd_set_thrust_from_velocity"
-    cd_set_thrust_from_velocity
+    cd_set_thrust_from_velocity;
+  Callback.register "cd_move_towards_vector"
+    cd_move_towards_vector;
+  Callback.register "cd_move_around_player"
+    cd_move_around_player;
+  Callback.register "cd_move_away_from_player"
+    cd_move_away_from_player

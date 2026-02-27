@@ -876,3 +876,29 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 19) Port `move_towards_vector`, `move_around_player`, `move_away_from_player` to Ox with parity tests
+
+**What:** Ported the three AI movement functions from `main_d1/ai.cpp` and `main_d2/ai2.cpp` to OxCaml. These are the velocity-manipulation workhorses of AI behavior — `move_towards_vector` accelerates toward a goal with speed capping, `move_around_player` generates perpendicular evasion vectors for circling/dodging, and `move_away_from_player` retreats with optional directional juking.
+
+- **3 new pure functions in `ox/ox_physics.ml`:**
+  - `move_towards_vector` — unified D1/D2 with `dot_based`, `is_thief`, `is_kamikaze` flags. D1 passes `dot_based=true, is_thief=false, is_kamikaze=false`.
+  - `move_around_player` — unified D1/D2 with `skip_objnum1` flag (D2 skips speed cap for objnum 1). Handles direction cycling, perpendicular evasion vectors, fast evasion with damage_scale.
+  - `move_away_from_player` — identical in D1 and D2. Subtracts player vector, applies directional juke via uvec/rvec, speed cap.
+
+- **Bridge layer:**
+  - `cd_move_towards_vector` (16 scalar args → 3 ints) and `cd_move_away_from_player` (17 scalar args → 3 ints) in `physics_bridge.ml`.
+  - `cd_move_around_player` uses flat int array of 19 elements (same pattern as `calc_gun_point`).
+  - `cd_ox_move_towards_vector`, `cd_ox_move_around_player`, `cd_ox_move_away_from_player` in `bridge.c`.
+
+- **C oracle + parity tests:**
+  - `c_oracle_move_towards_vector`, `c_oracle_move_around_player`, `c_oracle_move_away_from_player`.
+  - Each function: 1 deterministic test + 5000 randomized — all pass with 0 mismatches.
+
+- **Engine callsite wiring with `#ifdef USE_OX_BRIDGE`:**
+  - `main_d1/ai.cpp` — all three functions wired. D1 `move_towards_vector` passes `dot_based=1, is_thief=0, is_kamikaze=0`. D1 `move_around_player` passes `skip_objnum1=0`.
+  - `main_d2/ai2.cpp` — all three functions wired. D2 `move_towards_vector` passes actual `dot_based`, `robptr->thief`, `robptr->kamikaze`. D2 `move_around_player` passes `skip_objnum1=1`.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

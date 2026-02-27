@@ -436,6 +436,35 @@ void cd_ox_set_thrust_from_velocity(
     int32_t vx, int32_t vy, int32_t vz,
     int32_t* out_tx, int32_t* out_ty, int32_t* out_tz);
 
+/* AI movement: move velocity towards goal vector.
+   D1: dot_based=1, is_thief=0, is_kamikaze=0.
+   D2: adds dot_based flag, thief/kamikaze max_speed doubling. */
+void cd_ox_move_towards_vector(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t gx, int32_t gy, int32_t gz,
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t frame_time, int32_t difficulty,
+    int32_t max_speed, int32_t attack_type,
+    int dot_based, int is_thief, int is_kamikaze,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
+
+/* AI movement: circle around player with evasion.
+   packed is 19 ints (see physics_bridge.ml). */
+void cd_ox_move_around_player(
+    const int32_t* packed, int packed_len,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
+
+/* AI movement: move velocity away from player.
+   attack_type enables directional juke using uvec/rvec. */
+void cd_ox_move_away_from_player(
+    int32_t vx, int32_t vy, int32_t vz,
+    int32_t px, int32_t py, int32_t pz,
+    int32_t ux, int32_t uy, int32_t uz,
+    int32_t rx, int32_t ry, int32_t rz,
+    int32_t frame_time, int32_t frame_count,
+    int32_t objnum, int32_t attack_type, int32_t max_speed,
+    int32_t* out_vx, int32_t* out_vy, int32_t* out_vz);
+
 #ifdef __cplusplus
 }
 #endif

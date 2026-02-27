@@ -328,3 +328,170 @@ let ai_turn_towards_vector ~goal ~fvec ~rvec ~rate ~frame_time
 let set_thrust_from_velocity ~mass ~drag ~velocity =
   let k = Ox_math.fixmuldiv mass drag (f1_0 - drag) in
   Ox_math.vm_vec_copy_scale velocity k
+
+(* AI movement: move robot velocity towards a goal vector.
+   C original: ai.cpp move_towards_vector
+
+   D1: always dot-based, no thief/kamikaze
+   D2: adds dot_based flag, thief dot adjustment, kamikaze max_speed doubling
+
+   Inputs:
+     velocity     - current velocity (vec3)
+     vec_goal     - normalized direction to move toward (vec3)
+     fvec         - object's forward vector (vec3)
+     frame_time   - FrameTime
+     difficulty   - Difficulty_level (0-4)
+     max_speed    - Robot_info[id].max_speed[Difficulty_level]
+     attack_type  - Robot_info[id].attack_type
+     dot_based    - D2 flag (D1 always 1)
+     is_thief     - D2 robptr->thief flag
+     is_kamikaze  - D2 robptr->kamikaze flag
+
+   Returns: new velocity (vec3) *)
+let move_towards_vector ~velocity ~vec_goal ~fvec ~frame_time ~difficulty
+    ~max_speed ~attack_type ~dot_based ~is_thief ~is_kamikaze =
+  let (vx, vy, vz) = velocity in
+  let (gx, gy, gz) = vec_goal in
+  (* Normalize velocity and compute dot with fvec *)
+  let (_mag, vel_norm) = Ox_math.vm_vec_normalize_quick velocity in
+  let dot = Ox_math.vm_vec_dotprod vel_norm fvec in
+  (* D2 thief: bias dot toward 1 *)
+  let dot = if is_thief then (f1_0 + dot) / 2 else dot in
+  let (nvx, nvy, nvz) =
+    if dot_based && dot < 3 * f1_0 / 4 then
+      (* Bash: halve velocity, add goal * FrameTime * 32 *)
+      (vx / 2 + Ox_math.fixmul gx (frame_time * 32),
+       vy / 2 + Ox_math.fixmul gy (frame_time * 32),
+       vz / 2 + Ox_math.fixmul gz (frame_time * 32))
+    else
+      (* Nudge: add goal * FrameTime * 64 * (difficulty+5)/4 *)
+      let scale = frame_time * 64 in
+      (vx + Ox_math.fixmul gx scale * (difficulty + 5) / 4,
+       vy + Ox_math.fixmul gy scale * (difficulty + 5) / 4,
+       vz + Ox_math.fixmul gz scale * (difficulty + 5) / 4)
+  in
+  (* Cap speed *)
+  let max_speed =
+    if attack_type = 1 || is_thief || is_kamikaze then max_speed * 2
+    else max_speed
+  in
+  let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+  if speed > max_speed then
+    (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
+  else
+    (nvx, nvy, nvz)
+
+(* AI movement: move robot velocity around (circling) the player.
+   C original: ai.cpp move_around_player
+
+   Inputs:
+     velocity       - current velocity (vec3)
+     vec_to_player  - direction to player (vec3)
+     fvec           - object's forward vector (vec3)
+     frame_time     - FrameTime
+     frame_count    - FrameCount
+     objnum         - object index
+     fast_flag      - -1 = normal circle, 0 = no evasion, >0 = fast evasion
+     shields        - object shields
+     strength       - Robot_info[id].strength (0 guard for D2)
+     field_of_view  - Robot_info[id].field_of_view[Difficulty]
+     max_speed      - Robot_info[id].max_speed[Difficulty]
+     player_cloaked - ConsoleObject->flags & PLAYER_FLAGS_CLOAKED
+     skip_objnum1   - D2 flag: skip speed cap if objnum==1
+
+   Returns: new velocity (vec3), or velocity unchanged if fast_flag==0 *)
+let move_around_player ~velocity ~vec_to_player ~fvec ~frame_time ~frame_count
+    ~objnum ~fast_flag ~shields ~strength ~field_of_view ~max_speed
+    ~player_cloaked ~skip_objnum1 =
+  if fast_flag = 0 then velocity
+  else
+    let (vx, vy, vz) = velocity in
+    let (px, py, pz) = vec_to_player in
+    (* Compute direction change frequency based on frame_time *)
+    let dir_change = ref 48 in
+    let ft = ref frame_time in
+    let count = ref 0 in
+    if !ft < f1_0 / 32 then begin
+      dir_change := !dir_change * 8;
+      count := !count + 3
+    end else
+      while !ft < f1_0 / 4 do
+        dir_change := !dir_change * 2;
+        ft := !ft * 2;
+        incr count
+      done;
+    let dir = (frame_count + (!count + 1) * (objnum * 8 + objnum * 4 + objnum))
+              land !dir_change in
+    let dir = dir asr (4 + !count) in
+    let scale = frame_time * 32 in
+    let (ex, ey, ez) = match dir with
+      | 0 -> (Ox_math.fixmul pz scale, Ox_math.fixmul py scale,
+              Ox_math.fixmul (- px) scale)
+      | 1 -> (Ox_math.fixmul (- pz) scale, Ox_math.fixmul py scale,
+              Ox_math.fixmul px scale)
+      | 2 -> (Ox_math.fixmul (- py) scale, Ox_math.fixmul px scale,
+              Ox_math.fixmul pz scale)
+      | _ -> (Ox_math.fixmul py scale, Ox_math.fixmul (- px) scale,
+              Ox_math.fixmul pz scale)
+    in
+    (* Fast evasion scaling *)
+    let (ex, ey, ez) =
+      if fast_flag > 0 then
+        let dot = Ox_math.vm_vec_dotprod vec_to_player fvec in
+        if dot > field_of_view && not player_cloaked then
+          let damage_scale =
+            if strength <> 0 then
+              let ds = Ox_math.fixdiv shields strength in
+              min ds f1_0 |> max 0
+            else f1_0
+          in
+          let s = Ox_math.i2f fast_flag + damage_scale in
+          (Ox_math.fixmul ex s, Ox_math.fixmul ey s, Ox_math.fixmul ez s)
+        else (ex, ey, ez)
+      else (ex, ey, ez)
+    in
+    let nvx = vx + ex and nvy = vy + ey and nvz = vz + ez in
+    let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+    if (not skip_objnum1 || objnum <> 1) && speed > max_speed then
+      (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
+    else
+      (nvx, nvy, nvz)
+
+(* AI movement: move robot velocity away from the player.
+   C original: ai.cpp move_away_from_player
+
+   Inputs:
+     velocity       - current velocity (vec3)
+     vec_to_player  - direction to player (vec3)
+     uvec           - object's up vector (vec3) (for attack_type juke)
+     rvec           - object's right vector (vec3) (for attack_type juke)
+     frame_time     - FrameTime
+     frame_count    - FrameCount
+     objnum         - object index
+     attack_type    - Robot_info[id].attack_type
+     max_speed      - Robot_info[id].max_speed[Difficulty]
+
+   Returns: new velocity (vec3) *)
+let move_away_from_player ~velocity ~vec_to_player ~uvec ~rvec
+    ~frame_time ~frame_count ~objnum ~attack_type ~max_speed =
+  let (vx, vy, vz) = velocity in
+  let (px, py, pz) = vec_to_player in
+  let nvx = vx - Ox_math.fixmul px (frame_time * 16) in
+  let nvy = vy - Ox_math.fixmul py (frame_time * 16) in
+  let nvz = vz - Ox_math.fixmul pz (frame_time * 16) in
+  let (nvx, nvy, nvz) =
+    if attack_type <> 0 then
+      let objref = (objnum lxor ((frame_count + 3 * objnum) asr 5)) land 3 in
+      let scale = frame_time lsl 5 in
+      match objref with
+      | 0 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) uvec scale
+      | 1 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) uvec (- scale)
+      | 2 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) rvec scale
+      | _ -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) rvec (- scale)
+    else (nvx, nvy, nvz)
+  in
+  let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+  if speed > max_speed then
+    (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
+  else
+    (nvx, nvy, nvz)

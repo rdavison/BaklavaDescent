@@ -2554,3 +2554,105 @@ extern "C" CAMLprim value caml_c_set_thrust_from_velocity(
     Store_field(out, 2, Val_long(out_tz));
     CAMLreturn(out);
 }
+
+/* move_towards_vector: 16 args → (vx, vy, vz) tuple */
+extern "C" CAMLprim value caml_c_move_towards_vector(
+    value vx, value vy, value vz,
+    value gx, value gy, value gz,
+    value fx, value fy, value fz,
+    value frame_time, value difficulty,
+    value max_speed, value attack_type,
+    value dot_based, value is_thief, value is_kamikaze)
+{
+    CAMLparam5(vx, vy, vz, gx, gy);
+    CAMLxparam5(gz, fx, fy, fz, frame_time);
+    CAMLxparam5(difficulty, max_speed, attack_type, dot_based, is_thief);
+    CAMLxparam1(is_kamikaze);
+    CAMLlocal1(out);
+
+    int32_t out_vx, out_vy, out_vz;
+    c_oracle_move_towards_vector(
+        Int_val(vx), Int_val(vy), Int_val(vz),
+        Int_val(gx), Int_val(gy), Int_val(gz),
+        Int_val(fx), Int_val(fy), Int_val(fz),
+        Int_val(frame_time), Int_val(difficulty),
+        Int_val(max_speed), Int_val(attack_type),
+        Int_val(dot_based), Int_val(is_thief), Int_val(is_kamikaze),
+        &out_vx, &out_vy, &out_vz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_vx));
+    Store_field(out, 1, Val_long(out_vy));
+    Store_field(out, 2, Val_long(out_vz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_move_towards_vector_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_move_towards_vector(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
+        argv[12], argv[13], argv[14], argv[15]);
+}
+
+/* move_around_player: flat int array → (vx, vy, vz) tuple */
+extern "C" CAMLprim value caml_c_move_around_player(value packed_arr)
+{
+    CAMLparam1(packed_arr);
+    CAMLlocal1(out);
+
+    int32_t packed[19];
+    for (int i = 0; i < 19; i++)
+        packed[i] = Int_val(Field(packed_arr, i));
+
+    int32_t out_vx, out_vy, out_vz;
+    c_oracle_move_around_player(packed, &out_vx, &out_vy, &out_vz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_vx));
+    Store_field(out, 1, Val_long(out_vy));
+    Store_field(out, 2, Val_long(out_vz));
+    CAMLreturn(out);
+}
+
+/* move_away_from_player: 17 args → (vx, vy, vz) tuple */
+extern "C" CAMLprim value caml_c_move_away_from_player(
+    value vx, value vy, value vz,
+    value px, value py, value pz,
+    value ux, value uy, value uz,
+    value rx, value ry, value rz,
+    value frame_time, value frame_count,
+    value objnum, value attack_type, value max_speed)
+{
+    CAMLparam5(vx, vy, vz, px, py);
+    CAMLxparam5(pz, ux, uy, uz, rx);
+    CAMLxparam5(ry, rz, frame_time, frame_count, objnum);
+    CAMLxparam2(attack_type, max_speed);
+    CAMLlocal1(out);
+
+    int32_t out_vx, out_vy, out_vz;
+    c_oracle_move_away_from_player(
+        Int_val(vx), Int_val(vy), Int_val(vz),
+        Int_val(px), Int_val(py), Int_val(pz),
+        Int_val(ux), Int_val(uy), Int_val(uz),
+        Int_val(rx), Int_val(ry), Int_val(rz),
+        Int_val(frame_time), Int_val(frame_count),
+        Int_val(objnum), Int_val(attack_type), Int_val(max_speed),
+        &out_vx, &out_vy, &out_vz);
+
+    out = caml_alloc_tuple(3);
+    Store_field(out, 0, Val_long(out_vx));
+    Store_field(out, 1, Val_long(out_vy));
+    Store_field(out, 2, Val_long(out_vz));
+    CAMLreturn(out);
+}
+
+extern "C" CAMLprim value caml_c_move_away_from_player_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_move_away_from_player(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
+        argv[12], argv[13], argv[14], argv[15], argv[16]);
+}

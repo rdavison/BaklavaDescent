@@ -1218,6 +1218,24 @@ void ai_fire_laser_at_player(object* obj, vms_vector* fire_point)
 //	vec_goal must be normalized, or close to it.
 void move_towards_vector(object* objp, vms_vector* vec_goal)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] move_towards_vector (D1)\n"); ox_logged = 1; }
+	physics_info* pptr = &objp->mtype.phys_info;
+	robot_info* robptr = &Robot_info[objp->id];
+	int32_t out_vx, out_vy, out_vz;
+	cd_ox_move_towards_vector(
+		pptr->velocity.x, pptr->velocity.y, pptr->velocity.z,
+		vec_goal->x, vec_goal->y, vec_goal->z,
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+		FrameTime, Difficulty_level,
+		robptr->max_speed[Difficulty_level], robptr->attack_type,
+		1, 0, 0,  /* D1: always dot_based, no thief, no kamikaze */
+		&out_vx, &out_vy, &out_vz);
+	pptr->velocity.x = out_vx;
+	pptr->velocity.y = out_vy;
+	pptr->velocity.z = out_vz;
+#else
 	physics_info* pptr = &objp->mtype.phys_info;
 	fix				speed, dot, max_speed;
 	robot_info* robptr = &Robot_info[objp->id];
@@ -1257,6 +1275,7 @@ void move_towards_vector(object* objp, vms_vector* vec_goal)
 		pptr->velocity.y = (pptr->velocity.y * 3) / 4;
 		pptr->velocity.z = (pptr->velocity.z * 3) / 4;
 	}
+#endif
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -1270,6 +1289,31 @@ void move_towards_player(object* objp, vms_vector* vec_to_player)
 //	I am ashamed of this: fast_flag == -1 means normal slide about.  fast_flag = 0 means no evasion.
 void move_around_player(object* objp, vms_vector* vec_to_player, int fast_flag)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] move_around_player (D1)\n"); ox_logged = 1; }
+	if (fast_flag == 0)
+		return;
+	physics_info* pptr = &objp->mtype.phys_info;
+	robot_info* robptr = &Robot_info[objp->id];
+	int objnum = objp - Objects;
+	int player_cloaked = (ConsoleObject->flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0;
+	int32_t packed[19] = {
+		pptr->velocity.x, pptr->velocity.y, pptr->velocity.z,
+		vec_to_player->x, vec_to_player->y, vec_to_player->z,
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+		FrameTime, FrameCount, objnum, fast_flag,
+		objp->shields, robptr->strength,
+		robptr->field_of_view[Difficulty_level],
+		robptr->max_speed[Difficulty_level],
+		player_cloaked, 0  /* skip_objnum1=false for D1 */
+	};
+	int32_t out_vx, out_vy, out_vz;
+	cd_ox_move_around_player(packed, 19, &out_vx, &out_vy, &out_vz);
+	pptr->velocity.x = out_vx;
+	pptr->velocity.y = out_vy;
+	pptr->velocity.z = out_vz;
+#else
 	physics_info* pptr = &objp->mtype.phys_info;
 	fix				speed;
 	robot_info* robptr = &Robot_info[objp->id];
@@ -1355,12 +1399,31 @@ void move_around_player(object* objp, vms_vector* vec_to_player, int fast_flag)
 		pptr->velocity.y = (pptr->velocity.y * 3) / 4;
 		pptr->velocity.z = (pptr->velocity.z * 3) / 4;
 	}
-
+#endif
 }
 
 // --------------------------------------------------------------------------------------------------------------------
 void move_away_from_player(object* objp, vms_vector* vec_to_player, int attack_type)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] move_away_from_player (D1)\n"); ox_logged = 1; }
+	physics_info* pptr = &objp->mtype.phys_info;
+	robot_info* robptr = &Robot_info[objp->id];
+	int objnum = objp - Objects;
+	int32_t out_vx, out_vy, out_vz;
+	cd_ox_move_away_from_player(
+		pptr->velocity.x, pptr->velocity.y, pptr->velocity.z,
+		vec_to_player->x, vec_to_player->y, vec_to_player->z,
+		objp->orient.uvec.x, objp->orient.uvec.y, objp->orient.uvec.z,
+		objp->orient.rvec.x, objp->orient.rvec.y, objp->orient.rvec.z,
+		FrameTime, FrameCount, objnum, attack_type,
+		robptr->max_speed[Difficulty_level],
+		&out_vx, &out_vy, &out_vz);
+	pptr->velocity.x = out_vx;
+	pptr->velocity.y = out_vy;
+	pptr->velocity.z = out_vz;
+#else
 	fix				speed;
 	physics_info* pptr = &objp->mtype.phys_info;
 	robot_info* robptr = &Robot_info[objp->id];
@@ -1391,6 +1454,7 @@ void move_away_from_player(object* objp, vms_vector* vec_to_player, int attack_t
 		pptr->velocity.y = (pptr->velocity.y * 3) / 4;
 		pptr->velocity.z = (pptr->velocity.z * 3) / 4;
 	}
+#endif
 
 	//--old--	fix				speed, dot;
 	//--old--	physics_info	*pptr = &objp->mtype.phys_info;
