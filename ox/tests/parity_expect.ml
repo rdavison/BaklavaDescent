@@ -1125,7 +1125,7 @@ let vm_extract_angles_vector_cases =
   ]
 
 let vm_extract_angles_matrix_cases =
-  [ mat_identity; mat_sample; mat_extreme; Ox_math.vm_angles_2_matrix (0x1000, 0x2000, 0x3000) ]
+  [ mat_identity; mat_sample; mat_extreme; Ox_math.vm_angles_2_matrix ~v:(0x1000, 0x2000, 0x3000) ]
 
 let edge_fix_values =
   [
@@ -2830,7 +2830,7 @@ let ang3_gen =
     ~f:(fun (x, (y, z)) -> (x, y, z))
 
 let%expect_test "i2f parity C vs Ox" =
-  check_unop "i2f" c_i2f Ox_math.i2f i2f_cases;
+  check_unop "i2f" c_i2f (fun a -> Ox_math.i2f ~a) i2f_cases;
   [%expect
     {|
     i2f a=-10 c=-655360 ox=-655360 eq=true
@@ -2842,7 +2842,7 @@ let%expect_test "i2f parity C vs Ox" =
     |}]
 
 let%expect_test "f2i parity C vs Ox" =
-  check_unop "f2i" c_f2i Ox_math.f2i f2i_cases;
+  check_unop "f2i" c_f2i (fun a -> Ox_math.f2i ~a) f2i_cases;
   [%expect
     {|
     f2i a=-655360 c=-10 ox=-10 eq=true
@@ -2857,7 +2857,7 @@ let%expect_test "f2i parity C vs Ox" =
     |}]
 
 let%expect_test "fixmul parity C vs Ox" =
-  check_binop "fixmul" c_fixmul Ox_math.fixmul mul_cases;
+  check_binop "fixmul" c_fixmul (fun a b -> Ox_math.fixmul ~a ~b) mul_cases;
   [%expect
     {|
     fixmul a=65536 b=65536 c=65536 ox=65536 eq=true
@@ -2869,7 +2869,7 @@ let%expect_test "fixmul parity C vs Ox" =
     |}]
 
 let%expect_test "fixdiv parity C vs Ox" =
-  check_binop "fixdiv" c_fixdiv Ox_math.fixdiv div_cases;
+  check_binop "fixdiv" c_fixdiv (fun a b -> Ox_math.fixdiv ~a ~b) div_cases;
   [%expect
     {|
     fixdiv a=65536 b=65536 c=65536 ox=65536 eq=true
@@ -2881,7 +2881,7 @@ let%expect_test "fixdiv parity C vs Ox" =
     |}]
 
 let%expect_test "fixmuldiv parity C vs Ox" =
-  check_ternop "fixmuldiv" c_fixmuldiv Ox_math.fixmuldiv muldiv_cases;
+  check_ternop "fixmuldiv" c_fixmuldiv (fun a b c -> Ox_math.fixmuldiv ~a ~b ~c) muldiv_cases;
   [%expect
     {|
     fixmuldiv a=65536 b=65536 c=65536 c_out=65536 ox=65536 eq=true
@@ -2999,7 +2999,7 @@ let%expect_test "ufixdivquadlong parity C vs Ox" =
     |}]
 
 let%expect_test "fix_sqrt parity C vs Ox" =
-  check_unop "fix_sqrt" c_fix_sqrt Ox_math.fix_sqrt fix_sqrt_cases;
+  check_unop "fix_sqrt" c_fix_sqrt (fun a -> Ox_math.fix_sqrt ~a) fix_sqrt_cases;
   [%expect
     {|
     fix_sqrt a=-1 c=0 ox=0 eq=true
@@ -3016,7 +3016,7 @@ let%expect_test "fix_sqrt parity C vs Ox" =
     |}]
 
 let%expect_test "fix_isqrt parity C vs Ox" =
-  check_unop "fix_isqrt" c_fix_isqrt Ox_math.fix_isqrt fix_isqrt_cases;
+  check_unop "fix_isqrt" c_fix_isqrt (fun a -> Ox_math.fix_isqrt ~a) fix_isqrt_cases;
   [%expect {|
     fix_isqrt a=0 c=0 ox=0 eq=true
     fix_isqrt a=1 c=47511552 ox=47511552 eq=true
@@ -3031,7 +3031,7 @@ let%expect_test "fix_isqrt parity C vs Ox" =
     |}]
 
 let%expect_test "fix_sincos parity C vs Ox" =
-  check_unop_pair "fix_sincos" c_fix_sincos Ox_math.fix_sincos fix_sincos_cases;
+  check_unop_pair "fix_sincos" c_fix_sincos (fun a -> Ox_math.fix_sincos ~a) fix_sincos_cases;
   [%expect {|
     fix_sincos a=-2147483648 c=(0,65536) ox=(0,65536) eq=true
     fix_sincos a=-65536 c=(0,65536) ox=(0,65536) eq=true
@@ -3053,7 +3053,7 @@ let%expect_test "fix_sincos parity C vs Ox" =
     |}]
 
 let%expect_test "fix_fastsincos parity C vs Ox" =
-  check_unop_pair "fix_fastsincos" c_fix_fastsincos Ox_math.fix_fastsincos fix_fastsincos_cases;
+  check_unop_pair "fix_fastsincos" c_fix_fastsincos (fun a -> Ox_math.fix_fastsincos ~a) fix_fastsincos_cases;
   [%expect {|
     fix_fastsincos a=-2147483648 c=(0,65536) ox=(0,65536) eq=true
     fix_fastsincos a=-65536 c=(0,65536) ox=(0,65536) eq=true
@@ -3071,7 +3071,7 @@ let%expect_test "fix_fastsincos parity C vs Ox" =
     |}]
 
 let%expect_test "fix_acos parity C vs Ox" =
-  check_unop "fix_acos" c_fix_acos Ox_math.fix_acos fix_acos_cases;
+  check_unop "fix_acos" c_fix_acos (fun a -> Ox_math.fix_acos ~a) fix_acos_cases;
   [%expect {|
     fix_acos a=-2147483648 c=16384 ox=16384 eq=true
     fix_acos a=-65536 c=0 ox=0 eq=true
@@ -3087,7 +3087,7 @@ let%expect_test "fix_acos parity C vs Ox" =
     |}]
 
 let%expect_test "fix_asin parity C vs Ox" =
-  check_unop "fix_asin" c_fix_asin Ox_math.fix_asin fix_asin_cases;
+  check_unop "fix_asin" c_fix_asin (fun a -> Ox_math.fix_asin ~a) fix_asin_cases;
   [%expect {|
     fix_asin a=-2147483648 c=0 ox=0 eq=true
     fix_asin a=-65536 c=16384 ox=16384 eq=true
@@ -3103,7 +3103,7 @@ let%expect_test "fix_asin parity C vs Ox" =
     |}]
 
 let%expect_test "fix_atan2 parity C vs Ox" =
-  check_binop "fix_atan2" c_fix_atan2 Ox_math.fix_atan2 fix_atan2_cases;
+  check_binop "fix_atan2" c_fix_atan2 (fun cos sin -> Ox_math.fix_atan2 ~cos ~sin) fix_atan2_cases;
   [%expect {|
     fix_atan2 a=65536 b=0 c=0 ox=0 eq=true
     fix_atan2 a=0 b=65536 c=16384 ox=16384 eq=true
@@ -3118,7 +3118,7 @@ let%expect_test "fix_atan2 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_scale_add2 parity C vs Ox" =
-  check_stateful_vec3 "vm_vec_scale_add2" c_vm_vec_scale_add2 Ox_math.vm_vec_scale_add2 vm_vec_scale_add2_cases;
+  check_stateful_vec3 "vm_vec_scale_add2" c_vm_vec_scale_add2 (fun dest src k -> Ox_math.vm_vec_scale_add2 ~dest ~src ~k) vm_vec_scale_add2_cases;
   [%expect
     {|
     vm_vec_scale_add2 d=(0,0,0) s=(0,0,0) k=0 c=(0,0,0) ox=(0,0,0) eq=true
@@ -3128,7 +3128,7 @@ let%expect_test "vm_vec_scale_add2 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_scale_add parity C vs Ox" =
-  check_vec3_bin_scale "vm_vec_scale_add" c_vm_vec_scale_add Ox_math.vm_vec_scale_add vm_vec_scale_add_cases;
+  check_vec3_bin_scale "vm_vec_scale_add" c_vm_vec_scale_add (fun a b k -> Ox_math.vm_vec_scale_add ~a ~b ~k) vm_vec_scale_add_cases;
   [%expect
     {|
     vm_vec_scale_add a=(0,0,0) b=(0,0,0) k=0 c=(0,0,0) ox=(0,0,0) eq=true
@@ -3138,7 +3138,7 @@ let%expect_test "vm_vec_scale_add parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_scale2 parity C vs Ox" =
-  check_stateful_vec3_scale2 "vm_vec_scale2" c_vm_vec_scale2 Ox_math.vm_vec_scale2 vm_vec_scale2_cases;
+  check_stateful_vec3_scale2 "vm_vec_scale2" c_vm_vec_scale2 (fun v n d -> Ox_math.vm_vec_scale2 ~v ~n ~d) vm_vec_scale2_cases;
   [%expect
     {|
     vm_vec_scale2 d=(0,0,0) n=65536 d=65536 c=(0,0,0) ox=(0,0,0) eq=true
@@ -3149,7 +3149,7 @@ let%expect_test "vm_vec_scale2 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_add parity C vs Ox" =
-  check_vec3_binop "vm_vec_add" c_vm_vec_add Ox_math.vm_vec_add vm_vec_add_cases;
+  check_vec3_binop "vm_vec_add" c_vm_vec_add (fun a b -> Ox_math.vm_vec_add ~a ~b) vm_vec_add_cases;
   [%expect
     {|
     vm_vec_add a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3159,7 +3159,7 @@ let%expect_test "vm_vec_add parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_sub parity C vs Ox" =
-  check_vec3_binop "vm_vec_sub" c_vm_vec_sub Ox_math.vm_vec_sub vm_vec_sub_cases;
+  check_vec3_binop "vm_vec_sub" c_vm_vec_sub (fun a b -> Ox_math.vm_vec_sub ~a ~b) vm_vec_sub_cases;
   [%expect
     {|
     vm_vec_sub a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3169,7 +3169,7 @@ let%expect_test "vm_vec_sub parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_add2 parity C vs Ox" =
-  check_stateful_vec3_add2 "vm_vec_add2" c_vm_vec_add2 Ox_math.vm_vec_add2 vm_vec_add2_cases;
+  check_stateful_vec3_add2 "vm_vec_add2" c_vm_vec_add2 (fun a b -> Ox_math.vm_vec_add2 ~a ~b) vm_vec_add2_cases;
   [%expect
     {|
     vm_vec_add2 d=(0,0,0) s=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3179,7 +3179,7 @@ let%expect_test "vm_vec_add2 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_sub2 parity C vs Ox" =
-  check_stateful_vec3_add2 "vm_vec_sub2" c_vm_vec_sub2 Ox_math.vm_vec_sub2 vm_vec_sub2_cases;
+  check_stateful_vec3_add2 "vm_vec_sub2" c_vm_vec_sub2 (fun a b -> Ox_math.vm_vec_sub2 ~a ~b) vm_vec_sub2_cases;
   [%expect
     {|
     vm_vec_sub2 d=(0,0,0) s=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3189,7 +3189,7 @@ let%expect_test "vm_vec_sub2 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_avg parity C vs Ox" =
-  check_vec3_binop "vm_vec_avg" c_vm_vec_avg Ox_math.vm_vec_avg vm_vec_avg_cases;
+  check_vec3_binop "vm_vec_avg" c_vm_vec_avg (fun a b -> Ox_math.vm_vec_avg ~a ~b) vm_vec_avg_cases;
   [%expect
     {|
     vm_vec_avg a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3199,7 +3199,7 @@ let%expect_test "vm_vec_avg parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_avg4 parity C vs Ox" =
-  check_vec3_avg4 "vm_vec_avg4" c_vm_vec_avg4 Ox_math.vm_vec_avg4 vm_vec_avg4_cases;
+  check_vec3_avg4 "vm_vec_avg4" c_vm_vec_avg4 (fun a b c d -> Ox_math.vm_vec_avg4 ~a ~b ~c ~d) vm_vec_avg4_cases;
   [%expect
     {|
     vm_vec_avg4 a=(0,0,0) b=(0,0,0) c=(0,0,0) d=(0,0,0) out=(0,0,0) ox=(0,0,0) eq=true
@@ -3208,7 +3208,7 @@ let%expect_test "vm_vec_avg4 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_copy_scale parity C vs Ox" =
-  check_vec3_scale "vm_vec_copy_scale" c_vm_vec_copy_scale Ox_math.vm_vec_copy_scale vm_vec_copy_scale_cases;
+  check_vec3_scale "vm_vec_copy_scale" c_vm_vec_copy_scale (fun v k -> Ox_math.vm_vec_copy_scale ~v ~k) vm_vec_copy_scale_cases;
   [%expect
     {|
     vm_vec_copy_scale s=(0,0,0) k=0 out=(0,0,0) ox=(0,0,0) eq=true
@@ -3218,7 +3218,7 @@ let%expect_test "vm_vec_copy_scale parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_scale parity C vs Ox" =
-  check_vec3_scale "vm_vec_scale" c_vm_vec_scale Ox_math.vm_vec_scale vm_vec_scale_cases;
+  check_vec3_scale "vm_vec_scale" c_vm_vec_scale (fun v k -> Ox_math.vm_vec_scale ~v ~k) vm_vec_scale_cases;
   [%expect
     {|
     vm_vec_scale s=(0,0,0) k=0 out=(0,0,0) ox=(0,0,0) eq=true
@@ -3228,7 +3228,7 @@ let%expect_test "vm_vec_scale parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_mag parity C vs Ox" =
-  check_vec3_to_scalar "vm_vec_mag" c_vm_vec_mag Ox_math.vm_vec_mag vm_vec_mag_cases;
+  check_vec3_to_scalar "vm_vec_mag" c_vm_vec_mag (fun v -> Ox_math.vm_vec_mag ~v) vm_vec_mag_cases;
   [%expect
     {|
     vm_vec_mag v=(0,0,0) c=0 ox=0 eq=true
@@ -3238,7 +3238,7 @@ let%expect_test "vm_vec_mag parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_mag_quick parity C vs Ox" =
-  check_vec3_to_scalar "vm_vec_mag_quick" c_vm_vec_mag_quick Ox_math.vm_vec_mag_quick vm_vec_mag_quick_cases;
+  check_vec3_to_scalar "vm_vec_mag_quick" c_vm_vec_mag_quick (fun v -> Ox_math.vm_vec_mag_quick ~v) vm_vec_mag_quick_cases;
   [%expect
     {|
     vm_vec_mag_quick v=(0,0,0) c=0 ox=0 eq=true
@@ -3248,7 +3248,7 @@ let%expect_test "vm_vec_mag_quick parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_dist parity C vs Ox" =
-  check_two_vec3_to_scalar "vm_vec_dist" c_vm_vec_dist Ox_math.vm_vec_dist vm_vec_dist_cases;
+  check_two_vec3_to_scalar "vm_vec_dist" c_vm_vec_dist (fun a b -> Ox_math.vm_vec_dist ~a ~b) vm_vec_dist_cases;
   [%expect
     {|
     vm_vec_dist v0=(0,0,0) v1=(0,0,0) c=0 ox=0 eq=true
@@ -3261,7 +3261,7 @@ let%expect_test "vm_vec_dist_quick parity C vs Ox" =
   check_two_vec3_to_scalar
     "vm_vec_dist_quick"
     c_vm_vec_dist_quick
-    Ox_math.vm_vec_dist_quick
+    (fun a b -> Ox_math.vm_vec_dist_quick ~a ~b)
     vm_vec_dist_quick_cases;
   [%expect
     {|
@@ -3272,7 +3272,7 @@ let%expect_test "vm_vec_dist_quick parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_dotprod parity C vs Ox" =
-  check_two_vec3_to_scalar "vm_vec_dotprod" c_vm_vec_dotprod Ox_math.vm_vec_dotprod vm_vec_dotprod_cases;
+  check_two_vec3_to_scalar "vm_vec_dotprod" c_vm_vec_dotprod (fun a b -> Ox_math.vm_vec_dotprod ~a ~b) vm_vec_dotprod_cases;
   [%expect
     {|
     vm_vec_dotprod v0=(0,0,0) v1=(0,0,0) c=0 ox=0 eq=true
@@ -3285,7 +3285,7 @@ let%expect_test "vm_vec_dot3 parity C vs Ox" =
   check_two_vec3_to_scalar
     "vm_vec_dot3"
     c_vm_vec_dot3
-    (fun (x, y, z) (vx, vy, vz) -> Ox_math.vm_vec_dot3 x y z (vx, vy, vz))
+    (fun (x, y, z) (vx, vy, vz) -> Ox_math.vm_vec_dot3 ~x ~y ~z ~v:(vx, vy, vz))
     vm_vec_dot3_cases;
   [%expect
     {|
@@ -3296,7 +3296,7 @@ let%expect_test "vm_vec_dot3 parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_crossprod parity C vs Ox" =
-  check_vec3_binop "vm_vec_crossprod" c_vm_vec_crossprod Ox_math.vm_vec_crossprod vm_vec_crossprod_cases;
+  check_vec3_binop "vm_vec_crossprod" c_vm_vec_crossprod (fun a b -> Ox_math.vm_vec_crossprod ~a ~b) vm_vec_crossprod_cases;
   [%expect
     {|
     vm_vec_crossprod a=(0,0,0) b=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3309,7 +3309,7 @@ let%expect_test "vm_vec_copy_normalize parity C vs Ox" =
   check_vec_copy_normalize_quick
     "vm_vec_copy_normalize"
     c_vm_vec_copy_normalize
-    Ox_math.vm_vec_copy_normalize
+    (fun v -> Ox_math.vm_vec_copy_normalize ~v)
     vm_vec_copy_normalize_cases;
   [%expect
     {|
@@ -3323,7 +3323,7 @@ let%expect_test "vm_vec_normalize parity C vs Ox" =
   check_vec_copy_normalize_quick
     "vm_vec_normalize"
     c_vm_vec_normalize
-    Ox_math.vm_vec_normalize
+    (fun v -> Ox_math.vm_vec_normalize ~v)
     vm_vec_normalize_cases;
   [%expect
     {|
@@ -3337,7 +3337,7 @@ let%expect_test "vm_vec_normalized_dir parity C vs Ox" =
   check_vec_normalized_dir_quick
     "vm_vec_normalized_dir"
     c_vm_vec_normalized_dir
-    Ox_math.vm_vec_normalized_dir
+    (fun v_end v_start -> Ox_math.vm_vec_normalized_dir ~v_end ~v_start)
     vm_vec_normalized_dir_cases;
   [%expect
     {|
@@ -3351,7 +3351,7 @@ let%expect_test "vm_vec_copy_normalize_quick parity C vs Ox" =
   check_vec_copy_normalize_quick
     "vm_vec_copy_normalize_quick"
     c_vm_vec_copy_normalize_quick
-    Ox_math.vm_vec_copy_normalize_quick
+    (fun v -> Ox_math.vm_vec_copy_normalize_quick ~v)
     vm_vec_copy_normalize_quick_cases;
   [%expect
     {|
@@ -3365,7 +3365,7 @@ let%expect_test "vm_vec_normalize_quick parity C vs Ox" =
   check_vec_copy_normalize_quick
     "vm_vec_normalize_quick"
     c_vm_vec_normalize_quick
-    Ox_math.vm_vec_normalize_quick
+    (fun v -> Ox_math.vm_vec_normalize_quick ~v)
     vm_vec_normalize_quick_cases;
   [%expect
     {|
@@ -3379,7 +3379,7 @@ let%expect_test "vm_vec_normalized_dir_quick parity C vs Ox" =
   check_vec_normalized_dir_quick
     "vm_vec_normalized_dir_quick"
     c_vm_vec_normalized_dir_quick
-    Ox_math.vm_vec_normalized_dir_quick
+    (fun v_end v_start -> Ox_math.vm_vec_normalized_dir_quick ~v_end ~v_start)
     vm_vec_normalized_dir_quick_cases;
   [%expect
     {|
@@ -3390,7 +3390,7 @@ let%expect_test "vm_vec_normalized_dir_quick parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_make parity C vs Ox" =
-  check_make3 "vm_vec_make" c_vm_vec_make Ox_math.vm_vec_make vm_vec_make_cases;
+  check_make3 "vm_vec_make" c_vm_vec_make (fun x y z -> Ox_math.vm_vec_make ~x ~y ~z) vm_vec_make_cases;
   [%expect
     {|
     vm_vec_make in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3403,7 +3403,7 @@ let%expect_test "vm_check_vec parity C vs Ox" =
   check_make3
     "vm_check_vec"
     c_vm_check_vec
-    (fun x y z -> Ox_math.check_vec (x, y, z))
+    (fun x y z -> Ox_math.check_vec ~v:(x, y, z))
     vm_check_vec_cases;
   [%expect {|
     vm_check_vec in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3414,7 +3414,7 @@ let%expect_test "vm_check_vec parity C vs Ox" =
     |}]
 
 let%expect_test "vm_angvec_make parity C vs Ox" =
-  check_make3 "vm_angvec_make" c_vm_angvec_make Ox_math.vm_angvec_make vm_angvec_make_cases;
+  check_make3 "vm_angvec_make" c_vm_angvec_make (fun p b h -> Ox_math.vm_angvec_make ~p ~b ~h) vm_angvec_make_cases;
   [%expect
     {|
     vm_angvec_make in=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3424,7 +3424,7 @@ let%expect_test "vm_angvec_make parity C vs Ox" =
     |}]
 
 let%expect_test "vm_dist_to_plane parity C vs Ox" =
-  check_three_vec3_to_scalar "vm_dist_to_plane" c_vm_dist_to_plane Ox_math.vm_dist_to_plane vm_dist_to_plane_cases;
+  check_three_vec3_to_scalar "vm_dist_to_plane" c_vm_dist_to_plane (fun checkp norm planep -> Ox_math.vm_dist_to_plane ~checkp ~norm ~planep) vm_dist_to_plane_cases;
   [%expect
     {|
     vm_dist_to_plane check=(0,0,0) norm=(0,0,0) plane=(0,0,0) c=0 ox=0 eq=true
@@ -3434,7 +3434,7 @@ let%expect_test "vm_dist_to_plane parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_perp parity C vs Ox" =
-  check_three_vec3_to_vec3 "vm_vec_perp" c_vm_vec_perp Ox_math.vm_vec_perp vm_vec_perp_cases;
+  check_three_vec3_to_vec3 "vm_vec_perp" c_vm_vec_perp (fun p0 p1 p2 -> Ox_math.vm_vec_perp ~p0 ~p1 ~p2) vm_vec_perp_cases;
   [%expect
     {|
     vm_vec_perp p0=(0,0,0) p1=(0,0,0) p2=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3444,7 +3444,7 @@ let%expect_test "vm_vec_perp parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_normal parity C vs Ox" =
-  check_three_vec3_to_vec3 "vm_vec_normal" c_vm_vec_normal Ox_math.vm_vec_normal vm_vec_normal_cases;
+  check_three_vec3_to_vec3 "vm_vec_normal" c_vm_vec_normal (fun p0 p1 p2 -> Ox_math.vm_vec_normal ~p0 ~p1 ~p2) vm_vec_normal_cases;
   [%expect
     {|
     vm_vec_normal p0=(0,0,0) p1=(0,0,0) p2=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3457,7 +3457,7 @@ let%expect_test "vm_vec_delta_ang_norm parity C vs Ox" =
   check_two_vec3_opt_to_scalar
     "vm_vec_delta_ang_norm"
     c_vm_vec_delta_ang_norm
-    Ox_math.vm_vec_delta_ang_norm
+    (fun v0 v1 fvec -> Ox_math.vm_vec_delta_ang_norm ~v0 ~v1 ~fvec)
     vm_vec_delta_ang_cases;
   [%expect {|
     vm_vec_delta_ang_norm v0=(65536,0,0) v1=(65536,0,0) f=None c=0 ox=0 eq=true
@@ -3473,7 +3473,7 @@ let%expect_test "vm_vec_delta_ang parity C vs Ox" =
   check_two_vec3_opt_to_scalar
     "vm_vec_delta_ang"
     c_vm_vec_delta_ang
-    Ox_math.vm_vec_delta_ang
+    (fun v0 v1 fvec -> Ox_math.vm_vec_delta_ang ~v0 ~v1 ~fvec)
     vm_vec_delta_ang_cases;
   [%expect {|
     vm_vec_delta_ang v0=(65536,0,0) v1=(65536,0,0) f=None c=0 ox=0 eq=true
@@ -3489,7 +3489,7 @@ let%expect_test "vm_extract_angles_vector_normalized parity C vs Ox" =
   check_make3
     "vm_extract_angles_vector_normalized"
     c_vm_extract_angles_vector_normalized
-    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized (x, y, z))
+    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized ~v:(x, y, z))
     vm_extract_angles_vector_normalized_cases;
   [%expect {|
     vm_extract_angles_vector_normalized in=(65536,0,0) c=(0,0,16384) ox=(0,0,16384) eq=true
@@ -3505,7 +3505,7 @@ let%expect_test "vm_extract_angles_vector parity C vs Ox" =
   check_stateful_ang3_from_vec
     "vm_extract_angles_vector"
     c_vm_extract_angles_vector
-    Ox_math.vm_extract_angles_vector
+    (fun angles v -> Ox_math.vm_extract_angles_vector ~angles ~v)
     vm_extract_angles_vector_cases;
   [%expect {|
     vm_extract_angles_vector a0=(0,0,0) v=(0,0,0) c=(0,0,0) ox=(0,0,0) eq=true
@@ -3519,7 +3519,7 @@ let%expect_test "vm_extract_angles_matrix parity C vs Ox" =
   check_mat_to_ang3
     "vm_extract_angles_matrix"
     c_vm_extract_angles_matrix
-    Ox_math.vm_extract_angles_matrix
+    (fun m -> Ox_math.vm_extract_angles_matrix ~m)
     vm_extract_angles_matrix_cases;
   [%expect {|
     vm_extract_angles_matrix c=(0,0,0) ox=(0,0,0) eq=true
@@ -3529,7 +3529,7 @@ let%expect_test "vm_extract_angles_matrix parity C vs Ox" =
     |}]
 
 let%expect_test "vm_vec_rotate parity C vs Ox" =
-  check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate Ox_math.vm_vec_rotate vm_vec_rotate_cases;
+  check_vec3_mat_to_vec3 "vm_vec_rotate" c_vm_vec_rotate (fun src m -> Ox_math.vm_vec_rotate ~src ~m) vm_vec_rotate_cases;
   [%expect
     {|
     vm_vec_rotate v=(0,0,0) m=[65536,0,0;0,65536,0;0,0,65536] c=(0,0,0) ox=(0,0,0) eq=true
@@ -3539,7 +3539,7 @@ let%expect_test "vm_vec_rotate parity C vs Ox" =
     |}]
 
 let%expect_test "vm_transpose_matrix parity C vs Ox" =
-  check_mat_unop "vm_transpose_matrix" c_vm_transpose_matrix Ox_math.vm_transpose_matrix vm_matrix_cases;
+  check_mat_unop "vm_transpose_matrix" c_vm_transpose_matrix (fun m -> Ox_math.vm_transpose_matrix ~m) vm_matrix_cases;
   [%expect
     {|
     vm_transpose_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
@@ -3548,7 +3548,7 @@ let%expect_test "vm_transpose_matrix parity C vs Ox" =
     |}]
 
 let%expect_test "vm_copy_transpose_matrix parity C vs Ox" =
-  check_mat_unop "vm_copy_transpose_matrix" c_vm_copy_transpose_matrix Ox_math.vm_copy_transpose_matrix vm_matrix_cases;
+  check_mat_unop "vm_copy_transpose_matrix" c_vm_copy_transpose_matrix (fun m -> Ox_math.vm_copy_transpose_matrix ~m) vm_matrix_cases;
   [%expect
     {|
     vm_copy_transpose_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
@@ -3557,7 +3557,7 @@ let%expect_test "vm_copy_transpose_matrix parity C vs Ox" =
     |}]
 
 let%expect_test "vm_matrix_x_matrix parity C vs Ox" =
-  check_mat_binop "vm_matrix_x_matrix" c_vm_matrix_x_matrix Ox_math.vm_matrix_x_matrix vm_matrix_x_matrix_cases;
+  check_mat_binop "vm_matrix_x_matrix" c_vm_matrix_x_matrix (fun a b -> Ox_math.vm_matrix_x_matrix ~a ~b) vm_matrix_x_matrix_cases;
   [%expect
     {|
     vm_matrix_x_matrix c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
@@ -3572,7 +3572,7 @@ let%expect_test "vm_vector_2_matrix parity C vs Ox" =
   check_vec3_opt_opt_to_mat
     "vm_vector_2_matrix"
     c_vm_vector_2_matrix
-    Ox_math.vm_vector_2_matrix
+    (fun fvec uvec rvec -> Ox_math.vm_vector_2_matrix ~fvec ~uvec ~rvec)
     vm_vector_2_matrix_cases;
   [%expect
     {|
@@ -3589,7 +3589,7 @@ let%expect_test "vm_vector_2_matrix_norm parity C vs Ox" =
   check_vec3_opt_opt_to_mat
     "vm_vector_2_matrix_norm"
     c_vm_vector_2_matrix_norm
-    Ox_math.vm_vector_2_matrix_norm
+    (fun fvec uvec rvec -> Ox_math.vm_vector_2_matrix_norm ~fvec ~uvec ~rvec)
     vm_vector_2_matrix_norm_cases;
   [%expect
     {|
@@ -3606,7 +3606,7 @@ let%expect_test "sincos_2_matrix parity C vs Ox" =
   check_six_fix_to_mat
     "sincos_2_matrix"
     c_sincos_2_matrix
-    Ox_math.sincos_2_matrix
+    (fun sinp cosp sinb cosb sinh cosh -> Ox_math.sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh)
     sincos_2_matrix_cases;
   [%expect
     {|
@@ -3620,7 +3620,7 @@ let%expect_test "vm_angles_2_matrix parity C vs Ox" =
   check_ang3_to_mat
     "vm_angles_2_matrix"
     c_vm_angles_2_matrix
-    Ox_math.vm_angles_2_matrix
+    (fun v -> Ox_math.vm_angles_2_matrix ~v)
     vm_angles_2_matrix_cases;
   [%expect {|
     vm_angles_2_matrix a=(0,0,0) c=[65536,0,0;0,65536,0;0,0,65536] ox=[65536,0,0;0,65536,0;0,0,65536] eq=true
@@ -3634,7 +3634,7 @@ let%expect_test "vm_vec_ang_2_matrix parity C vs Ox" =
   check_vec3_fixang_to_mat
     "vm_vec_ang_2_matrix"
     c_vm_vec_ang_2_matrix
-    Ox_math.vm_vec_ang_2_matrix
+    (fun v a -> Ox_math.vm_vec_ang_2_matrix ~v ~a)
     vm_vec_ang_2_matrix_cases;
   [%expect {|
     vm_vec_ang_2_matrix v=(65536,0,0) a=0 c=[0,0,-65536;0,65536,0;65536,0,0] ox=[0,0,-65536;0,65536,0;65536,0,0] eq=true
@@ -3645,11 +3645,11 @@ let%expect_test "vm_vec_ang_2_matrix parity C vs Ox" =
     |}]
 
 let%expect_test "randomized fixmul parity C vs Ox" =
-  run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul Ox_math.fixmul;
+  run_random_binop ~name:"fixmul" ~seed:"fixmul-seed-v1" ~test_count:5000 c_fixmul (fun a b -> Ox_math.fixmul ~a ~b);
   [%expect {| fixmul random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fixdiv parity C vs Ox" =
-  run_random_binop ~name:"fixdiv" ~seed:"fixdiv-seed-v1" ~test_count:5000 c_fixdiv Ox_math.fixdiv;
+  run_random_binop ~name:"fixdiv" ~seed:"fixdiv-seed-v1" ~test_count:5000 c_fixdiv (fun a b -> Ox_math.fixdiv ~a ~b);
   [%expect {| fixdiv random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fixmuldiv parity C vs Ox" =
@@ -3658,7 +3658,7 @@ let%expect_test "randomized fixmuldiv parity C vs Ox" =
     ~seed:"fixmuldiv-seed-v1"
     ~test_count:5000
     c_fixmuldiv
-    Ox_math.fixmuldiv;
+    (fun a b c -> Ox_math.fixmuldiv ~a ~b ~c);
   [%expect {| fixmuldiv random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized long_sqrt parity C vs Ox" =
@@ -3736,7 +3736,7 @@ let%expect_test "randomized ufixdivquadlong parity C vs Ox" =
   [%expect {| ufixdivquadlong random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_sqrt parity C vs Ox" =
-  run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt Ox_math.fix_sqrt;
+  run_random_unop ~name:"fix_sqrt" ~seed:"fix-sqrt-seed-v1" ~test_count:5000 c_fix_sqrt (fun a -> Ox_math.fix_sqrt ~a);
   [%expect {| fix_sqrt random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_isqrt parity C vs Ox" =
@@ -3746,7 +3746,7 @@ let%expect_test "randomized fix_isqrt parity C vs Ox" =
     ~test_count:5000
     ~gen:fix_nonneg_gen
     c_fix_isqrt
-    Ox_math.fix_isqrt;
+    (fun a -> Ox_math.fix_isqrt ~a);
   [%expect {| fix_isqrt random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_sincos parity C vs Ox" =
@@ -3755,7 +3755,7 @@ let%expect_test "randomized fix_sincos parity C vs Ox" =
     ~seed:"fix-sincos-seed-v1"
     ~test_count:5000
     c_fix_sincos
-    Ox_math.fix_sincos;
+    (fun a -> Ox_math.fix_sincos ~a);
   [%expect {| fix_sincos random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_fastsincos parity C vs Ox" =
@@ -3764,19 +3764,19 @@ let%expect_test "randomized fix_fastsincos parity C vs Ox" =
     ~seed:"fix-fastsincos-seed-v1"
     ~test_count:5000
     c_fix_fastsincos
-    Ox_math.fix_fastsincos;
+    (fun a -> Ox_math.fix_fastsincos ~a);
   [%expect {| fix_fastsincos random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_acos parity C vs Ox" =
-  run_random_unop ~name:"fix_acos" ~seed:"fix-acos-seed-v1" ~test_count:5000 c_fix_acos Ox_math.fix_acos;
+  run_random_unop ~name:"fix_acos" ~seed:"fix-acos-seed-v1" ~test_count:5000 c_fix_acos (fun a -> Ox_math.fix_acos ~a);
   [%expect {| fix_acos random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_asin parity C vs Ox" =
-  run_random_unop ~name:"fix_asin" ~seed:"fix-asin-seed-v1" ~test_count:5000 c_fix_asin Ox_math.fix_asin;
+  run_random_unop ~name:"fix_asin" ~seed:"fix-asin-seed-v1" ~test_count:5000 c_fix_asin (fun a -> Ox_math.fix_asin ~a);
   [%expect {| fix_asin random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized fix_atan2 parity C vs Ox" =
-  run_random_binop ~name:"fix_atan2" ~seed:"fix-atan2-seed-v1" ~test_count:5000 c_fix_atan2 Ox_math.fix_atan2;
+  run_random_binop ~name:"fix_atan2" ~seed:"fix-atan2-seed-v1" ~test_count:5000 c_fix_atan2 (fun cos sin -> Ox_math.fix_atan2 ~cos ~sin);
   [%expect {| fix_atan2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale_add2 parity C vs Ox" =
@@ -3785,7 +3785,7 @@ let%expect_test "randomized vm_vec_scale_add2 parity C vs Ox" =
     ~seed:"vm-vec-scale-add2-seed-v1"
     ~test_count:5000
     c_vm_vec_scale_add2
-    Ox_math.vm_vec_scale_add2;
+    (fun dest src k -> Ox_math.vm_vec_scale_add2 ~dest ~src ~k);
   [%expect {| vm_vec_scale_add2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale_add parity C vs Ox" =
@@ -3794,7 +3794,7 @@ let%expect_test "randomized vm_vec_scale_add parity C vs Ox" =
     ~seed:"vm-vec-scale-add-seed-v1"
     ~test_count:5000
     c_vm_vec_scale_add
-    Ox_math.vm_vec_scale_add;
+    (fun a b k -> Ox_math.vm_vec_scale_add ~a ~b ~k);
   [%expect {| vm_vec_scale_add random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale2 parity C vs Ox" =
@@ -3803,7 +3803,7 @@ let%expect_test "randomized vm_vec_scale2 parity C vs Ox" =
     ~seed:"vm-vec-scale2-seed-v1"
     ~test_count:5000
     c_vm_vec_scale2
-    Ox_math.vm_vec_scale2;
+    (fun v n d -> Ox_math.vm_vec_scale2 ~v ~n ~d);
   [%expect {| vm_vec_scale2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_add parity C vs Ox" =
@@ -3812,7 +3812,7 @@ let%expect_test "randomized vm_vec_add parity C vs Ox" =
     ~seed:"vm-vec-add-seed-v1"
     ~test_count:5000
     c_vm_vec_add
-    Ox_math.vm_vec_add;
+    (fun a b -> Ox_math.vm_vec_add ~a ~b);
   [%expect {| vm_vec_add random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_sub parity C vs Ox" =
@@ -3821,7 +3821,7 @@ let%expect_test "randomized vm_vec_sub parity C vs Ox" =
     ~seed:"vm-vec-sub-seed-v1"
     ~test_count:5000
     c_vm_vec_sub
-    Ox_math.vm_vec_sub;
+    (fun a b -> Ox_math.vm_vec_sub ~a ~b);
   [%expect {| vm_vec_sub random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_add2 parity C vs Ox" =
@@ -3830,7 +3830,7 @@ let%expect_test "randomized vm_vec_add2 parity C vs Ox" =
     ~seed:"vm-vec-add2-seed-v1"
     ~test_count:5000
     c_vm_vec_add2
-    Ox_math.vm_vec_add2;
+    (fun a b -> Ox_math.vm_vec_add2 ~a ~b);
   [%expect {| vm_vec_add2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_sub2 parity C vs Ox" =
@@ -3839,7 +3839,7 @@ let%expect_test "randomized vm_vec_sub2 parity C vs Ox" =
     ~seed:"vm-vec-sub2-seed-v1"
     ~test_count:5000
     c_vm_vec_sub2
-    Ox_math.vm_vec_sub2;
+    (fun a b -> Ox_math.vm_vec_sub2 ~a ~b);
   [%expect {| vm_vec_sub2 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_avg parity C vs Ox" =
@@ -3848,7 +3848,7 @@ let%expect_test "randomized vm_vec_avg parity C vs Ox" =
     ~seed:"vm-vec-avg-seed-v1"
     ~test_count:5000
     c_vm_vec_avg
-    Ox_math.vm_vec_avg;
+    (fun a b -> Ox_math.vm_vec_avg ~a ~b);
   [%expect {| vm_vec_avg random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_avg4 parity C vs Ox" =
@@ -3857,7 +3857,7 @@ let%expect_test "randomized vm_vec_avg4 parity C vs Ox" =
     ~seed:"vm-vec-avg4-seed-v1"
     ~test_count:5000
     c_vm_vec_avg4
-    Ox_math.vm_vec_avg4;
+    (fun a b c d -> Ox_math.vm_vec_avg4 ~a ~b ~c ~d);
   [%expect {| vm_vec_avg4 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_copy_scale parity C vs Ox" =
@@ -3866,7 +3866,7 @@ let%expect_test "randomized vm_vec_copy_scale parity C vs Ox" =
     ~seed:"vm-vec-copy-scale-seed-v1"
     ~test_count:5000
     c_vm_vec_copy_scale
-    Ox_math.vm_vec_copy_scale;
+    (fun v k -> Ox_math.vm_vec_copy_scale ~v ~k);
   [%expect {| vm_vec_copy_scale random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_scale parity C vs Ox" =
@@ -3875,7 +3875,7 @@ let%expect_test "randomized vm_vec_scale parity C vs Ox" =
     ~seed:"vm-vec-scale-seed-v1"
     ~test_count:5000
     c_vm_vec_scale
-    Ox_math.vm_vec_scale;
+    (fun v k -> Ox_math.vm_vec_scale ~v ~k);
   [%expect {| vm_vec_scale random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_mag parity C vs Ox" =
@@ -3885,7 +3885,7 @@ let%expect_test "randomized vm_vec_mag parity C vs Ox" =
     ~test_count:5000
     ~gen:vec3_mag_safe_gen
     c_vm_vec_mag
-    Ox_math.vm_vec_mag;
+    (fun v -> Ox_math.vm_vec_mag ~v);
   [%expect {| vm_vec_mag random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_mag_quick parity C vs Ox" =
@@ -3894,7 +3894,7 @@ let%expect_test "randomized vm_vec_mag_quick parity C vs Ox" =
     ~seed:"vm-vec-mag-quick-seed-v1"
     ~test_count:5000
     c_vm_vec_mag_quick
-    Ox_math.vm_vec_mag_quick;
+    (fun v -> Ox_math.vm_vec_mag_quick ~v);
   [%expect {| vm_vec_mag_quick random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_dist parity C vs Ox" =
@@ -3904,7 +3904,7 @@ let%expect_test "randomized vm_vec_dist parity C vs Ox" =
     ~test_count:5000
     ~gen:(Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
     c_vm_vec_dist
-    Ox_math.vm_vec_dist;
+    (fun a b -> Ox_math.vm_vec_dist ~a ~b);
   [%expect {| vm_vec_dist random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_dist_quick parity C vs Ox" =
@@ -3913,7 +3913,7 @@ let%expect_test "randomized vm_vec_dist_quick parity C vs Ox" =
     ~seed:"vm-vec-dist-quick-seed-v1"
     ~test_count:5000
     c_vm_vec_dist_quick
-    Ox_math.vm_vec_dist_quick;
+    (fun a b -> Ox_math.vm_vec_dist_quick ~a ~b);
   [%expect {| vm_vec_dist_quick random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_dotprod parity C vs Ox" =
@@ -3922,7 +3922,7 @@ let%expect_test "randomized vm_vec_dotprod parity C vs Ox" =
     ~seed:"vm-vec-dotprod-seed-v1"
     ~test_count:5000
     c_vm_vec_dotprod
-    Ox_math.vm_vec_dotprod;
+    (fun a b -> Ox_math.vm_vec_dotprod ~a ~b);
   [%expect {| vm_vec_dotprod random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_dot3 parity C vs Ox" =
@@ -3931,7 +3931,7 @@ let%expect_test "randomized vm_vec_dot3 parity C vs Ox" =
     ~seed:"vm-vec-dot3-seed-v1"
     ~test_count:5000
     c_vm_vec_dot3
-    (fun (x, y, z) (vx, vy, vz) -> Ox_math.vm_vec_dot3 x y z (vx, vy, vz));
+    (fun (x, y, z) (vx, vy, vz) -> Ox_math.vm_vec_dot3 ~x ~y ~z ~v:(vx, vy, vz));
   [%expect {| vm_vec_dot3 random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_crossprod parity C vs Ox" =
@@ -3940,7 +3940,7 @@ let%expect_test "randomized vm_vec_crossprod parity C vs Ox" =
     ~seed:"vm-vec-crossprod-seed-v1"
     ~test_count:5000
     c_vm_vec_crossprod
-    Ox_math.vm_vec_crossprod;
+    (fun a b -> Ox_math.vm_vec_crossprod ~a ~b);
   [%expect {| vm_vec_crossprod random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_copy_normalize parity C vs Ox" =
@@ -3950,7 +3950,7 @@ let%expect_test "randomized vm_vec_copy_normalize parity C vs Ox" =
     ~test_count:5000
     ~gen:vec3_mag_safe_gen
     c_vm_vec_copy_normalize
-    Ox_math.vm_vec_copy_normalize;
+    (fun v -> Ox_math.vm_vec_copy_normalize ~v);
   [%expect {| vm_vec_copy_normalize random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_normalize parity C vs Ox" =
@@ -3960,7 +3960,7 @@ let%expect_test "randomized vm_vec_normalize parity C vs Ox" =
     ~test_count:5000
     ~gen:vec3_mag_safe_gen
     c_vm_vec_normalize
-    Ox_math.vm_vec_normalize;
+    (fun v -> Ox_math.vm_vec_normalize ~v);
   [%expect {| vm_vec_normalize random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_normalized_dir parity C vs Ox" =
@@ -3970,7 +3970,7 @@ let%expect_test "randomized vm_vec_normalized_dir parity C vs Ox" =
     ~test_count:5000
     ~gen:(Quickcheck.Generator.both vec3_mag_safe_gen vec3_mag_safe_gen)
     c_vm_vec_normalized_dir
-    Ox_math.vm_vec_normalized_dir;
+    (fun v_end v_start -> Ox_math.vm_vec_normalized_dir ~v_end ~v_start);
   [%expect {| vm_vec_normalized_dir random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_copy_normalize_quick parity C vs Ox" =
@@ -3979,7 +3979,7 @@ let%expect_test "randomized vm_vec_copy_normalize_quick parity C vs Ox" =
     ~seed:"vm-vec-copy-normalize-quick-seed-v1"
     ~test_count:5000
     c_vm_vec_copy_normalize_quick
-    Ox_math.vm_vec_copy_normalize_quick;
+    (fun v -> Ox_math.vm_vec_copy_normalize_quick ~v);
   [%expect {| vm_vec_copy_normalize_quick random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_normalize_quick parity C vs Ox" =
@@ -3988,7 +3988,7 @@ let%expect_test "randomized vm_vec_normalize_quick parity C vs Ox" =
     ~seed:"vm-vec-normalize-quick-seed-v1"
     ~test_count:5000
     c_vm_vec_normalize_quick
-    Ox_math.vm_vec_normalize_quick;
+    (fun v -> Ox_math.vm_vec_normalize_quick ~v);
   [%expect {| vm_vec_normalize_quick random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_normalized_dir_quick parity C vs Ox" =
@@ -3997,7 +3997,7 @@ let%expect_test "randomized vm_vec_normalized_dir_quick parity C vs Ox" =
     ~seed:"vm-vec-normalized-dir-quick-seed-v1"
     ~test_count:5000
     c_vm_vec_normalized_dir_quick
-    Ox_math.vm_vec_normalized_dir_quick;
+    (fun v_end v_start -> Ox_math.vm_vec_normalized_dir_quick ~v_end ~v_start);
   [%expect {| vm_vec_normalized_dir_quick random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_make parity C vs Ox" =
@@ -4007,7 +4007,7 @@ let%expect_test "randomized vm_vec_make parity C vs Ox" =
     ~test_count:5000
     vec3_gen
     c_vm_vec_make
-    Ox_math.vm_vec_make;
+    (fun x y z -> Ox_math.vm_vec_make ~x ~y ~z);
   [%expect {| vm_vec_make random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_check_vec parity C vs Ox" =
@@ -4017,7 +4017,7 @@ let%expect_test "randomized vm_check_vec parity C vs Ox" =
     ~test_count:5000
     vec3_mag_safe_gen
     c_vm_check_vec
-    (fun x y z -> Ox_math.check_vec (x, y, z));
+    (fun x y z -> Ox_math.check_vec ~v:(x, y, z));
   [%expect {| vm_check_vec random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_angvec_make parity C vs Ox" =
@@ -4027,7 +4027,7 @@ let%expect_test "randomized vm_angvec_make parity C vs Ox" =
     ~test_count:5000
     ang3_gen
     c_vm_angvec_make
-    Ox_math.vm_angvec_make;
+    (fun p b h -> Ox_math.vm_angvec_make ~p ~b ~h);
   [%expect {| vm_angvec_make random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_dist_to_plane parity C vs Ox" =
@@ -4036,7 +4036,7 @@ let%expect_test "randomized vm_dist_to_plane parity C vs Ox" =
     ~seed:"vm-dist-to-plane-seed-v1"
     ~test_count:5000
     c_vm_dist_to_plane
-    Ox_math.vm_dist_to_plane;
+    (fun checkp norm planep -> Ox_math.vm_dist_to_plane ~checkp ~norm ~planep);
   [%expect {| vm_dist_to_plane random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_perp parity C vs Ox" =
@@ -4045,7 +4045,7 @@ let%expect_test "randomized vm_vec_perp parity C vs Ox" =
     ~seed:"vm-vec-perp-seed-v1"
     ~test_count:5000
     c_vm_vec_perp
-    Ox_math.vm_vec_perp;
+    (fun p0 p1 p2 -> Ox_math.vm_vec_perp ~p0 ~p1 ~p2);
   [%expect {| vm_vec_perp random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_normal parity C vs Ox" =
@@ -4054,7 +4054,7 @@ let%expect_test "randomized vm_vec_normal parity C vs Ox" =
     ~seed:"vm-vec-normal-seed-v1"
     ~test_count:5000
     c_vm_vec_normal
-    Ox_math.vm_vec_normal;
+    (fun p0 p1 p2 -> Ox_math.vm_vec_normal ~p0 ~p1 ~p2);
   [%expect {| vm_vec_normal random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_delta_ang_norm parity C vs Ox" =
@@ -4063,7 +4063,7 @@ let%expect_test "randomized vm_vec_delta_ang_norm parity C vs Ox" =
     ~seed:"vm-vec-delta-ang-norm-seed-v1"
     ~test_count:5000
     c_vm_vec_delta_ang_norm
-    Ox_math.vm_vec_delta_ang_norm;
+    (fun v0 v1 fvec -> Ox_math.vm_vec_delta_ang_norm ~v0 ~v1 ~fvec);
   [%expect {| vm_vec_delta_ang_norm random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_delta_ang parity C vs Ox" =
@@ -4072,7 +4072,7 @@ let%expect_test "randomized vm_vec_delta_ang parity C vs Ox" =
     ~seed:"vm-vec-delta-ang-seed-v1"
     ~test_count:5000
     c_vm_vec_delta_ang
-    Ox_math.vm_vec_delta_ang;
+    (fun v0 v1 fvec -> Ox_math.vm_vec_delta_ang ~v0 ~v1 ~fvec);
   [%expect {| vm_vec_delta_ang random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_extract_angles_vector_normalized parity C vs Ox" =
@@ -4082,7 +4082,7 @@ let%expect_test "randomized vm_extract_angles_vector_normalized parity C vs Ox" 
     ~test_count:5000
     vec3_gen
     c_vm_extract_angles_vector_normalized
-    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized (x, y, z));
+    (fun x y z -> Ox_math.vm_extract_angles_vector_normalized ~v:(x, y, z));
   [%expect {| vm_extract_angles_vector_normalized random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_extract_angles_vector parity C vs Ox" =
@@ -4091,7 +4091,7 @@ let%expect_test "randomized vm_extract_angles_vector parity C vs Ox" =
     ~seed:"vm-extract-angles-vector-seed-v1"
     ~test_count:5000
     c_vm_extract_angles_vector
-    Ox_math.vm_extract_angles_vector;
+    (fun angles v -> Ox_math.vm_extract_angles_vector ~angles ~v);
   [%expect {| vm_extract_angles_vector random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_extract_angles_matrix parity C vs Ox" =
@@ -4100,7 +4100,7 @@ let%expect_test "randomized vm_extract_angles_matrix parity C vs Ox" =
     ~seed:"vm-extract-angles-matrix-seed-v1"
     ~test_count:5000
     c_vm_extract_angles_matrix
-    Ox_math.vm_extract_angles_matrix;
+    (fun m -> Ox_math.vm_extract_angles_matrix ~m);
   [%expect {| vm_extract_angles_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
@@ -4109,7 +4109,7 @@ let%expect_test "randomized vm_vec_rotate parity C vs Ox" =
     ~seed:"vm-vec-rotate-seed-v1"
     ~test_count:5000
     c_vm_vec_rotate
-    Ox_math.vm_vec_rotate;
+    (fun src m -> Ox_math.vm_vec_rotate ~src ~m);
   [%expect {| vm_vec_rotate random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_transpose_matrix parity C vs Ox" =
@@ -4118,7 +4118,7 @@ let%expect_test "randomized vm_transpose_matrix parity C vs Ox" =
     ~seed:"vm-transpose-matrix-seed-v1"
     ~test_count:5000
     c_vm_transpose_matrix
-    Ox_math.vm_transpose_matrix;
+    (fun m -> Ox_math.vm_transpose_matrix ~m);
   [%expect {| vm_transpose_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_copy_transpose_matrix parity C vs Ox" =
@@ -4127,7 +4127,7 @@ let%expect_test "randomized vm_copy_transpose_matrix parity C vs Ox" =
     ~seed:"vm-copy-transpose-matrix-seed-v1"
     ~test_count:5000
     c_vm_copy_transpose_matrix
-    Ox_math.vm_copy_transpose_matrix;
+    (fun m -> Ox_math.vm_copy_transpose_matrix ~m);
   [%expect {| vm_copy_transpose_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_matrix_x_matrix parity C vs Ox" =
@@ -4136,7 +4136,7 @@ let%expect_test "randomized vm_matrix_x_matrix parity C vs Ox" =
     ~seed:"vm-matrix-x-matrix-seed-v1"
     ~test_count:5000
     c_vm_matrix_x_matrix
-    Ox_math.vm_matrix_x_matrix;
+    (fun a b -> Ox_math.vm_matrix_x_matrix ~a ~b);
   [%expect {| vm_matrix_x_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vector_2_matrix parity C vs Ox" =
@@ -4146,7 +4146,7 @@ let%expect_test "randomized vm_vector_2_matrix parity C vs Ox" =
     ~test_count:5000
     ~gen:vec3_with_optional_axes_gen
     c_vm_vector_2_matrix
-    Ox_math.vm_vector_2_matrix;
+    (fun fvec uvec rvec -> Ox_math.vm_vector_2_matrix ~fvec ~uvec ~rvec);
   [%expect {| vm_vector_2_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vector_2_matrix_norm parity C vs Ox" =
@@ -4156,7 +4156,7 @@ let%expect_test "randomized vm_vector_2_matrix_norm parity C vs Ox" =
     ~test_count:5000
     ~gen:vec3_with_optional_axes_gen
     c_vm_vector_2_matrix_norm
-    Ox_math.vm_vector_2_matrix_norm;
+    (fun fvec uvec rvec -> Ox_math.vm_vector_2_matrix_norm ~fvec ~uvec ~rvec);
   [%expect {| vm_vector_2_matrix_norm random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized sincos_2_matrix parity C vs Ox" =
@@ -4165,7 +4165,7 @@ let%expect_test "randomized sincos_2_matrix parity C vs Ox" =
     ~seed:"sincos-2-matrix-seed-v1"
     ~test_count:5000
     c_sincos_2_matrix
-    Ox_math.sincos_2_matrix;
+    (fun sinp cosp sinb cosb sinh cosh -> Ox_math.sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh);
   [%expect {| sincos_2_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_angles_2_matrix parity C vs Ox" =
@@ -4174,7 +4174,7 @@ let%expect_test "randomized vm_angles_2_matrix parity C vs Ox" =
     ~seed:"vm-angles-2-matrix-seed-v1"
     ~test_count:5000
     c_vm_angles_2_matrix
-    Ox_math.vm_angles_2_matrix;
+    (fun v -> Ox_math.vm_angles_2_matrix ~v);
   [%expect {| vm_angles_2_matrix random total=5000 mismatches=0 |}]
 
 let%expect_test "randomized vm_vec_ang_2_matrix parity C vs Ox" =
@@ -4183,7 +4183,7 @@ let%expect_test "randomized vm_vec_ang_2_matrix parity C vs Ox" =
     ~seed:"vm-vec-ang-2-matrix-seed-v1"
     ~test_count:5000
     c_vm_vec_ang_2_matrix
-    Ox_math.vm_vec_ang_2_matrix;
+    (fun v a -> Ox_math.vm_vec_ang_2_matrix ~v ~a);
   [%expect {| vm_vec_ang_2_matrix random total=5000 mismatches=0 |}]
 
 (* ---- 3D pipeline parity tests ---- *)
@@ -5383,7 +5383,7 @@ let%expect_test "calc_det_value parity C vs Ox" =
   ] in
   List.iter cases ~f:(fun ((rx, ry, rz), (ux, uy, uz), (fx, fy, fz)) ->
     let c_res = c_calc_det_value rx ry rz ux uy uz fx fy fz in
-    let ox_res = Ox_fvi.calc_det_value (rx, ry, rz) (ux, uy, uz) (fx, fy, fz) in
+    let ox_res = Ox_fvi.calc_det_value ~rvec:(rx, ry, rz) ~uvec:(ux, uy, uz) ~fvec:(fx, fy, fz) in
     printf "calc_det_value c=%d ox=%d eq=%b\n" c_res ox_res (c_res = ox_res));
   [%expect {|
     calc_det_value c=65536 ox=65536 eq=true
@@ -5404,7 +5404,7 @@ let%expect_test "randomized calc_det_value parity C vs Ox" =
   |> Sequence.iter ~f:(fun ((rx, ry, rz), (ux, uy, uz), (fx, fy, fz)) ->
          incr total;
          let c_res = c_calc_det_value rx ry rz ux uy uz fx fy fz in
-         let ox_res = Ox_fvi.calc_det_value (rx, ry, rz) (ux, uy, uz) (fx, fy, fz) in
+         let ox_res = Ox_fvi.calc_det_value ~rvec:(rx, ry, rz) ~uvec:(ux, uy, uz) ~fvec:(fx, fy, fz) in
          if c_res <> ox_res then (
            incr mismatches;
            if Option.is_none !first_mismatch then
@@ -5432,7 +5432,7 @@ let%expect_test "randomized check_line_to_line parity C vs Ox" =
          let arr = [| p1x; p1y; p1z; v1x; v1y; v1z; p2x; p2y; p2z; v2x; v2y; v2z |] in
          let (c_ok, c_t1, c_t2) = c_check_line_to_line arr in
          let (ox_ok_b, ox_t1, ox_t2) = Ox_fvi.check_line_to_line
-           (p1x, p1y, p1z) (v1x, v1y, v1z) (p2x, p2y, p2z) (v2x, v2y, v2z) in
+           ~p1:(p1x, p1y, p1z) ~v1:(v1x, v1y, v1z) ~p2:(p2x, p2y, p2z) ~v2:(v2x, v2y, v2z) in
          let ox_ok = if ox_ok_b then 1 else 0 in
          let eq = c_ok = ox_ok && (c_ok = 0 || (c_t1 = ox_t1 && c_t2 = ox_t2)) in
          if not eq then (
@@ -5913,7 +5913,7 @@ let%expect_test "randomized do_physics_sim_rot parity C vs Ox" =
     let p = Random.State.int state 0x10000 in
     let b = Random.State.int state 0x10000 in
     let h = Random.State.int state 0x10000 in
-    Ox_math.vm_angles_2_matrix (p, b, h)
+    Ox_math.vm_angles_2_matrix ~v:(p, b, h)
   in
   for _ = 1 to 5000 do
     let rvx = gen_fix () in
@@ -6068,7 +6068,7 @@ let%expect_test "randomized calc_gun_point parity C vs Ox" =
     let p = gen_angle () in
     let b = gen_angle () in
     let h = gen_angle () in
-    Ox_math.vm_angles_2_matrix (p, b, h)
+    Ox_math.vm_angles_2_matrix ~v:(p, b, h)
   in
   for _ = 1 to 5000 do
     let gun_point = (gen_fix (), gen_fix (), gen_fix ()) in
@@ -6945,10 +6945,10 @@ let%expect_test "randomized do_physics_align_object parity C vs Ox" =
       let x = gen () in
       let y = gen () in
       let z = gen () in
-      let mag = Ox_math.vm_vec_mag_quick (x, y, z) in
+      let mag = Ox_math.vm_vec_mag_quick ~v:(x, y, z) in
       if mag > 0 then
-        let s = Ox_math.fixdiv f1_0 mag in
-        (Ox_math.fixmul x s, Ox_math.fixmul y s, Ox_math.fixmul z s)
+        let s = Ox_math.fixdiv ~a:f1_0 ~b:mag in
+        (Ox_math.fixmul ~a:x ~b:s, Ox_math.fixmul ~a:y ~b:s, Ox_math.fixmul ~a:z ~b:s)
       else (0, f1_0, 0)
     in
     let side_normals0 = Array.init 6 ~f:(fun _ -> rand_normal ()) in
@@ -6957,7 +6957,7 @@ let%expect_test "randomized do_physics_align_object parity C vs Ox" =
       if Random.State.int state 32768 > 16384 then 2 else 1) in
     (* Generate a plausible orientation matrix *)
     let fvec = rand_normal () in
-    let orient = Ox_math.vm_vector_2_matrix fvec None None in
+    let orient = Ox_math.vm_vector_2_matrix ~fvec ~uvec:None ~rvec:None in
     let turnroll = Random.State.int state 0x8000 - 0x4000 in
     let floor_levelling = Random.State.int state 32768 > 24000 in
     let frame_time = 500 + Random.State.int state 3000 in
@@ -7312,7 +7312,7 @@ let%expect_test "ai_behavior_to_mode_d1: all behaviors" =
   let cases = [0x80; 0x81; 0x82; 0x83; 0x84; 0x85; 0xFF] in
   List.iter cases ~f:(fun b ->
     let c = c_ai_behavior_to_mode_d1 b in
-    let o = Ox_ai.ai_behavior_to_mode_d1 b in
+    let o = Ox_ai.ai_behavior_to_mode_d1 ~behavior:b in
     printf "beh=0x%02x C=%d Ox=%d %s\n" b c o
       (if c = o then "OK" else "MISMATCH"));
   [%expect {|
@@ -7332,7 +7332,7 @@ let%expect_test "ai_behavior_to_mode_d2: all behaviors" =
   let cases = [0x80; 0x81; 0x82; 0x83; 0x84; 0x85; 0x86; 0xFF] in
   List.iter cases ~f:(fun b ->
     let c = c_ai_behavior_to_mode_d2 b in
-    let o = Ox_ai.ai_behavior_to_mode_d2 b in
+    let o = Ox_ai.ai_behavior_to_mode_d2 ~behavior:b in
     printf "beh=0x%02x C=%d Ox=%d %s\n" b c o
       (if c = o then "OK" else "MISMATCH"));
   [%expect {|

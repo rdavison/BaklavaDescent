@@ -334,11 +334,11 @@ let calc_controlcen_gun_point
     ~or1 ~or2 ~or3 ~ou1 ~ou2 ~ou3 ~of1 ~of2 ~of3
     ~opx ~opy ~opz =
   let (tr1, tr2, tr3), (tu1, tu2, tu3), (tf1, tf2, tf3) =
-    Ox_math.vm_transpose_matrix ((or1, or2, or3), (ou1, ou2, ou3), (of1, of2, of3))
+    Ox_math.vm_transpose_matrix ~m:((or1, or2, or3), (ou1, ou2, ou3), (of1, of2, of3))
   in
-  let gpx, gpy, gpz = Ox_math.vm_vec_rotate (glpx, glpy, glpz) ((tr1, tr2, tr3), (tu1, tu2, tu3), (tf1, tf2, tf3)) in
-  let gpx, gpy, gpz = Ox_math.vm_vec_add2 (gpx, gpy, gpz) (opx, opy, opz) in
-  let gdx, gdy, gdz = Ox_math.vm_vec_rotate (gldx, gldy, gldz) ((tr1, tr2, tr3), (tu1, tu2, tu3), (tf1, tf2, tf3)) in
+  let gpx, gpy, gpz = Ox_math.vm_vec_rotate ~src:(glpx, glpy, glpz) ~m:((tr1, tr2, tr3), (tu1, tu2, tu3), (tf1, tf2, tf3)) in
+  let gpx, gpy, gpz = Ox_math.vm_vec_add2 ~a:(gpx, gpy, gpz) ~b:(opx, opy, opz) in
+  let gdx, gdy, gdz = Ox_math.vm_vec_rotate ~src:(gldx, gldy, gldz) ~m:((tr1, tr2, tr3), (tu1, tu2, tu3), (tf1, tf2, tf3)) in
   (gpx, gpy, gpz, gdx, gdy, gdz)
 
 (* ── chase_angles (shared D1/D2) ─────────────────────── *)
@@ -363,7 +363,7 @@ let chase_angles ~cur_p ~cur_b ~cur_h ~desired_p ~desired_b ~desired_h ~frame_ti
     else
       (cur_p, cur_b, cur_h, dp, db, dh)
   in
-  let frame_turn = Ox_math.fixmul frame_time chase_turn_rate in
+  let frame_turn = Ox_math.fixmul ~a:frame_time ~b:chase_turn_rate in
   let mask = ref 0 in
   let new_p =
     if abs dp < frame_turn then begin mask := !mask lor 1; desired_p end
@@ -402,12 +402,12 @@ let calc_best_gun packed =
     let px = packed.(pos_off + 3*i) in
     let py = packed.(pos_off + 3*i + 1) in
     let pz = packed.(pos_off + 3*i + 2) in
-    let gvx, gvy, gvz = Ox_math.vm_vec_sub (ox, oy, oz) (px, py, pz) in
-    let _, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize_quick (gvx, gvy, gvz) in
+    let gvx, gvy, gvz = Ox_math.vm_vec_sub ~a:(ox, oy, oz) ~b:(px, py, pz) in
+    let _, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize_quick ~v:(gvx, gvy, gvz) in
     let dx = packed.(dir_off + 3*i) in
     let dy = packed.(dir_off + 3*i + 1) in
     let dz = packed.(dir_off + 3*i + 2) in
-    let dot = Ox_math.vm_vec_dotprod (dx, dy, dz) (nx, ny, nz) in
+    let dot = Ox_math.vm_vec_dotprod ~a:(dx, dy, dz) ~b:(nx, ny, nz) in
     if dot > !best_dot then begin
       best_dot := dot;
       best_gun := i

@@ -45,8 +45,8 @@ let checkmuldiv a b c =
 (* Rotate a point from world space to view space.
    Returns (rotated_vec, clipping_codes). *)
 let g3_rotate_point ~view_pos ~view_matrix src =
-  let tempv = Ox_math.vm_vec_sub src view_pos in
-  let rotated = Ox_math.vm_vec_rotate tempv view_matrix in
+  let tempv = Ox_math.vm_vec_sub ~a:src ~b:view_pos in
+  let rotated = Ox_math.vm_vec_rotate ~src:tempv ~m:view_matrix in
   let codes = g3_code_point rotated in
   rotated, codes
 
@@ -68,15 +68,15 @@ let g3_project_point (x, y, z) ~canv_w2 ~canv_h2 =
 
 (* Delta rotation: extract column x of view matrix scaled by dx *)
 let g3_rotate_delta_x ((r1, _, _), (u1, _, _), (f1, _, _)) dx =
-  Ox_math.fixmul r1 dx, Ox_math.fixmul u1 dx, Ox_math.fixmul f1 dx
+  Ox_math.fixmul ~a:r1 ~b:dx, Ox_math.fixmul ~a:u1 ~b:dx, Ox_math.fixmul ~a:f1 ~b:dx
 
 (* Delta rotation: extract column y of view matrix scaled by dy *)
 let g3_rotate_delta_y ((_, r2, _), (_, u2, _), (_, f2, _)) dy =
-  Ox_math.fixmul r2 dy, Ox_math.fixmul u2 dy, Ox_math.fixmul f2 dy
+  Ox_math.fixmul ~a:r2 ~b:dy, Ox_math.fixmul ~a:u2 ~b:dy, Ox_math.fixmul ~a:f2 ~b:dy
 
 (* Delta rotation: extract column z of view matrix scaled by dz *)
 let g3_rotate_delta_z ((_, _, r3), (_, _, u3), (_, _, f3)) dz =
-  Ox_math.fixmul r3 dz, Ox_math.fixmul u3 dz, Ox_math.fixmul f3 dz
+  Ox_math.fixmul ~a:r3 ~b:dz, Ox_math.fixmul ~a:u3 ~b:dz, Ox_math.fixmul ~a:f3 ~b:dz
 
 (* Calculate the depth (z in view space) of a world-space point. *)
 let g3_calc_point_depth ~view_pos:(vpx, vpy, vpz) ~view_fvec:(fx, fy, fz) (px, py, pz) =
@@ -94,15 +94,15 @@ let scale_matrix view_matrix window_scale zoom =
   let f1_0 = 0x10000 in
   let (sx, sy, sz) = window_scale in
   let msx, msy, msz =
-    if zoom <= f1_0 then sx, sy, Ox_math.fixmul sz zoom
+    if zoom <= f1_0 then sx, sy, Ox_math.fixmul ~a:sz ~b:zoom
     else
-      let s = Ox_math.fixdiv f1_0 zoom in
-      Ox_math.fixmul sx s, Ox_math.fixmul sy s, sz
+      let s = Ox_math.fixdiv ~a:f1_0 ~b:zoom in
+      Ox_math.fixmul ~a:sx ~b:s, Ox_math.fixmul ~a:sy ~b:s, sz
   in
   let (rvec, uvec, fvec) = view_matrix in
-  let scaled_rvec = Ox_math.vm_vec_scale rvec msx in
-  let scaled_uvec = Ox_math.vm_vec_scale uvec msy in
-  let scaled_fvec = Ox_math.vm_vec_scale fvec msz in
+  let scaled_rvec = Ox_math.vm_vec_scale ~v:rvec ~k:msx in
+  let scaled_uvec = Ox_math.vm_vec_scale ~v:uvec ~k:msy in
+  let scaled_fvec = Ox_math.vm_vec_scale ~v:fvec ~k:msz in
   let scaled_matrix = (scaled_rvec, scaled_uvec, scaled_fvec) in
   let matrix_scale = (msx, msy, msz) in
   scaled_matrix, matrix_scale, unscaled
@@ -116,31 +116,31 @@ let g3_point_2_vec ~canv_w2 ~canv_h2 ~matrix_scale:(msx, msy, msz) ~unscaled_mat
   let sy16 = Ox_math.wrap_i64_to_fix (Int64.of_int (Int.shift_left sy 16)) in
   let tx =
     Ox_math.fixmuldiv
-      (Ox_math.fixdiv (wrap_sub sx16 canv_w2) canv_w2)
-      msz msx
+      ~a:(Ox_math.fixdiv ~a:(wrap_sub sx16 canv_w2) ~b:canv_w2)
+      ~b:msz ~c:msx
   in
   let ty =
     Ox_math.neg_i32
       (Ox_math.fixmuldiv
-         (Ox_math.fixdiv (wrap_sub sy16 canv_h2) canv_h2)
-         msz msy)
+         ~a:(Ox_math.fixdiv ~a:(wrap_sub sy16 canv_h2) ~b:canv_h2)
+         ~b:msz ~c:msy)
   in
   let tempv = (tx, ty, f1_0) in
-  let _, norm_tempv = Ox_math.vm_vec_normalize tempv in
-  let tempm = Ox_math.vm_copy_transpose_matrix unscaled_matrix in
-  Ox_math.vm_vec_rotate norm_tempv tempm
+  let _, norm_tempv = Ox_math.vm_vec_normalize ~v:tempv in
+  let tempm = Ox_math.vm_copy_transpose_matrix ~m:unscaled_matrix in
+  Ox_math.vm_vec_rotate ~src:norm_tempv ~m:tempm
 
 (* Instance matrix push: compute new view position and matrix.
    orient=None means translation only (no rotation).
    Returns (new_view_pos, new_view_matrix). *)
 let g3_start_instance_matrix ~view_pos ~view_matrix pos orient =
-  let tempv = Ox_math.vm_vec_sub view_pos pos in
+  let tempv = Ox_math.vm_vec_sub ~a:view_pos ~b:pos in
   match orient with
   | None -> tempv, view_matrix
   | Some orient_mat ->
-    let new_view_pos = Ox_math.vm_vec_rotate tempv orient_mat in
-    let tempm2 = Ox_math.vm_copy_transpose_matrix orient_mat in
-    let new_view_matrix = Ox_math.vm_matrix_x_matrix tempm2 view_matrix in
+    let new_view_pos = Ox_math.vm_vec_rotate ~src:tempv ~m:orient_mat in
+    let tempm2 = Ox_math.vm_copy_transpose_matrix ~m:orient_mat in
+    let new_view_matrix = Ox_math.vm_matrix_x_matrix ~a:tempm2 ~b:view_matrix in
     new_view_pos, new_view_matrix
 
 (* Clip a point against one frustum plane using fixed-point interpolation.
@@ -161,9 +161,9 @@ let clip_edge ~plane_flag
   in
   let kn = wrap_sub a on_z in
   let kd = wrap_sub (wrap_sub kn b) (Ox_math.neg_i32 off_z) in
-  let psx_ratio = Ox_math.fixdiv kn kd in
-  let tmp_x = wrap_add on_x (Ox_math.fixmul (wrap_sub off_x on_x) psx_ratio) in
-  let tmp_y = wrap_add on_y (Ox_math.fixmul (wrap_sub off_y on_y) psx_ratio) in
+  let psx_ratio = Ox_math.fixdiv ~a:kn ~b:kd in
+  let tmp_x = wrap_add on_x (Ox_math.fixmul ~a:(wrap_sub off_x on_x) ~b:psx_ratio) in
+  let tmp_y = wrap_add on_y (Ox_math.fixmul ~a:(wrap_sub off_y on_y) ~b:psx_ratio) in
   let tmp_z =
     if plane_flag land (cc_off_top lor cc_off_bot) <> 0
     then tmp_y
@@ -176,14 +176,14 @@ let clip_edge ~plane_flag
   in
   let tmp_u, tmp_v, flags_with_uvs =
     if on_flags land pf_uvs <> 0 then
-      let u = wrap_add on_u (Ox_math.fixmul (wrap_sub off_u on_u) psx_ratio) in
-      let v = wrap_add on_v (Ox_math.fixmul (wrap_sub off_v on_v) psx_ratio) in
+      let u = wrap_add on_u (Ox_math.fixmul ~a:(wrap_sub off_u on_u) ~b:psx_ratio) in
+      let v = wrap_add on_v (Ox_math.fixmul ~a:(wrap_sub off_v on_v) ~b:psx_ratio) in
       u, v, pf_uvs
     else 0, 0, 0
   in
   let tmp_l, flags_with_ls =
     if on_flags land pf_ls <> 0 then
-      let l = wrap_add on_l (Ox_math.fixmul (wrap_sub off_l on_l) psx_ratio) in
+      let l = wrap_add on_l (Ox_math.fixmul ~a:(wrap_sub off_l on_l) ~b:psx_ratio) in
       l, pf_ls
     else 0, 0
   in
@@ -195,8 +195,8 @@ let clip_edge ~plane_flag
    Takes view_pos, a point on the plane (v), and the surface normal.
    Returns true if facing. *)
 let g3_check_normal_facing ~view_pos v norm =
-  let tempv = Ox_math.vm_vec_sub view_pos v in
-  Ox_math.vm_vec_dotprod tempv norm > 0
+  let tempv = Ox_math.vm_vec_sub ~a:view_pos ~b:v in
+  Ox_math.vm_vec_dotprod ~a:tempv ~b:norm > 0
 
 (* Clip a line segment against the viewing pyramid.
    Takes two endpoints (xyz + codes) and combined codes_or.
@@ -298,33 +298,33 @@ let clip_polygon ~codes_or ~codes_and points =
 (* Compute facing check from 3 rotated vertices (no explicit normal).
    Returns true if the polygon faces the viewer. *)
 let do_facing_check_computed p0 p1 p2 =
-  let tempv = Ox_math.vm_vec_perp p0 p1 p2 in
-  Ox_math.vm_vec_dotprod tempv p1 < 0
+  let tempv = Ox_math.vm_vec_perp ~p0 ~p1 ~p2 in
+  Ox_math.vm_vec_dotprod ~a:tempv ~b:p1 < 0
 
 (* Compute the 4 billboard rod corners.
    Takes bot_vec, bot_width, top_vec, top_width, matrix_scale.
    Returns (corner0, corner1, corner2, corner3, codes_and). *)
 let calc_rod_corners ~bot_vec ~bot_width ~top_vec ~top_width ~matrix_scale =
   let (msx, msy, _msz) = matrix_scale in
-  let delta_vec = Ox_math.vm_vec_sub bot_vec top_vec in
+  let delta_vec = Ox_math.vm_vec_sub ~a:bot_vec ~b:top_vec in
   let (dx, dy, dz) = delta_vec in
-  let delta_vec = (Ox_math.fixdiv dx msx, Ox_math.fixdiv dy msy, dz) in
-  let _, delta_vec = Ox_math.vm_vec_normalize delta_vec in
-  let _, top_norm = Ox_math.vm_vec_copy_normalize top_vec in
-  let rod_norm = Ox_math.vm_vec_crossprod delta_vec top_norm in
-  let _, rod_norm = Ox_math.vm_vec_normalize rod_norm in
+  let delta_vec = (Ox_math.fixdiv ~a:dx ~b:msx, Ox_math.fixdiv ~a:dy ~b:msy, dz) in
+  let _, delta_vec = Ox_math.vm_vec_normalize ~v:delta_vec in
+  let _, top_norm = Ox_math.vm_vec_copy_normalize ~v:top_vec in
+  let rod_norm = Ox_math.vm_vec_crossprod ~a:delta_vec ~b:top_norm in
+  let _, rod_norm = Ox_math.vm_vec_normalize ~v:rod_norm in
   let (rnx, rny, rnz) = rod_norm in
-  let rod_norm = (Ox_math.fixmul rnx msx, Ox_math.fixmul rny msy, rnz) in
-  let tempv_top = Ox_math.vm_vec_copy_scale rod_norm top_width in
+  let rod_norm = (Ox_math.fixmul ~a:rnx ~b:msx, Ox_math.fixmul ~a:rny ~b:msy, rnz) in
+  let tempv_top = Ox_math.vm_vec_copy_scale ~v:rod_norm ~k:top_width in
   let (tvx, tvy, _tvz) = tempv_top in
   let tempv_top = (tvx, tvy, 0) in
-  let corner0 = Ox_math.vm_vec_add top_vec tempv_top in
-  let corner1 = Ox_math.vm_vec_sub top_vec tempv_top in
-  let tempv_bot = Ox_math.vm_vec_copy_scale rod_norm bot_width in
+  let corner0 = Ox_math.vm_vec_add ~a:top_vec ~b:tempv_top in
+  let corner1 = Ox_math.vm_vec_sub ~a:top_vec ~b:tempv_top in
+  let tempv_bot = Ox_math.vm_vec_copy_scale ~v:rod_norm ~k:bot_width in
   let (bvx, bvy, _bvz) = tempv_bot in
   let tempv_bot = (bvx, bvy, 0) in
-  let corner2 = Ox_math.vm_vec_sub bot_vec tempv_bot in
-  let corner3 = Ox_math.vm_vec_add bot_vec tempv_bot in
+  let corner2 = Ox_math.vm_vec_sub ~a:bot_vec ~b:tempv_bot in
+  let corner3 = Ox_math.vm_vec_add ~a:bot_vec ~b:tempv_bot in
   let codes0 = g3_code_point corner0 in
   let codes1 = g3_code_point corner1 in
   let codes2 = g3_code_point corner2 in

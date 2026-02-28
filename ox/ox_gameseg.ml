@@ -28,7 +28,7 @@ let compute_center_point_on_side
   (v3 : vec3)
   : vec3
   =
-  Ox_math.vm_vec_avg4 v0 v1 v2 v3
+  Ox_math.vm_vec_avg4 ~a:v0 ~b:v1 ~c:v2 ~d:v3
 
 let compute_segment_center
   (v0 : vec3)
@@ -42,7 +42,7 @@ let compute_segment_center
   : vec3
   =
   let open Ox_math in
-  let s = vm_vec_add2 (vm_vec_add2 (vm_vec_add2 (vm_vec_add2 (vm_vec_add2 (vm_vec_add2 (vm_vec_add2 v0 v1) v2) v3) v4) v5) v6) v7 in
+  let s = vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:v0 ~b:v1) ~b:v2) ~b:v3) ~b:v4) ~b:v5) ~b:v6) ~b:v7 in
   let sx, sy, sz = s in
   sx / 8, sy / 8, sz / 8
 
@@ -135,15 +135,15 @@ let get_seg_masks
       let planep = vpos vertnum in
       let dist =
         if vertex_list.(4) < vertex_list.(1)
-        then Ox_math.vm_dist_to_plane (vpos vertex_list.(4)) n0 planep
-        else Ox_math.vm_dist_to_plane (vpos vertex_list.(1)) n1 planep
+        then Ox_math.vm_dist_to_plane ~checkp:(vpos vertex_list.(4)) ~norm:n0 ~planep
+        else Ox_math.vm_dist_to_plane ~checkp:(vpos vertex_list.(1)) ~norm:n1 ~planep
       in
       let side_pokes_out = dist > plane_dist_tolerance in
       let side_count = ref 0 in
       let center_count = ref 0 in
       for fn = 0 to 1 do
         let norm = if fn = 0 then n0 else n1 in
-        let d = Ox_math.vm_dist_to_plane (cpx, cpy, cpz) norm planep in
+        let d = Ox_math.vm_dist_to_plane ~checkp:(cpx, cpy, cpz) ~norm ~planep in
         if d < -plane_dist_tolerance then incr center_count;
         if d - rad < -plane_dist_tolerance
         then (
@@ -163,7 +163,7 @@ let get_seg_masks
       for i = 1 to 3 do
         if vertex_list.(i) < !vertnum then vertnum := vertex_list.(i)
       done;
-      let d = Ox_math.vm_dist_to_plane (cpx, cpy, cpz) n0 (vpos !vertnum) in
+      let d = Ox_math.vm_dist_to_plane ~checkp:(cpx, cpy, cpz) ~norm:n0 ~planep:(vpos !vertnum) in
       if d < -plane_dist_tolerance then centermask := !centermask lor !sidebit;
       if d - rad < -plane_dist_tolerance
       then (
@@ -198,14 +198,14 @@ let get_side_dists
       let planep = vpos vertnum in
       let dist =
         if vertex_list.(4) < vertex_list.(1)
-        then Ox_math.vm_dist_to_plane (vpos vertex_list.(4)) n0 planep
-        else Ox_math.vm_dist_to_plane (vpos vertex_list.(1)) n1 planep
+        then Ox_math.vm_dist_to_plane ~checkp:(vpos vertex_list.(4)) ~norm:n0 ~planep
+        else Ox_math.vm_dist_to_plane ~checkp:(vpos vertex_list.(1)) ~norm:n1 ~planep
       in
       let side_pokes_out = dist > plane_dist_tolerance in
       let center_count = ref 0 in
       for fn = 0 to 1 do
         let norm = if fn = 0 then n0 else n1 in
-        let d = Ox_math.vm_dist_to_plane (cpx, cpy, cpz) norm planep in
+        let d = Ox_math.vm_dist_to_plane ~checkp:(cpx, cpy, cpz) ~norm ~planep in
         if d < -plane_dist_tolerance
         then (
           incr center_count;
@@ -227,7 +227,7 @@ let get_side_dists
       for i = 1 to 3 do
         if vertex_list.(i) < !vertnum then vertnum := vertex_list.(i)
       done;
-      let d = Ox_math.vm_dist_to_plane (cpx, cpy, cpz) n0 (vpos !vertnum) in
+      let d = Ox_math.vm_dist_to_plane ~checkp:(cpx, cpy, cpz) ~norm:n0 ~planep:(vpos !vertnum) in
       if d < -plane_dist_tolerance
       then (
         mask := !mask lor !sidebit;
@@ -243,13 +243,13 @@ let extract_vector_from_segment (verts : vec3 array) start_side end_side =
   let vs = ref (0, 0, 0) in
   let ve = ref (0, 0, 0) in
   for i = 0 to 3 do
-    vs := Ox_math.vm_vec_add2 !vs verts.(sv_start.(i));
-    ve := Ox_math.vm_vec_add2 !ve verts.(sv_end.(i))
+    vs := Ox_math.vm_vec_add2 ~a:!vs ~b:verts.(sv_start.(i));
+    ve := Ox_math.vm_vec_add2 ~a:!ve ~b:verts.(sv_end.(i))
   done;
-  let diff = Ox_math.vm_vec_sub !ve !vs in
-  Ox_math.vm_vec_scale diff (0x10000 / 4)
+  let diff = Ox_math.vm_vec_sub ~a:!ve ~b:!vs in
+  Ox_math.vm_vec_scale ~v:diff ~k:(0x10000 / 4)
 
 let extract_orient_from_segment (verts : vec3 array) =
   let fvec = extract_vector_from_segment verts wfront wback in
   let uvec = extract_vector_from_segment verts wbottom wtop in
-  Ox_math.vm_vector_2_matrix fvec (Some uvec) None
+  Ox_math.vm_vector_2_matrix ~fvec ~uvec:(Some uvec) ~rvec:None

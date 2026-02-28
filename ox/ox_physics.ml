@@ -30,10 +30,10 @@ let physics_turn_towards_vector ~goal ~fvec ~rate ~is_morph ~cur_rotvel =
   else
     let rate = if is_morph then rate * 2 else rate in
     let dest_p, _dest_b, dest_h =
-      Ox_math.vm_extract_angles_vector (0, 0, 0) goal
+      Ox_math.vm_extract_angles_vector ~angles:(0, 0, 0) ~v:goal
     in
     let cur_p, _cur_b, cur_h =
-      Ox_math.vm_extract_angles_vector (0, 0, 0) fvec
+      Ox_math.vm_extract_angles_vector ~angles:(0, 0, 0) ~v:fvec
     in
     let delta_p = dest_p - cur_p in
     let delta_h = dest_h - cur_h in
@@ -48,8 +48,8 @@ let physics_turn_towards_vector ~goal ~fvec ~rate ~is_morph ~cur_rotvel =
       else if delta_h < -(f1_0 / 2) then dest_h - cur_h + f1_0
       else delta_h
     in
-    let delta_p = Ox_math.fixdiv delta_p rate in
-    let delta_h = Ox_math.fixdiv delta_h rate in
+    let delta_p = Ox_math.fixdiv ~a:delta_p ~b:rate in
+    let delta_h = Ox_math.fixdiv ~a:delta_h ~b:rate in
     (* Amplify small deltas *)
     let delta_p = if Int.abs delta_p < f1_0 / 16 then delta_p * 4 else delta_p in
     let delta_h = if Int.abs delta_h < f1_0 / 16 then delta_h * 4 else delta_h in
@@ -72,7 +72,7 @@ let pf_free_spinning = 0x100
    C original: physics.cpp check_and_fix_matrix *)
 let check_and_fix_matrix ~orient =
   let ((_rx, _ry, _rz), (ux, uy, uz), (fx, fy, fz)) = orient in
-  Ox_math.vm_vector_2_matrix (fx, fy, fz) (Some (ux, uy, uz)) None
+  Ox_math.vm_vector_2_matrix ~fvec:(fx, fy, fz) ~uvec:(Some (ux, uy, uz)) ~rvec:None
 
 (* Compute new turnroll based on rotational velocity.
    C original: physics.cpp set_object_turnroll
@@ -86,10 +86,10 @@ let check_and_fix_matrix ~orient =
 let set_object_turnroll ~turnroll ~rotvel_y ~frame_time =
   (* C casts to fixang (int16_t) *)
   let fixang v = Ox_math.wrap_i64_to_fixang (Int64.of_int v) in
-  let desired_bank = fixang (- Ox_math.fixmul rotvel_y turnroll_scale) in
+  let desired_bank = fixang (- Ox_math.fixmul ~a:rotvel_y ~b:turnroll_scale) in
   if turnroll = desired_bank then turnroll
   else
-    let max_roll = fixang (Ox_math.fixmul roll_rate frame_time) in
+    let max_roll = fixang (Ox_math.fixmul ~a:roll_rate ~b:frame_time) in
     let delta_ang = desired_bank - turnroll in
     let max_roll =
       if Int.abs delta_ang < max_roll then delta_ang
@@ -103,7 +103,7 @@ let w32 v = Ox_math.wrap_i64_to_fix (Int64.of_int v)
 
 (* Helper: scale vector by fixpoint scalar — fixmul already wraps *)
 let vec_scale (x, y, z) s =
-  (Ox_math.fixmul x s, Ox_math.fixmul y s, Ox_math.fixmul z s)
+  (Ox_math.fixmul ~a:x ~b:s, Ox_math.fixmul ~a:y ~b:s, Ox_math.fixmul ~a:z ~b:s)
 
 (* Helper: add two vectors with int32 wrapping *)
 let vec_add (ax, ay, az) (bx, by, bz) =
@@ -142,10 +142,10 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
       if drag <> 0 then begin
         let count = frame_time / ft in
         let r = frame_time mod ft in
-        let k = Ox_math.fixdiv r ft in
+        let k = Ox_math.fixdiv ~a:r ~b:ft in
         let drag_scaled = (drag * 5) / 2 in
         if flags land pf_uses_thrust <> 0 then begin
-          let accel = vec_scale rotthrust (Ox_math.fixdiv f1_0 mass) in
+          let accel = vec_scale rotthrust (Ox_math.fixdiv ~a:f1_0 ~b:mass) in
           (* Iterate count times: rotvel += accel; rotvel *= (1 - drag) *)
           let rv = ref rotvel in
           for _ = 1 to count do
@@ -153,16 +153,16 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
           done;
           (* Linear scale on remaining bit *)
           let rv = vec_scale_add2 !rv accel k in
-          vec_scale rv (f1_0 - Ox_math.fixmul k drag_scaled)
+          vec_scale rv (f1_0 - Ox_math.fixmul ~a:k ~b:drag_scaled)
         end
         else if flags land pf_free_spinning = 0 then begin
           (* No thrust, not free spinning: just apply drag *)
           let total_drag = ref f1_0 in
           for _ = 1 to count do
-            total_drag := Ox_math.fixmul !total_drag (f1_0 - drag_scaled)
+            total_drag := Ox_math.fixmul ~a:!total_drag ~b:(f1_0 - drag_scaled)
           done;
-          let total_drag = Ox_math.fixmul !total_drag
-              (f1_0 - Ox_math.fixmul k drag_scaled) in
+          let total_drag = Ox_math.fixmul ~a:!total_drag
+              ~b:(f1_0 - Ox_math.fixmul ~a:k ~b:drag_scaled) in
           vec_scale rotvel total_drag
         end
         else
@@ -174,16 +174,16 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
     (* Unrotate for bank caused by turnroll *)
     let orient =
       if turnroll <> 0 then
-        let rotmat = Ox_math.vm_angles_2_matrix (0, -turnroll, 0) in
-        Ox_math.vm_matrix_x_matrix orient rotmat
+        let rotmat = Ox_math.vm_angles_2_matrix ~v:(0, -turnroll, 0) in
+        Ox_math.vm_matrix_x_matrix ~a:orient ~b:rotmat
       else orient
     in
     (* Apply rotation: tangles = rotvel * FrameTime *)
-    let tp = Ox_math.fixmul (let (x, _, _) = rotvel in x) frame_time in
-    let th = Ox_math.fixmul (let (_, y, _) = rotvel in y) frame_time in
-    let tb = Ox_math.fixmul (let (_, _, z) = rotvel in z) frame_time in
-    let rotmat = Ox_math.vm_angles_2_matrix (tp, tb, th) in
-    let orient = Ox_math.vm_matrix_x_matrix orient rotmat in
+    let tp = Ox_math.fixmul ~a:(let (x, _, _) = rotvel in x) ~b:frame_time in
+    let th = Ox_math.fixmul ~a:(let (_, y, _) = rotvel in y) ~b:frame_time in
+    let tb = Ox_math.fixmul ~a:(let (_, _, z) = rotvel in z) ~b:frame_time in
+    let rotmat = Ox_math.vm_angles_2_matrix ~v:(tp, tb, th) in
+    let orient = Ox_math.vm_matrix_x_matrix ~a:orient ~b:rotmat in
     (* Apply turnroll update *)
     let turnroll =
       if flags land pf_turnroll <> 0 then
@@ -194,8 +194,8 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags
     (* Re-rotate for bank caused by turnroll *)
     let orient =
       if turnroll <> 0 then
-        let rotmat = Ox_math.vm_angles_2_matrix (0, turnroll, 0) in
-        Ox_math.vm_matrix_x_matrix orient rotmat
+        let rotmat = Ox_math.vm_angles_2_matrix ~v:(0, turnroll, 0) in
+        Ox_math.vm_matrix_x_matrix ~a:orient ~b:rotmat
       else orient
     in
     (* Fix matrix orthogonality *)
@@ -222,16 +222,16 @@ let calc_gun_point ~gun_point ~start_mn ~anim_angles ~offsets ~parents
   let mn = ref start_mn in
   while !mn <> 0 do
     let (ap, ab, ah) = anim_angles.(!mn) in
-    let m = Ox_math.vm_angles_2_matrix (ap, ab, ah) in
-    let m = Ox_math.vm_transpose_matrix m in
-    let tpnt = Ox_math.vm_vec_rotate !pnt m in
-    pnt := Ox_math.vm_vec_add tpnt (offsets.(!mn));
+    let m = Ox_math.vm_angles_2_matrix ~v:(ap, ab, ah) in
+    let m = Ox_math.vm_transpose_matrix ~m in
+    let tpnt = Ox_math.vm_vec_rotate ~src:!pnt ~m in
+    pnt := Ox_math.vm_vec_add ~a:tpnt ~b:(offsets.(!mn));
     mn := parents.(!mn)
   done;
   (* Instance for the entire object *)
-  let m = Ox_math.vm_transpose_matrix orient in
-  let rotated = Ox_math.vm_vec_rotate !pnt m in
-  Ox_math.vm_vec_add rotated pos
+  let m = Ox_math.vm_transpose_matrix ~m:orient in
+  let rotated = Ox_math.vm_vec_rotate ~src:!pnt ~m in
+  Ox_math.vm_vec_add ~a:rotated ~b:pos
 
 (* Apply instantaneous force to object velocity.
    C original: physics.cpp phys_apply_force
@@ -240,8 +240,8 @@ let calc_gun_point ~gun_point ~start_mn ~anim_angles ~offsets ~parents
 let phys_apply_force ~velocity ~force_vec ~mass =
   if mass = 0 then velocity
   else
-    let scale = Ox_math.fixdiv f1_0 mass in
-    Ox_math.vm_vec_scale_add2 velocity force_vec scale
+    let scale = Ox_math.fixdiv ~a:f1_0 ~b:mass in
+    Ox_math.vm_vec_scale_add2 ~dest:velocity ~src:force_vec ~k:scale
 
 (* Compute turning rate for rotational whack and apply turn.
    C original: physics.cpp phys_apply_rot (D1 version)
@@ -257,7 +257,7 @@ let phys_apply_force ~velocity ~force_vec ~mass =
    Returns: (new_rotvel, set_skip_ai) where set_skip_ai indicates
    that SKIP_AI_COUNT should be set to 2 on the C side. *)
 let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
-  let vecmag = Ox_math.vm_vec_mag force_vec / 8 in
+  let vecmag = Ox_math.vm_vec_mag ~v:force_vec / 8 in
   if vecmag < f1_0 / 256 then
     let rate = 4 * f1_0 in
     let new_rv = physics_turn_towards_vector
@@ -269,7 +269,7 @@ let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
         ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel in
     (new_rv, false)
   else
-    let rate = Ox_math.fixdiv mass vecmag in
+    let rate = Ox_math.fixdiv ~a:mass ~b:vecmag in
     let rate =
       if is_robot then max rate (f1_0 / 4)
       else max rate (f1_0 / 2)
@@ -296,12 +296,12 @@ let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
 let ai_turn_towards_vector ~goal ~fvec ~rvec ~rate ~frame_time
     ~seismic_mag ~robot_mass ~rand_vec =
   let new_fvec =
-    let dot = Ox_math.vm_vec_dotprod goal fvec in
+    let dot = Ox_math.vm_vec_dotprod ~a:goal ~b:fvec in
     if dot < (f1_0 - frame_time / 2) then
-      let new_scale = Ox_math.fixdiv (frame_time * 1) rate in
-      let scaled = Ox_math.vm_vec_scale goal new_scale in
-      let combined = Ox_math.vm_vec_add scaled fvec in
-      let (mag, normalized) = Ox_math.vm_vec_normalize_quick combined in
+      let new_scale = Ox_math.fixdiv ~a:(frame_time * 1) ~b:rate in
+      let scaled = Ox_math.vm_vec_scale ~v:goal ~k:new_scale in
+      let combined = Ox_math.vm_vec_add ~a:scaled ~b:fvec in
+      let (mag, normalized) = Ox_math.vm_vec_normalize_quick ~v:combined in
       if mag < f1_0 / 256 then goal
       else normalized
     else goal
@@ -309,11 +309,11 @@ let ai_turn_towards_vector ~goal ~fvec ~rvec ~rate ~frame_time
   (* D2 seismic tremor perturbation *)
   let new_fvec =
     if seismic_mag <> 0 then
-      let scale = Ox_math.fixdiv (2 * seismic_mag) robot_mass in
-      Ox_math.vm_vec_scale_add2 new_fvec rand_vec scale
+      let scale = Ox_math.fixdiv ~a:(2 * seismic_mag) ~b:robot_mass in
+      Ox_math.vm_vec_scale_add2 ~dest:new_fvec ~src:rand_vec ~k:scale
     else new_fvec
   in
-  Ox_math.vm_vector_2_matrix new_fvec None (Some rvec)
+  Ox_math.vm_vector_2_matrix ~fvec:new_fvec ~uvec:None ~rvec:(Some rvec)
 
 (* Compute thrust to maintain current velocity under drag.
    C original: physics.cpp set_thrust_from_velocity
@@ -326,8 +326,8 @@ let ai_turn_towards_vector ~goal ~fvec ~rvec ~rate ~frame_time
    Returns: thrust vector (vec3)
    Formula: k = mass * drag / (F1_0 - drag); thrust = velocity * k *)
 let set_thrust_from_velocity ~mass ~drag ~velocity =
-  let k = Ox_math.fixmuldiv mass drag (f1_0 - drag) in
-  Ox_math.vm_vec_copy_scale velocity k
+  let k = Ox_math.fixmuldiv ~a:mass ~b:drag ~c:(f1_0 - drag) in
+  Ox_math.vm_vec_copy_scale ~v:velocity ~k
 
 (* AI movement: move robot velocity towards a goal vector.
    C original: ai.cpp move_towards_vector
@@ -353,29 +353,29 @@ let move_towards_vector ~velocity ~vec_goal ~fvec ~frame_time ~difficulty
   let (vx, vy, vz) = velocity in
   let (gx, gy, gz) = vec_goal in
   (* Normalize velocity and compute dot with fvec *)
-  let (_mag, vel_norm) = Ox_math.vm_vec_normalize_quick velocity in
-  let dot = Ox_math.vm_vec_dotprod vel_norm fvec in
+  let (_mag, vel_norm) = Ox_math.vm_vec_normalize_quick ~v:velocity in
+  let dot = Ox_math.vm_vec_dotprod ~a:vel_norm ~b:fvec in
   (* D2 thief: bias dot toward 1 *)
   let dot = if is_thief then (f1_0 + dot) / 2 else dot in
   let (nvx, nvy, nvz) =
     if dot_based && dot < 3 * f1_0 / 4 then
       (* Bash: halve velocity, add goal * FrameTime * 32 *)
-      (vx / 2 + Ox_math.fixmul gx (frame_time * 32),
-       vy / 2 + Ox_math.fixmul gy (frame_time * 32),
-       vz / 2 + Ox_math.fixmul gz (frame_time * 32))
+      (vx / 2 + Ox_math.fixmul ~a:gx ~b:(frame_time * 32),
+       vy / 2 + Ox_math.fixmul ~a:gy ~b:(frame_time * 32),
+       vz / 2 + Ox_math.fixmul ~a:gz ~b:(frame_time * 32))
     else
       (* Nudge: add goal * FrameTime * 64 * (difficulty+5)/4 *)
       let scale = frame_time * 64 in
-      (vx + Ox_math.fixmul gx scale * (difficulty + 5) / 4,
-       vy + Ox_math.fixmul gy scale * (difficulty + 5) / 4,
-       vz + Ox_math.fixmul gz scale * (difficulty + 5) / 4)
+      (vx + Ox_math.fixmul ~a:gx ~b:scale * (difficulty + 5) / 4,
+       vy + Ox_math.fixmul ~a:gy ~b:scale * (difficulty + 5) / 4,
+       vz + Ox_math.fixmul ~a:gz ~b:scale * (difficulty + 5) / 4)
   in
   (* Cap speed *)
   let max_speed =
     if attack_type = 1 || is_thief || is_kamikaze then max_speed * 2
     else max_speed
   in
-  let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+  let speed = Ox_math.vm_vec_mag_quick ~v:(nvx, nvy, nvz) in
   if speed > max_speed then
     (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
   else
@@ -425,33 +425,33 @@ let move_around_player ~velocity ~vec_to_player ~fvec ~frame_time ~frame_count
     let dir = dir asr (4 + !count) in
     let scale = frame_time * 32 in
     let (ex, ey, ez) = match dir with
-      | 0 -> (Ox_math.fixmul pz scale, Ox_math.fixmul py scale,
-              Ox_math.fixmul (- px) scale)
-      | 1 -> (Ox_math.fixmul (- pz) scale, Ox_math.fixmul py scale,
-              Ox_math.fixmul px scale)
-      | 2 -> (Ox_math.fixmul (- py) scale, Ox_math.fixmul px scale,
-              Ox_math.fixmul pz scale)
-      | _ -> (Ox_math.fixmul py scale, Ox_math.fixmul (- px) scale,
-              Ox_math.fixmul pz scale)
+      | 0 -> (Ox_math.fixmul ~a:pz ~b:scale, Ox_math.fixmul ~a:py ~b:scale,
+              Ox_math.fixmul ~a:(- px) ~b:scale)
+      | 1 -> (Ox_math.fixmul ~a:(- pz) ~b:scale, Ox_math.fixmul ~a:py ~b:scale,
+              Ox_math.fixmul ~a:px ~b:scale)
+      | 2 -> (Ox_math.fixmul ~a:(- py) ~b:scale, Ox_math.fixmul ~a:px ~b:scale,
+              Ox_math.fixmul ~a:pz ~b:scale)
+      | _ -> (Ox_math.fixmul ~a:py ~b:scale, Ox_math.fixmul ~a:(- px) ~b:scale,
+              Ox_math.fixmul ~a:pz ~b:scale)
     in
     (* Fast evasion scaling *)
     let (ex, ey, ez) =
       if fast_flag > 0 then
-        let dot = Ox_math.vm_vec_dotprod vec_to_player fvec in
+        let dot = Ox_math.vm_vec_dotprod ~a:vec_to_player ~b:fvec in
         if dot > field_of_view && not player_cloaked then
           let damage_scale =
             if strength <> 0 then
-              let ds = Ox_math.fixdiv shields strength in
+              let ds = Ox_math.fixdiv ~a:shields ~b:strength in
               min ds f1_0 |> max 0
             else f1_0
           in
-          let s = Ox_math.i2f fast_flag + damage_scale in
-          (Ox_math.fixmul ex s, Ox_math.fixmul ey s, Ox_math.fixmul ez s)
+          let s = Ox_math.i2f ~a:fast_flag + damage_scale in
+          (Ox_math.fixmul ~a:ex ~b:s, Ox_math.fixmul ~a:ey ~b:s, Ox_math.fixmul ~a:ez ~b:s)
         else (ex, ey, ez)
       else (ex, ey, ez)
     in
     let nvx = vx + ex and nvy = vy + ey and nvz = vz + ez in
-    let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+    let speed = Ox_math.vm_vec_mag_quick ~v:(nvx, nvy, nvz) in
     if (not skip_objnum1 || objnum <> 1) && speed > max_speed then
       (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
     else
@@ -476,21 +476,21 @@ let move_away_from_player ~velocity ~vec_to_player ~uvec ~rvec
     ~frame_time ~frame_count ~objnum ~attack_type ~max_speed =
   let (vx, vy, vz) = velocity in
   let (px, py, pz) = vec_to_player in
-  let nvx = vx - Ox_math.fixmul px (frame_time * 16) in
-  let nvy = vy - Ox_math.fixmul py (frame_time * 16) in
-  let nvz = vz - Ox_math.fixmul pz (frame_time * 16) in
+  let nvx = vx - Ox_math.fixmul ~a:px ~b:(frame_time * 16) in
+  let nvy = vy - Ox_math.fixmul ~a:py ~b:(frame_time * 16) in
+  let nvz = vz - Ox_math.fixmul ~a:pz ~b:(frame_time * 16) in
   let (nvx, nvy, nvz) =
     if attack_type <> 0 then
       let objref = (objnum lxor ((frame_count + 3 * objnum) asr 5)) land 3 in
       let scale = frame_time lsl 5 in
       match objref with
-      | 0 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) uvec scale
-      | 1 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) uvec (- scale)
-      | 2 -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) rvec scale
-      | _ -> Ox_math.vm_vec_scale_add2 (nvx, nvy, nvz) rvec (- scale)
+      | 0 -> Ox_math.vm_vec_scale_add2 ~dest:(nvx, nvy, nvz) ~src:uvec ~k:scale
+      | 1 -> Ox_math.vm_vec_scale_add2 ~dest:(nvx, nvy, nvz) ~src:uvec ~k:(- scale)
+      | 2 -> Ox_math.vm_vec_scale_add2 ~dest:(nvx, nvy, nvz) ~src:rvec ~k:scale
+      | _ -> Ox_math.vm_vec_scale_add2 ~dest:(nvx, nvy, nvz) ~src:rvec ~k:(- scale)
     else (nvx, nvy, nvz)
   in
-  let speed = Ox_math.vm_vec_mag_quick (nvx, nvy, nvz) in
+  let speed = Ox_math.vm_vec_mag_quick ~v:(nvx, nvy, nvz) in
   if speed > max_speed then
     (nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4)
   else
@@ -507,9 +507,9 @@ let move_away_from_player ~velocity ~vec_to_player ~uvec ~rvec
 let set_object_turnroll ~rotvel_y ~turnroll ~frame_time =
   let turnroll_scale = 0x4ec4 / 2 in
   let roll_rate = 0x2000 in
-  let desired_bank = - Ox_math.fixmul rotvel_y turnroll_scale in
+  let desired_bank = - Ox_math.fixmul ~a:rotvel_y ~b:turnroll_scale in
   if turnroll <> desired_bank then
-    let max_roll = Ox_math.fixmul roll_rate frame_time in
+    let max_roll = Ox_math.fixmul ~a:roll_rate ~b:frame_time in
     let delta_ang = desired_bank - turnroll in
     let max_roll =
       if Int.abs delta_ang < max_roll then delta_ang
@@ -523,7 +523,7 @@ let set_object_turnroll ~rotvel_y ~turnroll ~frame_time =
    C original: ai2.cpp compute_lead_component (D2 only)
    Returns: fixdiv(player_pos - robot_pos, elapsed_time) + player_vel *)
 let compute_lead_component ~player_pos ~robot_pos ~player_vel ~elapsed_time =
-  Ox_math.fixdiv (player_pos - robot_pos) elapsed_time + player_vel
+  Ox_math.fixdiv ~a:(player_pos - robot_pos) ~b:elapsed_time + player_vel
 
 (* lead_player: compute lead firing solution for AI robot targeting.
    C original: ai2.cpp lead_player (D2 only)
@@ -548,17 +548,17 @@ let lead_player ~fire_point ~believed_player_pos ~player_velocity
   else
     let (pvx, pvy, pvz) = player_velocity in
     let (_mag, player_movement_dir) =
-      Ox_math.vm_vec_normalize_quick (pvx, pvy, pvz) in
-    let player_speed = Ox_math.vm_vec_mag_quick (pvx, pvy, pvz) in
+      Ox_math.vm_vec_normalize_quick ~v:(pvx, pvy, pvz) in
+    let player_speed = Ox_math.vm_vec_mag_quick ~v:(pvx, pvy, pvz) in
     if player_speed < min_lead_speed then None
     else
-      let vec_to_player = Ox_math.vm_vec_sub believed_player_pos fire_point in
+      let vec_to_player = Ox_math.vm_vec_sub ~a:believed_player_pos ~b:fire_point in
       let (_mag, vec_to_player_norm) =
-        Ox_math.vm_vec_normalize_quick vec_to_player in
-      let dist_to_player = Ox_math.vm_vec_mag_quick vec_to_player in
+        Ox_math.vm_vec_normalize_quick ~v:vec_to_player in
+      let dist_to_player = Ox_math.vm_vec_mag_quick ~v:vec_to_player in
       if dist_to_player > max_lead_distance then None
       else
-        let dot = Ox_math.vm_vec_dotprod vec_to_player_norm player_movement_dir in
+        let dot = Ox_math.vm_vec_dotprod ~a:vec_to_player_norm ~b:player_movement_dir in
         if dot < - lead_range || dot > lead_range then None
         else if max_weapon_speed < f1_0 then None
         else
@@ -572,7 +572,7 @@ let lead_player ~fire_point ~believed_player_pos ~player_velocity
           else
             let (fpx, fpy, fpz) = fire_point in
             let (bpx, bpy, bpz) = believed_player_pos in
-            let projected_time = Ox_math.fixdiv dist_to_player max_weapon_speed in
+            let projected_time = Ox_math.fixdiv ~a:dist_to_player ~b:max_weapon_speed in
             let fvx = compute_lead_component ~player_pos:bpx ~robot_pos:fpx
                 ~player_vel:pvx ~elapsed_time:projected_time in
             let fvy = compute_lead_component ~player_pos:bpy ~robot_pos:fpy
@@ -580,13 +580,13 @@ let lead_player ~fire_point ~believed_player_pos ~player_velocity
             let fvz = compute_lead_component ~player_pos:bpz ~robot_pos:fpz
                 ~player_vel:pvz ~elapsed_time:projected_time in
             let (_mag, fire_vec) =
-              Ox_math.vm_vec_normalize_quick (fvx, fvy, fvz) in
+              Ox_math.vm_vec_normalize_quick ~v:(fvx, fvy, fvz) in
             let (fvx, fvy, fvz) = fire_vec in
-            let dot_fvec = Ox_math.vm_vec_dotprod fire_vec fvec in
+            let dot_fvec = Ox_math.vm_vec_dotprod ~a:fire_vec ~b:fvec in
             if dot_fvec < f1_0 / 2 then
-              let (ax, ay, az) = Ox_math.vm_vec_add fire_vec vec_to_player_norm in
+              let (ax, ay, az) = Ox_math.vm_vec_add ~a:fire_vec ~b:vec_to_player_norm in
               let adjusted = (ax / 2, ay / 2, az / 2) in
-              let dot2 = Ox_math.vm_vec_dotprod adjusted fvec in
+              let dot2 = Ox_math.vm_vec_dotprod ~a:adjusted ~b:fvec in
               if dot2 < f1_0 / 2 then None
               else Some adjusted
             else Some (fvx, fvy, fvz)
@@ -601,11 +601,11 @@ let homing_missile_turn_towards_velocity ~norm_vel ~fvec ~frame_time =
   let s = frame_time * homing_missile_scale in
   let new_fvec =
     Ox_math.vm_vec_add
-      (Ox_math.fixmul nvx s, Ox_math.fixmul nvy s, Ox_math.fixmul nvz s)
-      fvec
+      ~a:(Ox_math.fixmul ~a:nvx ~b:s, Ox_math.fixmul ~a:nvy ~b:s, Ox_math.fixmul ~a:nvz ~b:s)
+      ~b:fvec
   in
-  let (_mag, new_fvec_n) = Ox_math.vm_vec_normalize_quick new_fvec in
-  Ox_math.vm_vector_2_matrix new_fvec_n None None
+  let (_mag, new_fvec_n) = Ox_math.vm_vec_normalize_quick ~v:new_fvec in
+  Ox_math.vm_vector_2_matrix ~fvec:new_fvec_n ~uvec:None ~rvec:None
 
 (* Align object orientation to the segment it's in.
    C original: physics.cpp do_physics_align_object
@@ -648,7 +648,7 @@ let do_physics_align_object (packed : int array) =
   let best_side = ref 0 in
   let largest_d = ref (- f1_0) in
   for i = 0 to 5 do
-    let d = Ox_math.vm_vec_dotprod (side_normal0 i) uvec in
+    let d = Ox_math.vm_vec_dotprod ~a:(side_normal0 i) ~b:uvec in
     if d > !largest_d then begin
       largest_d := d;
       best_side := i
@@ -664,29 +664,29 @@ let do_physics_align_object (packed : int array) =
       let (n0x, n0y, n0z) = side_normal0 !best_side in
       let (n1x, n1y, n1z) = side_normal1 !best_side in
       let avg = ((n0x + n1x) / 2, (n0y + n1y) / 2, (n0z + n1z) / 2) in
-      let (_mag, normalized) = Ox_math.vm_vec_copy_normalize avg in
+      let (_mag, normalized) = Ox_math.vm_vec_copy_normalize ~v:avg in
       normalized
     end else
       side_normal0 !best_side
   in
   (* Check if desired_upvec is not too parallel to fvec *)
   let fixang v = Ox_math.wrap_i32_to_fixang v in
-  if Int.abs (Ox_math.vm_vec_dotprod desired_upvec fvec) < f1_0 / 2 then begin
-    let temp_matrix = Ox_math.vm_vector_2_matrix fvec (Some desired_upvec) None in
+  if Int.abs (Ox_math.vm_vec_dotprod ~a:desired_upvec ~b:fvec) < f1_0 / 2 then begin
+    let temp_matrix = Ox_math.vm_vector_2_matrix ~fvec ~uvec:(Some desired_upvec) ~rvec:None in
     let (_temp_rvec, temp_uvec, _temp_fvec) = temp_matrix in
     (* C uses fixang (int16_t) for delta_ang and roll_ang *)
     let delta_ang =
-      Ox_math.vm_vec_delta_ang uvec temp_uvec (Some fvec) in
+      Ox_math.vm_vec_delta_ang ~v0:uvec ~v1:temp_uvec ~fvec:(Some fvec) in
     let delta_ang = fixang (delta_ang + turnroll) in
     if Int.abs delta_ang > damp_ang then begin
-      let roll_ang = fixang (Ox_math.fixmul frame_time roll_rate) in
+      let roll_ang = fixang (Ox_math.fixmul ~a:frame_time ~b:roll_rate) in
       let roll_ang =
         if Int.abs delta_ang < roll_ang then delta_ang
         else if delta_ang < 0 then - roll_ang
         else roll_ang
       in
-      let rotmat = Ox_math.vm_angles_2_matrix (0, roll_ang, 0) in
-      let new_orient = Ox_math.vm_matrix_x_matrix orient rotmat in
+      let rotmat = Ox_math.vm_angles_2_matrix ~v:(0, roll_ang, 0) in
+      let new_orient = Ox_math.vm_matrix_x_matrix ~a:orient ~b:rotmat in
       (true, new_orient, floor_levelling)
     end else
       (* Delta is small enough: stop levelling *)

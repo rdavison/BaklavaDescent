@@ -19,7 +19,7 @@ let compute_headlight_light_d1 ~point_x ~point_y ~point_z
   if light = 0 then 0
   else begin
     let face_light = max face_light 0 in
-    let point_dist = Ox_math.vm_vec_mag_quick (point_x, point_y, point_z) in
+    let point_dist = Ox_math.vm_vec_mag_quick ~v:(point_x, point_y, point_z) in
     if point_dist >= max_dist then 0
     else begin
       let dist_scale = (max_dist - point_dist) asr max_dist_log_d1 in
@@ -27,13 +27,13 @@ let compute_headlight_light_d1 ~point_x ~point_y ~point_z
       let light = beam_brightness in
       let light =
         if use_beam <> 0 then begin
-          let beam_scale = Ox_math.fixdiv point_z point_dist in
-          let beam_scale = Ox_math.fixmul beam_scale beam_scale in
-          Ox_math.fixmul light beam_scale
+          let beam_scale = Ox_math.fixdiv ~a:point_z ~b:point_dist in
+          let beam_scale = Ox_math.fixmul ~a:beam_scale ~b:beam_scale in
+          Ox_math.fixmul ~a:light ~b:beam_scale
         end else
           light
       in
-      Ox_math.fixmul light (Ox_math.fixmul dist_scale temp_lightval)
+      Ox_math.fixmul ~a:light ~b:(Ox_math.fixmul ~a:dist_scale ~b:temp_lightval)
     end
   end
 
@@ -59,19 +59,19 @@ let compute_headlight_light_d2 ~point_x ~point_y ~point_z
   in
   if light = 0 then 0
   else begin
-    let point_dist = Ox_math.vm_vec_mag_quick (point_x, point_y, point_z) in
+    let point_dist = Ox_math.vm_vec_mag_quick ~v:(point_x, point_y, point_z) in
     if point_dist >= max_dist then 0
     else begin
       let dist_scale = (max_dist - point_dist) asr max_dist_log_d2 in
-      let light = Ox_math.fixmul light dist_scale in
+      let light = Ox_math.fixmul ~a:light ~b:dist_scale in
       let face_light = max face_light 0 in
       let face_scale = f1_0 / 4 + face_light / 2 in
-      let light = Ox_math.fixmul light face_scale in
+      let light = Ox_math.fixmul ~a:light ~b:face_scale in
       if use_beam then begin
-        if face_light > f1_0 * 3 / 4 && point_z > Ox_math.i2f 12 then begin
-          let beam_scale = Ox_math.fixdiv point_z point_dist in
-          let beam_scale = Ox_math.fixmul beam_scale beam_scale in
-          Ox_math.fixmul light beam_scale
+        if face_light > f1_0 * 3 / 4 && point_z > Ox_math.i2f ~a:12 then begin
+          let beam_scale = Ox_math.fixdiv ~a:point_z ~b:point_dist in
+          let beam_scale = Ox_math.fixmul ~a:beam_scale ~b:beam_scale in
+          Ox_math.fixmul ~a:light ~b:beam_scale
         end else
           light
       end else

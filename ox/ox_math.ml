@@ -1,8 +1,8 @@
 (* Shared pure math implementations used by both runtime bridge and tests. *)
 let fracbits = 16
 
-let i2f i = Int.shift_left i fracbits
-let f2i f = Int.shift_right f fracbits
+let i2f ~a = Int.shift_left a fracbits
+let f2i ~a = Int.shift_right a fracbits
 
 (* C returns fix as int32_t, so we emulate int64 -> int32 cast semantics. *)
 let wrap_i64_to_fix x =
@@ -19,14 +19,14 @@ let wrap_i32_to_fixang x =
 
 let abs_fix v = wrap_i64_to_fix (Int64.of_int (Int.abs v))
 
-let fixmul a b =
+let fixmul ~a ~b =
   Int64.(wrap_i64_to_fix (shift_right (of_int a * of_int b) fracbits))
 
-let fixdiv a b =
+let fixdiv ~a ~b =
   if b = 0 then 1
   else Int64.(wrap_i64_to_fix (shift_left (of_int a) fracbits / of_int b))
 
-let fixmuldiv a b c =
+let fixmuldiv ~a ~b ~c =
   if c = 0 then 1
   else Int64.(wrap_i64_to_fix ((of_int a * of_int b) / of_int c))
 
@@ -69,7 +69,7 @@ let quad_sqrt q =
     let floor = floor_loop 1L 3037000500L 0L in
     if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L
 
-let fix_sqrt a = Int.shift_left (long_sqrt a) 8
+let fix_sqrt ~a = Int.shift_left (long_sqrt a) 8
 
 (* fix_sincos uses 256-entry quarter-wave indexing plus interpolation.
    We compute the canonical table entries on demand from the same sample points
@@ -90,7 +90,7 @@ let isqrt_guess_lut_entry i =
   if i = 0 then Int32.to_int_exn Int32.min_value
   else Int.of_float (16777216.0 /. Float.sqrt (Float.of_int i))
 
-let fix_sincos a =
+let fix_sincos ~a =
   let i = Int.bit_and (Int.shift_right a 8) 0xFF in
   let f = Int.bit_and a 0xFF in
 
@@ -101,12 +101,12 @@ let fix_sincos a =
   let cosv = Int.shift_left (cc + (Int.shift_right ((sincos_lut.(i + 65) - cc) * f) 8)) 2 in
   sinv, cosv
 
-let fix_fastsincos a =
+let fix_fastsincos ~a =
   let i = Int.bit_and (Int.shift_right a 8) 0xFF in
   Int.shift_left sincos_lut.(i) 2, Int.shift_left sincos_lut.(i + 64) 2
 
-let fix_acos v =
-  let vv = abs_fix v in
+let fix_acos ~a =
+  let vv = abs_fix a in
   if vv >= 0x10000
   then 0
   else
@@ -114,11 +114,11 @@ let fix_acos v =
     let f = Int.bit_and vv 0xFF in
     let aa = acos_lut.(i) in
     let aa = aa + (Int.shift_right ((acos_lut.(i + 1) - aa) * f) 8) in
-    let aa = if v < 0 then 0x8000 - aa else aa in
+    let aa = if a < 0 then 0x8000 - aa else aa in
     wrap_i32_to_fixang aa
 
-let fix_asin v =
-  let vv = abs_fix v in
+let fix_asin ~a =
+  let vv = abs_fix a in
   if vv >= 0x10000
   then 0x4000
   else
@@ -126,10 +126,10 @@ let fix_asin v =
     let f = Int.bit_and vv 0xFF in
     let aa = asin_lut.(i) in
     let aa = aa + (Int.shift_right ((asin_lut.(i + 1) - aa) * f) 8) in
-    let aa = if v < 0 then -aa else aa in
+    let aa = if a < 0 then -aa else aa in
     wrap_i32_to_fixang aa
 
-let fix_atan2 cos sin =
+let fix_atan2 ~cos ~sin =
   let q = Int64.(of_int sin * of_int sin + (of_int cos * of_int cos)) in
   let m = wrap_i64_to_fix (quad_sqrt q) in
   let abs_no_wrap v = Int64.abs (Int64.of_int v) in
@@ -137,15 +137,15 @@ let fix_atan2 cos sin =
   then 0
   else if Int64.compare (abs_no_wrap sin) (abs_no_wrap cos) < 0
   then (
-    let t = fix_asin (fixdiv sin m) in
+    let t = fix_asin ~a:(fixdiv ~a:sin ~b:m) in
     let t = if cos < 0 then 0x8000 - t else t in
     wrap_i32_to_fixang t)
   else (
-    let t = fix_acos (fixdiv cos m) in
+    let t = fix_acos ~a:(fixdiv ~a:cos ~b:m) in
     let t = if sin < 0 then -t else t in
     wrap_i32_to_fixang t)
 
-let fix_isqrt a =
+let fix_isqrt ~a =
   let table_size = 1024 in
   if a <= 0
   then 0
@@ -160,9 +160,9 @@ let fix_isqrt a =
       then r
       else
         let old_r = r in
-        let rr = fixmul r r in
-        let term = Int64.(wrap_i64_to_fix (of_int 196608 - of_int (fixmul rr a))) in
-        let r = fixmul term r / 2 in
+        let rr = fixmul ~a:r ~b:r in
+        let term = Int64.(wrap_i64_to_fix (of_int 196608 - of_int (fixmul ~a:rr ~b:a))) in
+        let r = fixmul ~a:term ~b:r / 2 in
         if old_r >= r
         then Int64.(wrap_i64_to_fix (of_int r + of_int old_r)) / 2
         else iter (i + 1) r
@@ -171,47 +171,47 @@ let fix_isqrt a =
 
 let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
-let vm_vec_scale_add2 (dx, dy, dz) (sx, sy, sz) k =
-  ( wrap_add_i32 dx (fixmul sx k)
-  , wrap_add_i32 dy (fixmul sy k)
-  , wrap_add_i32 dz (fixmul sz k) )
+let vm_vec_scale_add2 ~dest:(dx, dy, dz) ~src:(sx, sy, sz) ~k =
+  ( wrap_add_i32 dx (fixmul ~a:sx ~b:k)
+  , wrap_add_i32 dy (fixmul ~a:sy ~b:k)
+  , wrap_add_i32 dz (fixmul ~a:sz ~b:k) )
 
-let vm_vec_scale_add (ax, ay, az) (bx, by, bz) k =
-  ( wrap_add_i32 ax (fixmul bx k)
-  , wrap_add_i32 ay (fixmul by k)
-  , wrap_add_i32 az (fixmul bz k) )
+let vm_vec_scale_add ~a:(ax, ay, az) ~b:(bx, by, bz) ~k =
+  ( wrap_add_i32 ax (fixmul ~a:bx ~b:k)
+  , wrap_add_i32 ay (fixmul ~a:by ~b:k)
+  , wrap_add_i32 az (fixmul ~a:bz ~b:k) )
 
-let vm_vec_scale2 (dx, dy, dz) n d =
-  if d = 0 then dx, dy, dz else fixmuldiv dx n d, fixmuldiv dy n d, fixmuldiv dz n d
+let vm_vec_scale2 ~v:(dx, dy, dz) ~n ~d =
+  if d = 0 then dx, dy, dz else fixmuldiv ~a:dx ~b:n ~c:d, fixmuldiv ~a:dy ~b:n ~c:d, fixmuldiv ~a:dz ~b:n ~c:d
 
-let vm_vec_add (ax, ay, az) (bx, by, bz) =
+let vm_vec_add ~a:(ax, ay, az) ~b:(bx, by, bz) =
   wrap_add_i32 ax bx, wrap_add_i32 ay by, wrap_add_i32 az bz
 
-let vm_vec_sub (ax, ay, az) (bx, by, bz) =
+let vm_vec_sub ~a:(ax, ay, az) ~b:(bx, by, bz) =
   wrap_add_i32 ax (-bx), wrap_add_i32 ay (-by), wrap_add_i32 az (-bz)
 
-let vm_vec_add2 (dx, dy, dz) (sx, sy, sz) =
+let vm_vec_add2 ~a:(dx, dy, dz) ~b:(sx, sy, sz) =
   wrap_add_i32 dx sx, wrap_add_i32 dy sy, wrap_add_i32 dz sz
 
-let vm_vec_sub2 (dx, dy, dz) (sx, sy, sz) =
+let vm_vec_sub2 ~a:(dx, dy, dz) ~b:(sx, sy, sz) =
   wrap_add_i32 dx (-sx), wrap_add_i32 dy (-sy), wrap_add_i32 dz (-sz)
 
-let vm_vec_avg (ax, ay, az) (bx, by, bz) =
+let vm_vec_avg ~a:(ax, ay, az) ~b:(bx, by, bz) =
   (wrap_add_i32 ax bx) / 2, (wrap_add_i32 ay by) / 2, (wrap_add_i32 az bz) / 2
 
-let vm_vec_avg4 (a1, a2, a3) (b1, b2, b3) (c1, c2, c3) (d1, d2, d3) =
+let vm_vec_avg4 ~a:(a1, a2, a3) ~b:(b1, b2, b3) ~c:(c1, c2, c3) ~d:(d1, d2, d3) =
   let x = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a1 b1) c1) d1 in
   let y = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a2 b2) c2) d2 in
   let z = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a3 b3) c3) d3 in
   x / 4, y / 4, z / 4
 
-let vm_vec_copy_scale (sx, sy, sz) k =
-  fixmul sx k, fixmul sy k, fixmul sz k
+let vm_vec_copy_scale ~v:(sx, sy, sz) ~k =
+  fixmul ~a:sx ~b:k, fixmul ~a:sy ~b:k, fixmul ~a:sz ~b:k
 
-let vm_vec_scale (dx, dy, dz) k =
-  fixmul dx k, fixmul dy k, fixmul dz k
+let vm_vec_scale ~v:(dx, dy, dz) ~k =
+  fixmul ~a:dx ~b:k, fixmul ~a:dy ~b:k, fixmul ~a:dz ~b:k
 
-let vm_vec_mag (x, y, z) =
+let vm_vec_mag ~v:(x, y, z) =
   let module I64 = Stdlib.Int64 in
   let q =
     I64.add
@@ -220,9 +220,9 @@ let vm_vec_mag (x, y, z) =
   in
   wrap_i64_to_fix (quad_sqrt q)
 
-let vm_vec_dist (x0, y0, z0) (x1, y1, z1) = vm_vec_mag (vm_vec_sub (x0, y0, z0) (x1, y1, z1))
+let vm_vec_dist ~a ~b = vm_vec_mag ~v:(vm_vec_sub ~a ~b)
 
-let vm_vec_mag_quick (x, y, z) =
+let vm_vec_mag_quick ~v:(x, y, z) =
   let a = ref (abs_fix x) in
   let b = ref (abs_fix y) in
   let c = ref (abs_fix z) in
@@ -244,8 +244,8 @@ let vm_vec_mag_quick (x, y, z) =
   let bc = wrap_add_i32 (!b asr 2) (!c asr 3) in
   wrap_add_i32 !a (wrap_add_i32 bc (bc asr 1))
 
-let vm_vec_dist_quick (x0, y0, z0) (x1, y1, z1) =
-  vm_vec_mag_quick (vm_vec_sub (x0, y0, z0) (x1, y1, z1))
+let vm_vec_dist_quick ~a ~b =
+  vm_vec_mag_quick ~v:(vm_vec_sub ~a ~b)
 
 let fixquadadjust q =
   let v = wrap_i64_to_fix (Int64.shift_right q 16) in
@@ -279,7 +279,7 @@ let ufixdivquadlong nl nh d =
     let num = Int64.bit_or (Int64.shift_left (u32_bits nh) 32) (u32_bits nl) in
     i32_from_u32 (Stdlib.Int64.unsigned_div num den)
 
-let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
+let vm_vec_dotprod ~a:(x0, y0, z0) ~b:(x1, y1, z1) =
   let q =
     Int64.(
       (of_int x0 * of_int x1)
@@ -288,35 +288,35 @@ let vm_vec_dotprod (x0, y0, z0) (x1, y1, z1) =
   in
   fixquadadjust q
 
-let vm_vec_dot3 x y z (vx, vy, vz) = vm_vec_dotprod (x, y, z) (vx, vy, vz)
+let vm_vec_dot3 ~x ~y ~z ~v:(vx, vy, vz) = vm_vec_dotprod ~a:(x, y, z) ~b:(vx, vy, vz)
 
 let neg_i32 v = wrap_i64_to_fix (Int64.neg (Int64.of_int v))
 
-let vm_vec_crossprod (x0, y0, z0) (x1, y1, z1) =
+let vm_vec_crossprod ~a:(x0, y0, z0) ~b:(x1, y1, z1) =
   let qx = Int64.(of_int y0 * of_int z1 + (of_int (neg_i32 z0) * of_int y1)) in
   let qy = Int64.(of_int z0 * of_int x1 + (of_int (neg_i32 x0) * of_int z1)) in
   let qz = Int64.(of_int x0 * of_int y1 + (of_int (neg_i32 y0) * of_int x1)) in
   fixquadadjust qx, fixquadadjust qy, fixquadadjust qz
 
-let vm_vec_copy_normalize (sx, sy, sz) =
-  let m = vm_vec_mag (sx, sy, sz) in
-  if m > 0 then m, (fixdiv sx m, fixdiv sy m, fixdiv sz m) else m, (sx, sy, sz)
+let vm_vec_copy_normalize ~v:(sx, sy, sz) =
+  let m = vm_vec_mag ~v:(sx, sy, sz) in
+  if m > 0 then m, (fixdiv ~a:sx ~b:m, fixdiv ~a:sy ~b:m, fixdiv ~a:sz ~b:m) else m, (sx, sy, sz)
 
-let vm_vec_normalize v = vm_vec_copy_normalize v
+let vm_vec_normalize ~v = vm_vec_copy_normalize ~v
 
-let vm_vec_normalized_dir v_end v_start =
-  vm_vec_normalize (vm_vec_sub v_end v_start)
+let vm_vec_normalized_dir ~v_end ~v_start =
+  vm_vec_normalize ~v:(vm_vec_sub ~a:v_end ~b:v_start)
 
-let vm_vec_copy_normalize_quick (sx, sy, sz) =
-  let m = vm_vec_mag_quick (sx, sy, sz) in
-  if m > 0 then m, (fixdiv sx m, fixdiv sy m, fixdiv sz m) else m, (sx, sy, sz)
+let vm_vec_copy_normalize_quick ~v:(sx, sy, sz) =
+  let m = vm_vec_mag_quick ~v:(sx, sy, sz) in
+  if m > 0 then m, (fixdiv ~a:sx ~b:m, fixdiv ~a:sy ~b:m, fixdiv ~a:sz ~b:m) else m, (sx, sy, sz)
 
-let vm_vec_normalize_quick v = vm_vec_copy_normalize_quick v
+let vm_vec_normalize_quick ~v = vm_vec_copy_normalize_quick ~v
 
-let vm_vec_normalized_dir_quick v_end v_start =
-  vm_vec_normalize_quick (vm_vec_sub v_end v_start)
+let vm_vec_normalized_dir_quick ~v_end ~v_start =
+  vm_vec_normalize_quick ~v:(vm_vec_sub ~a:v_end ~b:v_start)
 
-let vm_vec_make x y z = x, y, z
+let vm_vec_make ~x ~y ~z = x, y, z
 
 let wrap_i64_to_fixang x =
   let mask16 = Int64.of_string "0xFFFF" in
@@ -326,10 +326,10 @@ let wrap_i64_to_fixang x =
   let signed = if Int64.( > ) low16 max_i16 then Int64.( - ) low16 two16 else low16 in
   Int64.to_int_exn signed
 
-let vm_angvec_make p b h =
+let vm_angvec_make ~p ~b ~h =
   wrap_i64_to_fixang (Int64.of_int p), wrap_i64_to_fixang (Int64.of_int b), wrap_i64_to_fixang (Int64.of_int h)
 
-let vm_dist_to_plane checkp norm planep = vm_vec_dotprod (vm_vec_sub checkp planep) norm
+let vm_dist_to_plane ~checkp ~norm ~planep = vm_vec_dotprod ~a:(vm_vec_sub ~a:checkp ~b:planep) ~b:norm
 
 let bitand_i32 a b = wrap_i64_to_fix Int64.(bit_and (of_int a) (of_int b))
 let bitor_i32 a b = wrap_i64_to_fix Int64.(bit_or (of_int a) (of_int b))
@@ -337,7 +337,7 @@ let shl_i32 a n = wrap_i64_to_fix Int64.(shift_left (of_int a) n)
 let asr_i32 a n = wrap_i64_to_fix Int64.(shift_right (of_int a) n)
 let abs_i32_c a = wrap_i64_to_fix (Int64.of_int (Int.abs a))
 
-let check_vec (x, y, z) =
+let check_vec ~v:(x, y, z) =
   let x = ref x in
   let y = ref y in
   let z = ref z in
@@ -372,96 +372,96 @@ let check_vec (x, y, z) =
     z := asr_i32 !z !cnt);
   !x, !y, !z
 
-let vm_vec_perp p0 p1 p2 =
-  let t0 = check_vec (vm_vec_sub p1 p0) in
-  let t1 = check_vec (vm_vec_sub p2 p1) in
-  vm_vec_crossprod t0 t1
+let vm_vec_perp ~p0 ~p1 ~p2 =
+  let t0 = check_vec ~v:(vm_vec_sub ~a:p1 ~b:p0) in
+  let t1 = check_vec ~v:(vm_vec_sub ~a:p2 ~b:p1) in
+  vm_vec_crossprod ~a:t0 ~b:t1
 
-let vm_vec_normal p0 p1 p2 =
-  let _, n = vm_vec_normalize (vm_vec_perp p0 p1 p2) in
+let vm_vec_normal ~p0 ~p1 ~p2 =
+  let _, n = vm_vec_normalize ~v:(vm_vec_perp ~p0 ~p1 ~p2) in
   n
 
-let sincos_2_matrix sinp cosp sinb cosb sinh cosh =
-  let sbsh = fixmul sinb sinh in
-  let cbch = fixmul cosb cosh in
-  let cbsh = fixmul cosb sinh in
-  let sbch = fixmul sinb cosh in
+let sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh =
+  let sbsh = fixmul ~a:sinb ~b:sinh in
+  let cbch = fixmul ~a:cosb ~b:cosh in
+  let cbsh = fixmul ~a:cosb ~b:sinh in
+  let sbch = fixmul ~a:sinb ~b:cosh in
 
-  let rvec_x = wrap_add_i32 cbch (fixmul sinp sbsh) in
-  let uvec_z = wrap_add_i32 sbsh (fixmul sinp cbch) in
+  let rvec_x = wrap_add_i32 cbch (fixmul ~a:sinp ~b:sbsh) in
+  let uvec_z = wrap_add_i32 sbsh (fixmul ~a:sinp ~b:cbch) in
 
-  let uvec_x = wrap_add_i32 (fixmul sinp cbsh) (-sbch) in
-  let rvec_z = wrap_add_i32 (fixmul sinp sbch) (-cbsh) in
+  let uvec_x = wrap_add_i32 (fixmul ~a:sinp ~b:cbsh) (-sbch) in
+  let rvec_z = wrap_add_i32 (fixmul ~a:sinp ~b:sbch) (-cbsh) in
 
-  let fvec_x = fixmul sinh cosp in
-  let rvec_y = fixmul sinb cosp in
-  let uvec_y = fixmul cosb cosp in
-  let fvec_z = fixmul cosh cosp in
+  let fvec_x = fixmul ~a:sinh ~b:cosp in
+  let rvec_y = fixmul ~a:sinb ~b:cosp in
+  let uvec_y = fixmul ~a:cosb ~b:cosp in
+  let fvec_z = fixmul ~a:cosh ~b:cosp in
 
   let fvec_y = neg_i32 sinp in
   (rvec_x, rvec_y, rvec_z), (uvec_x, uvec_y, uvec_z), (fvec_x, fvec_y, fvec_z)
 
-let vm_angles_2_matrix (p, b, h) =
-  let p, b, h = vm_angvec_make p b h in
-  let sinp, cosp = fix_sincos p in
-  let sinb, cosb = fix_sincos b in
-  let sinh, cosh = fix_sincos h in
-  sincos_2_matrix sinp cosp sinb cosb sinh cosh
+let vm_angles_2_matrix ~v:(p, b, h) =
+  let p, b, h = vm_angvec_make ~p ~b ~h in
+  let sinp, cosp = fix_sincos ~a:p in
+  let sinb, cosb = fix_sincos ~a:b in
+  let sinh, cosh = fix_sincos ~a:h in
+  sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh
 
-let vm_vec_ang_2_matrix (vx, vy, vz) a =
+let vm_vec_ang_2_matrix ~v:(vx, vy, vz) ~a =
   let a = wrap_i64_to_fixang (Int64.of_int a) in
-  let sinb, cosb = fix_sincos a in
+  let sinb, cosb = fix_sincos ~a in
   let sinp = neg_i32 vy in
-  let cosp = fix_sqrt (wrap_add_i32 0x10000 (neg_i32 (fixmul sinp sinp))) in
-  let sinh = fixdiv vx cosp in
-  let cosh = fixdiv vz cosp in
-  sincos_2_matrix sinp cosp sinb cosb sinh cosh
+  let cosp = fix_sqrt ~a:(wrap_add_i32 0x10000 (neg_i32 (fixmul ~a:sinp ~b:sinp))) in
+  let sinh = fixdiv ~a:vx ~b:cosp in
+  let cosh = fixdiv ~a:vz ~b:cosp in
+  sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh
 
-let vm_vec_delta_ang_norm v0 v1 fvec =
-  let a = fix_acos (vm_vec_dotprod v0 v1) in
+let vm_vec_delta_ang_norm ~v0 ~v1 ~fvec =
+  let a = fix_acos ~a:(vm_vec_dotprod ~a:v0 ~b:v1) in
   match fvec with
   | None -> a
   | Some f ->
-    let t = vm_vec_crossprod v0 v1 in
-    if vm_vec_dotprod t f < 0 then wrap_i32_to_fixang (-a) else a
+    let t = vm_vec_crossprod ~a:v0 ~b:v1 in
+    if vm_vec_dotprod ~a:t ~b:f < 0 then wrap_i32_to_fixang (-a) else a
 
-let vm_vec_delta_ang v0 v1 fvec =
-  let _, t0 = vm_vec_copy_normalize v0 in
-  let _, t1 = vm_vec_copy_normalize v1 in
-  vm_vec_delta_ang_norm t0 t1 fvec
+let vm_vec_delta_ang ~v0 ~v1 ~fvec =
+  let _, t0 = vm_vec_copy_normalize ~v:v0 in
+  let _, t1 = vm_vec_copy_normalize ~v:v1 in
+  vm_vec_delta_ang_norm ~v0:t0 ~v1:t1 ~fvec
 
-let vm_extract_angles_vector_normalized (x, y, z) =
+let vm_extract_angles_vector_normalized ~v:(x, y, z) =
   let b = 0 in
-  let p = fix_asin (neg_i32 y) in
-  let h = if x = 0 && z = 0 then 0 else fix_atan2 z x in
-  vm_angvec_make p b h
+  let p = fix_asin ~a:(neg_i32 y) in
+  let h = if x = 0 && z = 0 then 0 else fix_atan2 ~cos:z ~sin:x in
+  vm_angvec_make ~p ~b ~h
 
-let vm_extract_angles_vector (p, b, h) v =
-  let m, t = vm_vec_copy_normalize v in
-  if m <> 0 then vm_extract_angles_vector_normalized t else vm_angvec_make p b h
+let vm_extract_angles_vector ~angles:(p, b, h) ~v =
+  let m, t = vm_vec_copy_normalize ~v in
+  if m <> 0 then vm_extract_angles_vector_normalized ~v:t else vm_angvec_make ~p ~b ~h
 
-let vm_extract_angles_matrix (rvec, uvec, fvec) =
+let vm_extract_angles_matrix ~m:(rvec, uvec, fvec) =
   let fx, fy, fz = fvec in
   let _, uy, _ = uvec in
   let _, ry, _ = rvec in
 
-  let h = if fx = 0 && fz = 0 then 0 else fix_atan2 fz fx in
-  let sinh, cosh = fix_sincos h in
+  let h = if fx = 0 && fz = 0 then 0 else fix_atan2 ~cos:fz ~sin:fx in
+  let sinh, cosh = fix_sincos ~a:h in
 
-  let cosp = if Int.abs sinh > Int.abs cosh then fixdiv fx sinh else fixdiv fz cosh in
-  let p = if cosp = 0 && fy = 0 then 0 else fix_atan2 cosp (neg_i32 fy) in
+  let cosp = if Int.abs sinh > Int.abs cosh then fixdiv ~a:fx ~b:sinh else fixdiv ~a:fz ~b:cosh in
+  let p = if cosp = 0 && fy = 0 then 0 else fix_atan2 ~cos:cosp ~sin:(neg_i32 fy) in
 
   let b =
     if cosp = 0
     then 0
     else (
-      let sinb = fixdiv ry cosp in
-      let cosb = fixdiv uy cosp in
-      if sinb = 0 && cosb = 0 then 0 else fix_atan2 cosb sinb)
+      let sinb = fixdiv ~a:ry ~b:cosp in
+      let cosb = fixdiv ~a:uy ~b:cosp in
+      if sinb = 0 && cosb = 0 then 0 else fix_atan2 ~cos:cosb ~sin:sinb)
   in
-  vm_angvec_make p b h
+  vm_angvec_make ~p ~b ~h
 
-let vm_vector_2_matrix fvec uvec rvec =
+let vm_vector_2_matrix ~fvec ~uvec ~rvec =
   let bad_vector2 zvec =
     let zx, zy, zz = zvec in
     if zx = 0 && zz = 0
@@ -471,42 +471,42 @@ let vm_vector_2_matrix fvec uvec rvec =
       rvec, uvec, zvec
     else
       let xvec0 = zz, 0, -zx in
-      let _, xvec = vm_vec_normalize xvec0 in
-      let yvec = vm_vec_crossprod zvec xvec in
+      let _, xvec = vm_vec_normalize ~v:xvec0 in
+      let yvec = vm_vec_crossprod ~a:zvec ~b:xvec in
       xvec, yvec, zvec
   in
-  let mz, zvec = vm_vec_copy_normalize fvec in
+  let mz, zvec = vm_vec_copy_normalize ~v:fvec in
   if mz = 0
   then bad_vector2 zvec
   else (
     match uvec, rvec with
     | None, None -> bad_vector2 zvec
     | None, Some r ->
-      let mx, xvec = vm_vec_copy_normalize r in
+      let mx, xvec = vm_vec_copy_normalize ~v:r in
       if mx = 0
       then bad_vector2 zvec
       else (
-        let yvec0 = vm_vec_crossprod zvec xvec in
-        let my, yvec = vm_vec_normalize yvec0 in
+        let yvec0 = vm_vec_crossprod ~a:zvec ~b:xvec in
+        let my, yvec = vm_vec_normalize ~v:yvec0 in
         if my = 0
         then bad_vector2 zvec
         else (
-          let xvec = vm_vec_crossprod yvec zvec in
+          let xvec = vm_vec_crossprod ~a:yvec ~b:zvec in
           xvec, yvec, zvec))
     | Some u, _ ->
-      let my, yvec = vm_vec_copy_normalize u in
+      let my, yvec = vm_vec_copy_normalize ~v:u in
       if my = 0
       then bad_vector2 zvec
       else (
-        let xvec0 = vm_vec_crossprod yvec zvec in
-        let mx, xvec = vm_vec_normalize xvec0 in
+        let xvec0 = vm_vec_crossprod ~a:yvec ~b:zvec in
+        let mx, xvec = vm_vec_normalize ~v:xvec0 in
         if mx = 0
         then bad_vector2 zvec
         else (
-          let yvec = vm_vec_crossprod zvec xvec in
+          let yvec = vm_vec_crossprod ~a:zvec ~b:xvec in
           xvec, yvec, zvec)))
 
-let vm_vector_2_matrix_norm fvec uvec rvec =
+let vm_vector_2_matrix_norm ~fvec ~uvec ~rvec =
   let bad_vector2 zvec =
     let zx, zy, zz = zvec in
     if zx = 0 && zz = 0
@@ -516,42 +516,42 @@ let vm_vector_2_matrix_norm fvec uvec rvec =
       rvec, uvec, zvec
     else
       let xvec0 = zz, 0, -zx in
-      let _, xvec = vm_vec_normalize xvec0 in
-      let yvec = vm_vec_crossprod zvec xvec in
+      let _, xvec = vm_vec_normalize ~v:xvec0 in
+      let yvec = vm_vec_crossprod ~a:zvec ~b:xvec in
       xvec, yvec, zvec
   in
   let zvec = fvec in
   match uvec, rvec with
   | None, None -> bad_vector2 zvec
   | None, Some xvec ->
-    let yvec0 = vm_vec_crossprod zvec xvec in
-    let my, yvec = vm_vec_normalize yvec0 in
+    let yvec0 = vm_vec_crossprod ~a:zvec ~b:xvec in
+    let my, yvec = vm_vec_normalize ~v:yvec0 in
     if my = 0
     then bad_vector2 zvec
     else (
-      let xvec = vm_vec_crossprod yvec zvec in
+      let xvec = vm_vec_crossprod ~a:yvec ~b:zvec in
       xvec, yvec, zvec)
   | Some yvec, _ ->
-    let xvec0 = vm_vec_crossprod yvec zvec in
-    let mx, xvec = vm_vec_normalize xvec0 in
+    let xvec0 = vm_vec_crossprod ~a:yvec ~b:zvec in
+    let mx, xvec = vm_vec_normalize ~v:xvec0 in
     if mx = 0
     then bad_vector2 zvec
     else (
-      let yvec = vm_vec_crossprod zvec xvec in
+      let yvec = vm_vec_crossprod ~a:zvec ~b:xvec in
       xvec, yvec, zvec)
 
-let vm_vec_rotate src (rvec, uvec, fvec) =
-  vm_vec_dotprod src rvec, vm_vec_dotprod src uvec, vm_vec_dotprod src fvec
+let vm_vec_rotate ~src ~m:(rvec, uvec, fvec) =
+  vm_vec_dotprod ~a:src ~b:rvec, vm_vec_dotprod ~a:src ~b:uvec, vm_vec_dotprod ~a:src ~b:fvec
 
-let vm_transpose_matrix ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) =
+let vm_transpose_matrix ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) =
   (r1, u1, f1), (r2, u2, f2), (r3, u3, f3)
 
-let vm_copy_transpose_matrix src = vm_transpose_matrix src
+let vm_copy_transpose_matrix ~m = vm_transpose_matrix ~m
 
 let vm_matrix_x_matrix
-    ((r0x, r0y, r0z), (u0x, u0y, u0z), (f0x, f0y, f0z))
-    (r1, u1, f1)
+    ~a:((r0x, r0y, r0z), (u0x, u0y, u0z), (f0x, f0y, f0z))
+    ~b:(r1, u1, f1)
   =
-  ( (vm_vec_dot3 r0x u0x f0x r1, vm_vec_dot3 r0y u0y f0y r1, vm_vec_dot3 r0z u0z f0z r1)
-  , (vm_vec_dot3 r0x u0x f0x u1, vm_vec_dot3 r0y u0y f0y u1, vm_vec_dot3 r0z u0z f0z u1)
-  , (vm_vec_dot3 r0x u0x f0x f1, vm_vec_dot3 r0y u0y f0y f1, vm_vec_dot3 r0z u0z f0z f1) )
+  ( (vm_vec_dot3 ~x:r0x ~y:u0x ~z:f0x ~v:r1, vm_vec_dot3 ~x:r0y ~y:u0y ~z:f0y ~v:r1, vm_vec_dot3 ~x:r0z ~y:u0z ~z:f0z ~v:r1)
+  , (vm_vec_dot3 ~x:r0x ~y:u0x ~z:f0x ~v:u1, vm_vec_dot3 ~x:r0y ~y:u0y ~z:f0y ~v:u1, vm_vec_dot3 ~x:r0z ~y:u0z ~z:f0z ~v:u1)
+  , (vm_vec_dot3 ~x:r0x ~y:u0x ~z:f0x ~v:f1, vm_vec_dot3 ~x:r0y ~y:u0y ~z:f0y ~v:f1, vm_vec_dot3 ~x:r0z ~y:u0z ~z:f0z ~v:f1) )

@@ -25,10 +25,10 @@ let cd_set_next_fire_time_d2
 
 (* ai_behavior_to_mode: single int → single int *)
 let cd_ai_behavior_to_mode_d1 behavior =
-  Ox_ai.ai_behavior_to_mode_d1 behavior
+  Ox_ai.ai_behavior_to_mode_d1 ~behavior
 
 let cd_ai_behavior_to_mode_d2 behavior =
-  Ox_ai.ai_behavior_to_mode_d2 behavior
+  Ox_ai.ai_behavior_to_mode_d2 ~behavior
 
 (* ai_turn_randomly: 3 scalars → 3-int tuple *)
 let cd_ai_turn_randomly rvx rvy rvz =

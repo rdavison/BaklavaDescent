@@ -63,7 +63,7 @@ let aim_hide = 5
 let aim_run_from_object = 4
 let aim_follow_path = 2
 
-let ai_behavior_to_mode_d1 behavior =
+let ai_behavior_to_mode_d1 ~behavior =
   if behavior = aib_still_d1 then aim_still
   else if behavior = aib_normal_d1 then aim_chase_object
   else if behavior = aib_hide_d1 then aim_hide
@@ -85,7 +85,7 @@ let aib_follow_d2 = 0x86
 (* D2 AIM constants *)
 let aim_behind = 5
 
-let ai_behavior_to_mode_d2 behavior =
+let ai_behavior_to_mode_d2 ~behavior =
   if behavior = aib_still_d2 then aim_still
   else if behavior = aib_normal_d2 then aim_chase_object
   else if behavior = aib_behind_d2 then aim_behind
