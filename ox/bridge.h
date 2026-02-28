@@ -333,6 +333,49 @@ void cd_ox_apply_damage_to_robot_d1(
     int obj_id, int killer_objnum,
     int32_t* out_new_shields, int* out_boss_been_hit, int* out_return_value);
 
+/* D2 collide effect callback typedefs */
+typedef void (*cd_effect_set_boss_hit_time_fn)(void);
+typedef int  (*cd_effect_query_player_dead_or_no_shields_fn)(void);
+typedef int  (*cd_effect_query_multi_all_players_alive_fn)(void);
+typedef void (*cd_effect_do_final_boss_hacks_fn)(void);
+typedef void (*cd_effect_multi_send_finish_game_fn)(void);
+typedef void (*cd_effect_save_stolen_items_fn)(void);
+typedef void (*cd_effect_restore_stolen_items_fn)(void);
+typedef void (*cd_effect_clear_stolen_items_fn)(void);
+typedef int  (*cd_effect_multi_explode_d2_fn)(int obj_id, int killer, int is_thief);
+typedef void (*cd_effect_multi_send_robot_explode_d2_fn)(int obj_id, int killer, int is_thief);
+typedef void (*cd_effect_start_robot_death_sequence_fn)(int obj_id);
+typedef void (*cd_effect_special_reactor_stuff_fn)(void);
+typedef void (*cd_effect_explode_object_delay_fn)(int obj_id, int delay);
+
+/* Register D2 collide effect callbacks (call once before first use) */
+void cd_ox_register_collide_effects_d2(
+    cd_effect_increment_kills_fn increment_kills,
+    cd_effect_start_boss_death_fn start_boss_death,
+    cd_effect_set_boss_hit_time_fn set_boss_hit_time,
+    cd_effect_query_player_dead_or_no_shields_fn query_player_dead_or_no_shields,
+    cd_effect_query_multi_all_players_alive_fn query_multi_all_players_alive,
+    cd_effect_do_final_boss_hacks_fn do_final_boss_hacks,
+    cd_effect_multi_send_finish_game_fn multi_send_finish_game,
+    cd_effect_save_stolen_items_fn save_stolen_items,
+    cd_effect_restore_stolen_items_fn restore_stolen_items,
+    cd_effect_clear_stolen_items_fn clear_stolen_items,
+    cd_effect_multi_explode_d2_fn multi_explode_d2,
+    cd_effect_multi_send_robot_explode_d2_fn multi_send_robot_explode_d2,
+    cd_effect_start_robot_death_sequence_fn start_robot_death_sequence,
+    cd_effect_special_reactor_stuff_fn special_reactor_stuff,
+    cd_effect_explode_object_delay_fn explode_object_delay);
+
+/* D2 collide / damage: returns new_shields and return value.
+   Effect callbacks are invoked during execution via OCaml algebraic effects. */
+void cd_ox_apply_damage_to_robot_d2(
+    int32_t flags, int32_t shields, int32_t damage,
+    int is_boss, int is_companion, int is_thief, int is_death_roll, int is_kamikaze,
+    int robot_id,
+    int is_multiplayer, int is_final_level,
+    int obj_id, int killer_objnum,
+    int32_t* out_new_shields, int* out_return_value);
+
 /* Gameseg functions */
 void cd_ox_compute_center_point_on_side(
     int32_t v0x, int32_t v0y, int32_t v0z,
@@ -564,6 +607,105 @@ int32_t cd_ox_compute_headlight_light_d2(
     int32_t point_x, int32_t point_y, int32_t point_z,
     int32_t face_light, int32_t beam_brightness,
     int32_t player_flags, int32_t player_energy, int is_viewer);
+
+/* -- Clutter damage (shared D1/D2) ------------------------------------ */
+typedef void (*cd_effect_explode_object_delay_clutter_fn)(int obj_id, int delay);
+void cd_ox_register_clutter_effects(
+    cd_effect_explode_object_delay_clutter_fn explode_object_delay);
+void cd_ox_apply_damage_to_clutter(
+    int32_t flags, int32_t shields, int32_t damage, int obj_id,
+    int32_t* out_new_shields, int* out_return_value);
+
+/* -- Control center damage (shared D1/D2) ----------------------------- */
+typedef void (*cd_effect_show_hud_invul_message_fn)(void);
+typedef void (*cd_effect_controlcen_been_hit_fn)(void);
+typedef void (*cd_effect_do_controlcen_destroyed_fn)(int obj_id);
+typedef void (*cd_effect_add_controlcen_score_fn)(void);
+typedef void (*cd_effect_multi_send_destroy_controlcen_fn)(int obj_id, int who_id);
+typedef void (*cd_effect_sound_controlcen_destroyed_fn)(int obj_id);
+typedef void (*cd_effect_explode_object_delay_controlcen_fn)(int obj_id, int delay);
+void cd_ox_register_controlcen_effects(
+    cd_effect_show_hud_invul_message_fn show_hud_invul_message,
+    cd_effect_controlcen_been_hit_fn controlcen_been_hit,
+    cd_effect_do_controlcen_destroyed_fn do_controlcen_destroyed,
+    cd_effect_add_controlcen_score_fn add_controlcen_score,
+    cd_effect_multi_send_destroy_controlcen_fn multi_send_destroy_controlcen,
+    cd_effect_sound_controlcen_destroyed_fn sound_controlcen_destroyed,
+    cd_effect_explode_object_delay_controlcen_fn explode_object_delay);
+void cd_ox_apply_damage_to_controlcen(
+    int32_t shields, int32_t flags, int32_t damage,
+    int who_is_player, int who_is_local_player,
+    int who_objnum, int local_player_objnum,
+    int is_multiplayer, int is_coop, int time_level_ok,
+    int obj_id, int who_id,
+    int32_t* out_new_shields);
+
+/* -- Player damage D1 ------------------------------------------------- */
+typedef void (*cd_effect_palette_flash_fn)(int r, int g, int b);
+typedef void (*cd_effect_set_player_dead_fn)(int killer_objnum);
+void cd_ox_register_player_damage_effects_d1(
+    cd_effect_palette_flash_fn palette_flash,
+    cd_effect_set_player_dead_fn set_player_dead);
+void cd_ox_apply_damage_to_player_d1(
+    int is_dead, int is_invulnerable, int is_endlevel, int is_local_player,
+    int32_t player_shields, int32_t damage, int killer_objnum,
+    int32_t* out_new_shields, int* out_should_be_dead);
+
+/* -- Player damage D2 ------------------------------------------------- */
+typedef void (*cd_effect_set_buddy_sorry_time_fn)(void);
+void cd_ox_register_player_damage_effects_d2(
+    cd_effect_palette_flash_fn palette_flash,
+    cd_effect_set_player_dead_fn set_player_dead,
+    cd_effect_set_buddy_sorry_time_fn set_buddy_sorry_time);
+void cd_ox_apply_damage_to_player_d2(
+    int is_dead, int is_invulnerable, int is_endlevel, int is_local_player,
+    int32_t player_shields, int32_t damage, int killer_objnum,
+    int killer_is_companion,
+    int32_t* out_new_shields, int* out_should_be_dead);
+
+/* -- maybe_kill_weapon (pure, no effects) ----------------------------- */
+void cd_ox_maybe_kill_weapon_d1(
+    int weapon_id, int32_t phys_flags, int32_t weapon_shields,
+    int other_type, int32_t other_shields,
+    int32_t* out_new_shields, int* out_should_be_dead);
+void cd_ox_maybe_kill_weapon_d2(
+    int weapon_id, int32_t phys_flags, int32_t weapon_shields,
+    int other_type, int32_t other_shields, int is_shareware,
+    int32_t* out_new_shields, int* out_should_be_dead);
+
+/* calc_best_gun: find best control center gun to fire at player.
+   packed layout: [num_guns, gun_pos(3*n), gun_dir(3*n), objpos(3)]
+   Returns gun index or -1 if no good gun. */
+int cd_ox_calc_best_gun(const int32_t* packed, int packed_len);
+
+/* chase_angles: smooth angle interpolation for endlevel camera.
+   Returns mask of angles at destination (bits 0,1,2 = p,b,h). */
+void cd_ox_chase_angles(
+    int32_t cur_p, int32_t cur_b, int32_t cur_h,
+    int32_t desired_p, int32_t desired_b, int32_t desired_h,
+    int32_t frame_time,
+    int32_t* out_p, int32_t* out_b, int32_t* out_h, int* out_mask);
+
+/* laser_are_related: check if two objects should be exempt from collision.
+   packed: [o1_idx, o1_type, o1_id, o1_sig, o1_parent_num, o1_parent_sig, o1_creation_time,
+            o2_idx, o2_type, o2_id, o2_sig, o2_parent_num, o2_parent_sig, o2_creation_time,
+            game_time] = 15 ints
+   Returns 1 if related (skip collision), 0 if not. */
+int cd_ox_laser_are_related_d1(const int32_t* packed, int packed_len);
+int cd_ox_laser_are_related_d2(const int32_t* packed, int packed_len);
+
+/* calc_controlcen_gun_point: compute world-space gun position & direction.
+   Takes gun local pos/dir, object orient (9 ints), object world pos.
+   Writes world-space gun pos/dir. */
+void cd_ox_calc_controlcen_gun_point(
+    int32_t glpx, int32_t glpy, int32_t glpz,
+    int32_t gldx, int32_t gldy, int32_t gldz,
+    int32_t or1, int32_t or2, int32_t or3,
+    int32_t ou1, int32_t ou2, int32_t ou3,
+    int32_t of1, int32_t of2, int32_t of3,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t* out_gpx, int32_t* out_gpy, int32_t* out_gpz,
+    int32_t* out_gdx, int32_t* out_gdy, int32_t* out_gdz);
 
 #ifdef __cplusplus
 }

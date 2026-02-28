@@ -50,6 +50,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "main_shared/compbit.h"
 #include "main_shared/songs.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
+
 typedef struct flythrough_data
 {
 	object* obj;
@@ -315,6 +319,18 @@ vms_angvec camera_desired_angles, camera_cur_angles;
 //returns bitmask of which angles are at dest. bits 0,1,2 = p,b,h
 int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out_p, out_b, out_h; int mask;
+	cd_ox_chase_angles(
+		cur_angles->p, cur_angles->b, cur_angles->h,
+		desired_angles->p, desired_angles->b, desired_angles->h,
+		FrameTime,
+		&out_p, &out_b, &out_h, &mask);
+	cur_angles->p = (fixang)out_p;
+	cur_angles->b = (fixang)out_b;
+	cur_angles->h = (fixang)out_h;
+	return mask;
+#else
 	vms_angvec delta_angs, alt_angles, alt_delta_angs;
 	fix total_delta, alt_total_delta;
 	fix frame_turn;
@@ -323,9 +339,6 @@ int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 	delta_angs.p = desired_angles->p - cur_angles->p;
 	delta_angs.h = desired_angles->h - cur_angles->h;
 	delta_angs.b = desired_angles->b - cur_angles->b;
-	//delta_angs.b = 0;
-
-	//printf("chasing angles...desired = %x %x %x, cur = %x %x %x   ",desired_angles->p,desired_angles->b,desired_angles->h,cur_angles->p,cur_angles->b,cur_angles->h);
 
 	total_delta = abs(delta_angs.p) + abs(delta_angs.b) + abs(delta_angs.h);
 
@@ -336,23 +349,18 @@ int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 	alt_delta_angs.p = desired_angles->p - alt_angles.p;
 	alt_delta_angs.h = desired_angles->h - alt_angles.h;
 	alt_delta_angs.b = desired_angles->b - alt_angles.b;
-	//alt_delta_angs.b = 0;
 
 	alt_total_delta = abs(alt_delta_angs.p) + abs(alt_delta_angs.b) + abs(alt_delta_angs.h);
 
-	//printf("Total delta = %x, alt total_delta = %x\n",total_delta,alt_total_delta);
-
 	if (alt_total_delta < total_delta)
 	{
-		//mprintf((0,"FLIPPING ANGLES!\n"));
-		//printf("FLIPPING ANGLES!\n");
 		*cur_angles = alt_angles;
 		delta_angs = alt_delta_angs;
 	}
 
 	frame_turn = fixmul(FrameTime, CHASE_TURN_RATE);
 
-	if (abs(delta_angs.p) < frame_turn) 
+	if (abs(delta_angs.p) < frame_turn)
 	{
 		cur_angles->p = desired_angles->p;
 		mask |= 1;
@@ -363,7 +371,7 @@ int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 		else
 			cur_angles->p -= (fixang)frame_turn;
 
-	if (abs(delta_angs.b) < frame_turn) 
+	if (abs(delta_angs.b) < frame_turn)
 	{
 		cur_angles->b = desired_angles->b;
 		mask |= 2;
@@ -373,9 +381,8 @@ int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 			cur_angles->b += (fixang)frame_turn;
 		else
 			cur_angles->b -= (fixang)frame_turn;
-	//cur_angles->b = 0;
 
-	if (abs(delta_angs.h) < frame_turn) 
+	if (abs(delta_angs.h) < frame_turn)
 	{
 		cur_angles->h = desired_angles->h;
 		mask |= 4;
@@ -387,6 +394,7 @@ int chase_angles(vms_angvec* cur_angles, vms_angvec* desired_angles)
 			cur_angles->h -= (fixang)frame_turn;
 
 	return mask;
+#endif
 }
 
 void stop_endlevel_sequence()

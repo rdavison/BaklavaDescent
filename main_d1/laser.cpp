@@ -126,13 +126,28 @@ void Laser_render(object* obj)
 //	AND...Your proximity bombs can blow you up if they're 2.0 seconds or more old.
 int laser_are_related(int o1, int o2)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t packed[15] = {
+		o1, (o1 >= 0 ? Objects[o1].type : -1), (o1 >= 0 ? Objects[o1].id : -1),
+		(o1 >= 0 ? (int32_t)Objects[o1].signature : -1),
+		(o1 >= 0 ? Objects[o1].ctype.laser_info.parent_num : -1),
+		(o1 >= 0 ? (int32_t)Objects[o1].ctype.laser_info.parent_signature : -1),
+		(o1 >= 0 ? Objects[o1].ctype.laser_info.creation_time : 0),
+		o2, (o2 >= 0 ? Objects[o2].type : -1), (o2 >= 0 ? Objects[o2].id : -1),
+		(o2 >= 0 ? (int32_t)Objects[o2].signature : -1),
+		(o2 >= 0 ? Objects[o2].ctype.laser_info.parent_num : -1),
+		(o2 >= 0 ? (int32_t)Objects[o2].ctype.laser_info.parent_signature : -1),
+		(o2 >= 0 ? Objects[o2].ctype.laser_info.creation_time : 0),
+		GameTime
+	};
+	return cd_ox_laser_are_related_d1(packed, 15);
+#else
 	if ((o1 < 0) || (o2 < 0))
 		return 0;
 
 	// See if o2 is the parent of o1
 	if (Objects[o1].type == OBJ_WEAPON)
 		if ((Objects[o1].ctype.laser_info.parent_num == o2) && (Objects[o1].ctype.laser_info.parent_signature == Objects[o2].signature))
-			//	o1 is a weapon, o2 is the parent of 1, so if o1 is PROXIMITY_BOMB and o2 is player, they are related only if o1 < 2.0 seconds old
 			if ((Objects[o1].id != PROXIMITY_ID) || (Objects[o1].ctype.laser_info.creation_time + F1_0 * 2 >= GameTime)) {
 				return 1;
 			}
@@ -148,15 +163,14 @@ int laser_are_related(int o1, int o2)
 	if (Objects[o1].type != OBJ_WEAPON || Objects[o2].type != OBJ_WEAPON)
 		return 0;
 
-	//	Here is the 09/07/94 change -- Siblings must be identical, others can hurt each other
-	// See if they're siblings...
 	if (Objects[o1].ctype.laser_info.parent_signature == Objects[o2].ctype.laser_info.parent_signature)
 		if (Objects[o1].id == PROXIMITY_ID || Objects[o2].id == PROXIMITY_ID)
-			return 0;		//if either is proximity, then can blow up, so say not related
+			return 0;
 		else
 			return 1;
 
 	return 0;
+#endif
 }
 
 //--unused-- int Muzzle_scale=2;

@@ -51,7 +51,7 @@
 
 (library
  (name ox_collide)
- (libraries core)
+ (libraries core ox_math)
  (modules ox_collide)
  (flags (:standard -open Core)))
 

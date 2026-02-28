@@ -138,6 +138,29 @@ let () =
   (* Force collide bridge module initialization so its callbacks are registered. *)
   ignore (Collide_bridge.cd_apply_damage_to_robot_d1 :
     int -> int -> int -> int -> int -> int -> int -> int * int * int);
+  ignore (Collide_bridge.cd_apply_damage_to_robot_d2 :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_apply_damage_to_clutter :
+    int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_apply_damage_to_controlcen :
+    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int);
+  ignore (Collide_bridge.cd_apply_damage_to_player_d1 :
+    int -> int -> int -> int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_apply_damage_to_player_d2 :
+    int -> int -> int -> int -> int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_maybe_kill_weapon_d1 :
+    int -> int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_maybe_kill_weapon_d2 :
+    int -> int -> int -> int -> int -> int -> int * int);
+  ignore (Collide_bridge.cd_calc_best_gun : int array -> int);
+  ignore (Collide_bridge.cd_chase_angles :
+    int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  ignore (Collide_bridge.cd_laser_are_related_d1 : int array -> int);
+  ignore (Collide_bridge.cd_laser_are_related_d2 : int array -> int);
+  ignore (Collide_bridge.cd_calc_controlcen_gun_point :
+    int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int * int * int * int * int * int);
   (* Force physics bridge module initialization so its callbacks are registered. *)
   ignore (Physics_bridge.cd_physics_turn_towards_vector :
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int);

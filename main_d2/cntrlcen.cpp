@@ -38,6 +38,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "endlevel.h"
 #include "misc/rand.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
+
 //@@vms_vector controlcen_gun_points[MAX_CONTROLCEN_GUNS];
 //@@vms_vector controlcen_gun_dirs[MAX_CONTROLCEN_GUNS];
 
@@ -58,7 +62,22 @@ vms_vector	Gun_pos[MAX_CONTROLCEN_GUNS], Gun_dir[MAX_CONTROLCEN_GUNS];
 //return the position & orientation of a gun on the control center object 
 void calc_controlcen_gun_point(vms_vector *gun_point,vms_vector *gun_dir,object *obj,int gun_num)
 {
-	reactor *reactor;
+#ifdef USE_OX_BRIDGE
+	struct reactor *r = &Reactors[obj->id];
+	Assert(obj->type == OBJ_CNTRLCEN);
+	Assert(obj->render_type==RT_POLYOBJ);
+	Assert(gun_num < r->n_guns);
+	cd_ox_calc_controlcen_gun_point(
+		r->gun_points[gun_num].x, r->gun_points[gun_num].y, r->gun_points[gun_num].z,
+		r->gun_dirs[gun_num].x, r->gun_dirs[gun_num].y, r->gun_dirs[gun_num].z,
+		obj->orient.rvec.x, obj->orient.rvec.y, obj->orient.rvec.z,
+		obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
+		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+		obj->pos.x, obj->pos.y, obj->pos.z,
+		&gun_point->x, &gun_point->y, &gun_point->z,
+		&gun_dir->x, &gun_dir->y, &gun_dir->z);
+#else
+	struct reactor *reactor;
 	vms_matrix m;
 
 	Assert(obj->type == OBJ_CNTRLCEN);
@@ -68,13 +87,12 @@ void calc_controlcen_gun_point(vms_vector *gun_point,vms_vector *gun_dir,object 
 
 	Assert(gun_num < reactor->n_guns);
 
-	//instance gun position & orientation
-
 	vm_copy_transpose_matrix(&m,&obj->orient);
 
 	vm_vec_rotate(gun_point,&reactor->gun_points[gun_num],&m);
 	vm_vec_add2(gun_point,&obj->pos);
 	vm_vec_rotate(gun_dir,&reactor->gun_dirs[gun_num],&m);
+#endif
 }
 
 //	-----------------------------------------------------------------------------
@@ -83,6 +101,27 @@ void calc_controlcen_gun_point(vms_vector *gun_point,vms_vector *gun_dir,object 
 //	If best gun has negative dot, return -1, meaning no gun is good.
 int calc_best_gun(int num_guns, vms_vector *gun_pos, vms_vector *gun_dir, vms_vector *objpos)
 {
+#ifdef USE_OX_BRIDGE
+	/* packed: [num_guns, gun_pos(3*n), gun_dir(3*n), objpos(3)] */
+	int32_t packed[4 + 6 * MAX_CONTROLCEN_GUNS];
+	packed[0] = num_guns;
+	for (int i = 0; i < num_guns; i++) {
+		packed[1 + 3*i + 0] = gun_pos[i].x;
+		packed[1 + 3*i + 1] = gun_pos[i].y;
+		packed[1 + 3*i + 2] = gun_pos[i].z;
+	}
+	int dir_off = 1 + 3 * num_guns;
+	for (int i = 0; i < num_guns; i++) {
+		packed[dir_off + 3*i + 0] = gun_dir[i].x;
+		packed[dir_off + 3*i + 1] = gun_dir[i].y;
+		packed[dir_off + 3*i + 2] = gun_dir[i].z;
+	}
+	int obj_off = 1 + 6 * num_guns;
+	packed[obj_off + 0] = objpos->x;
+	packed[obj_off + 1] = objpos->y;
+	packed[obj_off + 2] = objpos->z;
+	return cd_ox_calc_best_gun(packed, obj_off + 3);
+#else
 	int	i;
 	fix	best_dot;
 	int	best_gun;
@@ -110,7 +149,7 @@ int calc_best_gun(int num_guns, vms_vector *gun_pos, vms_vector *gun_dir, vms_ve
 		return -1;
 	else
 		return best_gun;
-
+#endif
 }
 
 extern fix Player_time_of_death;		//	object.c

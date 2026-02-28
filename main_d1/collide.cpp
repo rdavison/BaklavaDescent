@@ -105,6 +105,23 @@ void collide_robot_and_wall(object* robot, fix hitspeed, short hitseg, short hit
 
 int apply_damage_to_clutter(object* clutter, fix damage)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_clutter_effects(
+				[](int obj_id, int delay) { explode_object(&Objects[obj_id], delay); });
+		}
+	}
+	int32_t new_shields; int ret;
+	cd_ox_apply_damage_to_clutter(
+		clutter->flags, clutter->shields, damage,
+		(int)(clutter - Objects),
+		&new_shields, &ret);
+	clutter->shields = new_shields;
+	return ret;
+#else
 	if (clutter->flags & OF_EXPLODING) return 0;
 
 	if (clutter->shields < 0) return 0;	//clutter already dead...
@@ -117,6 +134,7 @@ int apply_damage_to_clutter(object* clutter, fix damage)
 	}
 	else
 		return 0;
+#endif
 }
 
 
@@ -710,6 +728,55 @@ void net_destroy_controlcen(object* controlcen)
 //	-----------------------------------------------------------------------------
 void apply_damage_to_controlcen(object* controlcen, fix damage, short who)
 {
+#ifdef USE_OX_BRIDGE
+	if ((who < 0) || (who > Highest_object_index))
+		return;
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_controlcen_effects(
+				[]() {
+#ifdef NETWORK
+					int secs = f2i(Netgame.control_invul_time - Players[Player_num].time_level) % 60;
+					int mins = f2i(Netgame.control_invul_time - Players[Player_num].time_level) / 60;
+					HUD_init_message("%s %d:%02d.", TXT_CNTRLCEN_INVUL, mins, secs);
+#endif
+				},
+				[]() { Control_center_been_hit = 1; ai_do_cloak_stuff(); },
+				[](int obj_id) { do_controlcen_destroyed_stuff(&Objects[obj_id]); },
+				[]() { add_points_to_score(CONTROL_CEN_SCORE); },
+				[](int obj_id, int who_id) {
+#ifdef NETWORK
+					multi_send_destroy_controlcen((uint16_t)obj_id, who_id);
+#else
+					(void)obj_id; (void)who_id;
+#endif
+				},
+				[](int obj_id) {
+					digi_link_sound_to_pos(SOUND_CONTROL_CENTER_DESTROYED,
+						Objects[obj_id].segnum, 0, &Objects[obj_id].pos, 0, F1_0);
+				},
+				[](int obj_id, int delay) { explode_object(&Objects[obj_id], delay); });
+		}
+	}
+	int32_t new_shields;
+	cd_ox_apply_damage_to_controlcen(
+		controlcen->shields, controlcen->flags, damage,
+		Objects[who].type == OBJ_PLAYER ? 1 : 0,
+		Objects[who].id == Player_num ? 1 : 0,
+		(int)who, Players[Player_num].objnum,
+		(Game_mode & GM_MULTI) ? 1 : 0,
+		(Game_mode & GM_MULTI_COOP) ? 1 : 0,
+#ifdef NETWORK
+		(Players[Player_num].time_level >= Netgame.control_invul_time) ? 1 : 0,
+#else
+		1,
+#endif
+		(int)(controlcen - Objects), Objects[who].id,
+		&new_shields);
+	controlcen->shields = new_shields;
+#else
 	int	whotype;
 
 	//	Only allow a player to damage the control center.
@@ -745,7 +812,7 @@ void apply_damage_to_controlcen(object* controlcen, fix damage, short who)
 	if (controlcen->shields >= 0)
 		controlcen->shields -= damage;
 
-	if ((controlcen->shields < 0) && !(controlcen->flags & (OF_EXPLODING | OF_DESTROYED))) 
+	if ((controlcen->shields < 0) && !(controlcen->flags & (OF_EXPLODING | OF_DESTROYED)))
 	{
 		do_controlcen_destroyed_stuff(controlcen);
 
@@ -764,6 +831,7 @@ void apply_damage_to_controlcen(object* controlcen, fix damage, short who)
 
 		explode_object(controlcen, 0);
 	}
+#endif
 }
 
 void collide_player_and_controlcen(object* controlcen, object* player, vms_vector* collision_point)
@@ -783,6 +851,16 @@ void collide_player_and_controlcen(object* controlcen, object* player, vms_vecto
 //	If both objects are weapons, weaken the weapon.
 void maybe_kill_weapon(object* weapon, object* other_obj)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t new_shields; int should_be_dead;
+	cd_ox_maybe_kill_weapon_d1(
+		weapon->id, weapon->mtype.phys_info.flags, weapon->shields,
+		other_obj->type, other_obj->shields,
+		&new_shields, &should_be_dead);
+	weapon->shields = new_shields;
+	if (should_be_dead)
+		weapon->flags |= OF_SHOULD_BE_DEAD;
+#else
 	if (weapon->id == PROXIMITY_ID) {
 		weapon->flags |= OF_SHOULD_BE_DEAD;
 		return;
@@ -804,6 +882,7 @@ void maybe_kill_weapon(object* weapon, object* other_obj)
 	}
 	else
 		weapon->flags |= OF_SHOULD_BE_DEAD;
+#endif
 }
 
 void collide_weapon_and_controlcen(object* weapon, object* controlcen, vms_vector* collision_point)
@@ -1242,6 +1321,32 @@ void drop_player_eggs(object* player)
 
 void apply_damage_to_player(object* player, object* killer, fix damage)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_player_damage_effects_d1(
+				[](int r, int g, int b) { PALETTE_FLASH_ADD(r, g, b); },
+				[](int killer_objnum) {
+					Players[Player_num].killer_objnum = killer_objnum;
+				});
+		}
+	}
+	int32_t new_shields; int should_be_dead;
+	cd_ox_apply_damage_to_player_d1(
+		Player_is_dead ? 1 : 0,
+		(Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE) ? 1 : 0,
+		Endlevel_sequence ? 1 : 0,
+		(player->id == Player_num) ? 1 : 0,
+		Players[Player_num].shields, damage, (int)(killer - Objects),
+		&new_shields, &should_be_dead);
+	if (player->id == Player_num) {
+		Players[Player_num].shields = new_shields;
+		player->shields = new_shields;
+		if (should_be_dead) player->flags |= OF_SHOULD_BE_DEAD;
+	}
+#else
 	if (Player_is_dead)
 		return;
 
@@ -1254,12 +1359,12 @@ void apply_damage_to_player(object* player, object* killer, fix damage)
 	//for the player, the 'real' shields are maintained in the Players[]
 	//array.  The shields value in the player's object are, I think, not
 	//used anywhere.  This routine, however, sets the objects shields to
-	//be a mirror of the value in the Player structure. 
+	//be a mirror of the value in the Player structure.
 
 	if (player->id == Player_num) //is this the local player?
 	{
 
-		if (Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE) 
+		if (Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE)
 		{
 			//invincible, so just do blue flash
 			PALETTE_FLASH_ADD(0, 0, f2i(damage) * 4);	//flash blue
@@ -1270,7 +1375,7 @@ void apply_damage_to_player(object* player, object* killer, fix damage)
 			PALETTE_FLASH_ADD(f2i(damage) * 4, -f2i(damage / 2), -f2i(damage / 2));	//flash red
 		}
 
-		if (Players[Player_num].shields < 0) 
+		if (Players[Player_num].shields < 0)
 		{
 			Players[Player_num].killer_objnum = killer - Objects;
 			//			if ( killer && (killer->type == OBJ_PLAYER))
@@ -1279,6 +1384,7 @@ void apply_damage_to_player(object* player, object* killer, fix damage)
 		}
 		player->shields = Players[Player_num].shields;		//mirror
 	}
+#endif
 }
 
 void collide_player_and_weapon(object* player, object* weapon, vms_vector* collision_point)

@@ -90,6 +90,23 @@ static cd_effect_start_boss_death_fn g_effect_start_boss_death = NULL;
 static cd_effect_explode_object_fn g_effect_explode_object = NULL;
 static cd_effect_send_net_robot_explode_fn g_effect_send_net_robot_explode = NULL;
 static cd_effect_multi_explode_robot_sub_fn g_effect_multi_explode_robot_sub = NULL;
+
+/* D2 collide effect function pointers */
+static cd_effect_set_boss_hit_time_fn g_effect_set_boss_hit_time = NULL;
+static cd_effect_query_player_dead_or_no_shields_fn g_effect_query_player_dead_or_no_shields = NULL;
+static cd_effect_query_multi_all_players_alive_fn g_effect_query_multi_all_players_alive = NULL;
+static cd_effect_do_final_boss_hacks_fn g_effect_do_final_boss_hacks = NULL;
+static cd_effect_multi_send_finish_game_fn g_effect_multi_send_finish_game = NULL;
+static cd_effect_save_stolen_items_fn g_effect_save_stolen_items = NULL;
+static cd_effect_restore_stolen_items_fn g_effect_restore_stolen_items = NULL;
+static cd_effect_clear_stolen_items_fn g_effect_clear_stolen_items = NULL;
+static cd_effect_multi_explode_d2_fn g_effect_multi_explode_d2 = NULL;
+static cd_effect_multi_send_robot_explode_d2_fn g_effect_multi_send_robot_explode_d2 = NULL;
+static cd_effect_start_robot_death_sequence_fn g_effect_start_robot_death_sequence = NULL;
+static cd_effect_special_reactor_stuff_fn g_effect_special_reactor_stuff = NULL;
+static cd_effect_explode_object_delay_fn g_effect_explode_object_delay = NULL;
+static const value* g_apply_damage_to_robot_d2 = NULL;
+
 static const value* g_physics_turn_towards_vector = NULL;
 static const value* g_do_physics_sim_rot = NULL;
 static const value* g_calc_gun_point = NULL;
@@ -113,6 +130,38 @@ static const value* g_get_explosion_vclip = NULL;
 static const value* g_ai_behavior_to_mode_d1 = NULL;
 static const value* g_ai_behavior_to_mode_d2 = NULL;
 static const value* g_ai_turn_randomly = NULL;
+
+/* Clutter effect function pointers */
+static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
+static const value* g_apply_damage_to_clutter = NULL;
+
+/* Controlcen effect function pointers */
+static cd_effect_show_hud_invul_message_fn g_effect_show_hud_invul_message = NULL;
+static cd_effect_controlcen_been_hit_fn g_effect_controlcen_been_hit = NULL;
+static cd_effect_do_controlcen_destroyed_fn g_effect_do_controlcen_destroyed = NULL;
+static cd_effect_add_controlcen_score_fn g_effect_add_controlcen_score = NULL;
+static cd_effect_multi_send_destroy_controlcen_fn g_effect_multi_send_destroy_controlcen = NULL;
+static cd_effect_sound_controlcen_destroyed_fn g_effect_sound_controlcen_destroyed = NULL;
+static cd_effect_explode_object_delay_controlcen_fn g_effect_explode_object_delay_controlcen = NULL;
+static const value* g_apply_damage_to_controlcen = NULL;
+
+/* Player damage D1 effect function pointers */
+static cd_effect_palette_flash_fn g_effect_palette_flash_d1 = NULL;
+static cd_effect_set_player_dead_fn g_effect_set_player_dead_d1 = NULL;
+static const value* g_apply_damage_to_player_d1 = NULL;
+
+/* Player damage D2 effect function pointers */
+static cd_effect_palette_flash_fn g_effect_palette_flash_d2 = NULL;
+static cd_effect_set_player_dead_fn g_effect_set_player_dead_d2 = NULL;
+static cd_effect_set_buddy_sorry_time_fn g_effect_set_buddy_sorry_time = NULL;
+static const value* g_apply_damage_to_player_d2 = NULL;
+static const value* g_maybe_kill_weapon_d1 = NULL;
+static const value* g_maybe_kill_weapon_d2 = NULL;
+static const value* g_calc_best_gun = NULL;
+static const value* g_chase_angles = NULL;
+static const value* g_laser_are_related_d1 = NULL;
+static const value* g_laser_are_related_d2 = NULL;
+static const value* g_calc_controlcen_gun_point = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -190,6 +239,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_special_check_line_to_face
           && g_check_vector_to_sphere_1
           && g_apply_damage_to_robot_d1
+          && g_apply_damage_to_robot_d2
           && g_physics_turn_towards_vector
           && g_do_physics_sim_rot
           && g_calc_gun_point
@@ -212,7 +262,18 @@ static void cd_ox_require_ready(const char* fn)
           && g_get_explosion_vclip
           && g_ai_behavior_to_mode_d1
           && g_ai_behavior_to_mode_d2
-          && g_ai_turn_randomly))
+          && g_ai_turn_randomly
+          && g_apply_damage_to_clutter
+          && g_apply_damage_to_controlcen
+          && g_apply_damage_to_player_d1
+          && g_apply_damage_to_player_d2
+          && g_maybe_kill_weapon_d1
+          && g_maybe_kill_weapon_d2
+          && g_calc_best_gun
+          && g_chase_angles
+          && g_laser_are_related_d1
+          && g_laser_are_related_d2
+          && g_calc_controlcen_gun_point))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -305,6 +366,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_special_check_line_to_face = caml_named_value("cd_special_check_line_to_face");
     g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
     g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
+    g_apply_damage_to_robot_d2 = caml_named_value("cd_apply_damage_to_robot_d2");
     g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
     g_do_physics_sim_rot = caml_named_value("cd_do_physics_sim_rot");
     g_calc_gun_point = caml_named_value("cd_calc_gun_point");
@@ -328,6 +390,17 @@ int cd_ox_init_runtime(const char* executable_path)
     g_ai_behavior_to_mode_d1 = caml_named_value("cd_ai_behavior_to_mode_d1");
     g_ai_behavior_to_mode_d2 = caml_named_value("cd_ai_behavior_to_mode_d2");
     g_ai_turn_randomly = caml_named_value("cd_ai_turn_randomly");
+    g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
+    g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
+    g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
+    g_apply_damage_to_player_d2 = caml_named_value("cd_apply_damage_to_player_d2");
+    g_maybe_kill_weapon_d1 = caml_named_value("cd_maybe_kill_weapon_d1");
+    g_maybe_kill_weapon_d2 = caml_named_value("cd_maybe_kill_weapon_d2");
+    g_calc_best_gun = caml_named_value("cd_calc_best_gun");
+    g_chase_angles = caml_named_value("cd_chase_angles");
+    g_laser_are_related_d1 = caml_named_value("cd_laser_are_related_d1");
+    g_laser_are_related_d2 = caml_named_value("cd_laser_are_related_d2");
+    g_calc_controlcen_gun_point = caml_named_value("cd_calc_controlcen_gun_point");
 
     if (!g_i2f
         || !g_f2i
@@ -402,6 +475,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_special_check_line_to_face
         || !g_check_vector_to_sphere_1
         || !g_apply_damage_to_robot_d1
+        || !g_apply_damage_to_robot_d2
         || !g_physics_turn_towards_vector
         || !g_do_physics_sim_rot
         || !g_calc_gun_point
@@ -424,7 +498,18 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_get_explosion_vclip
         || !g_ai_behavior_to_mode_d1
         || !g_ai_behavior_to_mode_d2
-        || !g_ai_turn_randomly)
+        || !g_ai_turn_randomly
+        || !g_apply_damage_to_clutter
+        || !g_apply_damage_to_controlcen
+        || !g_apply_damage_to_player_d1
+        || !g_apply_damage_to_player_d2
+        || !g_maybe_kill_weapon_d1
+        || !g_maybe_kill_weapon_d2
+        || !g_calc_best_gun
+        || !g_chase_angles
+        || !g_laser_are_related_d1
+        || !g_laser_are_related_d2
+        || !g_calc_controlcen_gun_point)
     {
         return 1;
     }
@@ -507,6 +592,7 @@ int cd_ox_is_ready(void)
            && g_special_check_line_to_face
            && g_check_vector_to_sphere_1
            && g_apply_damage_to_robot_d1
+           && g_apply_damage_to_robot_d2
            && g_physics_turn_towards_vector
            && g_do_physics_sim_rot
            && g_calc_gun_point
@@ -529,7 +615,14 @@ int cd_ox_is_ready(void)
            && g_get_explosion_vclip
            && g_ai_behavior_to_mode_d1
            && g_ai_behavior_to_mode_d2
-           && g_ai_turn_randomly;
+           && g_ai_turn_randomly
+           && g_maybe_kill_weapon_d1
+           && g_maybe_kill_weapon_d2
+           && g_calc_best_gun
+           && g_chase_angles
+           && g_laser_are_related_d1
+           && g_laser_are_related_d2
+           && g_calc_controlcen_gun_point;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1744,6 +1837,170 @@ void cd_ox_apply_damage_to_robot_d1(
     CAMLreturn0;
 }
 
+/* -- D2 Collide effect registration + CAMLprim wrappers ---------------- */
+
+void cd_ox_register_collide_effects_d2(
+    cd_effect_increment_kills_fn increment_kills,
+    cd_effect_start_boss_death_fn start_boss_death,
+    cd_effect_set_boss_hit_time_fn set_boss_hit_time,
+    cd_effect_query_player_dead_or_no_shields_fn query_player_dead_or_no_shields,
+    cd_effect_query_multi_all_players_alive_fn query_multi_all_players_alive,
+    cd_effect_do_final_boss_hacks_fn do_final_boss_hacks,
+    cd_effect_multi_send_finish_game_fn multi_send_finish_game,
+    cd_effect_save_stolen_items_fn save_stolen_items,
+    cd_effect_restore_stolen_items_fn restore_stolen_items,
+    cd_effect_clear_stolen_items_fn clear_stolen_items,
+    cd_effect_multi_explode_d2_fn multi_explode_d2,
+    cd_effect_multi_send_robot_explode_d2_fn multi_send_robot_explode_d2,
+    cd_effect_start_robot_death_sequence_fn start_robot_death_sequence,
+    cd_effect_special_reactor_stuff_fn special_reactor_stuff,
+    cd_effect_explode_object_delay_fn explode_object_delay)
+{
+    /* Reuse D1 slots for shared effects */
+    g_effect_increment_kills = increment_kills;
+    g_effect_start_boss_death = start_boss_death;
+    /* D2-specific slots */
+    g_effect_set_boss_hit_time = set_boss_hit_time;
+    g_effect_query_player_dead_or_no_shields = query_player_dead_or_no_shields;
+    g_effect_query_multi_all_players_alive = query_multi_all_players_alive;
+    g_effect_do_final_boss_hacks = do_final_boss_hacks;
+    g_effect_multi_send_finish_game = multi_send_finish_game;
+    g_effect_save_stolen_items = save_stolen_items;
+    g_effect_restore_stolen_items = restore_stolen_items;
+    g_effect_clear_stolen_items = clear_stolen_items;
+    g_effect_multi_explode_d2 = multi_explode_d2;
+    g_effect_multi_send_robot_explode_d2 = multi_send_robot_explode_d2;
+    g_effect_start_robot_death_sequence = start_robot_death_sequence;
+    g_effect_special_reactor_stuff = special_reactor_stuff;
+    g_effect_explode_object_delay = explode_object_delay;
+}
+
+CAMLprim value cd_ox_effect_set_boss_hit_time(value unit)
+{
+    (void)unit;
+    if (g_effect_set_boss_hit_time) g_effect_set_boss_hit_time();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_query_player_dead_or_no_shields(value unit)
+{
+    (void)unit;
+    if (g_effect_query_player_dead_or_no_shields)
+        return Val_bool(g_effect_query_player_dead_or_no_shields());
+    return Val_bool(0);
+}
+
+CAMLprim value cd_ox_effect_query_multi_all_players_alive(value unit)
+{
+    (void)unit;
+    if (g_effect_query_multi_all_players_alive)
+        return Val_bool(g_effect_query_multi_all_players_alive());
+    return Val_bool(0);
+}
+
+CAMLprim value cd_ox_effect_do_final_boss_hacks(value unit)
+{
+    (void)unit;
+    if (g_effect_do_final_boss_hacks) g_effect_do_final_boss_hacks();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_multi_send_finish_game(value unit)
+{
+    (void)unit;
+    if (g_effect_multi_send_finish_game) g_effect_multi_send_finish_game();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_save_stolen_items(value unit)
+{
+    (void)unit;
+    if (g_effect_save_stolen_items) g_effect_save_stolen_items();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_restore_stolen_items(value unit)
+{
+    (void)unit;
+    if (g_effect_restore_stolen_items) g_effect_restore_stolen_items();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_clear_stolen_items(value unit)
+{
+    (void)unit;
+    if (g_effect_clear_stolen_items) g_effect_clear_stolen_items();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_multi_explode_d2(value v_obj_id, value v_killer, value v_is_thief)
+{
+    if (g_effect_multi_explode_d2)
+        return Val_bool(g_effect_multi_explode_d2(
+            Int_val(v_obj_id), Int_val(v_killer), Bool_val(v_is_thief)));
+    return Val_bool(0);
+}
+
+CAMLprim value cd_ox_effect_multi_send_robot_explode_d2(value v_obj_id, value v_killer, value v_is_thief)
+{
+    if (g_effect_multi_send_robot_explode_d2)
+        g_effect_multi_send_robot_explode_d2(
+            Int_val(v_obj_id), Int_val(v_killer), Bool_val(v_is_thief));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_start_robot_death_sequence(value v_obj_id)
+{
+    if (g_effect_start_robot_death_sequence)
+        g_effect_start_robot_death_sequence(Int_val(v_obj_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_special_reactor_stuff(value unit)
+{
+    (void)unit;
+    if (g_effect_special_reactor_stuff) g_effect_special_reactor_stuff();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_explode_object_delay(value v_obj_id, value v_delay)
+{
+    if (g_effect_explode_object_delay)
+        g_effect_explode_object_delay(Int_val(v_obj_id), Int_val(v_delay));
+    return Val_unit;
+}
+
+/* -- D2 Collide / damage bridge ---------------------------------------- */
+
+void cd_ox_apply_damage_to_robot_d2(
+    int32_t flags, int32_t shields, int32_t damage,
+    int is_boss, int is_companion, int is_thief, int is_death_roll, int is_kamikaze,
+    int robot_id,
+    int is_multiplayer, int is_final_level,
+    int obj_id, int killer_objnum,
+    int32_t* out_new_shields, int* out_return_value)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_robot_d2");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[13] = {
+        Val_long(flags), Val_long(shields), Val_long(damage),
+        Val_long(is_boss), Val_long(is_companion),
+        Val_long(is_thief), Val_long(is_death_roll), Val_long(is_kamikaze),
+        Val_long(robot_id),
+        Val_long(is_multiplayer), Val_long(is_final_level),
+        Val_long(obj_id), Val_long(killer_objnum)
+    };
+    result = caml_callbackN(*g_apply_damage_to_robot_d2, 13, args);
+
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_return_value = Int_val(Field(result, 1));
+
+    CAMLreturn0;
+}
+
 void cd_ox_physics_turn_towards_vector(
     int32_t gx, int32_t gy, int32_t gz,
     int32_t fx, int32_t fy, int32_t fz,
@@ -2179,4 +2436,363 @@ int cd_ox_get_explosion_vclip(
         Val_long(expl_vclip_num),
     };
     return Int_val(caml_callbackN(*g_get_explosion_vclip, 5, args));
+}
+
+/* -- Clutter damage bridge -------------------------------------------- */
+
+void cd_ox_register_clutter_effects(
+    cd_effect_explode_object_delay_clutter_fn explode_object_delay)
+{
+    g_effect_explode_object_delay_clutter = explode_object_delay;
+}
+
+CAMLprim value cd_ox_effect_explode_object_delay_clutter(value v_obj_id, value v_delay)
+{
+    if (g_effect_explode_object_delay_clutter)
+        g_effect_explode_object_delay_clutter(Int_val(v_obj_id), Int_val(v_delay));
+    return Val_unit;
+}
+
+void cd_ox_apply_damage_to_clutter(
+    int32_t flags, int32_t shields, int32_t damage, int obj_id,
+    int32_t* out_new_shields, int* out_return_value)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_clutter");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[4] = {
+        Val_long(flags), Val_long(shields), Val_long(damage),
+        Val_long(obj_id)
+    };
+    result = caml_callbackN(*g_apply_damage_to_clutter, 4, args);
+
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_return_value = Int_val(Field(result, 1));
+
+    CAMLreturn0;
+}
+
+/* -- Controlcen damage bridge ----------------------------------------- */
+
+void cd_ox_register_controlcen_effects(
+    cd_effect_show_hud_invul_message_fn show_hud_invul_message,
+    cd_effect_controlcen_been_hit_fn controlcen_been_hit,
+    cd_effect_do_controlcen_destroyed_fn do_controlcen_destroyed,
+    cd_effect_add_controlcen_score_fn add_controlcen_score,
+    cd_effect_multi_send_destroy_controlcen_fn multi_send_destroy_controlcen,
+    cd_effect_sound_controlcen_destroyed_fn sound_controlcen_destroyed,
+    cd_effect_explode_object_delay_controlcen_fn explode_object_delay)
+{
+    g_effect_show_hud_invul_message = show_hud_invul_message;
+    g_effect_controlcen_been_hit = controlcen_been_hit;
+    g_effect_do_controlcen_destroyed = do_controlcen_destroyed;
+    g_effect_add_controlcen_score = add_controlcen_score;
+    g_effect_multi_send_destroy_controlcen = multi_send_destroy_controlcen;
+    g_effect_sound_controlcen_destroyed = sound_controlcen_destroyed;
+    g_effect_explode_object_delay_controlcen = explode_object_delay;
+}
+
+CAMLprim value cd_ox_effect_show_hud_invul_message(value unit)
+{
+    (void)unit;
+    if (g_effect_show_hud_invul_message) g_effect_show_hud_invul_message();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_controlcen_been_hit(value unit)
+{
+    (void)unit;
+    if (g_effect_controlcen_been_hit) g_effect_controlcen_been_hit();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_do_controlcen_destroyed(value v_obj_id)
+{
+    if (g_effect_do_controlcen_destroyed)
+        g_effect_do_controlcen_destroyed(Int_val(v_obj_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_add_controlcen_score(value unit)
+{
+    (void)unit;
+    if (g_effect_add_controlcen_score) g_effect_add_controlcen_score();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_multi_send_destroy_controlcen(value v_obj_id, value v_who_id)
+{
+    if (g_effect_multi_send_destroy_controlcen)
+        g_effect_multi_send_destroy_controlcen(Int_val(v_obj_id), Int_val(v_who_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_sound_controlcen_destroyed(value v_obj_id)
+{
+    if (g_effect_sound_controlcen_destroyed)
+        g_effect_sound_controlcen_destroyed(Int_val(v_obj_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_explode_object_delay_controlcen(value v_obj_id, value v_delay)
+{
+    if (g_effect_explode_object_delay_controlcen)
+        g_effect_explode_object_delay_controlcen(Int_val(v_obj_id), Int_val(v_delay));
+    return Val_unit;
+}
+
+void cd_ox_apply_damage_to_controlcen(
+    int32_t shields, int32_t flags, int32_t damage,
+    int who_is_player, int who_is_local_player,
+    int who_objnum, int local_player_objnum,
+    int is_multiplayer, int is_coop, int time_level_ok,
+    int obj_id, int who_id,
+    int32_t* out_new_shields)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_controlcen");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[12] = {
+        Val_long(shields), Val_long(flags), Val_long(damage),
+        Val_long(who_is_player), Val_long(who_is_local_player),
+        Val_long(who_objnum), Val_long(local_player_objnum),
+        Val_long(is_multiplayer), Val_long(is_coop), Val_long(time_level_ok),
+        Val_long(obj_id), Val_long(who_id)
+    };
+    result = caml_callbackN(*g_apply_damage_to_controlcen, 12, args);
+
+    *out_new_shields = Int_val(result);
+
+    CAMLreturn0;
+}
+
+/* -- Player damage D1 bridge ------------------------------------------ */
+
+void cd_ox_register_player_damage_effects_d1(
+    cd_effect_palette_flash_fn palette_flash,
+    cd_effect_set_player_dead_fn set_player_dead)
+{
+    g_effect_palette_flash_d1 = palette_flash;
+    g_effect_set_player_dead_d1 = set_player_dead;
+}
+
+CAMLprim value cd_ox_effect_palette_flash_d1(value v_r, value v_g, value v_b)
+{
+    if (g_effect_palette_flash_d1)
+        g_effect_palette_flash_d1(Int_val(v_r), Int_val(v_g), Int_val(v_b));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_set_player_dead_d1(value v_killer_objnum)
+{
+    if (g_effect_set_player_dead_d1)
+        g_effect_set_player_dead_d1(Int_val(v_killer_objnum));
+    return Val_unit;
+}
+
+void cd_ox_apply_damage_to_player_d1(
+    int is_dead, int is_invulnerable, int is_endlevel, int is_local_player,
+    int32_t player_shields, int32_t damage, int killer_objnum,
+    int32_t* out_new_shields, int* out_should_be_dead)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_player_d1");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[7] = {
+        Val_long(is_dead), Val_long(is_invulnerable),
+        Val_long(is_endlevel), Val_long(is_local_player),
+        Val_long(player_shields), Val_long(damage), Val_long(killer_objnum)
+    };
+    result = caml_callbackN(*g_apply_damage_to_player_d1, 7, args);
+
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_should_be_dead = Int_val(Field(result, 1));
+
+    CAMLreturn0;
+}
+
+/* -- Player damage D2 bridge ------------------------------------------ */
+
+void cd_ox_register_player_damage_effects_d2(
+    cd_effect_palette_flash_fn palette_flash,
+    cd_effect_set_player_dead_fn set_player_dead,
+    cd_effect_set_buddy_sorry_time_fn set_buddy_sorry_time)
+{
+    g_effect_palette_flash_d2 = palette_flash;
+    g_effect_set_player_dead_d2 = set_player_dead;
+    g_effect_set_buddy_sorry_time = set_buddy_sorry_time;
+}
+
+CAMLprim value cd_ox_effect_palette_flash_d2(value v_r, value v_g, value v_b)
+{
+    if (g_effect_palette_flash_d2)
+        g_effect_palette_flash_d2(Int_val(v_r), Int_val(v_g), Int_val(v_b));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_set_player_dead_d2(value v_killer_objnum)
+{
+    if (g_effect_set_player_dead_d2)
+        g_effect_set_player_dead_d2(Int_val(v_killer_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_set_buddy_sorry_time(value unit)
+{
+    (void)unit;
+    if (g_effect_set_buddy_sorry_time) g_effect_set_buddy_sorry_time();
+    return Val_unit;
+}
+
+void cd_ox_apply_damage_to_player_d2(
+    int is_dead, int is_invulnerable, int is_endlevel, int is_local_player,
+    int32_t player_shields, int32_t damage, int killer_objnum,
+    int killer_is_companion,
+    int32_t* out_new_shields, int* out_should_be_dead)
+{
+    cd_ox_require_ready("cd_ox_apply_damage_to_player_d2");
+
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[8] = {
+        Val_long(is_dead), Val_long(is_invulnerable),
+        Val_long(is_endlevel), Val_long(is_local_player),
+        Val_long(player_shields), Val_long(damage), Val_long(killer_objnum),
+        Val_long(killer_is_companion)
+    };
+    result = caml_callbackN(*g_apply_damage_to_player_d2, 8, args);
+
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_should_be_dead = Int_val(Field(result, 1));
+
+    CAMLreturn0;
+}
+
+/* -- maybe_kill_weapon bridge (pure, no effects) ---------------------- */
+
+void cd_ox_maybe_kill_weapon_d1(
+    int weapon_id, int32_t phys_flags, int32_t weapon_shields,
+    int other_type, int32_t other_shields,
+    int32_t* out_new_shields, int* out_should_be_dead)
+{
+    cd_ox_require_ready("cd_ox_maybe_kill_weapon_d1");
+    value args[5] = {
+        Val_long(weapon_id), Val_long(phys_flags), Val_long(weapon_shields),
+        Val_long(other_type), Val_long(other_shields)
+    };
+    const value result = caml_callbackN(*g_maybe_kill_weapon_d1, 5, args);
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_should_be_dead = Int_val(Field(result, 1));
+}
+
+void cd_ox_maybe_kill_weapon_d2(
+    int weapon_id, int32_t phys_flags, int32_t weapon_shields,
+    int other_type, int32_t other_shields, int is_shareware,
+    int32_t* out_new_shields, int* out_should_be_dead)
+{
+    cd_ox_require_ready("cd_ox_maybe_kill_weapon_d2");
+    value args[6] = {
+        Val_long(weapon_id), Val_long(phys_flags), Val_long(weapon_shields),
+        Val_long(other_type), Val_long(other_shields), Val_long(is_shareware)
+    };
+    const value result = caml_callbackN(*g_maybe_kill_weapon_d2, 6, args);
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_should_be_dead = Int_val(Field(result, 1));
+}
+
+/* -- calc_best_gun bridge (pure, packed array) ------------------------ */
+
+int cd_ox_calc_best_gun(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_calc_best_gun");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_calc_best_gun, arr));
+    CAMLreturnT(int, result);
+}
+
+/* -- chase_angles bridge (pure) --------------------------------------- */
+
+void cd_ox_chase_angles(
+    int32_t cur_p, int32_t cur_b, int32_t cur_h,
+    int32_t desired_p, int32_t desired_b, int32_t desired_h,
+    int32_t frame_time,
+    int32_t* out_p, int32_t* out_b, int32_t* out_h, int* out_mask)
+{
+    cd_ox_require_ready("cd_ox_chase_angles");
+    value args[7] = {
+        Val_long(cur_p), Val_long(cur_b), Val_long(cur_h),
+        Val_long(desired_p), Val_long(desired_b), Val_long(desired_h),
+        Val_long(frame_time)
+    };
+    const value result = caml_callbackN(*g_chase_angles, 7, args);
+    *out_p = Int_val(Field(result, 0));
+    *out_b = Int_val(Field(result, 1));
+    *out_h = Int_val(Field(result, 2));
+    *out_mask = Int_val(Field(result, 3));
+}
+
+/* -- laser_are_related bridge (pure, packed array) -------------------- */
+
+static int cd_ox_laser_are_related_impl(const value* g_fn, const char* name,
+    const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready(name);
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_fn, arr));
+    CAMLreturnT(int, result);
+}
+
+int cd_ox_laser_are_related_d1(const int32_t* packed, int packed_len)
+{
+    return cd_ox_laser_are_related_impl(g_laser_are_related_d1, "cd_ox_laser_are_related_d1", packed, packed_len);
+}
+
+int cd_ox_laser_are_related_d2(const int32_t* packed, int packed_len)
+{
+    return cd_ox_laser_are_related_impl(g_laser_are_related_d2, "cd_ox_laser_are_related_d2", packed, packed_len);
+}
+
+/* -- calc_controlcen_gun_point bridge (pure) -------------------------- */
+
+void cd_ox_calc_controlcen_gun_point(
+    int32_t glpx, int32_t glpy, int32_t glpz,
+    int32_t gldx, int32_t gldy, int32_t gldz,
+    int32_t or1, int32_t or2, int32_t or3,
+    int32_t ou1, int32_t ou2, int32_t ou3,
+    int32_t of1, int32_t of2, int32_t of3,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t* out_gpx, int32_t* out_gpy, int32_t* out_gpz,
+    int32_t* out_gdx, int32_t* out_gdy, int32_t* out_gdz)
+{
+    cd_ox_require_ready("cd_ox_calc_controlcen_gun_point");
+    value args[18] = {
+        Val_long(glpx), Val_long(glpy), Val_long(glpz),
+        Val_long(gldx), Val_long(gldy), Val_long(gldz),
+        Val_long(or1), Val_long(or2), Val_long(or3),
+        Val_long(ou1), Val_long(ou2), Val_long(ou3),
+        Val_long(of1), Val_long(of2), Val_long(of3),
+        Val_long(opx), Val_long(opy), Val_long(opz)
+    };
+    const value result = caml_callbackN(*g_calc_controlcen_gun_point, 18, args);
+    *out_gpx = Int_val(Field(result, 0));
+    *out_gpy = Int_val(Field(result, 1));
+    *out_gpz = Int_val(Field(result, 2));
+    *out_gdx = Int_val(Field(result, 3));
+    *out_gdy = Int_val(Field(result, 4));
+    *out_gdz = Int_val(Field(result, 5));
 }

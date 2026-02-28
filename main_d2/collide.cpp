@@ -76,6 +76,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #endif
 
 #include "collide.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+static char ox_temp_stolen[MAX_STOLEN_ITEMS];
+#endif
 
 #define STANDARD_EXPL_DELAY (f1_0/4)
 
@@ -127,6 +131,23 @@ void collide_robot_and_wall(object* robot, fix hitspeed, short hitseg, short hit
 
 int apply_damage_to_clutter(object* clutter, fix damage)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_clutter_effects(
+				[](int obj_id, int delay) { explode_object(&Objects[obj_id], delay); });
+		}
+	}
+	int32_t new_shields; int ret;
+	cd_ox_apply_damage_to_clutter(
+		clutter->flags, clutter->shields, damage,
+		(int)(clutter - Objects),
+		&new_shields, &ret);
+	clutter->shields = new_shields;
+	return ret;
+#else
 	if (clutter->flags & OF_EXPLODING) return 0;
 
 	if (clutter->shields < 0) return 0;	//clutter already dead...
@@ -139,6 +160,7 @@ int apply_damage_to_clutter(object* clutter, fix damage)
 	}
 	else
 		return 0;
+#endif
 }
 
 char	Monster_mode = 0;		//	A cheat.  Do massive damage when collide.
@@ -1111,6 +1133,55 @@ void net_destroy_controlcen(object* controlcen)
 //	-----------------------------------------------------------------------------
 void apply_damage_to_controlcen(object* controlcen, fix damage, short who)
 {
+#ifdef USE_OX_BRIDGE
+	if ((who < 0) || (who > Highest_object_index))
+		return;
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_controlcen_effects(
+				[]() {
+#ifdef NETWORK
+					int secs = f2i(Netgame.control_invul_time - Players[Player_num].time_level) % 60;
+					int mins = f2i(Netgame.control_invul_time - Players[Player_num].time_level) / 60;
+					HUD_init_message("%s %d:%02d.", TXT_CNTRLCEN_INVUL, mins, secs);
+#endif
+				},
+				[]() { Control_center_been_hit = 1; ai_do_cloak_stuff(); },
+				[](int obj_id) { do_controlcen_destroyed_stuff(&Objects[obj_id]); },
+				[]() { add_points_to_score(CONTROL_CEN_SCORE); },
+				[](int obj_id, int who_id) {
+#ifdef NETWORK
+					multi_send_destroy_controlcen(obj_id, who_id);
+#else
+					(void)obj_id; (void)who_id;
+#endif
+				},
+				[](int obj_id) {
+					digi_link_sound_to_pos(SOUND_CONTROL_CENTER_DESTROYED,
+						Objects[obj_id].segnum, 0, &Objects[obj_id].pos, 0, F1_0);
+				},
+				[](int obj_id, int delay) { explode_object(&Objects[obj_id], delay); });
+		}
+	}
+	int32_t new_shields;
+	cd_ox_apply_damage_to_controlcen(
+		controlcen->shields, controlcen->flags, damage,
+		Objects[who].type == OBJ_PLAYER ? 1 : 0,
+		Objects[who].id == Player_num ? 1 : 0,
+		(int)who, Players[Player_num].objnum,
+		(Game_mode & GM_MULTI) ? 1 : 0,
+		(Game_mode & GM_MULTI_COOP) ? 1 : 0,
+#ifdef NETWORK
+		(Players[Player_num].time_level >= Netgame.control_invul_time) ? 1 : 0,
+#else
+		1,
+#endif
+		(int)(controlcen - Objects), Objects[who].id,
+		&new_shields);
+	controlcen->shields = new_shields;
+#else
 	int	whotype;
 
 	//	Only allow a player to damage the control center.
@@ -1164,6 +1235,7 @@ void apply_damage_to_controlcen(object* controlcen, fix damage, short who)
 
 		explode_object(controlcen, 0);
 	}
+#endif
 }
 
 void collide_player_and_controlcen(object* controlcen, object* playerobj, vms_vector* collision_point)
@@ -1209,7 +1281,18 @@ void collide_player_and_marker(object* marker, object* playerobj, vms_vector* co
 //	If both objects are weapons, weaken the weapon.
 void maybe_kill_weapon(object* weapon, object* other_obj)
 {
-	if ((weapon->id == PROXIMITY_ID) || (weapon->id == SUPERPROX_ID) || (weapon->id == PMINE_ID)) 
+#ifdef USE_OX_BRIDGE
+	int32_t new_shields; int should_be_dead;
+	cd_ox_maybe_kill_weapon_d2(
+		weapon->id, weapon->mtype.phys_info.flags, weapon->shields,
+		other_obj->type, other_obj->shields,
+		(CurrentLogicVersion == LogicVer::SHAREWARE) ? 1 : 0,
+		&new_shields, &should_be_dead);
+	weapon->shields = new_shields;
+	if (should_be_dead)
+		weapon->flags |= OF_SHOULD_BE_DEAD;
+#else
+	if ((weapon->id == PROXIMITY_ID) || (weapon->id == SUPERPROX_ID) || (weapon->id == PMINE_ID))
 	{
 		weapon->flags |= OF_SHOULD_BE_DEAD;
 		return;
@@ -1220,14 +1303,14 @@ void maybe_kill_weapon(object* weapon, object* other_obj)
 	if (weapon->mtype.phys_info.flags & PF_PERSISTENT || (CurrentLogicVersion == LogicVer::SHAREWARE && other_obj->type == OBJ_WEAPON))
 	{
 		//	Weapons do a lot of damage to weapons, other objects do much less.
-		if (!(weapon->mtype.phys_info.flags & PF_PERSISTENT)) 
+		if (!(weapon->mtype.phys_info.flags & PF_PERSISTENT))
 		{
 			if (other_obj->type == OBJ_WEAPON)
 				weapon->shields -= other_obj->shields / 2;
 			else
 				weapon->shields -= other_obj->shields / 4;
 
-			if (weapon->shields <= 0) 
+			if (weapon->shields <= 0)
 			{
 				weapon->shields = 0;
 				weapon->flags |= OF_SHOULD_BE_DEAD;	// weapon->lifeleft = 1;
@@ -1244,7 +1327,7 @@ void maybe_kill_weapon(object* weapon, object* other_obj)
 // -- 				weapon->shields -= other_obj->shields/2;
 // -- 			else
 // -- 				weapon->shields -= other_obj->shields/4;
-// -- 
+// --
 // -- 			if (weapon->shields <= 0) {
 // -- 				weapon->shields = 0;
 // -- 				weapon->flags |= OF_SHOULD_BE_DEAD;
@@ -1252,6 +1335,7 @@ void maybe_kill_weapon(object* weapon, object* other_obj)
 // -- 		}
 // -- 	} else
 // -- 		weapon->flags |= OF_SHOULD_BE_DEAD;
+#endif
 }
 
 void collide_weapon_and_controlcen(object* weapon, object* controlcen, vms_vector* collision_point)
@@ -1365,6 +1449,112 @@ void multi_send_finish_game();
 //	Return 1 if robot died, else return 0
 int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int effects_registered = 0;
+		if (!effects_registered)
+		{
+			effects_registered = 1;
+			cd_ox_register_collide_effects_d2(
+				/* increment_kills */
+				[]() {
+					Players[Player_num].num_kills_level++;
+					Players[Player_num].num_kills_total++;
+				},
+				/* start_boss_death */
+				[](int obj_id) {
+					start_boss_death_sequence(&Objects[obj_id]);
+				},
+				/* set_boss_hit_time */
+				[]() {
+					Boss_hit_time = GameTime;
+				},
+				/* query_player_dead_or_no_shields */
+				[]() -> int {
+					return ((Players[Player_num].shields < 0) || Player_is_dead) ? 1 : 0;
+				},
+				/* query_multi_all_players_alive */
+				[]() -> int {
+#ifdef NETWORK
+					return multi_all_players_alive() ? 1 : 0;
+#else
+					return 0;
+#endif
+				},
+				/* do_final_boss_hacks */
+				[]() {
+					do_final_boss_hacks();
+				},
+				/* multi_send_finish_game */
+				[]() {
+#ifdef NETWORK
+					multi_send_finish_game();
+#endif
+				},
+				/* save_stolen_items */
+				[]() {
+					for (int i = 0; i < MAX_STOLEN_ITEMS; i++)
+						ox_temp_stolen[i] = Stolen_items[i];
+				},
+				/* restore_stolen_items */
+				[]() {
+					for (int i = 0; i < MAX_STOLEN_ITEMS; i++)
+						Stolen_items[i] = ox_temp_stolen[i];
+				},
+				/* clear_stolen_items */
+				[]() {
+					for (int i = 0; i < MAX_STOLEN_ITEMS; i++)
+						Stolen_items[i] = 255;
+				},
+				/* multi_explode_d2 */
+				[](int obj_id, int killer, int is_thief) -> int {
+#ifdef NETWORK
+					return multi_explode_robot_sub(obj_id, killer, (char)is_thief) ? 1 : 0;
+#else
+					(void)obj_id; (void)killer; (void)is_thief;
+					return 0;
+#endif
+				},
+				/* multi_send_robot_explode_d2 */
+				[](int obj_id, int killer, int is_thief) {
+#ifdef NETWORK
+					multi_send_robot_explode(obj_id, killer, (char)is_thief);
+#else
+					(void)obj_id; (void)killer; (void)is_thief;
+#endif
+				},
+				/* start_robot_death_sequence */
+				[](int obj_id) {
+					start_robot_death_sequence(&Objects[obj_id]);
+				},
+				/* special_reactor_stuff */
+				[]() {
+					special_reactor_stuff();
+				},
+				/* explode_object_delay */
+				[](int obj_id, int delay) {
+					explode_object(&Objects[obj_id], delay);
+				});
+		}
+	}
+
+	int32_t new_shields; int ret;
+	cd_ox_apply_damage_to_robot_d2(
+		robot->flags, robot->shields, damage,
+		Robot_info[robot->id].boss_flag ? 1 : 0,
+		Robot_info[robot->id].companion ? 1 : 0,
+		Robot_info[robot->id].thief ? 1 : 0,
+		Robot_info[robot->id].death_roll ? 1 : 0,
+		Robot_info[robot->id].kamikaze ? 1 : 0,
+		robot->id,
+		(Game_mode & GM_MULTI) ? 1 : 0,
+		(Current_mission_num == 0 && Current_level_num == Last_level) ? 1 : 0,
+		(int)(robot - Objects), killer_objnum,
+		&new_shields, &ret);
+
+	robot->shields = new_shields;
+	return ret;
+#else
 	char isthief;
 	char i, temp_stolen[MAX_STOLEN_ITEMS];
 
@@ -1416,9 +1606,9 @@ int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 				}
 			}
 
-	if (robot->shields < 0) 
+	if (robot->shields < 0)
 	{
-		if (Game_mode & GM_MULTI) 
+		if (Game_mode & GM_MULTI)
 		{
 			if (Robot_info[robot->id].thief)
 				isthief = 1;
@@ -1452,15 +1642,15 @@ int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 		Players[Player_num].num_kills_level++;
 		Players[Player_num].num_kills_total++;
 
-		if (Robot_info[robot->id].boss_flag) 
+		if (Robot_info[robot->id].boss_flag)
 		{
 			start_boss_death_sequence(robot);	//do_controlcen_destroyed_stuff(NULL);
 		}
-		else if (Robot_info[robot->id].death_roll) 
+		else if (Robot_info[robot->id].death_roll)
 		{
 			start_robot_death_sequence(robot);	//do_controlcen_destroyed_stuff(NULL);
 		}
-		else 
+		else
 		{
 			if (robot->id == SPECIAL_REACTOR_ROBOT)
 				special_reactor_stuff();
@@ -1479,6 +1669,7 @@ int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 	}
 	else
 		return 0;
+#endif
 }
 
 extern int boss_spew_robot(object* objp, vms_vector* pos);
@@ -2111,6 +2302,34 @@ extern fix Buddy_sorry_time;
 
 void apply_damage_to_player(object* playerobj, object* killer, fix damage)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_player_damage_effects_d2(
+				[](int r, int g, int b) { PALETTE_FLASH_ADD(r, g, b); },
+				[](int killer_objnum) {
+					Players[Player_num].killer_objnum = killer_objnum;
+				},
+				[]() { Buddy_sorry_time = GameTime; });
+		}
+	}
+	int32_t new_shields; int should_be_dead;
+	cd_ox_apply_damage_to_player_d2(
+		Player_is_dead ? 1 : 0,
+		(Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE) ? 1 : 0,
+		Endlevel_sequence ? 1 : 0,
+		(playerobj->id == Player_num) ? 1 : 0,
+		Players[Player_num].shields, damage, (int)(killer - Objects),
+		(Buddy_objnum != -1 && killer && (killer->type == OBJ_ROBOT) && (Robot_info[killer->id].companion)) ? 1 : 0,
+		&new_shields, &should_be_dead);
+	if (playerobj->id == Player_num) {
+		Players[Player_num].shields = new_shields;
+		playerobj->shields = new_shields;
+		if (should_be_dead) playerobj->flags |= OF_SHOULD_BE_DEAD;
+	}
+#else
 	if (Player_is_dead)
 		return;
 
@@ -2123,18 +2342,18 @@ void apply_damage_to_player(object* playerobj, object* killer, fix damage)
 	//for the player, the 'real' shields are maintained in the Players[]
 	//array.  The shields value in the player's object are, I think, not
 	//used anywhere.  This routine, however, sets the objects shields to
-	//be a mirror of the value in the Player structure. 
+	//be a mirror of the value in the Player structure.
 
 	if (playerobj->id == Player_num) {		//is this the local player?
 
 		//	MK: 08/14/95: This code can never be reached.  See the return about 12 lines up.
 // -- 		if (Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE) {
-// -- 
+// --
 // -- 			//invincible, so just do blue flash
-// -- 
+// --
 // -- 			PALETTE_FLASH_ADD(0,0,f2i(damage)*4);	//flash blue
-// -- 
-// -- 		} 
+// --
+// -- 		}
 // -- 		else {		//take damage, do red flash
 
 		Players[Player_num].shields -= damage;
@@ -2156,26 +2375,11 @@ void apply_damage_to_player(object* playerobj, object* killer, fix damage)
 				if (killer && (killer->type == OBJ_ROBOT) && (Robot_info[killer->id].companion))
 					Buddy_sorry_time = GameTime;
 		}
-		// -- removed, 09/06/95, MK --  else if (Players[Player_num].shields < LOSE_WEAPON_THRESHOLD) {
-		// -- removed, 09/06/95, MK -- 			int	randnum = P_Rand();
-		// -- removed, 09/06/95, MK -- 
-		// -- removed, 09/06/95, MK -- 			if (fixmul(Players[Player_num].shields, randnum) < damage/4) {
-		// -- removed, 09/06/95, MK -- 				if (P_Rand() > 20000) {
-		// -- removed, 09/06/95, MK -- 					destroy_secondary_weapon(Secondary_weapon);
-		// -- removed, 09/06/95, MK -- 				} else if (Primary_weapon == 0) {
-		// -- removed, 09/06/95, MK -- 					if (Players[Player_num].flags & PLAYER_FLAGS_QUAD_LASERS)
-		// -- removed, 09/06/95, MK -- 						destroy_primary_weapon(MAX_PRIMARY_WEAPONS);	//	This means to destroy quad laser.
-		// -- removed, 09/06/95, MK -- 					else if (Players[Player_num].laser_level > 0)
-		// -- removed, 09/06/95, MK -- 						destroy_primary_weapon(Primary_weapon);
-		// -- removed, 09/06/95, MK -- 				} else
-		// -- removed, 09/06/95, MK -- 					destroy_primary_weapon(Primary_weapon);
-		// -- removed, 09/06/95, MK -- 			} else
-		// -- removed, 09/06/95, MK -- 				; // mprintf((0, "%8x > %8x, so don't lose weapon.\n", fixmul(Players[Player_num].shields, randnum), damage/4));
-		// -- removed, 09/06/95, MK -- 		}
 
 		playerobj->shields = Players[Player_num].shields;		//mirror
 
 	}
+#endif
 }
 
 void collide_player_and_weapon(object* playerobj, object* weapon, vms_vector* collision_point)
