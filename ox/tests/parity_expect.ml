@@ -11008,3 +11008,113 @@ let%expect_test "create_walls_on_side - non-planar with child (wall)" =
       n1=(26754, -26754, 53509)
     |}]
 ;;
+
+(* --- check_norms parity ------------------------------------------------- *)
+let%expect_test "check_norms - matching normals (negated)" =
+  (* n0 = (1000, 2000, 3000), n1 = (-1000, -2000, -3000) → match → 0 *)
+  let result = Ox_gameseg.check_norms ~n0:(1000, 2000, 3000) ~n1:(-1000, -2000, -3000) in
+  printf "check_norms matching: %d\n" result;
+  [%expect {| check_norms matching: 0 |}]
+;;
+
+let%expect_test "check_norms - non-matching normals" =
+  (* n0 = (1000, 2000, 3000), n1 = (-1000, -2000, -3001) → mismatch → 1 *)
+  let result = Ox_gameseg.check_norms ~n0:(1000, 2000, 3000) ~n1:(-1000, -2000, -3001) in
+  printf "check_norms non-matching: %d\n" result;
+  [%expect {| check_norms non-matching: 1 |}]
+;;
+
+let%expect_test "check_norms - zero normals" =
+  let result = Ox_gameseg.check_norms ~n0:(0, 0, 0) ~n1:(0, 0, 0) in
+  printf "check_norms zero: %d\n" result;
+  [%expect {| check_norms zero: 0 |}]
+;;
+
+(* --- create_all_vertex_lists parity -------------------------------------- *)
+let%expect_test "create_all_vertex_lists - SIDE_IS_QUAD side 0" =
+  (* side_to_verts[0] = [7;6;2;3], SIDE_IS_QUAD=1 → 1 face, verts=[7,6,2,3,0,0] *)
+  let num_faces, vertices = Ox_gameseg.create_all_vertex_lists ~side_type:1 ~sidenum:0 in
+  printf
+    "quad side0: nf=%d verts=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertices.(0)
+    vertices.(1)
+    vertices.(2)
+    vertices.(3)
+    vertices.(4)
+    vertices.(5);
+  [%expect {| quad side0: nf=1 verts=[7,6,2,3,0,0] |}]
+;;
+
+let%expect_test "create_all_vertex_lists - SIDE_IS_TRI_02 side 2" =
+  (* side_to_verts[2] = [0;1;5;4], TRI_02=2 → 2 faces, verts=[0,1,5,5,4,0] *)
+  let num_faces, vertices = Ox_gameseg.create_all_vertex_lists ~side_type:2 ~sidenum:2 in
+  printf
+    "tri02 side2: nf=%d verts=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertices.(0)
+    vertices.(1)
+    vertices.(2)
+    vertices.(3)
+    vertices.(4)
+    vertices.(5);
+  [%expect {| tri02 side2: nf=2 verts=[0,1,5,5,4,0] |}]
+;;
+
+let%expect_test "create_all_vertex_lists - SIDE_IS_TRI_13 side 5" =
+  (* side_to_verts[5] = [3;2;1;0], TRI_13=3 → 2 faces, verts=[0,3,2,2,1,0] *)
+  let num_faces, vertices = Ox_gameseg.create_all_vertex_lists ~side_type:3 ~sidenum:5 in
+  printf
+    "tri13 side5: nf=%d verts=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertices.(0)
+    vertices.(1)
+    vertices.(2)
+    vertices.(3)
+    vertices.(4)
+    vertices.(5);
+  [%expect {| tri13 side5: nf=2 verts=[0,3,2,2,1,0] |}]
+;;
+
+(* --- create_all_vertnum_lists parity ------------------------------------- *)
+let%expect_test "create_all_vertnum_lists - SIDE_IS_QUAD" =
+  let num_faces, vertnums = Ox_gameseg.create_all_vertnum_lists ~side_type:1 in
+  printf
+    "quad: nf=%d vn=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertnums.(0)
+    vertnums.(1)
+    vertnums.(2)
+    vertnums.(3)
+    vertnums.(4)
+    vertnums.(5);
+  [%expect {| quad: nf=1 vn=[0,1,2,3,0,0] |}]
+;;
+
+let%expect_test "create_all_vertnum_lists - SIDE_IS_TRI_02" =
+  let num_faces, vertnums = Ox_gameseg.create_all_vertnum_lists ~side_type:2 in
+  printf
+    "tri02: nf=%d vn=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertnums.(0)
+    vertnums.(1)
+    vertnums.(2)
+    vertnums.(3)
+    vertnums.(4)
+    vertnums.(5);
+  [%expect {| tri02: nf=2 vn=[0,1,2,2,3,0] |}]
+;;
+
+let%expect_test "create_all_vertnum_lists - SIDE_IS_TRI_13" =
+  let num_faces, vertnums = Ox_gameseg.create_all_vertnum_lists ~side_type:3 in
+  printf
+    "tri13: nf=%d vn=[%d,%d,%d,%d,%d,%d]\n"
+    num_faces
+    vertnums.(0)
+    vertnums.(1)
+    vertnums.(2)
+    vertnums.(3)
+    vertnums.(4)
+    vertnums.(5);
+  [%expect {| tri13: nf=2 vn=[3,0,1,1,2,3] |}]
+;;

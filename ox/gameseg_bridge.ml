@@ -215,6 +215,31 @@ let cd_create_walls_on_side (packed : int array) =
   [| side_type; n0x; n0y; n0z; n1x; n1y; n1z |]
 ;;
 
+(* check_norms: 6 scalar ints → 1 int *)
+let cd_check_norms n0x n0y n0z n1x n1y n1z =
+  Ox_gameseg.check_norms ~n0:(n0x, n0y, n0z) ~n1:(n1x, n1y, n1z)
+;;
+
+(* create_all_vertex_lists: side_type + sidenum → packed 7 ints
+   Output: [num_faces, vertices(6)] *)
+let cd_create_all_vertex_lists side_type sidenum =
+  let num_faces, vertices = Ox_gameseg.create_all_vertex_lists ~side_type ~sidenum in
+  let buf = Array.create ~len:7 0 in
+  buf.(0) <- num_faces;
+  Array.blit ~src:vertices ~dst:buf ~src_pos:0 ~dst_pos:1 ~len:6;
+  buf
+;;
+
+(* create_all_vertnum_lists: side_type → packed 7 ints
+   Output: [num_faces, vertnums(6)] *)
+let cd_create_all_vertnum_lists side_type =
+  let num_faces, vertnums = Ox_gameseg.create_all_vertnum_lists ~side_type in
+  let buf = Array.create ~len:7 0 in
+  buf.(0) <- num_faces;
+  Array.blit ~src:vertnums ~dst:buf ~src_pos:0 ~dst_pos:1 ~len:6;
+  buf
+;;
+
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -227,5 +252,8 @@ let () =
   Callback.register "cd_find_connect_side" cd_find_connect_side;
   Callback.register "cd_create_shortpos" cd_create_shortpos;
   Callback.register "cd_extract_shortpos" cd_extract_shortpos;
-  Callback.register "cd_create_walls_on_side" cd_create_walls_on_side
+  Callback.register "cd_create_walls_on_side" cd_create_walls_on_side;
+  Callback.register "cd_check_norms" cd_check_norms;
+  Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;
+  Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists
 ;;

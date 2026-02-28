@@ -166,6 +166,9 @@ static const value* g_find_connect_side = NULL;
 static const value* g_create_shortpos = NULL;
 static const value* g_extract_shortpos = NULL;
 static const value* g_create_walls_on_side = NULL;
+static const value* g_check_norms = NULL;
+static const value* g_create_all_vertex_lists = NULL;
+static const value* g_create_all_vertnum_lists = NULL;
 static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
@@ -285,6 +288,9 @@ static void cd_ox_require_ready(const char* fn)
           && g_create_shortpos
           && g_extract_shortpos
           && g_create_walls_on_side
+          && g_check_norms
+          && g_create_all_vertex_lists
+          && g_create_all_vertnum_lists
           && g_robot_get_anim_state
           && g_set_robot_state
           && g_robot_set_angles))
@@ -419,6 +425,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_create_shortpos = caml_named_value("cd_create_shortpos");
     g_extract_shortpos = caml_named_value("cd_extract_shortpos");
     g_create_walls_on_side = caml_named_value("cd_create_walls_on_side");
+    g_check_norms = caml_named_value("cd_check_norms");
+    g_create_all_vertex_lists = caml_named_value("cd_create_all_vertex_lists");
+    g_create_all_vertnum_lists = caml_named_value("cd_create_all_vertnum_lists");
     g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
@@ -535,6 +544,9 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_create_shortpos
         || !g_extract_shortpos
         || !g_create_walls_on_side
+        || !g_check_norms
+        || !g_create_all_vertex_lists
+        || !g_create_all_vertnum_lists
         || !g_robot_get_anim_state
         || !g_set_robot_state
         || !g_robot_set_angles)
@@ -2949,4 +2961,39 @@ void cd_ox_create_walls_on_side(
     for (int i = 0; i < 7; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
+}
+
+int cd_ox_check_norms(
+    int32_t n0x, int32_t n0y, int32_t n0z,
+    int32_t n1x, int32_t n1y, int32_t n1z)
+{
+    cd_ox_require_ready("cd_ox_check_norms");
+    value args[6] = {
+        Val_long(n0x), Val_long(n0y), Val_long(n0z),
+        Val_long(n1x), Val_long(n1y), Val_long(n1z),
+    };
+    return Int_val(caml_callbackN(*g_check_norms, 6, args));
+}
+
+void cd_ox_create_all_vertex_lists(
+    int32_t side_type, int32_t sidenum,
+    int32_t* num_faces, int32_t* vertices_6)
+{
+    cd_ox_require_ready("cd_ox_create_all_vertex_lists");
+    const value result = caml_callback2(*g_create_all_vertex_lists,
+        Val_long(side_type), Val_long(sidenum));
+    *num_faces = Int_val(Field(result, 0));
+    for (int i = 0; i < 6; i++)
+        vertices_6[i] = Int_val(Field(result, i + 1));
+}
+
+void cd_ox_create_all_vertnum_lists(
+    int32_t side_type,
+    int32_t* num_faces, int32_t* vertnums_6)
+{
+    cd_ox_require_ready("cd_ox_create_all_vertnum_lists");
+    const value result = caml_callback(*g_create_all_vertnum_lists, Val_long(side_type));
+    *num_faces = Int_val(Field(result, 0));
+    for (int i = 0; i < 6; i++)
+        vertnums_6[i] = Int_val(Field(result, i + 1));
 }

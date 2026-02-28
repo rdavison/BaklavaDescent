@@ -1195,3 +1195,22 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §33 — Port check_norms, create_all_vertex_lists, create_all_vertnum_lists
+
+Three more gameseg functions ported to OxCaml, all simple lookup/comparison functions.
+
+- **`check_norms`** — Compares two normal vectors; returns 1 if `n0 != -n1` (mismatch), 0 if matching. Debug-only function (`#ifndef NDEBUG` in D1, `#ifndef COMPACT_SEGS` in D2). Pure comparison, no math dependencies.
+
+- **`create_all_vertex_lists`** — Given side_type and sidenum, returns vertex indices for all faces on a side using the `side_to_verts` lookup table. Editor-only function (`#ifdef EDITOR`). Returns 1 face (4 verts) for quads, 2 faces (3 verts each) for triangulated sides.
+
+- **`create_all_vertnum_lists`** — Same as above but returns relative vertex numbers (0-3) instead of absolute segment vertex indices. Independent of sidenum — only depends on side_type.
+
+- **Files modified:** `ox_gameseg.ml`, `gameseg_bridge.ml`, `bridge.c`, `bridge.h`, `main_d1/gameseg.cpp`, `main_d2/gameseg.cpp`, `parity_expect.ml`, `CHECKLIST.md`.
+
+- **Parity tests:** 9 expect tests: 3 for check_norms (matching, non-matching, zero), 3 for create_all_vertex_lists (quad/tri02/tri13), 3 for create_all_vertnum_lists (quad/tri02/tri13).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

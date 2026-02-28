@@ -489,3 +489,47 @@ let create_walls_on_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child =
       side_is_quad, vn, vn
     else side_type, n0, n1)
 ;;
+
+(* --- check_norms ------------------------------------------------------ *)
+(* Check if two face normals are consistent (should be negations of each other).
+   Returns 1 if mismatch, 0 if OK. *)
+let check_norms ~(n0 : vec3) ~(n1 : vec3) =
+  let n0x, n0y, n0z = n0 in
+  let n1x, n1y, n1z = n1 in
+  if n0x <> -n1x || n0y <> -n1y || n0z <> -n1z then 1 else 0
+;;
+
+(* --- create_all_vertex_lists ------------------------------------------ *)
+(* Like create_abs_vertex_lists but returns relative vertex indices (0..7 within segment)
+   instead of absolute vertex indices. Takes side_type and sidenum. *)
+let create_all_vertex_lists ~side_type ~sidenum =
+  let sv = side_to_verts.(sidenum) in
+  match side_type with
+  | 1 ->
+    (* SIDE_IS_QUAD *)
+    1, [| sv.(0); sv.(1); sv.(2); sv.(3); 0; 0 |]
+  | 2 ->
+    (* SIDE_IS_TRI_02 *)
+    2, [| sv.(0); sv.(1); sv.(2); sv.(2); sv.(3); sv.(0) |]
+  | 3 ->
+    (* SIDE_IS_TRI_13 *)
+    2, [| sv.(3); sv.(0); sv.(1); sv.(1); sv.(2); sv.(3) |]
+  | _ -> failwith (Printf.sprintf "Illegal side type %d" side_type)
+;;
+
+(* --- create_all_vertnum_lists ----------------------------------------- *)
+(* Returns vertex number indices (0..3 within side) for each face of a side.
+   Only depends on side_type. *)
+let create_all_vertnum_lists ~side_type =
+  match side_type with
+  | 1 ->
+    (* SIDE_IS_QUAD *)
+    1, [| 0; 1; 2; 3; 0; 0 |]
+  | 2 ->
+    (* SIDE_IS_TRI_02 *)
+    2, [| 0; 1; 2; 2; 3; 0 |]
+  | 3 ->
+    (* SIDE_IS_TRI_13 *)
+    2, [| 3; 0; 1; 1; 2; 3 |]
+  | _ -> failwith (Printf.sprintf "Illegal side type %d" side_type)
+;;

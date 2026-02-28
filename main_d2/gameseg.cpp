@@ -187,6 +187,20 @@ void get_side_verts(short *vertlist,int segnum,int sidenum)
 //   adjacent on the diagonal edge
 void create_all_vertex_lists(int *num_faces, int *vertices, int segnum, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] create_all_vertex_lists using cd_ox_create_all_vertex_lists.\n");
+		ox_bridge_logged = 1;
+	}
+	side *sidep = &Segments[segnum].sides[sidenum];
+	int32_t nf, verts[6];
+	cd_ox_create_all_vertex_lists(sidep->type, sidenum, &nf, verts);
+	*num_faces = nf;
+	for (int i = 0; i < 6; i++)
+		vertices[i] = verts[i];
+#else
 	side	*sidep = &Segments[segnum].sides[sidenum];
 	int  *sv = Side_to_verts_int[sidenum];
 
@@ -235,6 +249,7 @@ void create_all_vertex_lists(int *num_faces, int *vertices, int segnum, int side
 			Error("Illegal side type (1), type = %i, segment # = %i, side # = %i\n", sidep->type, segnum, sidenum);
 			break;
 	}
+#endif
 
 }
 #endif
@@ -247,6 +262,20 @@ void create_all_vertex_lists(int *num_faces, int *vertices, int segnum, int side
 //	face #1 is stored in vertices 3,4,5.
 void create_all_vertnum_lists(int *num_faces, int *vertnums, int segnum, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] create_all_vertnum_lists using cd_ox_create_all_vertnum_lists.\n");
+		ox_bridge_logged = 1;
+	}
+	side *sidep = &Segments[segnum].sides[sidenum];
+	int32_t nf, vn[6];
+	cd_ox_create_all_vertnum_lists(sidep->type, &nf, vn);
+	*num_faces = nf;
+	for (int i = 0; i < 6; i++)
+		vertnums[i] = vn[i];
+#else
 	side	*sidep = &Segments[segnum].sides[sidenum];
 
 	Assert((segnum <= Highest_segment_index) && (segnum >= 0));
@@ -293,6 +322,7 @@ void create_all_vertnum_lists(int *num_faces, int *vertnums, int segnum, int sid
 			Error("Illegal side type (2), type = %i, segment # = %i, side # = %i\n", sidep->type, segnum, sidenum);
 			break;
 	}
+#endif
 
 }
 
@@ -739,6 +769,24 @@ uint8_t get_side_dists(vms_vector *checkp,int segnum,fix *side_dists)
 //returns true if errors detected
 int check_norms(int segnum,int sidenum,int facenum,int csegnum,int csidenum,int cfacenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] check_norms using cd_ox_check_norms.\n");
+		ox_bridge_logged = 1;
+	}
+	vms_vector *n0 = &Segments[segnum].sides[sidenum].normals[facenum];
+	vms_vector *n1 = &Segments[csegnum].sides[csidenum].normals[cfacenum];
+	int result = cd_ox_check_norms(n0->x, n0->y, n0->z, n1->x, n1->y, n1->z);
+	if (result)
+		mprintf((0,"Seg %x, side %d, norm %d doesn't match seg %x, side %d, norm %d:\n"
+				"   %8x %8x %8x\n"
+				"   %8x %8x %8x (negated)\n",
+				segnum,sidenum,facenum,csegnum,csidenum,cfacenum,
+				n0->x,n0->y,n0->z,-n1->x,-n1->y,-n1->z));
+	return result;
+#else
 	vms_vector *n0,*n1;
 
 	n0 = &Segments[segnum].sides[sidenum].normals[facenum];
@@ -754,6 +802,7 @@ int check_norms(int segnum,int sidenum,int facenum,int csegnum,int csidenum,int 
 	}
 	else
 		return 0;
+#endif
 }
 
 //heavy-duty error checking

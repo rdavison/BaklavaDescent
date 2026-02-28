@@ -88,11 +88,11 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] find_connected_distance — distance between segments via connectivity
 
 ### Unported — Segment Construction/Validation
-- [ ] create_all_vertex_lists — vertex coordinate lists for all faces
-- [ ] create_all_vertnum_lists — vertex index lists
+- [x] create_all_vertex_lists — vertex coordinate lists for all faces
+- [x] create_all_vertnum_lists — vertex index lists
 - [x] add_side_as_quad, add_side_as_2_triangles — face normal creation
 - [x] create_walls_on_side — wall segment normals
-- [ ] check_norms — normal consistency check
+- [x] check_norms — normal consistency check
 - [ ] check_segment_connections — validates connectivity
 - [ ] validate_segment, validate_segment_side, validate_segment_all — validation
 - [ ] set_segment_depths — depth sorting
