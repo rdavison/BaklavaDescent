@@ -352,6 +352,9 @@ let cd_ai_path_set_orient_and_vel (packed : int array) =
   Ox_physics.ai_path_set_orient_and_vel packed
 ;;
 
+(* do_silly_animation: packed int array → flat int array *)
+let cd_do_silly_animation (packed : int array) = Ox_physics.do_silly_animation packed
+
 (* do_physics_align_object: packed int array (54) → flat int array (11)
    Output: [tag, rvec(3), uvec(3), fvec(3), floor_levelling]
    tag=0: orient unchanged, tag=1: orient was modified *)
@@ -396,5 +399,6 @@ let () =
   Callback.register "cd_do_physics_align_object" cd_do_physics_align_object;
   Callback.register "cd_ai_frame_animation" cd_ai_frame_animation;
   Callback.register "cd_ai_move_relative_to_player" cd_ai_move_relative_to_player;
-  Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel
+  Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel;
+  Callback.register "cd_do_silly_animation" cd_do_silly_animation
 ;;

@@ -817,6 +817,93 @@ int do_silly_animation(object *objp)
 		return 0;
 	}
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { fprintf(stderr, "[OX] do_silly_animation (D2)\n"); ox_logged = 1; }
+
+		robot_state = Mike_to_matt_xlate[aip->GOAL_STATE];
+		if (attack_type)
+			flinch_attack_scale = Attack_scale;
+		else if ((robot_state == AS_FLINCH) || (robot_state == AS_RECOIL))
+			flinch_attack_scale = Flinch_scale;
+
+		int model_n_models = Polygon_models[pobj_info->model_num].n_models;
+		int n_guns_plus_1 = num_guns + 1;
+
+		/* First pass: call robot_get_anim_state for each gun to count total joints */
+		int total_joints = 0;
+		int n_joints_per_gun[MAX_GUNS + 1];
+		jointpos* jp_lists[MAX_GUNS + 1];
+		for (gun_num = 0; gun_num <= num_guns; gun_num++) {
+			num_joint_positions = robot_get_anim_state(&jp_lists[gun_num], robot_type, gun_num, robot_state);
+			n_joints_per_gun[gun_num] = num_joint_positions;
+			total_joints += num_joint_positions;
+		}
+
+		int32_t packed[512];
+		int idx = 0;
+		packed[idx++] = num_guns;
+		packed[idx++] = flinch_attack_scale;
+		packed[idx++] = model_n_models;
+		for (gun_num = 0; gun_num <= num_guns; gun_num++)
+			packed[idx++] = n_joints_per_gun[gun_num];
+		for (gun_num = 0; gun_num <= num_guns; gun_num++) {
+			jp_list = jp_lists[gun_num];
+			for (int j = 0; j < n_joints_per_gun[gun_num]; j++) {
+				packed[idx++] = jp_list[j].jointnum;
+				packed[idx++] = jp_list[j].angles.p;
+				packed[idx++] = jp_list[j].angles.b;
+				packed[idx++] = jp_list[j].angles.h;
+			}
+		}
+		for (int j = 0; j < model_n_models; j++) {
+			packed[idx++] = pobj_info->anim_angles[j].p;
+			packed[idx++] = pobj_info->anim_angles[j].b;
+			packed[idx++] = pobj_info->anim_angles[j].h;
+		}
+		for (int j = 0; j < model_n_models; j++) {
+			packed[idx++] = Ai_local_info[objnum].goal_angles[j].p;
+			packed[idx++] = Ai_local_info[objnum].goal_angles[j].b;
+			packed[idx++] = Ai_local_info[objnum].goal_angles[j].h;
+		}
+		for (int j = 0; j < model_n_models; j++) {
+			packed[idx++] = Ai_local_info[objnum].delta_angles[j].p;
+			packed[idx++] = Ai_local_info[objnum].delta_angles[j].b;
+			packed[idx++] = Ai_local_info[objnum].delta_angles[j].h;
+		}
+		for (gun_num = 0; gun_num <= num_guns; gun_num++)
+			packed[idx++] = Ai_local_info[objnum].achieved_state[gun_num];
+		for (gun_num = 0; gun_num <= num_guns; gun_num++)
+			packed[idx++] = Ai_local_info[objnum].goal_state[gun_num];
+
+		int out_len = 1 + model_n_models * 6 + n_guns_plus_1 * 2;
+		int32_t out[256];
+		cd_ox_do_silly_animation(packed, idx, out, out_len);
+
+		at_goal = out[0];
+		int oi = 1;
+		for (int j = 0; j < model_n_models; j++) {
+			Ai_local_info[objnum].goal_angles[j].p = (fixang)out[oi++];
+			Ai_local_info[objnum].goal_angles[j].b = (fixang)out[oi++];
+			Ai_local_info[objnum].goal_angles[j].h = (fixang)out[oi++];
+		}
+		for (int j = 0; j < model_n_models; j++) {
+			Ai_local_info[objnum].delta_angles[j].p = (fixang)out[oi++];
+			Ai_local_info[objnum].delta_angles[j].b = (fixang)out[oi++];
+			Ai_local_info[objnum].delta_angles[j].h = (fixang)out[oi++];
+		}
+		for (gun_num = 0; gun_num <= num_guns; gun_num++)
+			Ai_local_info[objnum].achieved_state[gun_num] = out[oi++];
+		for (gun_num = 0; gun_num <= num_guns; gun_num++)
+			Ai_local_info[objnum].goal_state[gun_num] = out[oi++];
+
+		if (at_goal == 1)
+			aip->CURRENT_STATE = aip->GOAL_STATE;
+		return 1;
+	}
+#endif
+
 	//	This is a hack.  All positions should be based on goal_state, not GOAL_STATE.
 	robot_state = Mike_to_matt_xlate[aip->GOAL_STATE];
 	// previous_robot_state = Mike_to_matt_xlate[aip->CURRENT_STATE];

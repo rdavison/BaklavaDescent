@@ -273,7 +273,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Unported — Robot Animation
 - [x] ai_frame_animation — robot model animation (D1+D2, joint angle interpolation)
-- [ ] do_silly_animation — special animation (D1)
+- [x] do_silly_animation — animation goal/delta computation (D1+D2)
 - [x] robot_get_anim_state — animation state retrieval
 - [x] set_robot_state — animation state setting
 - [x] robot_set_angles — joint angles from animation

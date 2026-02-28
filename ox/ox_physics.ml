@@ -1268,3 +1268,177 @@ let do_physics_align_object (packed : int array) =
     (* desired_upvec too parallel to fvec: no change *)
     false, orient, floor_levelling
 ;;
+
+(* do_silly_animation: compute goal and delta angles for robot animation joints.
+   C original: main_d1/ai.cpp + main_d2/ai2.cpp do_silly_animation
+   D1 and D2 are identical.
+
+   Packed input array layout:
+     [0]   num_guns
+     [1]   flinch_attack_scale (pre-computed: 1, Attack_scale=24, or Flinch_scale=4)
+     [2]   model_n_models (for jointnum bounds check)
+     [3..3+num_guns]  n_joints_per_gun[g] for g = 0..num_guns  (num_guns+1 entries)
+
+     Then joint entries, grouped by gun, each 4 ints:
+       jointnum, target_p, target_b, target_h
+
+     Then current anim_angles for joints 0..model_n_models-1:
+       model_n_models * 3 ints (p, b, h)
+
+     Then current goal_angles for joints 0..model_n_models-1:
+       model_n_models * 3 ints (p, b, h)
+
+     Then current delta_angles for joints 0..model_n_models-1:
+       model_n_models * 3 ints (p, b, h)
+
+     Then current achieved_state[0..num_guns]: (num_guns+1) ints
+     Then current goal_state[0..num_guns]: (num_guns+1) ints
+
+   Returns packed array:
+     [0]  at_goal (0 or 1, if 1 caller sets CURRENT_STATE = GOAL_STATE)
+     Then goal_angles for joints 0..model_n_models-1: model_n_models * 3 ints
+     Then delta_angles for joints 0..model_n_models-1: model_n_models * 3 ints
+     Then achieved_state[0..num_guns]: (num_guns+1) ints
+     Then goal_state[0..num_guns]: (num_guns+1) ints *)
+let do_silly_animation (packed : int array) =
+  let anim_rate = f1_0 / 16 in
+  let delta_ang_scale = 16 in
+  let ais_reco = 6 in
+  let ais_fire = 5 in
+  let ais_flin = 4 in
+  let ais_lock = 3 in
+  let num_guns = packed.(0) in
+  let flinch_attack_scale = packed.(1) in
+  let model_n_models = packed.(2) in
+  let n_guns_plus_1 = num_guns + 1 in
+  (* Read n_joints per gun *)
+  let n_joints_per_gun = Array.init n_guns_plus_1 ~f:(fun g -> packed.(3 + g)) in
+  (* Joint entries start after n_joints_per_gun *)
+  let joints_base = 3 + n_guns_plus_1 in
+  let total_joints =
+    let sum = ref 0 in
+    Array.iter n_joints_per_gun ~f:(fun n -> sum := !sum + n);
+    !sum
+  in
+  (* Current anim/goal/delta angles base offsets *)
+  let anim_base = joints_base + (total_joints * 4) in
+  let goal_base = anim_base + (model_n_models * 3) in
+  let delta_base = goal_base + (model_n_models * 3) in
+  let achieved_base = delta_base + (model_n_models * 3) in
+  let gstate_base = achieved_base + n_guns_plus_1 in
+  (* Mutable copies of goal_angles, delta_angles, achieved_state, goal_state *)
+  let goal_angles =
+    Array.init (model_n_models * 3) ~f:(fun i -> packed.(goal_base + i))
+  in
+  let delta_angles =
+    Array.init (model_n_models * 3) ~f:(fun i -> packed.(delta_base + i))
+  in
+  let achieved_state =
+    Array.init n_guns_plus_1 ~f:(fun i -> packed.(achieved_base + i))
+  in
+  let goal_state = Array.init n_guns_plus_1 ~f:(fun i -> packed.(gstate_base + i)) in
+  let at_goal = ref 1 in
+  let joint_offset = ref 0 in
+  for gun_num = 0 to num_guns do
+    let n_joints = n_joints_per_gun.(gun_num) in
+    for j = 0 to n_joints - 1 do
+      let base = joints_base + ((!joint_offset + j) * 4) in
+      let jointnum = packed.(base) in
+      let target_p = packed.(base + 1) in
+      let target_b = packed.(base + 2) in
+      let target_h = packed.(base + 3) in
+      if jointnum < model_n_models
+      then (
+        let cur_p = packed.(anim_base + (jointnum * 3)) in
+        let cur_b = packed.(anim_base + (jointnum * 3) + 1) in
+        let cur_h = packed.(anim_base + (jointnum * 3) + 2) in
+        (* Process pitch *)
+        if target_p <> cur_p
+        then (
+          if gun_num = 0 then at_goal := 0;
+          goal_angles.(jointnum * 3) <- target_p;
+          let delta_angle = target_p - cur_p in
+          let delta_2 =
+            if delta_angle >= f1_0 / 2
+            then -anim_rate
+            else if delta_angle >= 0
+            then anim_rate
+            else if delta_angle >= -(f1_0 / 2)
+            then -anim_rate
+            else anim_rate
+          in
+          let delta_2 =
+            if flinch_attack_scale <> 1 then delta_2 * flinch_attack_scale else delta_2
+          in
+          delta_angles.(jointnum * 3) <- delta_2 / delta_ang_scale);
+        (* Process bank *)
+        if target_b <> cur_b
+        then (
+          if gun_num = 0 then at_goal := 0;
+          goal_angles.((jointnum * 3) + 1) <- target_b;
+          let delta_angle = target_b - cur_b in
+          let delta_2 =
+            if delta_angle >= f1_0 / 2
+            then -anim_rate
+            else if delta_angle >= 0
+            then anim_rate
+            else if delta_angle >= -(f1_0 / 2)
+            then -anim_rate
+            else anim_rate
+          in
+          let delta_2 =
+            if flinch_attack_scale <> 1 then delta_2 * flinch_attack_scale else delta_2
+          in
+          delta_angles.((jointnum * 3) + 1) <- delta_2 / delta_ang_scale);
+        (* Process heading *)
+        if target_h <> cur_h
+        then (
+          if gun_num = 0 then at_goal := 0;
+          goal_angles.((jointnum * 3) + 2) <- target_h;
+          let delta_angle = target_h - cur_h in
+          let delta_2 =
+            if delta_angle >= f1_0 / 2
+            then -anim_rate
+            else if delta_angle >= 0
+            then anim_rate
+            else if delta_angle >= -(f1_0 / 2)
+            then -anim_rate
+            else anim_rate
+          in
+          let delta_2 =
+            if flinch_attack_scale <> 1 then delta_2 * flinch_attack_scale else delta_2
+          in
+          delta_angles.((jointnum * 3) + 2) <- delta_2 / delta_ang_scale))
+    done;
+    if !at_goal <> 0
+    then (
+      achieved_state.(gun_num) <- goal_state.(gun_num);
+      if achieved_state.(gun_num) = ais_reco then goal_state.(gun_num) <- ais_fire;
+      if achieved_state.(gun_num) = ais_flin then goal_state.(gun_num) <- ais_lock);
+    joint_offset := !joint_offset + n_joints
+  done;
+  (* Build output *)
+  let out_len = 1 + (model_n_models * 6) + (n_guns_plus_1 * 2) in
+  let result = Array.create ~len:out_len 0 in
+  result.(0) <- !at_goal;
+  Array.blit ~src:goal_angles ~src_pos:0 ~dst:result ~dst_pos:1 ~len:(model_n_models * 3);
+  Array.blit
+    ~src:delta_angles
+    ~src_pos:0
+    ~dst:result
+    ~dst_pos:(1 + (model_n_models * 3))
+    ~len:(model_n_models * 3);
+  Array.blit
+    ~src:achieved_state
+    ~src_pos:0
+    ~dst:result
+    ~dst_pos:(1 + (model_n_models * 6))
+    ~len:n_guns_plus_1;
+  Array.blit
+    ~src:goal_state
+    ~src_pos:0
+    ~dst:result
+    ~dst_pos:(1 + (model_n_models * 6) + n_guns_plus_1)
+    ~len:n_guns_plus_1;
+  result
+;;

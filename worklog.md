@@ -1554,3 +1554,20 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: D1 launches and plays correctly with §47 bridge active.
+
+### §48 — Port do_silly_animation to OxCaml (D1 + D2)
+
+- **What:** `do_silly_animation` — computes goal and delta joint angles for robot animation based on robot_get_anim_state results. Identical logic in D1 and D2. ~128 lines, called per animated robot per frame. Sets up target angles that ai_frame_animation (§47) then interpolates toward.
+
+- **Design:** Variable-length packed array. C side pre-computes flinch_attack_scale and calls robot_get_anim_state for each gun (0..num_guns), packing joint entries (jointnum, target p/b/h). Also packs current anim_angles, goal_angles, delta_angles (all model joints), and achieved_state/goal_state arrays. OCaml computes delta direction (±ANIM_RATE scaled by flinch_attack_scale / DELTA_ANG_SCALE), handles at_goal tracking, and AIS_RECO→AIS_FIRE / AIS_FLIN→AIS_LOCK state transitions. Returns updated goal_angles, delta_angles, achieved_state, goal_state, and at_goal flag.
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `do_silly_animation` (~100 lines)
+  - `ox/physics_bridge.ml` — `cd_do_silly_animation` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_do_silly_animation` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_do_silly_animation` declaration
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `do_silly_animation`
+  - `main_d2/ai2.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.
