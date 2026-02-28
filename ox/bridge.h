@@ -310,19 +310,28 @@ int cd_ox_calc_rod_corners(
     int32_t* c3x, int32_t* c3y, int32_t* c3z,
     uint8_t* codes_and);
 
-/* Collide / damage functions.
-   Calls OCaml, returns flat effect-tree buffer in out_buf (max 32 ints).
-   Layout: [new_shields, boss_been_hit, tree_node...]
-   Tree node encoding:
-     Leaf:  [0, return_val, num_effects, effect_tag, args...]
-     Query: [1, obj_id, killer, then_len, then_node..., else_node...]
-   Effect tags: 0=Increment_kills, 1=Start_boss_death(obj_id),
-     2=Explode_object(obj_id), 3=Send_net_robot_explode(obj_id,killer) */
+/* Collide / damage effect callback typedefs */
+typedef void (*cd_effect_increment_kills_fn)(void);
+typedef void (*cd_effect_start_boss_death_fn)(int obj_id);
+typedef void (*cd_effect_explode_object_fn)(int obj_id);
+typedef void (*cd_effect_send_net_robot_explode_fn)(int obj_id, int killer);
+typedef int  (*cd_effect_multi_explode_robot_sub_fn)(int obj_id, int killer);
+
+/* Register collide effect callbacks (call once before first use) */
+void cd_ox_register_collide_effects(
+    cd_effect_increment_kills_fn increment_kills,
+    cd_effect_start_boss_death_fn start_boss_death,
+    cd_effect_explode_object_fn explode_object,
+    cd_effect_send_net_robot_explode_fn send_net_robot_explode,
+    cd_effect_multi_explode_robot_sub_fn multi_explode_robot_sub);
+
+/* Collide / damage: returns new_shields, boss_been_hit flag, and return value.
+   Effect callbacks are invoked during execution via OCaml algebraic effects. */
 void cd_ox_apply_damage_to_robot_d1(
     int32_t flags, int32_t shields, int32_t damage,
     int is_boss, int is_multiplayer,
     int obj_id, int killer_objnum,
-    int32_t* out_buf, int* out_len);
+    int32_t* out_new_shields, int* out_boss_been_hit, int* out_return_value);
 
 /* Gameseg functions */
 void cd_ox_compute_center_point_on_side(

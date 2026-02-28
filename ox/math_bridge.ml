@@ -137,7 +137,7 @@ let () =
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
   (* Force collide bridge module initialization so its callbacks are registered. *)
   ignore (Collide_bridge.cd_apply_damage_to_robot_d1 :
-    int -> int -> int -> int -> int -> int -> int -> int array);
+    int -> int -> int -> int -> int -> int -> int -> int * int * int);
   (* Force physics bridge module initialization so its callbacks are registered. *)
   ignore (Physics_bridge.cd_physics_turn_towards_vector :
     int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int);
@@ -169,4 +169,15 @@ let () =
     int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
   ignore (Physics_bridge.cd_homing_missile_turn_towards_velocity :
     int -> int -> int -> int -> int -> int -> int ->
-    int * int * int * int * int * int * int * int * int)
+    int * int * int * int * int * int * int * int * int);
+  (* Force AI bridge module initialization so its callbacks are registered. *)
+  ignore (Ai_bridge.cd_set_next_fire_time_d1 :
+    int -> int -> int -> int * int);
+  ignore (Ai_bridge.cd_ai_behavior_to_mode_d1 : int -> int);
+  ignore (Ai_bridge.cd_ai_turn_randomly :
+    int -> int -> int -> int * int * int);
+  (* Force lighting bridge module initialization so its callbacks are registered. *)
+  ignore (Lighting_bridge.cd_compute_headlight_light_d1 :
+    int -> int -> int -> int -> int -> int -> int);
+  ignore (Lighting_bridge.cd_compute_headlight_light_d2 :
+    int -> int -> int -> int -> int -> int -> int -> int -> int)

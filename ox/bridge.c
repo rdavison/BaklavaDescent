@@ -83,6 +83,13 @@ static const value* g_check_line_to_face = NULL;
 static const value* g_special_check_line_to_face = NULL;
 static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
+
+/* Collide effect function pointers (set via cd_ox_register_collide_effects) */
+static cd_effect_increment_kills_fn g_effect_increment_kills = NULL;
+static cd_effect_start_boss_death_fn g_effect_start_boss_death = NULL;
+static cd_effect_explode_object_fn g_effect_explode_object = NULL;
+static cd_effect_send_net_robot_explode_fn g_effect_send_net_robot_explode = NULL;
+static cd_effect_multi_explode_robot_sub_fn g_effect_multi_explode_robot_sub = NULL;
 static const value* g_physics_turn_towards_vector = NULL;
 static const value* g_do_physics_sim_rot = NULL;
 static const value* g_calc_gun_point = NULL;
@@ -1661,13 +1668,62 @@ int32_t cd_ox_check_vector_to_sphere_1(
     return dist;
 }
 
+/* -- Collide effect registration + CAMLprim wrappers ------------------- */
+
+void cd_ox_register_collide_effects(
+    cd_effect_increment_kills_fn increment_kills,
+    cd_effect_start_boss_death_fn start_boss_death,
+    cd_effect_explode_object_fn explode_object,
+    cd_effect_send_net_robot_explode_fn send_net_robot_explode,
+    cd_effect_multi_explode_robot_sub_fn multi_explode_robot_sub)
+{
+    g_effect_increment_kills = increment_kills;
+    g_effect_start_boss_death = start_boss_death;
+    g_effect_explode_object = explode_object;
+    g_effect_send_net_robot_explode = send_net_robot_explode;
+    g_effect_multi_explode_robot_sub = multi_explode_robot_sub;
+}
+
+CAMLprim value cd_ox_effect_increment_kills(value unit)
+{
+    (void)unit;
+    if (g_effect_increment_kills) g_effect_increment_kills();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_start_boss_death(value v_obj_id)
+{
+    if (g_effect_start_boss_death) g_effect_start_boss_death(Int_val(v_obj_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_explode_object(value v_obj_id)
+{
+    if (g_effect_explode_object) g_effect_explode_object(Int_val(v_obj_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_send_net_robot_explode(value v_obj_id, value v_killer)
+{
+    if (g_effect_send_net_robot_explode)
+        g_effect_send_net_robot_explode(Int_val(v_obj_id), Int_val(v_killer));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_multi_explode_robot_sub(value v_obj_id, value v_killer)
+{
+    if (g_effect_multi_explode_robot_sub)
+        return Val_bool(g_effect_multi_explode_robot_sub(Int_val(v_obj_id), Int_val(v_killer)));
+    return Val_bool(0);
+}
+
 /* -- Collide / damage bridge ------------------------------------------ */
 
 void cd_ox_apply_damage_to_robot_d1(
     int32_t flags, int32_t shields, int32_t damage,
     int is_boss, int is_multiplayer,
     int obj_id, int killer_objnum,
-    int32_t* out_buf, int* out_len)
+    int32_t* out_new_shields, int* out_boss_been_hit, int* out_return_value)
 {
     cd_ox_require_ready("cd_ox_apply_damage_to_robot_d1");
 
@@ -1681,10 +1737,9 @@ void cd_ox_apply_damage_to_robot_d1(
     };
     result = caml_callbackN(*g_apply_damage_to_robot_d1, 7, args);
 
-    int arr_len = Wosize_val(result);
-    for (int i = 0; i < arr_len; i++)
-        out_buf[i] = Int_val(Field(result, i));
-    *out_len = arr_len;
+    *out_new_shields = Int_val(Field(result, 0));
+    *out_boss_been_hit = Int_val(Field(result, 1));
+    *out_return_value = Int_val(Field(result, 2));
 
     CAMLreturn0;
 }

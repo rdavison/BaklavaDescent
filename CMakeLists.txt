@@ -744,6 +744,10 @@ if (USE_OX_BRIDGE)
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/collide_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_physics.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_lighting.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/lighting_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		COMMENT "Building OxCaml bridge object"

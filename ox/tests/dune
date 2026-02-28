@@ -19,3 +19,10 @@
  (preprocess (pps ppx_jane))
  (inline_tests)
  (flags (:standard -open Core)))
+
+(executable
+ (name bench_effects)
+ (modules bench_effects)
+ (libraries core time_now)
+ (flags (:standard -open Core))
+ (ocamlopt_flags (:standard -O2)))

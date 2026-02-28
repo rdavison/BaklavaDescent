@@ -1,27 +1,51 @@
 (* Bridge adapter for collision logic.
-   Serializes the effect tree to a flat int array for C consumption.
+   Uses algebraic effects: OCaml performs effects, C handler executes them. *)
 
-   Output array layout:
-   [0]   = new_shields
-   [1]   = set_boss_been_hit (0 or 1)
-   [2..] = serialized result_node *)
+external effect_increment_kills : unit -> unit = "cd_ox_effect_increment_kills"
+external effect_start_boss_death : int -> unit = "cd_ox_effect_start_boss_death"
+external effect_explode_object : int -> unit = "cd_ox_effect_explode_object"
+external effect_send_net_robot_explode : int -> int -> unit = "cd_ox_effect_send_net_robot_explode"
+external effect_multi_explode_robot_sub : int -> int -> bool = "cd_ox_effect_multi_explode_robot_sub"
 
 let cd_apply_damage_to_robot_d1
     flags shields damage
     is_boss is_multiplayer
     obj_id killer_objnum =
-  let new_shields, boss_hit, tree =
-    Ox_collide.apply_damage_to_robot_d1
-      ~flags ~shields ~damage
-      ~is_boss:(is_boss <> 0) ~is_multiplayer:(is_multiplayer <> 0)
-      ~obj_id ~killer_objnum
+  let new_shields, boss_hit, ret =
+    Effect.Deep.match_with
+      (fun () ->
+        Ox_collide.apply_damage_to_robot_d1
+          ~flags ~shields ~damage
+          ~is_boss:(is_boss <> 0) ~is_multiplayer:(is_multiplayer <> 0)
+          ~obj_id ~killer_objnum)
+      ()
+      { retc = (fun x -> x);
+        exnc = raise;
+        effc = fun (type a) (eff : a Effect.t) ->
+          match eff with
+          | Ox_collide.Increment_kills ->
+            Some (fun (k : (a, _) Effect.Deep.continuation) ->
+              effect_increment_kills ();
+              Effect.Deep.continue k ())
+          | Ox_collide.Start_boss_death obj_id ->
+            Some (fun (k : (a, _) Effect.Deep.continuation) ->
+              effect_start_boss_death obj_id;
+              Effect.Deep.continue k ())
+          | Ox_collide.Explode_object obj_id ->
+            Some (fun (k : (a, _) Effect.Deep.continuation) ->
+              effect_explode_object obj_id;
+              Effect.Deep.continue k ())
+          | Ox_collide.Send_net_robot_explode (obj_id, killer) ->
+            Some (fun (k : (a, _) Effect.Deep.continuation) ->
+              effect_send_net_robot_explode obj_id killer;
+              Effect.Deep.continue k ())
+          | Ox_collide.Query_multi_explode (obj_id, killer) ->
+            Some (fun (k : (a, _) Effect.Deep.continuation) ->
+              let result = effect_multi_explode_robot_sub obj_id killer in
+              Effect.Deep.continue k result)
+          | _ -> None }
   in
-  let tree_size = Ox_collide.node_size tree in
-  let buf = Array.create ~len:(2 + tree_size) 0 in
-  buf.(0) <- new_shields;
-  buf.(1) <- (if boss_hit then 1 else 0);
-  let _end_pos = Ox_collide.serialize_node buf 2 tree in
-  buf
+  (new_shields, (if boss_hit then 1 else 0), ret)
 
 (* get_explosion_vclip: 5 scalar args → int *)
 let cd_get_explosion_vclip obj_type stage

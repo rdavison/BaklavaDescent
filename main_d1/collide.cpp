@@ -860,80 +860,56 @@ void collide_weapon_and_clutter(object* weapon, object* clutter, vms_vector* col
 int apply_damage_to_robot(object* robot, fix damage, int killer_objnum)
 {
 #ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
 	{
-		fprintf(stderr, "[OX] apply_damage_to_robot using cd_ox_apply_damage_to_robot_d1.\n");
-		ox_bridge_logged = 1;
+		static int effects_registered = 0;
+		if (!effects_registered)
+		{
+			effects_registered = 1;
+			cd_ox_register_collide_effects(
+				/* increment_kills */
+				[]() {
+					Players[Player_num].num_kills_level++;
+					Players[Player_num].num_kills_total++;
+				},
+				/* start_boss_death */
+				[](int obj_id) {
+					start_boss_death_sequence(&Objects[obj_id]);
+				},
+				/* explode_object */
+				[](int obj_id) {
+					explode_object(&Objects[obj_id], STANDARD_EXPL_DELAY);
+				},
+				/* send_net_robot_explode */
+				[](int obj_id, int killer) {
+#if defined(NETWORK) && !defined(SHAREWARE)
+					multi_send_robot_explode(obj_id, killer);
+#else
+					(void)obj_id; (void)killer;
+#endif
+				},
+				/* multi_explode_robot_sub */
+				[](int obj_id, int killer) -> int {
+#if defined(NETWORK) && !defined(SHAREWARE)
+					return multi_explode_robot_sub(obj_id, killer) ? 1 : 0;
+#else
+					(void)obj_id; (void)killer;
+					return 0;
+#endif
+				});
+		}
 	}
-	int32_t buf[32];
-	int buf_len;
+
+	int32_t new_shields; int boss_been_hit, ret;
 	cd_ox_apply_damage_to_robot_d1(
 		robot->flags, robot->shields, damage,
 		Robot_info[robot->id].boss_flag ? 1 : 0,
 		(Game_mode & GM_MULTI) ? 1 : 0,
 		(int)(robot - Objects), killer_objnum,
-		buf, &buf_len);
+		&new_shields, &boss_been_hit, &ret);
 
-	robot->shields = buf[0];
-	if (buf[1]) Boss_been_hit = 1;
-
-	/* Walk the effect tree starting at buf[2] */
-	int pos = 2;
-	/* Iterative tree walk — stack not needed since we always take one branch */
-	for (;;)
-	{
-		int tag = buf[pos];
-		if (tag == 0)
-		{
-			/* Leaf: [0, return_val, num_effects, effects...] */
-			int ret = buf[pos + 1];
-			int num_effects = buf[pos + 2];
-			int p = pos + 3;
-			for (int i = 0; i < num_effects; i++)
-			{
-				int etag = buf[p];
-				switch (etag)
-				{
-				case 0: /* Increment_kills */
-					Players[Player_num].num_kills_level++;
-					Players[Player_num].num_kills_total++;
-					p += 1;
-					break;
-				case 1: /* Start_boss_death(obj_id) */
-					start_boss_death_sequence(&Objects[buf[p + 1]]);
-					p += 2;
-					break;
-				case 2: /* Explode_object(obj_id) */
-					explode_object(&Objects[buf[p + 1]], STANDARD_EXPL_DELAY);
-					p += 2;
-					break;
-				case 3: /* Send_net_robot_explode(obj_id, killer) */
-#if defined(NETWORK) && !defined(SHAREWARE)
-					multi_send_robot_explode(buf[p + 1], buf[p + 2]);
-#endif
-					p += 3;
-					break;
-				}
-			}
-			return ret;
-		}
-		else /* tag == 1: Query_multi_explode */
-		{
-			int q_obj_id = buf[pos + 1];
-			int q_killer = buf[pos + 2];
-			int then_len = buf[pos + 3];
-			int then_start = pos + 4;
-#if defined(NETWORK) && !defined(SHAREWARE)
-			if (multi_explode_robot_sub(q_obj_id, q_killer))
-				pos = then_start;
-			else
-				pos = then_start + then_len;
-#else
-			pos = then_start + then_len;
-#endif
-		}
-	}
+	robot->shields = new_shields;
+	if (boss_been_hit) Boss_been_hit = 1;
+	return ret;
 #else
 	if (robot->flags & OF_EXPLODING) return 0;
 
