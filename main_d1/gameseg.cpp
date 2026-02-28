@@ -104,11 +104,24 @@ void compute_segment_center(vms_vector* vp, segment* sp)
 //	Optimized by MK on 4/21/94 because it is a 2% load.
 int find_connect_side(segment* base_seg, segment* con_seg)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] find_connect_side using cd_ox_find_connect_side.\n");
+		ox_bridge_logged = 1;
+	}
+	short base_seg_num = base_seg - Segments;
+	return cd_ox_find_connect_side(
+		con_seg->children[0], con_seg->children[1], con_seg->children[2],
+		con_seg->children[3], con_seg->children[4], con_seg->children[5],
+		base_seg_num);
+#else
 	int	s;
 	short	base_seg_num = base_seg - Segments;
 	short* childs = con_seg->children;
 
-	for (s = 0; s < MAX_SIDES_PER_SEGMENT; s++) 
+	for (s = 0; s < MAX_SIDES_PER_SEGMENT; s++)
 	{
 		if (*childs++ == base_seg_num)
 			return s;
@@ -117,7 +130,7 @@ int find_connect_side(segment* base_seg, segment* con_seg)
 
 	// legal to return -1, used in object_move_one(), mk, 06/08/94: Assert(0);		// Illegal -- there is no connecting side between these two segments
 	return -1;
-
+#endif
 }
 
 // -----------------------------------------------------------------------------------
@@ -1180,6 +1193,45 @@ int8_t convert_to_byte(fix f)
 //	Stuff segment in a short.
 void create_shortpos(shortpos * spp, object * objp)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] create_shortpos using cd_ox_create_shortpos.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t packed[19];
+	packed[0] = objp->orient.rvec.x;
+	packed[1] = objp->orient.uvec.x;
+	packed[2] = objp->orient.fvec.x;
+	packed[3] = objp->orient.rvec.y;
+	packed[4] = objp->orient.uvec.y;
+	packed[5] = objp->orient.fvec.y;
+	packed[6] = objp->orient.rvec.z;
+	packed[7] = objp->orient.uvec.z;
+	packed[8] = objp->orient.fvec.z;
+	packed[9] = objp->pos.x;
+	packed[10] = objp->pos.y;
+	packed[11] = objp->pos.z;
+	packed[12] = objp->mtype.phys_info.velocity.x;
+	packed[13] = objp->mtype.phys_info.velocity.y;
+	packed[14] = objp->mtype.phys_info.velocity.z;
+	packed[15] = Vertices[Segments[objp->segnum].verts[0]].x;
+	packed[16] = Vertices[Segments[objp->segnum].verts[0]].y;
+	packed[17] = Vertices[Segments[objp->segnum].verts[0]].z;
+	packed[18] = objp->segnum;
+	int32_t out_buf[17];
+	cd_ox_create_shortpos(packed, 19, out_buf);
+	for (int i = 0; i < 9; i++)
+		spp->bytemat[i] = (int8_t)out_buf[i];
+	spp->xo = (short)out_buf[9];
+	spp->yo = (short)out_buf[10];
+	spp->zo = (short)out_buf[11];
+	spp->segment = (short)out_buf[12];
+	spp->velx = (short)out_buf[13];
+	spp->vely = (short)out_buf[14];
+	spp->velz = (short)out_buf[15];
+#else
 	// int	segnum;
 	int8_t* sp;
 
@@ -1204,26 +1256,51 @@ void create_shortpos(shortpos * spp, object * objp)
 	spp->velx = (short)((objp->mtype.phys_info.velocity.x) >> VEL_PRECISION);
 	spp->vely = (short)((objp->mtype.phys_info.velocity.y) >> VEL_PRECISION);
 	spp->velz = (short)((objp->mtype.phys_info.velocity.z) >> VEL_PRECISION);
-
-	//	mprintf((0, "Matrix: %08x %08x %08x    %08x %08x %08x\n", objp->orient.m1,objp->orient.m2,objp->orient.m3,
-	//					spp->bytemat[0] << MATRIX_PRECISION,spp->bytemat[1] << MATRIX_PRECISION,spp->bytemat[2] << MATRIX_PRECISION));
-	//
-	//	mprintf((0, "        %08x %08x %08x    %08x %08x %08x\n", objp->orient.m4,objp->orient.m5,objp->orient.m6,
-	//					spp->bytemat[3] << MATRIX_PRECISION,spp->bytemat[4] << MATRIX_PRECISION,spp->bytemat[5] << MATRIX_PRECISION));
-	//
-	//	mprintf((0, "        %08x %08x %08x    %08x %08x %08x\n", objp->orient.m7,objp->orient.m8,objp->orient.m9,
-	//					spp->bytemat[6] << MATRIX_PRECISION,spp->bytemat[7] << MATRIX_PRECISION,spp->bytemat[8] << MATRIX_PRECISION));
-	//
-	//	mprintf((0, "Positn: %08x %08x %08x    %08x %08x %08x\n", objp->pos.x, objp->pos.y, objp->pos.z,
-	//		 (spp->xo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].x,
-	//		 (spp->yo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].y,
-	//		 (spp->zo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].z));
-	//	mprintf((0, "Segment: %3i    %3i\n", objp->segnum, spp->segment));
-
+#endif
 }
 
 void extract_shortpos(object* objp, shortpos* spp)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] extract_shortpos using cd_ox_extract_shortpos.\n");
+		ox_bridge_logged = 1;
+	}
+	int segnum = spp->segment;
+	Assert((segnum >= 0) && (segnum <= Highest_segment_index));
+	int32_t packed[18];
+	for (int i = 0; i < 9; i++)
+		packed[i] = spp->bytemat[i];
+	packed[9] = spp->xo;
+	packed[10] = spp->yo;
+	packed[11] = spp->zo;
+	packed[12] = Vertices[Segments[segnum].verts[0]].x;
+	packed[13] = Vertices[Segments[segnum].verts[0]].y;
+	packed[14] = Vertices[Segments[segnum].verts[0]].z;
+	packed[15] = spp->velx;
+	packed[16] = spp->vely;
+	packed[17] = spp->velz;
+	int32_t out_buf[15];
+	cd_ox_extract_shortpos(packed, 18, out_buf);
+	objp->orient.rvec.x = out_buf[0];
+	objp->orient.uvec.x = out_buf[1];
+	objp->orient.fvec.x = out_buf[2];
+	objp->orient.rvec.y = out_buf[3];
+	objp->orient.uvec.y = out_buf[4];
+	objp->orient.fvec.y = out_buf[5];
+	objp->orient.rvec.z = out_buf[6];
+	objp->orient.uvec.z = out_buf[7];
+	objp->orient.fvec.z = out_buf[8];
+	objp->pos.x = out_buf[9];
+	objp->pos.y = out_buf[10];
+	objp->pos.z = out_buf[11];
+	objp->mtype.phys_info.velocity.x = out_buf[12];
+	objp->mtype.phys_info.velocity.y = out_buf[13];
+	objp->mtype.phys_info.velocity.z = out_buf[14];
+	obj_relink(objp - Objects, segnum);
+#else
 	int	segnum;
 	int8_t* sp;
 
@@ -1252,20 +1329,7 @@ void extract_shortpos(object* objp, shortpos* spp)
 	objp->mtype.phys_info.velocity.z = (spp->velz << VEL_PRECISION);
 
 	obj_relink(objp - Objects, segnum);
-
-	//	mprintf((0, "Matrix: %08x %08x %08x    %08x %08x %08x\n", objp->orient.m1,objp->orient.m2,objp->orient.m3,
-	//					spp->bytemat[0],spp->bytemat[1],spp->bytemat[2]));
-	//
-	//	mprintf((0, "        %08x %08x %08x    %08x %08x %08x\n", objp->orient.m4,objp->orient.m5,objp->orient.m6,
-	//					spp->bytemat[3],spp->bytemat[4],spp->bytemat[5]));
-	//
-	//	mprintf((0, "        %08x %08x %08x    %08x %08x %08x\n", objp->orient.m7,objp->orient.m8,objp->orient.m9,
-	//					spp->bytemat[6],spp->bytemat[7],spp->bytemat[8]));
-	//
-	//	mprintf((0, "Positn: %08x %08x %08x    %08x %08x %08x\n", objp->pos.x, objp->pos.y, objp->pos.z,
-	//			(spp->xo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].x, (spp->yo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].y, (spp->zo << RELPOS_PRECISION) + Vertices[Segments[segnum].verts[0]].z));
-	//	mprintf((0, "Segment: %3i    %3i\n", objp->segnum, spp->segment));
-
+#endif
 }
 
 //--unused-- void test_shortpos(void)

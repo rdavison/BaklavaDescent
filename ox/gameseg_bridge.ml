@@ -137,6 +137,65 @@ let cd_extract_orient_from_segment (arr : int array) =
   [| r1; r2; r3; u1; u2; u3; f1; f2; f3 |]
 ;;
 
+(* find_connect_side: 7 scalar args → 1 int
+   children(6) + base_seg_num(1) = 7 in
+   Returns: side index or -1 *)
+let cd_find_connect_side c0 c1 c2 c3 c4 c5 base_seg_num =
+  let children = [| c0; c1; c2; c3; c4; c5 |] in
+  Ox_gameseg.find_connect_side ~children ~base_seg_num
+;;
+
+(* create_shortpos: packed int array → int array (17 ints)
+   Input: [orient(9), pos(3), vel(3), seg_vert0(3), segnum] = 19 ints
+   Output: [bytemat(9), xo, yo, zo, segment, velx, vely, velz] = 17 ints *)
+let cd_create_shortpos (packed : int array) =
+  let orient = Array.init 9 ~f:(fun i -> packed.(i)) in
+  let pos = packed.(9), packed.(10), packed.(11) in
+  let vel = packed.(12), packed.(13), packed.(14) in
+  let seg_vert0 = packed.(15), packed.(16), packed.(17) in
+  let segnum = packed.(18) in
+  let bytemat, xo, yo, zo, segment, velx, vely, velz =
+    Ox_gameseg.create_shortpos ~orient ~pos ~vel ~seg_vert0 ~segnum
+  in
+  let buf = Array.create ~len:17 0 in
+  Array.blit ~src:bytemat ~dst:buf ~src_pos:0 ~dst_pos:0 ~len:9;
+  buf.(9) <- xo;
+  buf.(10) <- yo;
+  buf.(11) <- zo;
+  buf.(12) <- segment;
+  buf.(13) <- velx;
+  buf.(14) <- vely;
+  buf.(15) <- velz;
+  buf.(16) <- Array.length bytemat;
+  buf
+;;
+
+(* extract_shortpos: packed int array → int array (15 ints)
+   Input: [bytemat(9), xo, yo, zo, seg_vert0(3), velx, vely, velz] = 18 ints
+   Output: [orient(9), pos(3), vel(3)] = 15 ints *)
+let cd_extract_shortpos (packed : int array) =
+  let bytemat = Array.init 9 ~f:(fun i -> packed.(i)) in
+  let xo = packed.(9) in
+  let yo = packed.(10) in
+  let zo = packed.(11) in
+  let seg_vert0 = packed.(12), packed.(13), packed.(14) in
+  let velx = packed.(15) in
+  let vely = packed.(16) in
+  let velz = packed.(17) in
+  let orient, (px, py, pz), (vx, vy, vz) =
+    Ox_gameseg.extract_shortpos ~bytemat ~xo ~yo ~zo ~seg_vert0 ~velx ~vely ~velz
+  in
+  let buf = Array.create ~len:15 0 in
+  Array.blit ~src:orient ~dst:buf ~src_pos:0 ~dst_pos:0 ~len:9;
+  buf.(9) <- px;
+  buf.(10) <- py;
+  buf.(11) <- pz;
+  buf.(12) <- vx;
+  buf.(13) <- vy;
+  buf.(14) <- vz;
+  buf
+;;
+
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -145,5 +204,8 @@ let () =
   Callback.register "cd_get_seg_masks" cd_get_seg_masks;
   Callback.register "cd_get_side_dists" cd_get_side_dists;
   Callback.register "cd_extract_vector_from_segment" cd_extract_vector_from_segment;
-  Callback.register "cd_extract_orient_from_segment" cd_extract_orient_from_segment
+  Callback.register "cd_extract_orient_from_segment" cd_extract_orient_from_segment;
+  Callback.register "cd_find_connect_side" cd_find_connect_side;
+  Callback.register "cd_create_shortpos" cd_create_shortpos;
+  Callback.register "cd_extract_shortpos" cd_extract_shortpos
 ;;

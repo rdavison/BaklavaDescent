@@ -82,7 +82,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] extract_orient_from_segment
 
 ### Unported — Segment Queries
-- [ ] find_connect_side — finds connected segment side
+- [x] find_connect_side — finds connected segment side
 - [ ] find_point_seg — finds segment containing a point (uses FVI)
 - [ ] trace_segs — traces segment path
 - [ ] find_connected_distance — distance between segments via connectivity
@@ -98,9 +98,9 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] set_segment_depths — depth sorting
 
 ### Unported — Compression/IO
-- [ ] create_shortpos — compressed object position
-- [ ] extract_shortpos — extract from compressed position
-- [-] convert_to_byte — trivial (1 line)
+- [x] create_shortpos — compressed object position
+- [x] extract_shortpos — extract from compressed position
+- [x] convert_to_byte — trivial (1 line)
 - [-] sign — trivial (1 line)
 
 ---

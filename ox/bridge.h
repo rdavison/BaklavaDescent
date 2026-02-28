@@ -707,6 +707,17 @@ void cd_ox_calc_controlcen_gun_point(
     int32_t* out_gpx, int32_t* out_gpy, int32_t* out_gpz,
     int32_t* out_gdx, int32_t* out_gdy, int32_t* out_gdz);
 
+/* -- Additional gameseg functions ------------------------------------- */
+int cd_ox_find_connect_side(
+    int32_t c0, int32_t c1, int32_t c2, int32_t c3, int32_t c4, int32_t c5,
+    int32_t base_seg_num);
+void cd_ox_create_shortpos(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+void cd_ox_extract_shortpos(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

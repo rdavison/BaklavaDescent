@@ -292,3 +292,81 @@ let extract_orient_from_segment (verts : vec3 array) =
   let uvec = extract_vector_from_segment ~verts ~start_side:wbottom ~end_side:wtop in
   Ox_math.vm_vector_2_matrix ~fvec ~uvec:(Some uvec) ~rvec:None
 ;;
+
+let max_sides_per_segment = 6
+
+(* find_connect_side: given a segment's children array and a base segment number,
+   return the side index that connects to the base segment, or -1 if none. *)
+let find_connect_side ~(children : int array) ~base_seg_num =
+  let rec loop s =
+    if s >= max_sides_per_segment
+    then -1
+    else if children.(s) = base_seg_num
+    then s
+    else loop (s + 1)
+  in
+  loop 0
+;;
+
+let matrix_precision = 9
+let matrix_max = 0x7f
+let relpos_precision = 10
+let vel_precision = 12
+
+let convert_to_byte f =
+  if f >= 0x00010000
+  then matrix_max
+  else if f <= -0x00010000
+  then -matrix_max
+  else f asr matrix_precision
+;;
+
+(* create_shortpos: compress an object's orient/pos/vel into a shortpos.
+   orient: 9 ints (rx,ux,fx,ry,uy,fy,rz,uz,fz)
+   pos: (x,y,z), vel: (x,y,z), seg_vert0: (x,y,z) position of segment vertex 0
+   segnum: object's segment number
+   Returns: (bytemat[9], xo, yo, zo, segment, velx, vely, velz) *)
+let create_shortpos
+      ~(orient : int array)
+      ~(pos : vec3)
+      ~(vel : vec3)
+      ~(seg_vert0 : vec3)
+      ~segnum
+  =
+  let bytemat = Array.init 9 ~f:(fun i -> convert_to_byte orient.(i)) in
+  let px, py, pz = pos in
+  let v0x, v0y, v0z = seg_vert0 in
+  let xo = (px - v0x) asr relpos_precision in
+  let yo = (py - v0y) asr relpos_precision in
+  let zo = (pz - v0z) asr relpos_precision in
+  let vx, vy, vz = vel in
+  let velx = vx asr vel_precision in
+  let vely = vy asr vel_precision in
+  let velz = vz asr vel_precision in
+  bytemat, xo, yo, zo, segnum, velx, vely, velz
+;;
+
+(* extract_shortpos: decompress a shortpos back to orient/pos/vel.
+   bytemat: 9 ints, xo/yo/zo: relative position shorts,
+   seg_vert0: (x,y,z), velx/vely/velz: velocity shorts
+   Returns: (orient[9], pos(x,y,z), vel(x,y,z)) *)
+let extract_shortpos
+      ~(bytemat : int array)
+      ~xo
+      ~yo
+      ~zo
+      ~(seg_vert0 : vec3)
+      ~velx
+      ~vely
+      ~velz
+  =
+  let orient = Array.init 9 ~f:(fun i -> bytemat.(i) lsl matrix_precision) in
+  let v0x, v0y, v0z = seg_vert0 in
+  let pos =
+    ( (xo lsl relpos_precision) + v0x
+    , (yo lsl relpos_precision) + v0y
+    , (zo lsl relpos_precision) + v0z )
+  in
+  let vel = velx lsl vel_precision, vely lsl vel_precision, velz lsl vel_precision in
+  orient, pos, vel
+;;

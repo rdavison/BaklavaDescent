@@ -10832,3 +10832,85 @@ let%expect_test "robot_set_angles" =
       jn=3 (0,0,0)
     |}]
 ;;
+
+(* --- find_connect_side parity ----------------------------------------- *)
+let%expect_test "find_connect_side" =
+  (* children array: side 0→seg 10, side 1→seg 20, side 2→seg -1 (wall),
+     side 3→seg 30, side 4→seg 40, side 5→seg 50 *)
+  let children = [| 10; 20; -1; 30; 40; 50 |] in
+  let test base_seg_num =
+    let result = Ox_gameseg.find_connect_side ~children ~base_seg_num in
+    printf "  base_seg=%d → side=%d\n" base_seg_num result
+  in
+  printf "find_connect_side:\n";
+  test 10;
+  test 20;
+  test 30;
+  test 40;
+  test 50;
+  test 99;
+  [%expect
+    {|
+    find_connect_side:
+      base_seg=10 → side=0
+      base_seg=20 → side=1
+      base_seg=30 → side=3
+      base_seg=40 → side=4
+      base_seg=50 → side=5
+      base_seg=99 → side=-1
+    |}]
+;;
+
+(* --- create_shortpos parity ------------------------------------------- *)
+let%expect_test "create_shortpos" =
+  (* orient: identity-ish matrix scaled to fix16 (0x10000 = 65536) *)
+  let orient = [| 65536; 0; 0; 0; 65536; 0; 0; 0; 65536 |] in
+  let pos = 100000, 200000, 300000 in
+  let vel = 4096, 8192, 12288 in
+  let seg_vert0 = 90000, 190000, 290000 in
+  let segnum = 42 in
+  let bytemat, xo, yo, zo, segment, velx, vely, velz =
+    Ox_gameseg.create_shortpos ~orient ~pos ~vel ~seg_vert0 ~segnum
+  in
+  printf "create_shortpos:\n";
+  printf
+    "  bytemat: [%s]\n"
+    (String.concat ~sep:", " (Array.to_list (Array.map bytemat ~f:Int.to_string)));
+  printf "  xo=%d yo=%d zo=%d segment=%d\n" xo yo zo segment;
+  printf "  velx=%d vely=%d velz=%d\n" velx vely velz;
+  [%expect
+    {|
+    create_shortpos:
+      bytemat: [127, 0, 0, 0, 127, 0, 0, 0, 127]
+      xo=9 yo=9 zo=9 segment=42
+      velx=1 vely=2 velz=3
+    |}]
+;;
+
+(* --- extract_shortpos parity ------------------------------------------ *)
+let%expect_test "extract_shortpos" =
+  let bytemat = [| 127; 0; 0; 0; 127; 0; 0; 0; 127 |] in
+  let xo = 9 in
+  let yo = 9 in
+  let zo = 9 in
+  let seg_vert0 = 90000, 190000, 290000 in
+  let velx = 1 in
+  let vely = 2 in
+  let velz = 3 in
+  let orient, (px, py, pz), (vx, vy, vz) =
+    Ox_gameseg.extract_shortpos ~bytemat ~xo ~yo ~zo ~seg_vert0 ~velx ~vely ~velz
+  in
+  printf "extract_shortpos:\n";
+  printf
+    "  orient: [%s]\n"
+    (String.concat ~sep:", " (Array.to_list (Array.map orient ~f:Int.to_string)));
+  printf "  pos: (%d, %d, %d)\n" px py pz;
+  printf "  vel: (%d, %d, %d)\n" vx vy vz;
+  [%expect
+    {|
+    extract_shortpos:
+      orient: [65024, 0, 0, 0, 65024, 0, 0, 0, 65024]
+      pos: (99216, 199216, 299216)
+      vel: (4096, 8192, 12288)
+    |}]
+;;

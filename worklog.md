@@ -1153,3 +1153,24 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
   - Game launched and ran successfully.
+
+### §31 — Port gameseg utility functions (find_connect_side, create_shortpos, extract_shortpos)
+
+- **Scope:** 3 additional gameseg functions + helper `convert_to_byte`, all identical between D1 and D2.
+
+- **`find_connect_side`** — Pure lookup: given a segment's children array and a base segment number, returns the side index connecting to that segment (or -1). 7 scalar args → 1 int return.
+
+- **`create_shortpos`** — Compresses an object's orientation/position/velocity into a `shortpos` struct. Uses `convert_to_byte` to clamp matrix entries to signed bytes. Takes orient(9), pos(3), vel(3), seg_vert0(3), segnum(1) = 19 packed ints, returns bytemat(9) + xo/yo/zo/segment/velx/vely/velz = 17 ints.
+
+- **`extract_shortpos`** — Inverse of `create_shortpos`. Expands byte matrix back to fix16, reconstructs world position from relative offset + vertex 0, reconstructs velocity from compressed shorts. Takes 18 packed ints, returns orient(9) + pos(3) + vel(3) = 15 ints.
+
+- **`convert_to_byte`** — Helper clamping fix16 to signed byte range [-127, 127] via arithmetic shift. Ported inline in `ox_gameseg.ml`.
+
+- **Implementation:** Added to existing `ox_gameseg.ml` and `gameseg_bridge.ml` (no new modules needed). Updated `bridge.c` (3 new function pointers, null checks, C wrappers), `bridge.h` (declarations), D1+D2 `gameseg.cpp` (`#ifdef USE_OX_BRIDGE` blocks).
+
+- **Parity tests:** 3 expect tests — `find_connect_side` (6 lookups including miss), `create_shortpos` (identity matrix, known position), `extract_shortpos` (round-trip verification).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

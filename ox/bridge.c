@@ -162,6 +162,9 @@ static const value* g_chase_angles = NULL;
 static const value* g_laser_are_related_d1 = NULL;
 static const value* g_laser_are_related_d2 = NULL;
 static const value* g_calc_controlcen_gun_point = NULL;
+static const value* g_find_connect_side = NULL;
+static const value* g_create_shortpos = NULL;
+static const value* g_extract_shortpos = NULL;
 static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
@@ -277,6 +280,9 @@ static void cd_ox_require_ready(const char* fn)
           && g_laser_are_related_d1
           && g_laser_are_related_d2
           && g_calc_controlcen_gun_point
+          && g_find_connect_side
+          && g_create_shortpos
+          && g_extract_shortpos
           && g_robot_get_anim_state
           && g_set_robot_state
           && g_robot_set_angles))
@@ -407,6 +413,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_laser_are_related_d1 = caml_named_value("cd_laser_are_related_d1");
     g_laser_are_related_d2 = caml_named_value("cd_laser_are_related_d2");
     g_calc_controlcen_gun_point = caml_named_value("cd_calc_controlcen_gun_point");
+    g_find_connect_side = caml_named_value("cd_find_connect_side");
+    g_create_shortpos = caml_named_value("cd_create_shortpos");
+    g_extract_shortpos = caml_named_value("cd_extract_shortpos");
     g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
@@ -519,6 +528,9 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_laser_are_related_d1
         || !g_laser_are_related_d2
         || !g_calc_controlcen_gun_point
+        || !g_find_connect_side
+        || !g_create_shortpos
+        || !g_extract_shortpos
         || !g_robot_get_anim_state
         || !g_set_robot_state
         || !g_robot_set_angles)
@@ -635,6 +647,9 @@ int cd_ox_is_ready(void)
            && g_laser_are_related_d1
            && g_laser_are_related_d2
            && g_calc_controlcen_gun_point
+           && g_find_connect_side
+           && g_create_shortpos
+           && g_extract_shortpos
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles;
@@ -2866,6 +2881,51 @@ void cd_ox_robot_set_angles(
     int n = Wosize_val(result);
     *out_len = n;
     for (int i = 0; i < n; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+int cd_ox_find_connect_side(
+    int32_t c0, int32_t c1, int32_t c2, int32_t c3, int32_t c4, int32_t c5,
+    int32_t base_seg_num)
+{
+    cd_ox_require_ready("cd_ox_find_connect_side");
+    value args[7] = {
+        Val_long(c0), Val_long(c1), Val_long(c2),
+        Val_long(c3), Val_long(c4), Val_long(c5),
+        Val_long(base_seg_num),
+    };
+    return Int_val(caml_callbackN(*g_find_connect_side, 7, args));
+}
+
+void cd_ox_create_shortpos(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_create_shortpos");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_create_shortpos, arr);
+    for (int i = 0; i < 17; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_extract_shortpos(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_extract_shortpos");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_extract_shortpos, arr);
+    for (int i = 0; i < 15; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }
