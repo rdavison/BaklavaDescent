@@ -1484,4 +1484,4 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/ai2.cpp` — same, with D2-specific handling
   - `CHECKLIST.md` — marked done
 
-- **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).
+- **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: both D1 and D2 launch and play correctly with all §42+§43+§44 bridges active.
