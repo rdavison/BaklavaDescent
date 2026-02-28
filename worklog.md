@@ -1089,3 +1089,44 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune runtest ox/tests` — all 10 expect tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
   - Game launches and robot kills work correctly in-game.
+
+### 28) Port `apply_damage_to_clutter`, `apply_damage_to_controlcen`, `apply_damage_to_player` (D1+D2) to Ox with algebraic effects
+
+**What:** Ported the remaining three `apply_damage_to_*` functions from `collide.cpp` (D1+D2) to OxCaml, completing the damage subsystem. All use the algebraic effects pattern from §27.
+
+- **`apply_damage_to_clutter`** — shared D1/D2. Pure shield arithmetic: check exploding/dead flags, subtract damage, explode if dead. One effect: `Explode_object_delay`.
+
+- **`apply_damage_to_controlcen`** — shared D1/D2. Checks who-is-player, network invulnerability timer, applies shield damage, triggers destruction sequence. 7 effects: `Show_hud_invul_message`, `Controlcen_been_hit`, `Do_controlcen_destroyed`, `Add_controlcen_score`, `Multi_send_destroy_controlcen`, `Sound_controlcen_destroyed`, `Explode_object_delay`.
+
+- **`apply_damage_to_player`** — D1 and D2 as separate functions. Checks dead/invulnerable/endlevel/non-local guards, applies damage, palette flash, death. D2 adds `Buddy_sorry_time` when killed by companion robot. Effects: `Palette_flash`, `Set_player_dead`, `Set_buddy_sorry_time` (D2 only).
+
+- **Parity tests:** ~27 test scenarios covering all guard branches and effect combinations.
+- **Engine wiring:** D1+D2 `collide.cpp` — effect callbacks registered via lambdas, shields written back at callsite.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 29) Port `maybe_kill_weapon` (D1+D2), `calc_best_gun`, `chase_angles`, `laser_are_related` (D1+D2), `calc_controlcen_gun_point` to Ox
+
+**What:** Ported 5 more pure functions across collision, control center, and endlevel camera systems.
+
+- **`maybe_kill_weapon`** — D1 and D2 variants. Decides whether a weapon should die or weaken after hitting something. D1 checks `PROXIMITY_ID`; D2 adds `SUPERPROX_ID`, `PMINE_ID`, and shareware check. Pure, no effects.
+
+- **`calc_best_gun`** — shared D1/D2. Finds the control center gun best aimed at the player via dot products. Uses `Ox_math.vm_vec_sub`, `vm_vec_normalize_quick`, `vm_vec_dotprod`. Packed array of `[num_guns, gun_pos(3*n), gun_dir(3*n), objpos(3)]`.
+
+- **`chase_angles`** — shared D1/D2. Endlevel camera angle interpolation, smoothly chases desired angles using `fixmul(FrameTime, ...)` scaling.
+
+- **`laser_are_related`** — D1 and D2 variants. Collision exemption logic for parent/child and sibling weapons. D2 adds time-based unrelating for phoenix, guided missiles, proximity mines, and robot superprox. Packed array of 15 ints (object fields + game time).
+
+- **`calc_controlcen_gun_point`** — shared D1/D2. Computes world-space gun position/direction via matrix transpose and rotation. 18 scalar args, returns 6 values.
+
+- **Critical bug fix: `OBJ_WEAPON` constant was 7 (OBJ_POWERUP) instead of 5.** This caused `laser_are_related` to never recognize weapons, so player's own weapons collided with and damaged them. Also affected `maybe_kill_weapon`.
+
+- **Parity tests:** ~40 test scenarios across all functions.
+- **Engine wiring:** D1+D2 `laser.cpp`, `cntrlcen.cpp`, `endlevel.cpp`, `collide.cpp` — all with `#ifdef USE_OX_BRIDGE`.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+  - Game tested: shooting no longer causes self-damage.
