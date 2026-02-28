@@ -11,7 +11,8 @@
   ox_physics
   ox_ai
   ox_lighting
-  ox_collide)
+  ox_collide
+  ox_robot)
  (preprocess
   (pps ppx_jane))
  (inline_tests)

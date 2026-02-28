@@ -707,6 +707,34 @@ void cd_ox_calc_controlcen_gun_point(
     int32_t* out_gpx, int32_t* out_gpy, int32_t* out_gpz,
     int32_t* out_gdx, int32_t* out_gdy, int32_t* out_gdz);
 
+/* -- Robot animation functions ---------------------------------------- */
+
+/* robot_get_anim_state: look up joint positions for a gun/state combo.
+   packed layout: [anim_states..., robot_joints..., n_guns, gun_num, state,
+                   anim_states_len, robot_joints_len]
+   out_buf: receives flat (jointnum,p,b,h) * n_joints
+   out_count: receives number of joints */
+void cd_ox_robot_get_anim_state(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf, int* out_count);
+
+/* set_robot_state: compute updated anim_angles for a robot in a given state.
+   packed layout: [anim_states..., robot_joints..., n_guns, anim_angles(30), state,
+                   anim_states_len, robot_joints_len]
+   out_angles_30: receives 30 ints (10 * (p,b,h)) */
+void cd_ox_set_robot_state(
+    const int32_t* packed, int packed_len,
+    int32_t* out_angles_30);
+
+/* robot_set_angles: build anim_states table and joint entries.
+   packed layout: [n_guns, gun_submodels(8), n_models, submodel_parents(10),
+                   angs(150), joint_offset] = 171 ints
+   out_buf: receives [anim_states_flat..., n_new_joints, joints_flat...]
+   out_len: total number of ints written to out_buf */
+void cd_ox_robot_set_angles(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf, int* out_len);
+
 #ifdef __cplusplus
 }
 #endif

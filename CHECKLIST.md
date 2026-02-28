@@ -270,9 +270,9 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Unported — Robot Animation
 - [ ] ai_frame_animation — robot model animation
 - [ ] do_silly_animation — special animation (D1)
-- [ ] robot_get_anim_state — animation state retrieval
-- [ ] set_robot_state — animation state setting
-- [ ] robot_set_angles — joint angles from animation
+- [x] robot_get_anim_state — animation state retrieval
+- [x] set_robot_state — animation state setting
+- [x] robot_set_angles — joint angles from animation
 
 ### Unported — Robot Hit/Attack
 - [ ] do_ai_robot_hit_attack — ramming attack
@@ -426,10 +426,10 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Ported
 - [x] calc_gun_point
 
-### Unported
-- [ ] robot_get_anim_state — animation state
-- [ ] set_robot_state — set animation state
-- [ ] robot_set_angles — joint angles from animation
+### Ported
+- [x] robot_get_anim_state — animation state
+- [x] set_robot_state — set animation state
+- [x] robot_set_angles — joint angles from animation
 
 ---
 

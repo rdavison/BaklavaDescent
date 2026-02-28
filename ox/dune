@@ -103,6 +103,21 @@
   (:standard -open Core)))
 
 (library
+ (name ox_robot)
+ (libraries core)
+ (modules ox_robot)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name bridge_robot)
+ (libraries core ox_robot)
+ (modules robot_bridge)
+ (wrapped false)
+ (flags
+  (:standard -open Core)))
+
+(library
  (name ox_lighting)
  (libraries core ox_math)
  (modules ox_lighting)
@@ -136,6 +151,8 @@
   bridge_physics
   ox_ai
   bridge_ai
+  ox_robot
+  bridge_robot
   ox_lighting
   bridge_lighting)
  (flags

@@ -27,6 +27,8 @@ ocamlfind ocamlopt \
   "$OX_DIR/physics_bridge.ml" \
   "$OX_DIR/ox_ai.ml" \
   "$OX_DIR/ai_bridge.ml" \
+  "$OX_DIR/ox_robot.ml" \
+  "$OX_DIR/robot_bridge.ml" \
   "$OX_DIR/ox_lighting.ml" \
   "$OX_DIR/lighting_bridge.ml" \
   "$OX_DIR/math_bridge.ml"

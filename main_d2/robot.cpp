@@ -168,6 +168,43 @@ void calc_gun_point(vms_vector *gun_point,object *obj,int gun_num)
 int robot_get_anim_state(jointpos **jp_list_ptr,int robot_type,int gun_num,int state)
 {
 	Assert(gun_num <= Robot_info[robot_type].n_guns);
+
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] robot_get_anim_state using cd_ox_robot_get_anim_state\n"); ox_logged = 1; }
+		robot_info* ri = &Robot_info[robot_type];
+		int n_guns = ri->n_guns;
+		int as_len = (n_guns + 1) * N_ANIM_STATES * 2;
+		int rj_count = N_robot_joints;
+		int rj_len = rj_count * 4;
+		int packed_len = as_len + rj_len + 5;
+		int32_t packed[packed_len];
+		int idx = 0;
+		for (int g = 0; g < n_guns + 1; g++)
+			for (int s = 0; s < N_ANIM_STATES; s++) {
+				packed[idx++] = ri->anim_states[g][s].n_joints;
+				packed[idx++] = ri->anim_states[g][s].offset;
+			}
+		for (int j = 0; j < rj_count; j++) {
+			packed[idx++] = Robot_joints[j].jointnum;
+			packed[idx++] = Robot_joints[j].angles.p;
+			packed[idx++] = Robot_joints[j].angles.b;
+			packed[idx++] = Robot_joints[j].angles.h;
+		}
+		packed[idx++] = n_guns;
+		packed[idx++] = gun_num;
+		packed[idx++] = state;
+		packed[idx++] = as_len;
+		packed[idx++] = rj_len;
+		int32_t out_buf[MAX_ROBOT_JOINTS * 4];
+		int out_count = 0;
+		cd_ox_robot_get_anim_state(packed, packed_len, out_buf, &out_count);
+		*jp_list_ptr = &Robot_joints[ri->anim_states[gun_num][state].offset];
+		return out_count;
+	}
+#endif
+
 	*jp_list_ptr = &Robot_joints[Robot_info[robot_type].anim_states[gun_num][state].offset];
 	return Robot_info[robot_type].anim_states[gun_num][state].n_joints;
 }
@@ -184,13 +221,55 @@ void set_robot_state(object *obj,int state)
 
 	ri = &Robot_info[obj->id];
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] set_robot_state using cd_ox_set_robot_state\n"); ox_logged = 1; }
+		int n_guns = ri->n_guns;
+		int as_len = (n_guns + 1) * N_ANIM_STATES * 2;
+		int rj_count = N_robot_joints;
+		int rj_len = rj_count * 4;
+		int packed_len = as_len + rj_len + 1 + 30 + 1 + 2;
+		int32_t packed[packed_len];
+		int idx = 0;
+		for (int gg = 0; gg < n_guns + 1; gg++)
+			for (int s = 0; s < N_ANIM_STATES; s++) {
+				packed[idx++] = ri->anim_states[gg][s].n_joints;
+				packed[idx++] = ri->anim_states[gg][s].offset;
+			}
+		for (int jj = 0; jj < rj_count; jj++) {
+			packed[idx++] = Robot_joints[jj].jointnum;
+			packed[idx++] = Robot_joints[jj].angles.p;
+			packed[idx++] = Robot_joints[jj].angles.b;
+			packed[idx++] = Robot_joints[jj].angles.h;
+		}
+		packed[idx++] = n_guns;
+		for (int i = 0; i < MAX_SUBMODELS; i++) {
+			packed[idx++] = obj->rtype.pobj_info.anim_angles[i].p;
+			packed[idx++] = obj->rtype.pobj_info.anim_angles[i].b;
+			packed[idx++] = obj->rtype.pobj_info.anim_angles[i].h;
+		}
+		packed[idx++] = state;
+		packed[idx++] = as_len;
+		packed[idx++] = rj_len;
+		int32_t out_angles[30];
+		cd_ox_set_robot_state(packed, packed_len, out_angles);
+		for (int i = 0; i < MAX_SUBMODELS; i++) {
+			obj->rtype.pobj_info.anim_angles[i].p = out_angles[i*3+0];
+			obj->rtype.pobj_info.anim_angles[i].b = out_angles[i*3+1];
+			obj->rtype.pobj_info.anim_angles[i].h = out_angles[i*3+2];
+		}
+		return;
+	}
+#endif
+
 	for (g=0;g<ri->n_guns+1;g++)
 	{
 		jl = &ri->anim_states[g][state];
 
 		jo = jl->offset;
 
-		for (j=0;j<jl->n_joints;j++,jo++) 
+		for (j=0;j<jl->n_joints;j++,jo++)
 		{
 			int jn;
 
@@ -211,36 +290,79 @@ void robot_set_angles(robot_info *r,polymodel *pm,vms_angvec angs[N_ANIM_STATES]
 	int m,g,state;
 	int gun_nums[MAX_SUBMODELS];			//which gun each submodel is part of
 
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { printf("[OX] robot_set_angles using cd_ox_robot_set_angles\n"); ox_logged = 1; }
+		int32_t packed[171];
+		int idx = 0;
+		packed[idx++] = r->n_guns;
+		for (int i = 0; i < MAX_GUNS; i++)
+			packed[idx++] = r->gun_submodels[i];
+		packed[idx++] = pm->n_models;
+		for (int i = 0; i < MAX_SUBMODELS; i++)
+			packed[idx++] = pm->submodel_parents[i];
+		for (int s = 0; s < N_ANIM_STATES; s++)
+			for (int mm = 0; mm < MAX_SUBMODELS; mm++) {
+				packed[idx++] = angs[s][mm].p;
+				packed[idx++] = angs[s][mm].b;
+				packed[idx++] = angs[s][mm].h;
+			}
+		packed[idx++] = N_robot_joints;
+		int32_t out_buf[2048];
+		int out_len = 0;
+		cd_ox_robot_set_angles(packed, 171, out_buf, &out_len);
+		int n_guns = r->n_guns;
+		int as_len = (n_guns + 1) * N_ANIM_STATES * 2;
+		int oi = 0;
+		for (int gg = 0; gg < n_guns + 1; gg++)
+			for (int ss = 0; ss < N_ANIM_STATES; ss++) {
+				r->anim_states[gg][ss].n_joints = out_buf[oi++];
+				r->anim_states[gg][ss].offset = out_buf[oi++];
+			}
+		int n_new_joints = out_buf[oi++];
+		for (int j = 0; j < n_new_joints; j++) {
+			Robot_joints[N_robot_joints].jointnum = out_buf[oi++];
+			Robot_joints[N_robot_joints].angles.p = out_buf[oi++];
+			Robot_joints[N_robot_joints].angles.b = out_buf[oi++];
+			Robot_joints[N_robot_joints].angles.h = out_buf[oi++];
+			N_robot_joints++;
+			Assert(N_robot_joints < MAX_ROBOT_JOINTS);
+		}
+		return;
+	}
+#endif
+
 	for (m=0;m<pm->n_models;m++)
 		gun_nums[m] = r->n_guns;		//assume part of body...
 
 	gun_nums[0] = -1;		//body never animates, at least for now
 
-	for (g=0;g<r->n_guns;g++) 
+	for (g=0;g<r->n_guns;g++)
 	{
 		m = r->gun_submodels[g];
 
-		while (m != 0) 
+		while (m != 0)
 		{
 			gun_nums[m] = g;				//...unless we find it in a gun
 			m = pm->submodel_parents[m];
 		}
 	}
 
-	for (g=0;g<r->n_guns+1;g++) 
+	for (g=0;g<r->n_guns+1;g++)
 	{
 		//mprintf(0,"Gun %d:\n",g);
 
-		for (state=0;state<N_ANIM_STATES;state++) 
+		for (state=0;state<N_ANIM_STATES;state++)
 		{
 			//mprintf(0," State %d:\n",state);
 
 			r->anim_states[g][state].n_joints = 0;
 			r->anim_states[g][state].offset = N_robot_joints;
 
-			for (m=0;m<pm->n_models;m++) 
+			for (m=0;m<pm->n_models;m++)
 			{
-				if (gun_nums[m] == g) 
+				if (gun_nums[m] == g)
 				{
 					//mprintf(0,"  Joint %d: %x %x %x\n",m,angs[state][m].pitch,angs[state][m].bank,angs[state][m].head);
 					Robot_joints[N_robot_joints].jointnum = m;

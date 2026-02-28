@@ -746,6 +746,8 @@ if (USE_OX_BRIDGE)
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_robot.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/robot_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_lighting.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/lighting_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml

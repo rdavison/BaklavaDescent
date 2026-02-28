@@ -10693,3 +10693,142 @@ let%expect_test "get_explosion_vclip: all cases" =
     weapon_default: C=2 Ox=2 OK
     |}]
 ;;
+
+(* ── Robot animation parity tests ────────────────────────────────── *)
+
+let%expect_test "robot_get_anim_state" =
+  (* Simulate a robot with 2 guns:
+     gun0 has 2 joints at offset 0, gun1 has 1 joint at offset 2,
+     body (gun2) has 1 joint at offset 3.
+     5 states each, but we only populate state 0 for simplicity. *)
+  let n_guns = 2 in
+  let n_states = 5 in
+  (* anim_states: (n_guns+1)*5*2 = 30 ints *)
+  let anim_states = Array.create ~len:((n_guns + 1) * n_states * 2) 0 in
+  (* gun0, state0: 2 joints at offset 0 *)
+  anim_states.(0) <- 2;
+  anim_states.(1) <- 0;
+  (* gun1, state0: 1 joint at offset 2 *)
+  anim_states.((1 * n_states * 2) + 0) <- 1;
+  anim_states.((1 * n_states * 2) + 1) <- 2;
+  (* body (gun2), state0: 1 joint at offset 3 *)
+  anim_states.((2 * n_states * 2) + 0) <- 1;
+  anim_states.((2 * n_states * 2) + 1) <- 3;
+  (* robot_joints: 4 entries, each (jointnum, p, b, h) *)
+  let robot_joints = [| 2; 100; 0; 0; 3; 200; 0; 0; 4; 300; 0; 0; 1; 400; 50; 60 |] in
+  let test gun_num state =
+    let joints =
+      Ox_robot.robot_get_anim_state ~anim_states ~robot_joints ~n_guns ~gun_num ~state
+    in
+    printf "gun=%d state=%d n=%d" gun_num state (Array.length joints);
+    Array.iter joints ~f:(fun (jn, p, b, h) -> printf " (%d,%d,%d,%d)" jn p b h);
+    printf "\n"
+  in
+  test 0 0;
+  test 1 0;
+  test 2 0;
+  test 0 1;
+  [%expect
+    {|
+    gun=0 state=0 n=2 (2,100,0,0) (3,200,0,0)
+    gun=1 state=0 n=1 (4,300,0,0)
+    gun=2 state=0 n=1 (1,400,50,60)
+    gun=0 state=1 n=0
+    |}]
+;;
+
+let%expect_test "set_robot_state" =
+  let n_guns = 1 in
+  let n_states = 5 in
+  (* anim_states: (1+1)*5*2 = 20 ints *)
+  let anim_states = Array.create ~len:((n_guns + 1) * n_states * 2) 0 in
+  (* gun0, state0: 1 joint at offset 0 *)
+  anim_states.(0) <- 1;
+  anim_states.(1) <- 0;
+  (* body (gun1), state0: 1 joint at offset 1 *)
+  anim_states.((1 * n_states * 2) + 0) <- 1;
+  anim_states.((1 * n_states * 2) + 1) <- 1;
+  (* robot_joints: joint 2 → (10,20,30), joint 5 → (40,50,60) *)
+  let robot_joints = [| 2; 10; 20; 30; 5; 40; 50; 60 |] in
+  let anim_angles = Array.create ~len:10 (0, 0, 0) in
+  let result =
+    Ox_robot.set_robot_state ~anim_states ~robot_joints ~n_guns ~anim_angles ~state:0
+  in
+  Array.iteri result ~f:(fun i (p, b, h) ->
+    if p <> 0 || b <> 0 || h <> 0 then printf "  [%d]=(%d,%d,%d)\n" i p b h);
+  [%expect
+    {|
+      [2]=(10,20,30)
+      [5]=(40,50,60)
+    |}]
+;;
+
+let%expect_test "robot_set_angles" =
+  (* 2 guns, 4 submodels *)
+  let n_guns = 2 in
+  let n_models = 4 in
+  let gun_submodels = [| 2; 3; 0; 0; 0; 0; 0; 0 |] in
+  (* parents: 0→-1(root), 1→0, 2→1, 3→0 *)
+  let submodel_parents = [| 0; 0; 1; 0; 0; 0; 0; 0; 0; 0 |] in
+  (* angs: 5 states × 10 submodels × 3 values = 150 ints
+     Set some non-zero angles for submodels 1,2,3 *)
+  let angs = Array.create ~len:150 0 in
+  (* state 0, submodel 1: (100,0,0) *)
+  angs.(((0 * 10) + 1) * 3) <- 100;
+  (* state 0, submodel 2: (200,0,0) *)
+  angs.(((0 * 10) + 2) * 3) <- 200;
+  (* state 0, submodel 3: (300,0,0) *)
+  angs.(((0 * 10) + 3) * 3) <- 300;
+  let joint_offset = 0 in
+  let anim_states_flat, new_joints =
+    Ox_robot.robot_set_angles
+      ~n_guns
+      ~gun_submodels
+      ~n_models
+      ~submodel_parents
+      ~angs
+      ~joint_offset
+  in
+  printf "anim_states (%d ints):\n" (Array.length anim_states_flat);
+  let n_states = 5 in
+  for g = 0 to n_guns do
+    for s = 0 to n_states - 1 do
+      let idx = ((g * n_states) + s) * 2 in
+      let nj = anim_states_flat.(idx) in
+      let off = anim_states_flat.(idx + 1) in
+      if nj > 0 then printf "  gun=%d state=%d n_joints=%d offset=%d\n" g s nj off
+    done
+  done;
+  printf "new_joints (%d entries):\n" (Array.length new_joints);
+  Array.iter new_joints ~f:(fun (jn, p, b, h) -> printf "  jn=%d (%d,%d,%d)\n" jn p b h);
+  [%expect
+    {|
+    anim_states (30 ints):
+      gun=0 state=0 n_joints=2 offset=0
+      gun=0 state=1 n_joints=2 offset=2
+      gun=0 state=2 n_joints=2 offset=4
+      gun=0 state=3 n_joints=2 offset=6
+      gun=0 state=4 n_joints=2 offset=8
+      gun=1 state=0 n_joints=1 offset=10
+      gun=1 state=1 n_joints=1 offset=11
+      gun=1 state=2 n_joints=1 offset=12
+      gun=1 state=3 n_joints=1 offset=13
+      gun=1 state=4 n_joints=1 offset=14
+    new_joints (15 entries):
+      jn=1 (100,0,0)
+      jn=2 (200,0,0)
+      jn=1 (0,0,0)
+      jn=2 (0,0,0)
+      jn=1 (0,0,0)
+      jn=2 (0,0,0)
+      jn=1 (0,0,0)
+      jn=2 (0,0,0)
+      jn=1 (0,0,0)
+      jn=2 (0,0,0)
+      jn=3 (300,0,0)
+      jn=3 (0,0,0)
+      jn=3 (0,0,0)
+      jn=3 (0,0,0)
+      jn=3 (0,0,0)
+    |}]
+;;

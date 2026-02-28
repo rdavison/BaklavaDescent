@@ -162,6 +162,9 @@ static const value* g_chase_angles = NULL;
 static const value* g_laser_are_related_d1 = NULL;
 static const value* g_laser_are_related_d2 = NULL;
 static const value* g_calc_controlcen_gun_point = NULL;
+static const value* g_robot_get_anim_state = NULL;
+static const value* g_set_robot_state = NULL;
+static const value* g_robot_set_angles = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -273,7 +276,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_chase_angles
           && g_laser_are_related_d1
           && g_laser_are_related_d2
-          && g_calc_controlcen_gun_point))
+          && g_calc_controlcen_gun_point
+          && g_robot_get_anim_state
+          && g_set_robot_state
+          && g_robot_set_angles))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -401,6 +407,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_laser_are_related_d1 = caml_named_value("cd_laser_are_related_d1");
     g_laser_are_related_d2 = caml_named_value("cd_laser_are_related_d2");
     g_calc_controlcen_gun_point = caml_named_value("cd_calc_controlcen_gun_point");
+    g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
+    g_set_robot_state = caml_named_value("cd_set_robot_state");
+    g_robot_set_angles = caml_named_value("cd_robot_set_angles");
 
     if (!g_i2f
         || !g_f2i
@@ -509,7 +518,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_chase_angles
         || !g_laser_are_related_d1
         || !g_laser_are_related_d2
-        || !g_calc_controlcen_gun_point)
+        || !g_calc_controlcen_gun_point
+        || !g_robot_get_anim_state
+        || !g_set_robot_state
+        || !g_robot_set_angles)
     {
         return 1;
     }
@@ -622,7 +634,10 @@ int cd_ox_is_ready(void)
            && g_chase_angles
            && g_laser_are_related_d1
            && g_laser_are_related_d2
-           && g_calc_controlcen_gun_point;
+           && g_calc_controlcen_gun_point
+           && g_robot_get_anim_state
+           && g_set_robot_state
+           && g_robot_set_angles;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -2795,4 +2810,62 @@ void cd_ox_calc_controlcen_gun_point(
     *out_gdx = Int_val(Field(result, 3));
     *out_gdy = Int_val(Field(result, 4));
     *out_gdz = Int_val(Field(result, 5));
+}
+
+/* -- robot_get_anim_state bridge (pure) ------------------------------- */
+
+void cd_ox_robot_get_anim_state(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf, int* out_count)
+{
+    cd_ox_require_ready("cd_ox_robot_get_anim_state");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_robot_get_anim_state, arr);
+    int n = Wosize_val(result);
+    *out_count = n / 4;
+    for (int i = 0; i < n; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+/* -- set_robot_state bridge ------------------------------------------- */
+
+void cd_ox_set_robot_state(
+    const int32_t* packed, int packed_len,
+    int32_t* out_angles_30)
+{
+    cd_ox_require_ready("cd_ox_set_robot_state");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_set_robot_state, arr);
+    for (int i = 0; i < 30; i++)
+        out_angles_30[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+/* -- robot_set_angles bridge ------------------------------------------ */
+
+void cd_ox_robot_set_angles(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf, int* out_len)
+{
+    cd_ox_require_ready("cd_ox_robot_set_angles");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_robot_set_angles, arr);
+    int n = Wosize_val(result);
+    *out_len = n;
+    for (int i = 0; i < n; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
 }
