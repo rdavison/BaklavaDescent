@@ -1512,3 +1512,109 @@ let do_physics_drag (packed : int array) =
     vz := Ox_math.fixmul ~a:!vz ~b:!total_drag);
   [| !vx; !vy; !vz |]
 ;;
+
+(* do_homing_weapon_frame:
+   Pure velocity/orientation computation for homing missiles.
+   Extracted from Laser_do_weapon_sequence (laser.cpp).
+   Called each frame for each homing missile with a valid track_goal.
+
+   Packed input (15 ints):
+     0-2: obj velocity (x,y,z)
+     3-5: vector_to_object (target_pos - obj_pos, pre-computed on C side)
+     6:   max_speed (Weapon_info[id].speed[Difficulty_level])
+     7:   FrameTime
+     8:   is_polymodel (render_type == WEAPON_RENDER_POLYMODEL ? 1 : 0)
+     9:   is_d2 (0=D1, 1=D2)
+     10:  dot (D2: from track_track_goal; D1: ignored, computed inline)
+     11-13: orient fvec (for homing_missile_turn_towards_velocity)
+
+   Output (14 ints):
+     0-2: new velocity (x,y,z)
+     3:   lifeleft_delta (negative, subtract from lifeleft)
+     4:   orient_updated (1 if orientation changed, 0 otherwise)
+     5-13: new orient matrix (rx,ry,rz, ux,uy,uz, fx,fy,fz) — valid only if orient_updated=1 *)
+let do_homing_weapon_frame (packed : int array) =
+  let vx = packed.(0) in
+  let vy = packed.(1) in
+  let vz = packed.(2) in
+  let vto_x = packed.(3) in
+  let vto_y = packed.(4) in
+  let vto_z = packed.(5) in
+  let max_speed = packed.(6) in
+  let frame_time = packed.(7) in
+  let is_polymodel = packed.(8) <> 0 in
+  let is_d2 = packed.(9) <> 0 in
+  let dot_in = packed.(10) in
+  let fvec_x = packed.(11) in
+  let fvec_y = packed.(12) in
+  let fvec_z = packed.(13) in
+  (* Normalize vector_to_object *)
+  let _mag_vto, vto_n = Ox_math.vm_vec_normalize_quick ~v:(vto_x, vto_y, vto_z) in
+  let vto_nx, vto_ny, vto_nz = vto_n in
+  (* Normalize velocity to get temp_vec and speed *)
+  let speed, temp_vec = Ox_math.vm_vec_normalize_quick ~v:(vx, vy, vz) in
+  let tx, ty, tz = temp_vec in
+  (* Speed up if below max *)
+  let speed =
+    if speed + f1_0 < max_speed
+    then (
+      let s = speed + Ox_math.fixmul ~a:max_speed ~b:(frame_time / 2) in
+      if s > max_speed then max_speed else s)
+    else speed
+  in
+  (* D1: compute dot inline; D2: use dot from track_track_goal *)
+  let dot = if is_d2 then dot_in else Ox_math.vm_vec_dotprod ~a:(tx, ty, tz) ~b:vto_n in
+  (* Blend: temp_vec += vector_to_object (once for polymodel, twice for non-polymodel) *)
+  let tx = tx + vto_nx in
+  let ty = ty + vto_ny in
+  let tz = tz + vto_nz in
+  let tx, ty, tz =
+    if not is_polymodel then tx + vto_nx, ty + vto_ny, tz + vto_nz else tx, ty, tz
+  in
+  (* Normalize and scale by speed *)
+  let _mag, norm_vel = Ox_math.vm_vec_normalize_quick ~v:(tx, ty, tz) in
+  let nvx, nvy, nvz = norm_vel in
+  let new_vx = Ox_math.fixmul ~a:nvx ~b:speed in
+  let new_vy = Ox_math.fixmul ~a:nvy ~b:speed in
+  let new_vz = Ox_math.fixmul ~a:nvz ~b:speed in
+  (* Life loss computation *)
+  let absdot = Int.abs (f1_0 - dot) in
+  let lifeleft_delta =
+    if is_d2
+    then
+      (* D2: always apply, multiplier 32 *)
+      ~-(Ox_math.fixmul ~a:(absdot * 32) ~b:frame_time)
+    else if
+      (* D1: threshold F1_0/8, clamp to F1_0/4, multiplier 16 *)
+      absdot > f1_0 / 8
+    then (
+      let absdot = min absdot (f1_0 / 4) in
+      ~-(Ox_math.fixmul ~a:(absdot * 16) ~b:frame_time))
+    else 0
+  in
+  (* Orientation update (only for polymodel weapons) *)
+  let result = Array.create ~len:14 0 in
+  result.(0) <- new_vx;
+  result.(1) <- new_vy;
+  result.(2) <- new_vz;
+  result.(3) <- lifeleft_delta;
+  if is_polymodel
+  then (
+    let (rx, ry, rz), (ux, uy, uz), (fx, fy, fz) =
+      homing_missile_turn_towards_velocity
+        ~norm_vel
+        ~fvec:(fvec_x, fvec_y, fvec_z)
+        ~frame_time
+    in
+    result.(4) <- 1;
+    result.(5) <- rx;
+    result.(6) <- ry;
+    result.(7) <- rz;
+    result.(8) <- ux;
+    result.(9) <- uy;
+    result.(10) <- uz;
+    result.(11) <- fx;
+    result.(12) <- fy;
+    result.(13) <- fz);
+  result
+;;

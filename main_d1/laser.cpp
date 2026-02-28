@@ -1453,6 +1453,40 @@ void Laser_do_weapon_sequence(object* obj)
 			}
 
 			if (track_goal != -1) {
+#ifdef USE_OX_BRIDGE
+				int32_t packed[14];
+				packed[0] = obj->mtype.phys_info.velocity.x;
+				packed[1] = obj->mtype.phys_info.velocity.y;
+				packed[2] = obj->mtype.phys_info.velocity.z;
+				packed[3] = Objects[track_goal].pos.x - obj->pos.x;
+				packed[4] = Objects[track_goal].pos.y - obj->pos.y;
+				packed[5] = Objects[track_goal].pos.z - obj->pos.z;
+				packed[6] = Weapon_info[obj->id].speed[Difficulty_level];
+				packed[7] = FrameTime;
+				packed[8] = (Weapon_info[obj->id].render_type == WEAPON_RENDER_POLYMODEL) ? 1 : 0;
+				packed[9] = 0; // is_d2
+				packed[10] = 0; // dot (D1: unused, computed inline in OCaml)
+				packed[11] = obj->orient.fvec.x;
+				packed[12] = obj->orient.fvec.y;
+				packed[13] = obj->orient.fvec.z;
+				int32_t out[14];
+				cd_ox_do_homing_weapon_frame(packed, 14, out);
+				obj->mtype.phys_info.velocity.x = out[0];
+				obj->mtype.phys_info.velocity.y = out[1];
+				obj->mtype.phys_info.velocity.z = out[2];
+				obj->lifeleft += out[3]; // lifeleft_delta is negative
+				if (out[4]) { // orient_updated
+					obj->orient.rvec.x = out[5];
+					obj->orient.rvec.y = out[6];
+					obj->orient.rvec.z = out[7];
+					obj->orient.uvec.x = out[8];
+					obj->orient.uvec.y = out[9];
+					obj->orient.uvec.z = out[10];
+					obj->orient.fvec.x = out[11];
+					obj->orient.fvec.y = out[12];
+					obj->orient.fvec.z = out[13];
+				}
+#else
 				vm_vec_sub(&vector_to_object, &Objects[track_goal].pos, &obj->pos);
 
 				vm_vec_normalize_quick(&vector_to_object);
@@ -1486,13 +1520,13 @@ void Laser_do_weapon_sequence(object* obj)
 							absdot = F1_0 / 4;
 						lifelost = fixmul(absdot * 16, FrameTime);
 						obj->lifeleft -= lifelost;
-						// mprintf((0, "Missile %3i, dot = %7.3f life lost = %7.3f, life left = %7.3f\n", obj-Objects, f2fl(dot), f2fl(lifelost), f2fl(obj->lifeleft)));
 					}
 				}
 
 				//	Only polygon objects have visible orientation, so only they should turn.
 				if (Weapon_info[obj->id].render_type == WEAPON_RENDER_POLYMODEL)
 					homing_missile_turn_towards_velocity(obj, &temp_vec);		//	temp_vec is normalized velocity.
+#endif
 			}
 		}
 

@@ -1627,3 +1627,22 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §51 bridge active.
+
+### §52 — Port do_homing_weapon_frame to OxCaml (D1 + D2)
+
+- **What:** `do_homing_weapon_frame` — homing missile velocity/orientation computation, extracted from `Laser_do_weapon_sequence`. Pure vecmath: vector subtraction, normalization, dot product, velocity blending, speed clamping, life loss computation, and optional orientation turn (via already-ported `homing_missile_turn_towards_velocity`). Called each frame per active homing missile.
+
+- **Design:** Packed array bridge (14 ints in, 14 ints out). C pre-computes `vector_to_object = target_pos - obj_pos` and passes it along with velocity, max_speed, FrameTime, is_polymodel flag, is_d2 flag, dot (D2: from `track_track_goal`; D1: unused), and orient fvec. OCaml performs the full velocity update: normalize vector_to_object, normalize velocity to get speed, speed-up if below max, compute/use dot, blend temp_vec with vector_to_object (double-blend for non-polymodel), normalize and scale by speed, compute life loss, optionally update orientation.
+
+- **D1 vs D2 differences:** D1 computes `dot = vm_vec_dot(temp_vec, vector_to_object)` inline; D2 receives `dot` from `track_track_goal`. D1 life loss: threshold check (`absdot > F1_0/8`), clamp to `F1_0/4`, multiplier 16. D2 life loss: no threshold, multiplier 32. Controlled by `is_d2` flag.
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `do_homing_weapon_frame` (~70 lines)
+  - `ox/physics_bridge.ml` — `cd_do_homing_weapon_frame` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_do_homing_weapon_frame` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_do_homing_weapon_frame` declaration
+  - `main_d1/laser.cpp` — `#ifdef USE_OX_BRIDGE` around velocity computation in homing missile block
+  - `main_d2/laser.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §52 bridge active.

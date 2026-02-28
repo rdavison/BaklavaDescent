@@ -405,3 +405,9 @@ let () =
 
 let cd_do_physics_drag (packed : int array) = Ox_physics.do_physics_drag packed
 let () = Callback.register "cd_do_physics_drag" cd_do_physics_drag
+
+let cd_do_homing_weapon_frame (packed : int array) =
+  Ox_physics.do_homing_weapon_frame packed
+;;
+
+let () = Callback.register "cd_do_homing_weapon_frame" cd_do_homing_weapon_frame

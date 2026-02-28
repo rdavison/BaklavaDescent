@@ -141,6 +141,7 @@ static const value* g_openable_doors_in_segment_d2 = NULL;
 static const value* g_do_firing_stuff = NULL;
 static const value* g_compute_object_light = NULL;
 static const value* g_do_physics_drag = NULL;
+static const value* g_do_homing_weapon_frame = NULL;
 
 /* Clutter effect function pointers */
 static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
@@ -300,6 +301,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_do_firing_stuff
           && g_compute_object_light
           && g_do_physics_drag
+          && g_do_homing_weapon_frame
           && g_apply_damage_to_clutter
           && g_apply_damage_to_controlcen
           && g_apply_damage_to_player_d1
@@ -450,6 +452,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_do_firing_stuff = caml_named_value("cd_do_firing_stuff");
     g_compute_object_light = caml_named_value("cd_compute_object_light");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
+    g_do_homing_weapon_frame = caml_named_value("cd_do_homing_weapon_frame");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
     g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
     g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
@@ -589,6 +592,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_do_firing_stuff
         || !g_compute_object_light
         || !g_do_physics_drag
+        || !g_do_homing_weapon_frame
         || !g_apply_damage_to_clutter
         || !g_apply_damage_to_controlcen
         || !g_apply_damage_to_player_d1
@@ -727,6 +731,7 @@ int cd_ox_is_ready(void)
            && g_compute_headlight_light_d2
            && g_compute_object_light
            && g_do_physics_drag
+           && g_do_homing_weapon_frame
            && g_get_explosion_vclip
            && g_ai_behavior_to_mode_d1
            && g_ai_behavior_to_mode_d2
@@ -3261,6 +3266,22 @@ void cd_ox_do_physics_drag(
         Store_field(arr, i, Val_long(packed[i]));
     const value result = caml_callback(*g_do_physics_drag, arr);
     for (int i = 0; i < 3; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_do_homing_weapon_frame(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_do_homing_weapon_frame");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_do_homing_weapon_frame, arr);
+    for (int i = 0; i < 14; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

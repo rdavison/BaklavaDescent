@@ -229,7 +229,8 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] Flare_create — creates flare (D1)
 
 ### Unported — Weapon Logic
-- [ ] Laser_do_weapon_sequence — weapon animation
+- [ ] Laser_do_weapon_sequence — weapon animation (homing velocity subpart extracted as do_homing_weapon_frame)
+- [x] do_homing_weapon_frame — homing missile velocity/orientation computation subpart of Laser_do_weapon_sequence (D1+D2)
 - [ ] do_laser_firing — laser firing logic
 - [ ] do_laser_firing_player — player laser firing
 - [ ] do_missile_firing — missile firing
