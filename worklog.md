@@ -1130,3 +1130,26 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
   - Game tested: shooting no longer causes self-damage.
+
+### 30) Port robot animation functions (`robot_get_anim_state`, `set_robot_state`, `robot_set_angles`) to Ox
+
+**What:** Ported the 3 remaining unported functions from §15 Robot. These manage robot joint animation state — lookups into `Robot_info[].anim_states` and the global `Robot_joints[]` array. All three are identical between D1 and D2.
+
+- **`robot_get_anim_state`** — Pure lookup. Given robot type, gun number, and animation state, returns the matching joint positions from `Robot_joints[]` via the `anim_states[gun][state]` offset/count table.
+
+- **`set_robot_state`** — Sets animation angles. For each gun group (0..n_guns), looks up `anim_states[g][state]` and copies `Robot_joints[offset+j].angles` into the object's `anim_angles[]` array. OCaml version returns the updated 10-element array for C to write back.
+
+- **`robot_set_angles`** — Build-time initialization. Classifies submodels into gun groups by walking `submodel_parents` tree, then for each (gun_group, state) builds `jointpos` entries and fills `anim_states[g][state].{offset, n_joints}`. OCaml version returns the flat tables for C to store.
+
+- **Data flow:** All three use packed flat int arrays through the bridge. `anim_states` is `(n_guns+1)*5*2` ints, `robot_joints` is `N*4` ints (jointnum, p, b, h).
+
+- **Parity tests:** 3 expect tests covering all functions with multi-gun, multi-state scenarios.
+- **Engine wiring:** D1+D2 `robot.cpp` — `#ifdef USE_OX_BRIDGE` blocks pack/unpack data at each call site.
+
+- **Bug fix during integration:** Initial launch crashed because `ox_robot.ml` and `robot_bridge.ml` were not listed in `scripts/ox/build_bridge.sh` or `CMakeLists.txt` DEPENDS, so the OCaml callbacks were never compiled into the bridge object.
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+  - Game launched and ran successfully.
