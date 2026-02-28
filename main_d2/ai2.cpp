@@ -1883,6 +1883,40 @@ extern	int	Buddy_objnum;
 //	objp == NULL means treat as buddy.
 int ai_door_is_openable(object *objp, segment *segp, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] ai_door_is_openable using cd_ox_ai_door_is_openable_d2.\n");
+		ox_bridge_logged = 1;
+	}
+	int is_child = IS_CHILD(segp->children[sidenum]);
+	int wall_num = segp->sides[sidenum].wall_num;
+	wall *wallp = (wall_num != -1) ? &Walls[wall_num] : NULL;
+	int wall_type = wallp ? wallp->type : -1;
+	int wall_keys = wallp ? wallp->keys : 0;
+	int wall_flags = wallp ? wallp->flags : 0;
+	int wall_state = wallp ? wallp->state : 0;
+	int wall_clip_num = wallp ? wallp->clip_num : -1;
+	int wall_controlling_trigger = wallp ? wallp->controlling_trigger : -1;
+	int wallanim_flags = (wallp && wall_clip_num != -1) ? WallAnims[wall_clip_num].flags : 0;
+	int objp_is_null = (objp == NULL);
+	int is_companion = (!objp_is_null) ? (Robot_info[objp->id].companion == 1) : 0;
+	int robot_id = (!objp_is_null) ? objp->id : -1;
+	int ai_behavior = (!objp_is_null) ? objp->ctype.ai_info.behavior : 0;
+	int player_flags = Players[Player_num].flags;
+	int ailp_mode;
+	if (objp_is_null)
+		ailp_mode = Ai_local_info[Buddy_objnum].mode;
+	else
+		ailp_mode = Ai_local_info[objp-Objects].mode;
+	return cd_ox_ai_door_is_openable_d2(
+		is_child, objp == ConsoleObject,
+		wall_num, wall_type, wall_keys, wall_flags,
+		wall_state, wall_clip_num, wall_controlling_trigger, wallanim_flags,
+		objp_is_null, is_companion,
+		robot_id, ai_behavior, player_flags, ailp_mode);
+#else
 	int	wall_num;
 	wall	*wallp;
 
@@ -1914,7 +1948,7 @@ int ai_door_is_openable(object *objp, segment *segp, int sidenum)
 			else if ((wallp->type == WALL_ILLUSION) && !(wallp->flags & WALL_ILLUSION_OFF))
 				return 0;
 		}
-			
+
 		if (wallp->keys != KEY_NONE) {
 			if (wallp->keys == KEY_BLUE)
 				return (Players[Player_num].flags & PLAYER_FLAGS_BLUE_KEY);
@@ -1990,6 +2024,7 @@ int ai_door_is_openable(object *objp, segment *segp, int sidenum)
 			}
 	}
 	return 0;
+#endif
 }
 
 //	-----------------------------------------------------------------------------------------------------------

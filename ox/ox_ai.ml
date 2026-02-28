@@ -134,3 +134,136 @@ let ai_turn_randomly ~rvx ~rvy ~rvz =
   let z = if abs z > f1_0 / 8 then z / 4 else z in
   x, y, z
 ;;
+
+(* ── ai_door_is_openable ───────────────────────────────── *)
+
+(* Wall/door constants (same in D1 and D2) *)
+let wall_blastable = 1
+let wall_door = 2
+let wall_illusion = 3
+let wall_closed = 5
+let key_none = 1
+let wall_door_locked = 8
+let wall_illusion_off = 32
+let wall_buddy_proof = 128
+let wall_door_closed = 0
+let _wall_blasted = 1
+let wcf_hidden = 8
+let robot_brain = 7
+let aim_goto_player = 8
+
+(* D1: ai_door_is_openable
+   Inputs: is_console_object, robot_id, ai_behavior, wall_num, wall_type, wall_keys, wall_flags
+   Returns: 0 or 1
+   Logic: Console object can open all doors. Brain robots and run-from robots can open
+   unlocked keyless doors. *)
+let ai_door_is_openable_d1
+      ~is_console_object
+      ~robot_id
+      ~ai_behavior
+      ~wall_num
+      ~wall_type
+      ~wall_keys
+      ~wall_flags
+  =
+  if is_console_object
+  then if wall_type = wall_door then 1 else 0
+  else if robot_id = robot_brain || ai_behavior = aib_run_from_d1
+  then
+    if
+      wall_num <> -1
+      && wall_type = wall_door
+      && wall_keys = key_none
+      && wall_flags land wall_door_locked = 0
+    then 1
+    else 0
+  else 0
+;;
+
+(* D2: ai_door_is_openable
+   More complex version with companion/buddy logic, key checks, triggered doors.
+   Faithfully follows the C control flow with early returns.
+   The caller extracts all wall/object fields as scalar parameters. *)
+let ai_door_is_openable_d2
+      ~is_child
+      ~is_console_object
+      ~wall_num
+      ~wall_type
+      ~wall_keys
+      ~wall_flags
+      ~wall_state
+      ~wall_clip_num
+      ~wall_controlling_trigger
+      ~wallanim_flags
+      ~objp_is_null
+      ~is_companion
+      ~robot_id
+      ~ai_behavior
+      ~player_flags
+      ~ailp_mode
+  =
+  (* Helper: check triggered/hidden door — appears twice in C code *)
+  let check_triggered_or_door () =
+    if ailp_mode <> aim_goto_player && wall_controlling_trigger <> -1
+    then
+      if wall_clip_num = -1
+      then 1
+      else if wallanim_flags land wcf_hidden <> 0
+      then if wall_state = wall_door_closed then 0 else 1
+      else 1
+    else if wall_type = wall_door
+    then
+      (* Note: C has "if (type == WALL_BLASTABLE) return 1" here but type is already
+         WALL_DOOR(2), so WALL_BLASTABLE(1) can never match — dead code in original *)
+      if wall_clip_num = -1
+      then 1
+      else if ailp_mode <> aim_goto_player && wallanim_flags land wcf_hidden <> 0
+      then if wall_state = wall_door_closed then 0 else 1
+      else 1
+    else 0
+  in
+  if not is_child
+  then 0
+  else if wall_num = -1
+  then 0
+  else if is_console_object && wall_type = wall_door
+  then 1
+  else if objp_is_null || is_companion
+  then (
+    (* Buddy/companion path *)
+    let buddy_proof_blocked =
+      wall_flags land wall_buddy_proof <> 0
+      && ((wall_type = wall_door && wall_state = wall_door_closed)
+          || wall_type = wall_closed
+          || (wall_type = wall_illusion && wall_flags land wall_illusion_off = 0))
+    in
+    if buddy_proof_blocked
+    then 0
+    else if wall_keys <> key_none
+    then player_flags land wall_keys
+    else if wall_type <> wall_door && wall_type <> wall_closed
+    then 1
+    else (
+      (* AIM_GOTO_PLAYER restrictions *)
+      let goto_blocked =
+        ailp_mode = aim_goto_player
+        && ((wall_type = wall_blastable && wall_state <> 1)
+            || wall_type = wall_closed
+            || (wall_type = wall_door
+                && wall_flags land wall_door_locked <> 0
+                && wall_state = wall_door_closed))
+      in
+      if goto_blocked then 0 else check_triggered_or_door ()))
+  else if
+    robot_id = robot_brain || ai_behavior = aib_run_from_d2 || ai_behavior = aib_snipe_d2
+  then
+    if
+      wall_type = wall_door
+      && wall_keys = key_none
+      && wall_flags land wall_door_locked = 0
+    then 1
+    else if wall_keys <> key_none
+    then player_flags land wall_keys
+    else 0
+  else 0
+;;

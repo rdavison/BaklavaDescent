@@ -130,6 +130,8 @@ static const value* g_get_explosion_vclip = NULL;
 static const value* g_ai_behavior_to_mode_d1 = NULL;
 static const value* g_ai_behavior_to_mode_d2 = NULL;
 static const value* g_ai_turn_randomly = NULL;
+static const value* g_ai_door_is_openable_d1 = NULL;
+static const value* g_ai_door_is_openable_d2 = NULL;
 
 /* Clutter effect function pointers */
 static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
@@ -273,6 +275,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_ai_behavior_to_mode_d1
           && g_ai_behavior_to_mode_d2
           && g_ai_turn_randomly
+          && g_ai_door_is_openable_d1
+          && g_ai_door_is_openable_d2
           && g_apply_damage_to_clutter
           && g_apply_damage_to_controlcen
           && g_apply_damage_to_player_d1
@@ -410,6 +414,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_ai_behavior_to_mode_d1 = caml_named_value("cd_ai_behavior_to_mode_d1");
     g_ai_behavior_to_mode_d2 = caml_named_value("cd_ai_behavior_to_mode_d2");
     g_ai_turn_randomly = caml_named_value("cd_ai_turn_randomly");
+    g_ai_door_is_openable_d1 = caml_named_value("cd_ai_door_is_openable_d1");
+    g_ai_door_is_openable_d2 = caml_named_value("cd_ai_door_is_openable_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
     g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
     g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
@@ -529,6 +535,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_ai_behavior_to_mode_d1
         || !g_ai_behavior_to_mode_d2
         || !g_ai_turn_randomly
+        || !g_ai_door_is_openable_d1
+        || !g_ai_door_is_openable_d2
         || !g_apply_damage_to_clutter
         || !g_apply_damage_to_controlcen
         || !g_apply_damage_to_player_d1
@@ -2996,4 +3004,51 @@ void cd_ox_create_all_vertnum_lists(
     *num_faces = Int_val(Field(result, 0));
     for (int i = 0; i < 6; i++)
         vertnums_6[i] = Int_val(Field(result, i + 1));
+}
+
+int cd_ox_ai_door_is_openable_d1(
+    int is_console_object, int robot_id, int ai_behavior,
+    int wall_num, int wall_type, int wall_keys, int wall_flags)
+{
+    cd_ox_require_ready("cd_ox_ai_door_is_openable_d1");
+    value args[7] = {
+        Val_long(is_console_object),
+        Val_long(robot_id),
+        Val_long(ai_behavior),
+        Val_long(wall_num),
+        Val_long(wall_type),
+        Val_long(wall_keys),
+        Val_long(wall_flags),
+    };
+    return Int_val(caml_callbackN(*g_ai_door_is_openable_d1, 7, args));
+}
+
+int cd_ox_ai_door_is_openable_d2(
+    int is_child, int is_console_object,
+    int wall_num, int wall_type, int wall_keys, int wall_flags,
+    int wall_state, int wall_clip_num, int wall_controlling_trigger,
+    int wallanim_flags,
+    int objp_is_null, int is_companion,
+    int robot_id, int ai_behavior, int player_flags, int ailp_mode)
+{
+    cd_ox_require_ready("cd_ox_ai_door_is_openable_d2");
+    value args[16] = {
+        Val_long(is_child),
+        Val_long(is_console_object),
+        Val_long(wall_num),
+        Val_long(wall_type),
+        Val_long(wall_keys),
+        Val_long(wall_flags),
+        Val_long(wall_state),
+        Val_long(wall_clip_num),
+        Val_long(wall_controlling_trigger),
+        Val_long(wallanim_flags),
+        Val_long(objp_is_null),
+        Val_long(is_companion),
+        Val_long(robot_id),
+        Val_long(ai_behavior),
+        Val_long(player_flags),
+        Val_long(ailp_mode),
+    };
+    return Int_val(caml_callbackN(*g_ai_door_is_openable_d2, 16, args));
 }

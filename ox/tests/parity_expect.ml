@@ -11118,3 +11118,248 @@ let%expect_test "create_all_vertnum_lists - SIDE_IS_TRI_13" =
     vertnums.(5);
   [%expect {| tri13: nf=2 vn=[3,0,1,1,2,3] |}]
 ;;
+
+(* --- ai_door_is_openable D1 parity -------------------------------------- *)
+
+(* Constants matching D1 *)
+(* WALL_DOOR=2, KEY_NONE=1, WALL_DOOR_LOCKED=8, ROBOT_BRAIN=7, AIB_RUN_FROM=0x83 *)
+
+let%expect_test "ai_door_is_openable_d1 - console object opens door" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:true
+      ~robot_id:0
+      ~ai_behavior:0
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:0
+      ~wall_flags:0
+  in
+  printf "console door: %d\n" r;
+  [%expect {| console door: 1 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d1 - console object non-door" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:true
+      ~robot_id:0
+      ~ai_behavior:0
+      ~wall_num:5
+      ~wall_type:5
+      ~wall_keys:0
+      ~wall_flags:0
+  in
+  printf "console non-door: %d\n" r;
+  [%expect {| console non-door: 0 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d1 - brain robot unlocked door" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:false
+      ~robot_id:7
+      ~ai_behavior:0
+      ~wall_num:3
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+  in
+  printf "brain unlocked: %d\n" r;
+  [%expect {| brain unlocked: 1 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d1 - brain robot locked door" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:false
+      ~robot_id:7
+      ~ai_behavior:0
+      ~wall_num:3
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:8
+  in
+  printf "brain locked: %d\n" r;
+  [%expect {| brain locked: 0 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d1 - run_from robot unlocked" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:false
+      ~robot_id:1
+      ~ai_behavior:0x83
+      ~wall_num:3
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+  in
+  printf "run_from unlocked: %d\n" r;
+  [%expect {| run_from unlocked: 1 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d1 - normal robot" =
+  let r =
+    Ox_ai.ai_door_is_openable_d1
+      ~is_console_object:false
+      ~robot_id:1
+      ~ai_behavior:0x80
+      ~wall_num:3
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+  in
+  printf "normal robot: %d\n" r;
+  [%expect {| normal robot: 0 |}]
+;;
+
+(* --- ai_door_is_openable D2 parity -------------------------------------- *)
+
+let%expect_test "ai_door_is_openable_d2 - not a child" =
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:false
+      ~is_console_object:false
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:false
+      ~robot_id:1
+      ~ai_behavior:0
+      ~player_flags:0
+      ~ailp_mode:0
+  in
+  printf "not child: %d\n" r;
+  [%expect {| not child: 0 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d2 - console object door" =
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:true
+      ~is_console_object:true
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:false
+      ~robot_id:0
+      ~ai_behavior:0
+      ~player_flags:0
+      ~ailp_mode:0
+  in
+  printf "console door d2: %d\n" r;
+  [%expect {| console door d2: 1 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d2 - companion with player key" =
+  (* Companion, wall requires blue key (2), player has blue key flag (2) *)
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:true
+      ~is_console_object:false
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:2
+      ~wall_flags:0
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:true
+      ~robot_id:0
+      ~ai_behavior:0
+      ~player_flags:2
+      ~ailp_mode:0
+  in
+  printf "companion blue key: %d\n" r;
+  [%expect {| companion blue key: 2 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d2 - companion buddy_proof closed door" =
+  (* WALL_BUDDY_PROOF=128, WALL_DOOR=2, WALL_DOOR_CLOSED=0 *)
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:true
+      ~is_console_object:false
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:128
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:true
+      ~robot_id:0
+      ~ai_behavior:0
+      ~player_flags:0
+      ~ailp_mode:0
+  in
+  printf "companion buddy_proof closed: %d\n" r;
+  [%expect {| companion buddy_proof closed: 0 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d2 - brain robot unlocked door" =
+  (* ROBOT_BRAIN=7, WALL_DOOR=2, KEY_NONE=1 *)
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:true
+      ~is_console_object:false
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:1
+      ~wall_flags:0
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:false
+      ~robot_id:7
+      ~ai_behavior:0
+      ~player_flags:0
+      ~ailp_mode:0
+  in
+  printf "brain unlocked d2: %d\n" r;
+  [%expect {| brain unlocked d2: 1 |}]
+;;
+
+let%expect_test "ai_door_is_openable_d2 - snipe robot with player key" =
+  (* AIB_SNIPE=0x84, wall requires gold key (8), player has gold key flag (8) *)
+  let r =
+    Ox_ai.ai_door_is_openable_d2
+      ~is_child:true
+      ~is_console_object:false
+      ~wall_num:5
+      ~wall_type:2
+      ~wall_keys:8
+      ~wall_flags:0
+      ~wall_state:0
+      ~wall_clip_num:(-1)
+      ~wall_controlling_trigger:(-1)
+      ~wallanim_flags:0
+      ~objp_is_null:false
+      ~is_companion:false
+      ~robot_id:1
+      ~ai_behavior:0x84
+      ~player_flags:8
+      ~ailp_mode:0
+  in
+  printf "snipe gold key: %d\n" r;
+  [%expect {| snipe gold key: 8 |}]
+;;

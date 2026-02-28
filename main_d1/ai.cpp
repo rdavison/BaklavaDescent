@@ -1899,6 +1899,23 @@ void move_towards_segment_center(object* objp)
 //	Only brains and avoid robots can open doors.
 int ai_door_is_openable(object* objp, segment* segp, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] ai_door_is_openable using cd_ox_ai_door_is_openable_d1.\n");
+		ox_bridge_logged = 1;
+	}
+	int wall_num = segp->sides[sidenum].wall_num;
+	int wall_type = (wall_num != -1) ? Walls[wall_num].type : -1;
+	int wall_keys = (wall_num != -1) ? Walls[wall_num].keys : 0;
+	int wall_flags = (wall_num != -1) ? Walls[wall_num].flags : 0;
+	return cd_ox_ai_door_is_openable_d1(
+		objp == ConsoleObject,
+		objp->id,
+		objp->ctype.ai_info.behavior,
+		wall_num, wall_type, wall_keys, wall_flags);
+#else
 	int	wall_num;
 
 	//	The mighty console object can open all doors (for purposes of determining paths).
@@ -1918,6 +1935,7 @@ int ai_door_is_openable(object* objp, segment* segp, int sidenum)
 	}
 
 	return 0;
+#endif
 }
 
 //--//	-----------------------------------------------------------------------------------------------------------

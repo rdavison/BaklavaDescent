@@ -1214,3 +1214,27 @@ Three more gameseg functions ported to OxCaml, all simple lookup/comparison func
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §34 — Port ai_door_is_openable (D1 + D2)
+
+First AI system function ported. Determines whether a robot can open a door on a given side.
+
+- **`ai_door_is_openable_d1`** — 22-line decision function. Console object opens all doors. Brain robots and run-from robots can open unlocked, keyless doors. Pure boolean logic on 7 scalar parameters (is_console_object, robot_id, ai_behavior, wall_num, wall_type, wall_keys, wall_flags).
+
+- **`ai_door_is_openable_d2`** — ~110-line decision function with companion/buddy logic, key checks, triggered doors, and hidden wall animations. Takes 16 scalar parameters. Notable features:
+  - Buddy-proof walls block companion in specific states (closed door, closed wall, active illusion)
+  - Key matching uses bitwise AND since KEY_* and PLAYER_FLAGS_*_KEY constants are identical
+  - AIM_GOTO_PLAYER mode has additional restrictions (blastable walls, locked doors)
+  - Triggered/hidden door check appears twice — extracted as helper closure
+  - Contains dead code in original C: `if (type == WALL_BLASTABLE)` inside `if (type == WALL_DOOR)` — WALL_DOOR=2, WALL_BLASTABLE=1, so never matches
+
+- **Bridge design:** All wall/object state extracted at C callsite as scalars. No packed arrays needed — 7 args for D1 (via `caml_callbackN`), 16 args for D2 (via `caml_callbackN`).
+
+- **Files modified:** `ox_ai.ml`, `ai_bridge.ml`, `bridge.c`, `bridge.h`, `main_d1/ai.cpp`, `main_d2/ai2.cpp`, `parity_expect.ml`, `CHECKLIST.md`.
+
+- **Parity tests:** 12 expect tests: 6 for D1 (console door/non-door, brain unlocked/locked, run_from, normal robot), 6 for D2 (not child, console door, companion with key, buddy-proof blocked, brain unlocked, snipe with key).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

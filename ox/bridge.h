@@ -730,6 +730,18 @@ void cd_ox_create_all_vertnum_lists(
     int32_t side_type,
     int32_t* num_faces, int32_t* vertnums_6);
 
+/* -- AI door logic ---------------------------------------------------- */
+int cd_ox_ai_door_is_openable_d1(
+    int is_console_object, int robot_id, int ai_behavior,
+    int wall_num, int wall_type, int wall_keys, int wall_flags);
+int cd_ox_ai_door_is_openable_d2(
+    int is_child, int is_console_object,
+    int wall_num, int wall_type, int wall_keys, int wall_flags,
+    int wall_state, int wall_clip_num, int wall_controlling_trigger,
+    int wallanim_flags,
+    int objp_is_null, int is_companion,
+    int robot_id, int ai_behavior, int player_flags, int ailp_mode);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

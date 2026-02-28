@@ -42,10 +42,70 @@ let cd_ai_behavior_to_mode_d2 behavior = Ox_ai.ai_behavior_to_mode_d2 ~behavior
 (* ai_turn_randomly: 3 scalars → 3-int tuple *)
 let cd_ai_turn_randomly rvx rvy rvz = Ox_ai.ai_turn_randomly ~rvx ~rvy ~rvz
 
+(* ai_door_is_openable D1: 7 scalar args → int *)
+let cd_ai_door_is_openable_d1
+      is_console_object
+      robot_id
+      ai_behavior
+      wall_num
+      wall_type
+      wall_keys
+      wall_flags
+  =
+  Ox_ai.ai_door_is_openable_d1
+    ~is_console_object:(is_console_object <> 0)
+    ~robot_id
+    ~ai_behavior
+    ~wall_num
+    ~wall_type
+    ~wall_keys
+    ~wall_flags
+;;
+
+(* ai_door_is_openable D2: 16 scalar args → int *)
+let cd_ai_door_is_openable_d2
+      is_child
+      is_console_object
+      wall_num
+      wall_type
+      wall_keys
+      wall_flags
+      wall_state
+      wall_clip_num
+      wall_controlling_trigger
+      wallanim_flags
+      objp_is_null
+      is_companion
+      robot_id
+      ai_behavior
+      player_flags
+      ailp_mode
+  =
+  Ox_ai.ai_door_is_openable_d2
+    ~is_child:(is_child <> 0)
+    ~is_console_object:(is_console_object <> 0)
+    ~wall_num
+    ~wall_type
+    ~wall_keys
+    ~wall_flags
+    ~wall_state
+    ~wall_clip_num
+    ~wall_controlling_trigger
+    ~wallanim_flags
+    ~objp_is_null:(objp_is_null <> 0)
+    ~is_companion:(is_companion <> 0)
+    ~robot_id
+    ~ai_behavior
+    ~player_flags
+    ~ailp_mode
+;;
+
 let () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
   Callback.register "cd_ai_behavior_to_mode_d1" cd_ai_behavior_to_mode_d1;
   Callback.register "cd_ai_behavior_to_mode_d2" cd_ai_behavior_to_mode_d2;
-  Callback.register "cd_ai_turn_randomly" cd_ai_turn_randomly
+  Callback.register "cd_ai_turn_randomly" cd_ai_turn_randomly;
+  Callback.register "cd_ai_door_is_openable_d1" cd_ai_door_is_openable_d1;
+  Callback.register "cd_ai_door_is_openable_d2" cd_ai_door_is_openable_d2
 ;;

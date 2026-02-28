@@ -296,7 +296,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] do_any_robot_dying_frame — death dispatch (D2)
 
 ### Unported — Awareness & Environment
-- [ ] ai_door_is_openable — door check
+- [x] ai_door_is_openable — door check (D1 + D2)
 - [ ] openable_doors_in_segment — scans for usable doors
 - [ ] move_object_to_legal_spot — relocates to valid segment
 - [ ] move_towards_segment_center — movement toward center
