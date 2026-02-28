@@ -1888,3 +1888,179 @@ let find_homing_object (arr : int array) =
     done;
     !best_objnum)
 ;;
+
+(* find_point_seg using FVI packed array layout.
+   Same algorithm as Ox_gameseg.find_point_seg but reads from the
+   87-int/segment FVI layout instead of the 80-int/segment layout. *)
+let find_point_seg_fvi (arr : int array) ~point:(px, py, pz) ~segnum =
+  let n_segments = arr.(h_n_segments) in
+  let seg_data_base = get_seg_data_base arr in
+  let unpack_seg_for_fps s =
+    let base = seg_data_base + (s * seg_block_size) in
+    let children = Array.init 6 ~f:(fun i -> arr.(base + i)) in
+    let side_types = Array.init 6 ~f:(fun i -> arr.(base + 6 + i)) in
+    let seg_verts = Array.init 8 ~f:(fun i -> arr.(base + 12 + i)) in
+    let normals =
+      Array.init 12 ~f:(fun i ->
+        let off = base + 20 + (i * 3) in
+        arr.(off), arr.(off + 1), arr.(off + 2))
+    in
+    let seg_vert_positions =
+      Array.init 8 ~f:(fun i ->
+        let off = base + 56 + (i * 3) in
+        arr.(off), arr.(off + 1), arr.(off + 2))
+    in
+    children, side_types, seg_verts, normals, seg_vert_positions
+  in
+  let rec trace s iterations =
+    if s < 0 || s >= n_segments
+    then -1
+    else if iterations > 1024
+    then s
+    else (
+      let children, side_types, seg_verts, normals, seg_vert_positions =
+        unpack_seg_for_fps s
+      in
+      let centermask, side_dists =
+        Ox_gameseg.get_side_dists
+          ~checkp:(px, py, pz)
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if centermask = 0
+      then s
+      else (
+        let biggest_val = ref 0 in
+        let sidenum = ref (-1) in
+        for i = 0 to 5 do
+          if centermask land (1 lsl i) <> 0
+          then
+            if side_dists.(i) < !biggest_val
+            then (
+              biggest_val := side_dists.(i);
+              sidenum := i)
+        done;
+        if !sidenum <> -1 && children.(!sidenum) >= 0
+        then trace children.(!sidenum) (iterations + 1)
+        else s))
+  in
+  if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
+;;
+
+(* player_is_visible_from_object extension packed layout.
+   Appended after the FVI standard data (header + collision table + segments + objects).
+
+   | Offset | Field |
+   |--------|-------|
+   | 0-2    | pos (gun tip xyz) |
+   | 3-5    | objp_pos (object center xyz) |
+   | 6      | objp_segnum |
+   | 7-9    | objp_orient_fvec (xyz) |
+   | 10     | field_of_view |
+   | 11-13  | vec_to_player (xyz) |
+   | 14-16  | believed_player_pos (xyz) |
+   | 17     | Overall_agitation |
+   | 18     | player_objnum |
+   | 19     | sub_flags (D2) |
+
+   Returns:
+   [| result; pos_x; pos_y; pos_z; need_move_center; gun_segnum;
+      hit_type; hit_pos_x; hit_pos_y; hit_pos_z; hit_seg |]
+*)
+let pv_ext_size = 20
+
+let player_is_visible_from_object (arr : int array) =
+  let open Ox_math in
+  let n_objects = arr.(h_n_objects) in
+  let obj_data_base = get_obj_data_base arr in
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let pv_base = obj_data_base + (n_objects * obj_block_size) in
+  let pos_x = arr.(pv_base + 0) in
+  let pos_y = arr.(pv_base + 1) in
+  let pos_z = arr.(pv_base + 2) in
+  let objp_pos_x = arr.(pv_base + 3) in
+  let objp_pos_y = arr.(pv_base + 4) in
+  let objp_pos_z = arr.(pv_base + 5) in
+  let objp_segnum = arr.(pv_base + 6) in
+  let fvec_x = arr.(pv_base + 7) in
+  let fvec_y = arr.(pv_base + 8) in
+  let fvec_z = arr.(pv_base + 9) in
+  let field_of_view = arr.(pv_base + 10) in
+  let vec_to_player = arr.(pv_base + 11), arr.(pv_base + 12), arr.(pv_base + 13) in
+  let believed_player_pos = arr.(pv_base + 14), arr.(pv_base + 15), arr.(pv_base + 16) in
+  let overall_agitation = arr.(pv_base + 17) in
+  let player_objnum = arr.(pv_base + 18) in
+  let sub_flags = arr.(pv_base + 19) in
+  let objp_objnum = arr.(h_thisobjnum) in
+  (* D2: clear SUB_FLAGS_GUNSEG (0x01) *)
+  let sub_flags = if is_d2 then sub_flags land lnot 0x01 else sub_flags in
+  (* Determine start segment *)
+  let pos_equals_objp = pos_x = objp_pos_x && pos_y = objp_pos_y && pos_z = objp_pos_z in
+  let startseg, final_pos, need_move_center, sub_flags =
+    if pos_equals_objp
+    then objp_segnum, (pos_x, pos_y, pos_z), 0, sub_flags
+    else (
+      let segnum =
+        find_point_seg_fvi arr ~point:(pos_x, pos_y, pos_z) ~segnum:objp_segnum
+      in
+      if segnum = -1
+      then
+        (* Gun tip outside mine — use objp pos, signal C to move_towards_segment_center *)
+        objp_segnum, (objp_pos_x, objp_pos_y, objp_pos_z), 1, sub_flags
+      else (
+        (* D2: set SUB_FLAGS_GUNSEG if gun in different segment *)
+        let sub_flags =
+          if is_d2 && segnum <> objp_segnum then sub_flags lor 0x01 else sub_flags
+        in
+        segnum, (pos_x, pos_y, pos_z), 0, sub_flags))
+  in
+  let final_pos_x, final_pos_y, final_pos_z = final_pos in
+  (* Do FVI ray cast from pos to believed_player_pos *)
+  let fvi_flags = if is_d2 then fq_transwall else fq_transwall lor fq_check_objs in
+  let st = make_fvi_state () in
+  st.segs_visited.(0) <- startseg;
+  st.n_segs_visited <- 1;
+  st.fvi_hit_seg2 <- -1;
+  let hit_type, hit_point, hit_seg, _, _ =
+    fvi_sub
+      arr
+      st
+      ~p0:final_pos
+      ~startseg
+      ~p1:believed_player_pos
+      ~rad:(0x10000 / 4)
+      ~thisobjnum:objp_objnum
+      ~flags:fvi_flags
+      ~entry_seg:(-2)
+  in
+  let hit_px, hit_py, hit_pz = hit_point in
+  (* Determine visibility result *)
+  let result =
+    let visible =
+      if is_d2
+      then hit_type = hit_none
+      else
+        (* D1: visible if no hit, or if we hit the player object *)
+        hit_type = hit_none || (hit_type = hit_object && st.fvi_hit_object = player_objnum)
+    in
+    if visible
+    then (
+      let dot = vm_vec_dotprod ~a:vec_to_player ~b:(fvec_x, fvec_y, fvec_z) in
+      if dot > field_of_view - (overall_agitation lsl 9) then 2 else 1)
+    else 0
+  in
+  [| result
+   ; final_pos_x
+   ; final_pos_y
+   ; final_pos_z
+   ; need_move_center
+   ; sub_flags
+   ; hit_type
+   ; hit_px
+   ; hit_py
+   ; hit_pz
+   ; hit_seg
+  |]
+;;

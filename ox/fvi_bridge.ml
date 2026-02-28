@@ -164,6 +164,13 @@ let cd_find_homing_object (arr : int array) = Ox_fvi.find_homing_object arr
    See Ox_fvi.track_track_goal for full layout docs. *)
 let cd_track_track_goal (arr : int array) = Ox_fvi.track_track_goal arr
 
+(* player_is_visible_from_object: packed array → int array (11 ints)
+   Packed layout: FVI format + player_vis extension (20 ints).
+   See Ox_fvi.player_is_visible_from_object for full layout docs. *)
+let cd_player_is_visible_from_object (arr : int array) =
+  Ox_fvi.player_is_visible_from_object arr
+;;
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
@@ -173,5 +180,6 @@ let () =
   Callback.register "cd_find_vector_intersection" cd_find_vector_intersection;
   Callback.register "cd_find_homing_object_complete" cd_find_homing_object_complete;
   Callback.register "cd_find_homing_object" cd_find_homing_object;
-  Callback.register "cd_track_track_goal" cd_track_track_goal
+  Callback.register "cd_track_track_goal" cd_track_track_goal;
+  Callback.register "cd_player_is_visible_from_object" cd_player_is_visible_from_object
 ;;

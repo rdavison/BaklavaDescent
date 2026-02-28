@@ -1411,3 +1411,37 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).
+
+### §43 — Port player_is_visible_from_object to OxCaml
+
+- **What:** Ported the AI visibility function that determines whether the player is visible from a robot's gun position. This is the gateway function for the entire AI targeting system, called 20+ times per frame from `compute_vis_and_vec` and other AI functions.
+
+- **Design:** Single bridge crossing replaces two separate bridge crossings (find_point_seg + find_vector_intersection). The function:
+  1. Uses `find_point_seg_fvi` (new) to locate the gun tip segment using the FVI packed array layout
+  2. Calls `fvi_sub` directly for the visibility ray cast (OCaml → OCaml, no double bridge)
+  3. Computes dot product for field-of-view check
+  All segment/object data packed once at the callsite.
+
+- **D1/D2 differences:**
+  - D1 sets `FQ_CHECK_OBJS` flag — considers player hit as visible (checks `hit_object == player_objnum`)
+  - D2 only sets `FQ_TRANSWALL` — visibility requires `HIT_NONE` only
+  - D2 manages `SUB_FLAGS_GUNSEG` (0x01) — cleared at entry, set if gun tip in different segment
+
+- **Side effects handled via return array:**
+  - `pos` modification (when gun tip outside mine → use object center)
+  - `need_move_towards_center` flag (C calls `move_towards_segment_center`)
+  - `SUB_FLAGS` modification (D2)
+  - Hit globals: `Hit_type`, `Hit_pos`, `Hit_seg`
+
+- **New OCaml function:** `find_point_seg_fvi` — same algorithm as `Ox_gameseg.find_point_seg` but reads from the 87-int/segment FVI layout instead of the 80-int layout, avoiding data duplication.
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — `find_point_seg_fvi`, `player_is_visible_from_object` (~100 lines)
+  - `ox/fvi_bridge.ml` — `cd_player_is_visible_from_object` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_player_is_visible_from_object` static pointer, init/ready, C wrapper (returns 11-element array)
+  - `ox/bridge.h` — `cd_ox_player_is_visible_from_object` declaration
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `player_is_visible_from_object`
+  - `main_d2/ai2.cpp` — same, with D2-specific SUB_FLAGS handling
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).

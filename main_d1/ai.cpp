@@ -817,6 +817,148 @@ void john_cheat_func_4(int key)
 //	NOTE: Will destructively modify *pos if *pos is outside the mine.
 int player_is_visible_from_object(object* objp, vms_vector* pos, fix field_of_view, vms_vector* vec_to_player)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] player_is_visible_from_object using cd_ox_player_is_visible_from_object.\n");
+			ox_bridge_logged = 1;
+		}
+
+		int n_segments = Highest_segment_index + 1;
+		int n_objects = Highest_object_index + 1;
+		int objp_objnum = (int)(objp - Objects);
+
+		int header_len = 18;
+		int collision_table_len = 16 * 16;
+		int seg_data_len = n_segments * 87;
+		int obj_data_len = n_objects * 14;
+		int pv_ext_len = 20;
+		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len + pv_ext_len;
+
+		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
+		if (!packed)
+			return 0;
+
+		// Pack FVI header (some fields not used for find_point_seg, but needed for fvi_sub)
+		packed[0] = 0; packed[1] = 0; packed[2] = 0;  // p0 (set by OCaml)
+		packed[3] = 0;  // startseg (set by OCaml)
+		packed[4] = 0; packed[5] = 0; packed[6] = 0;  // p1 (set by OCaml)
+		packed[7] = F1_0 / 4;  // rad
+		packed[8] = objp_objnum;  // thisobjnum
+		packed[9] = FQ_TRANSWALL | FQ_CHECK_OBJS;  // flags (D1 uses CHECK_OBJS)
+		packed[10] = n_segments;
+		packed[11] = n_objects;
+		packed[12] = Players[Player_num].objnum;
+		packed[13] = 0;  // physics_cheat_flag
+		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[15] = GameTime;
+		packed[16] = 0;  // is_d2 = 0
+		packed[17] = 0;  // ignore_count = 0
+
+		// Pack collision table
+		int ct_base = header_len;
+		for (int a = 0; a < 16; a++)
+			for (int b = 0; b < 16; b++)
+				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
+
+		// Pack per-segment data (87 ints each)
+		int sd_base = ct_base + collision_table_len;
+		for (int s = 0; s < n_segments; s++)
+		{
+			segment* seg = &Segments[s];
+			int sb = sd_base + s * 87;
+			for (int i = 0; i < 6; i++)
+				packed[sb + i] = seg->children[i];
+			for (int i = 0; i < 6; i++)
+				packed[sb + 6 + i] = seg->sides[i].type;
+			for (int i = 0; i < 8; i++)
+				packed[sb + 12 + i] = seg->verts[i];
+			for (int sn = 0; sn < 6; sn++)
+			{
+				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
+				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
+				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
+				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
+				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
+				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
+			}
+			for (int i = 0; i < 8; i++)
+			{
+				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+			}
+			for (int i = 0; i < 6; i++)
+				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
+			packed[sb + 86] = seg->objects;
+		}
+
+		// Pack per-object data (14 ints each)
+		int od_base = sd_base + seg_data_len;
+		for (int o = 0; o < n_objects; o++)
+		{
+			object* obj = &Objects[o];
+			int ob = od_base + o * 14;
+			packed[ob + 0] = obj->type;
+			packed[ob + 1] = obj->id;
+			packed[ob + 2] = obj->flags;
+			packed[ob + 3] = obj->pos.x;
+			packed[ob + 4] = obj->pos.y;
+			packed[ob + 5] = obj->pos.z;
+			packed[ob + 6] = obj->size;
+			packed[ob + 7] = obj->next;
+			packed[ob + 8] = obj->ctype.laser_info.parent_type;
+			packed[ob + 9] = obj->ctype.laser_info.parent_num;
+			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
+			packed[ob + 11] = obj->ctype.laser_info.creation_time;
+			packed[ob + 12] = obj->signature;
+			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
+		}
+
+		// Pack player_vis extension (20 ints)
+		int pv_base = od_base + obj_data_len;
+		packed[pv_base + 0] = pos->x;
+		packed[pv_base + 1] = pos->y;
+		packed[pv_base + 2] = pos->z;
+		packed[pv_base + 3] = objp->pos.x;
+		packed[pv_base + 4] = objp->pos.y;
+		packed[pv_base + 5] = objp->pos.z;
+		packed[pv_base + 6] = objp->segnum;
+		packed[pv_base + 7] = objp->orient.fvec.x;
+		packed[pv_base + 8] = objp->orient.fvec.y;
+		packed[pv_base + 9] = objp->orient.fvec.z;
+		packed[pv_base + 10] = field_of_view;
+		packed[pv_base + 11] = vec_to_player->x;
+		packed[pv_base + 12] = vec_to_player->y;
+		packed[pv_base + 13] = vec_to_player->z;
+		packed[pv_base + 14] = Believed_player_pos.x;
+		packed[pv_base + 15] = Believed_player_pos.y;
+		packed[pv_base + 16] = Believed_player_pos.z;
+		packed[pv_base + 17] = Overall_agitation;
+		packed[pv_base + 18] = Players[Player_num].objnum;
+		packed[pv_base + 19] = 0;  // sub_flags (D1 doesn't use it)
+
+		int32_t out[11];
+		cd_ox_player_is_visible_from_object(packed, packed_len, out);
+		free(packed);
+
+		int result = out[0];
+		// Update pos if OCaml modified it (gun tip outside mine)
+		if (out[4])  // need_move_towards_center
+		{
+			pos->x = out[1]; pos->y = out[2]; pos->z = out[3];
+			move_towards_segment_center(objp);
+		}
+		// Update hit globals
+		Hit_type = out[6];
+		Hit_pos.x = out[7]; Hit_pos.y = out[8]; Hit_pos.z = out[9];
+		Hit_seg = out[10];
+
+		return result;
+	}
+#else
 	fix			dot;
 	fvi_query	fq;
 
@@ -861,6 +1003,7 @@ int player_is_visible_from_object(object* objp, vms_vector* pos, fix field_of_vi
 		// mprintf((0, " ** Where are you? **\n"));
 		return 0;
 	}
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------------------------

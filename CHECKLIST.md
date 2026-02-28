@@ -256,7 +256,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] ai_turn_randomly (D1)
 
 ### Unported — Visibility & Targeting
-- [ ] player_is_visible_from_object — visibility via FVI
+- [x] player_is_visible_from_object — visibility via FVI (D1+D2, combines find_point_seg + FVI in single bridge crossing)
 - [ ] compute_vis_and_vec — visibility ray to player
 - [x] object_to_object_visibility — LOS check (inlined into find_homing_object_complete)
 

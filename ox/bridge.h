@@ -795,6 +795,12 @@ int cd_ox_find_homing_object(const int32_t* packed, int packed_len);
    Returns track result via out_result and dot product via out_dot. */
 void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_result, int* out_dot);
 
+/* player_is_visible_from_object: AI visibility check.
+   Packed layout: FVI format + 20-int player_vis extension.
+   Returns 11-element result via out array:
+   [result(0/1/2), pos.xyz, need_move_center, sub_flags, hit_type, hit_pos.xyz, hit_seg] */
+void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, int32_t* out);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.
