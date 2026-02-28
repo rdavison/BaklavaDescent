@@ -344,6 +344,11 @@ let cd_ai_move_relative_to_player (packed : int array) =
   Ox_physics.ai_move_relative_to_player packed
 ;;
 
+(* ai_path_set_orient_and_vel: packed int array (27) → flat int array (12) *)
+let cd_ai_path_set_orient_and_vel (packed : int array) =
+  Ox_physics.ai_path_set_orient_and_vel packed
+;;
+
 (* do_physics_align_object: packed int array (54) → flat int array (11)
    Output: [tag, rvec(3), uvec(3), fvec(3), floor_levelling]
    tag=0: orient unchanged, tag=1: orient was modified *)
@@ -386,5 +391,6 @@ let () =
     "cd_homing_missile_turn_towards_velocity"
     cd_homing_missile_turn_towards_velocity;
   Callback.register "cd_do_physics_align_object" cd_do_physics_align_object;
-  Callback.register "cd_ai_move_relative_to_player" cd_ai_move_relative_to_player
+  Callback.register "cd_ai_move_relative_to_player" cd_ai_move_relative_to_player;
+  Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel
 ;;

@@ -1514,3 +1514,26 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: D1 launches and plays correctly with §45 bridge active.
+
+### §46 — Port ai_path_set_orient_and_vel to OxCaml (D1 + D2)
+
+- **What:** `ai_path_set_orient_and_vel` — computes velocity and orientation for path-following robots. Blends current velocity toward goal direction, scales speed based on facing dot product, then calls `ai_turn_towards_vector` to orient the robot. D1 ~58 lines, D2 ~68 lines (adds snipe/companion/retreat logic).
+
+- **Design:** Standalone packed array bridge (27 ints in, 12 ints out). OCaml function calls `ai_turn_towards_vector` internally, saving one bridge crossing per path-following robot per frame. Returns both new velocity and new orientation.
+
+- **D1 vs D2 differences:**
+  - D2 adds AIB_SNIPE behavior (boosts max_speed, biases dot toward F1_0/2)
+  - D2 adds companion check for fast turn rate
+  - D2 has AIM_SNIPE_RETREAT_BACKWARDS mode: faces player while retreating
+  - D2 passes dot_based=true to move_towards_vector via ai_turn_towards_vector
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `ai_path_set_orient_and_vel` (~100 lines)
+  - `ox/physics_bridge.ml` — `cd_ai_path_set_orient_and_vel` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_ai_path_set_orient_and_vel` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_ai_path_set_orient_and_vel` declaration
+  - `main_d1/aipath.cpp` — `#ifdef USE_OX_BRIDGE` around `ai_path_set_orient_and_vel` + include
+  - `main_d2/aipath.cpp` — same, with D2-specific fields packed
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Awaiting runtime test.

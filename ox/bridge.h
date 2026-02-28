@@ -555,6 +555,12 @@ void cd_ox_ai_move_relative_to_player(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* ai_path_set_orient_and_vel: compute velocity and orientation for path-following robots.
+   packed[27] input, out_buf[12] output: [vx,vy,vz, orient(9)] */
+void cd_ox_ai_path_set_orient_and_vel(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* check_vector_to_object: compute intersection with adjusted collision radius.
    Returns distance (0 = no hit), writes intersection point to out_intp*. */
 int32_t cd_ox_check_vector_to_object(

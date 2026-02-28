@@ -262,6 +262,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Ported — AI Movement
 - [x] ai_move_relative_to_player — movement decision dispatcher (D1+D2, wraps move_around/away/towards internally, P_Rand state sync)
+- [x] ai_path_set_orient_and_vel — path-following velocity and orientation (D1+D2, wraps ai_turn_towards_vector internally)
 
 ### Unported — AI Frame Logic
 - [ ] do_ai_frame — main AI frame (massive, reads ~50 globals)

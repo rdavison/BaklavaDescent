@@ -831,6 +831,131 @@ let ai_move_relative_to_player (packed : int array) =
   result
 ;;
 
+(* ai_path_set_orient_and_vel: compute velocity and orientation for path-following robots.
+   C original: main_d1/aipath.cpp + main_d2/aipath.cpp ai_path_set_orient_and_vel
+
+   Packed input array (27 ints):
+     [0-2]    velocity (vx, vy, vz)
+     [3-5]    objp pos (x, y, z)
+     [6-8]    orient fvec (x, y, z)
+     [9-11]   orient rvec (x, y, z)
+     [12-14]  goal_point (x, y, z)
+     [15]     max_speed (Robot_info[id].max_speed[Difficulty])
+     [16]     turn_time_difficulty (Robot_info[id].turn_time[Difficulty])
+     [17]     turn_time_max (Robot_info[id].turn_time[NDL-1])
+     [18]     ailp_mode
+     [19]     FrameTime
+     [20]     is_d2
+     [21]     behavior (aip->behavior, D2 only)
+     [22]     companion (D2 only)
+     [23]     player_visibility (D2 only)
+     [24-26]  vec_to_player (D2 only, for snipe retreat)
+
+   Returns array (12 ints):
+     [0-2]    new velocity
+     [3-11]   new orient (rvec, uvec, fvec) *)
+let ai_path_set_orient_and_vel (packed : int array) =
+  let velocity = packed.(0), packed.(1), packed.(2) in
+  let cur_pos = packed.(3), packed.(4), packed.(5) in
+  let fvec = packed.(6), packed.(7), packed.(8) in
+  let rvec = packed.(9), packed.(10), packed.(11) in
+  let goal_point = packed.(12), packed.(13), packed.(14) in
+  let max_speed_base = packed.(15) in
+  let turn_time_diff = packed.(16) in
+  let turn_time_max = packed.(17) in
+  let ailp_mode = packed.(18) in
+  let frame_time = packed.(19) in
+  let is_d2 = packed.(20) <> 0 in
+  let behavior = packed.(21) in
+  let companion = packed.(22) <> 0 in
+  let player_visibility = packed.(23) in
+  let vec_to_player = packed.(24), packed.(25), packed.(26) in
+  let aim_run_from_object = 4 in
+  let aim_snipe_retreat_backwards = 13 in
+  let aib_snipe = 4 in
+  (* If evading or sniping, use higher speed *)
+  let max_speed =
+    if ailp_mode = aim_run_from_object || (is_d2 && behavior = aib_snipe)
+    then max_speed_base * 3 / 2
+    else max_speed_base
+  in
+  (* Compute normalized direction to goal *)
+  let vec_to_goal = Ox_math.vm_vec_sub ~a:goal_point ~b:cur_pos in
+  let _mag, norm_vec_to_goal = Ox_math.vm_vec_normalize_quick ~v:vec_to_goal in
+  (* Normalize current velocity *)
+  let _mag, norm_cur_vel = Ox_math.vm_vec_normalize_quick ~v:velocity in
+  (* Normalize fvec *)
+  let _mag, norm_fvec = Ox_math.vm_vec_normalize_quick ~v:fvec in
+  (* Dot product of goal direction vs facing *)
+  let dot = Ox_math.vm_vec_dotprod ~a:norm_vec_to_goal ~b:norm_fvec in
+  (* If nearly facing opposite direction, snap velocity to goal *)
+  let ncvx, ncvy, ncvz =
+    if dot < -15 * f1_0 / 16
+    then norm_vec_to_goal
+    else (
+      let nvx, nvy, nvz = norm_cur_vel in
+      let gx, gy, gz = norm_vec_to_goal in
+      nvx + (gx / 2), nvy + (gy / 2), nvz + (gz / 2))
+  in
+  let _mag, norm_cur_vel_final = Ox_math.vm_vec_normalize_quick ~v:(ncvx, ncvy, ncvz) in
+  (* Speed scaling based on dot *)
+  let dot = if dot < 0 then dot / -4 else dot in
+  (* D2 snipe mode: bias dot toward F1_0 *)
+  let dot =
+    if is_d2 && behavior = aib_snipe && dot < f1_0 / 2 then (dot + f1_0) / 2 else dot
+  in
+  let speed_scale = Ox_math.fixmul ~a:max_speed ~b:dot in
+  let new_vel = Ox_math.vm_vec_scale ~v:norm_cur_vel_final ~k:speed_scale in
+  (* Determine turn rate and goal for ai_turn_towards_vector *)
+  let turn_goal, turn_rate =
+    if
+      ailp_mode = aim_run_from_object
+      || (is_d2 && companion)
+      || (is_d2 && behavior = aib_snipe)
+    then (
+      let goal =
+        if is_d2 && ailp_mode = aim_snipe_retreat_backwards
+        then
+          if player_visibility <> 0
+          then vec_to_player
+          else (
+            let gx, gy, gz = norm_vec_to_goal in
+            -gx, -gy, -gz)
+        else norm_vec_to_goal
+      in
+      goal, turn_time_max / 2)
+    else norm_vec_to_goal, turn_time_diff
+  in
+  (* Call ai_turn_towards_vector to compute new orientation *)
+  let new_orient =
+    ai_turn_towards_vector
+      ~goal:turn_goal
+      ~fvec
+      ~rvec
+      ~rate:turn_rate
+      ~frame_time
+      ~seismic_mag:0
+      ~robot_mass:0
+      ~rand_vec:(0, 0, 0)
+  in
+  let nvx, nvy, nvz = new_vel in
+  let (nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz) = new_orient in
+  let result = Array.create ~len:12 0 in
+  result.(0) <- nvx;
+  result.(1) <- nvy;
+  result.(2) <- nvz;
+  result.(3) <- nrx;
+  result.(4) <- nry;
+  result.(5) <- nrz;
+  result.(6) <- nux;
+  result.(7) <- nuy;
+  result.(8) <- nuz;
+  result.(9) <- nfx;
+  result.(10) <- nfy;
+  result.(11) <- nfz;
+  result
+;;
+
 (* set_object_turnroll: compute new turnroll (banking angle) based on rotvel.y.
    C original: physics.cpp set_object_turnroll
    Constants: TURNROLL_SCALE = 0x4ec4/2, ROLL_RATE = 0x2000.

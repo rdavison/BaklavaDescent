@@ -15,6 +15,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>		// for rand() and qsort()
 #include <string.h>		// for memset()
 #include "misc/rand.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 #include "inferno.h"
 #include "platform/mono.h"
@@ -1332,6 +1335,45 @@ int path_index_compare(obj_path *i1, obj_path *i2)
 //	Set orientation matrix and velocity for objp based on its desire to get to a point.
 void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player_visibility, vms_vector *vec_to_player)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] ai_path_set_orient_and_vel (D2)\n"); ox_logged = 1; }
+	robot_info *robptr = &Robot_info[objp->id];
+	int objnum = (int)(objp - Objects);
+	int32_t packed[27] = {
+		objp->mtype.phys_info.velocity.x, objp->mtype.phys_info.velocity.y, objp->mtype.phys_info.velocity.z,  // 0-2
+		objp->pos.x, objp->pos.y, objp->pos.z,                          // 3-5
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,  // 6-8
+		objp->orient.rvec.x, objp->orient.rvec.y, objp->orient.rvec.z,  // 9-11
+		goal_point->x, goal_point->y, goal_point->z,                     // 12-14
+		robptr->max_speed[Difficulty_level],                              // 15
+		robptr->turn_time[Difficulty_level],                              // 16
+		robptr->turn_time[NDL - 1],                                       // 17
+		Ai_local_info[objnum].mode,                                       // 18
+		FrameTime,                                                        // 19
+		1,   /* is_d2 = true */                                           // 20
+		objp->ctype.ai_info.behavior,                                     // 21
+		robptr->companion ? 1 : 0,                                        // 22
+		player_visibility,                                                // 23
+		vec_to_player ? vec_to_player->x : 0,                             // 24
+		vec_to_player ? vec_to_player->y : 0,                             // 25
+		vec_to_player ? vec_to_player->z : 0,                             // 26
+	};
+	int32_t out[12];
+	cd_ox_ai_path_set_orient_and_vel(packed, 27, out);
+	objp->mtype.phys_info.velocity.x = out[0];
+	objp->mtype.phys_info.velocity.y = out[1];
+	objp->mtype.phys_info.velocity.z = out[2];
+	objp->orient.rvec.x = out[3];
+	objp->orient.rvec.y = out[4];
+	objp->orient.rvec.z = out[5];
+	objp->orient.uvec.x = out[6];
+	objp->orient.uvec.y = out[7];
+	objp->orient.uvec.z = out[8];
+	objp->orient.fvec.x = out[9];
+	objp->orient.fvec.y = out[10];
+	objp->orient.fvec.z = out[11];
+#else
 	vms_vector	cur_vel = objp->mtype.phys_info.velocity;
 	vms_vector	norm_cur_vel;
 	vms_vector	norm_vec_to_goal;
@@ -1397,7 +1439,7 @@ void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player
 		ai_turn_towards_vector(&norm_vec_to_goal, objp, robptr->turn_time[NDL-1]/2);
 	} else
 		ai_turn_towards_vector(&norm_vec_to_goal, objp, robptr->turn_time[Difficulty_level]);
-
+#endif
 }
 
 int	Last_frame_garbage_collected = 0;
