@@ -1485,3 +1485,32 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: both D1 and D2 launch and play correctly with all §42+§43+§44 bridges active.
+
+### §45 — Port ai_move_relative_to_player to OxCaml (D1 + D2)
+
+- **What:** `ai_move_relative_to_player` — AI movement decision dispatcher. Decides whether to evade a danger laser, move toward/around/away from player based on robot type, distance, firing state, and difficulty. D1 ~82 lines, D2 ~97 lines (adds thief/kamikaze/companion/objval logic).
+
+- **Design:** Standalone packed array bridge (56 ints in, 6 ints out). OCaml function calls `move_around_player`, `move_away_from_player`, and `move_towards_vector` internally — all already ported — eliminating up to 3 sub-bridge crossings per robot per frame. P_Rand state synchronized via `P_Rand_get_state`/`P_Rand_set_state` (added in §44). Duplicated `p_rand_step` in `ox_physics.ml` to avoid circular dep on `ox_fvi.ml`.
+
+- **D1 vs D2 differences:**
+  - D2 adds `robptr->companion` check in laser evasion (companion always evades)
+  - D2 adds `robptr->thief` check (thieves always move toward, bypass evade_only)
+  - D2 adds `robptr->kamikaze` check (kamikazes always move toward)
+  - D2 has objval-based circling distances: `(3+objval)*circle_distance/2`
+  - D2 uses GameTime and player_visibility for stale-firing movement decisions
+  - D2 passes `dot_based=true` to move_towards_vector (affects velocity ramping)
+
+- **Packed layout (56 ints):** velocity(3), vec_to_player(3), dist_to_player, circle_distance, evade_only, orient(9: fvec+uvec+rvec), pos(3), shields, danger_laser(14: num+sig+obj_type+obj_sig+pos+render_type+fvec+velocity), robot_info(6: attack_type+fov+evade+firing_wait+max_speed+strength), ailp_next_fire, difficulty, frame_time, frame_count, objnum, player_is_dead, player_cloaked, prand_state, is_d2, player_vis, game_time_shr18, companion, thief, kamikaze.
+
+- **Return (6 ints):** new_velocity(3), ai_evaded, new_danger_laser_num, new_prand_state.
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `p_rand_step` (dup), `ai_move_relative_to_player` (~130 lines)
+  - `ox/physics_bridge.ml` — `cd_ai_move_relative_to_player` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_ai_move_relative_to_player` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_ai_move_relative_to_player` declaration
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `ai_move_relative_to_player`
+  - `main_d2/ai2.cpp` — same, with D2-specific fields packed
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: D1 launches and plays correctly with §45 bridge active.

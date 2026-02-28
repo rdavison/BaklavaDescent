@@ -260,6 +260,9 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] compute_vis_and_vec — visibility ray to player (single bridge crossing, internal P_Rand, sound events returned)
 - [x] object_to_object_visibility — LOS check (inlined into find_homing_object_complete)
 
+### Ported — AI Movement
+- [x] ai_move_relative_to_player — movement decision dispatcher (D1+D2, wraps move_around/away/towards internally, P_Rand state sync)
+
 ### Unported — AI Frame Logic
 - [ ] do_ai_frame — main AI frame (massive, reads ~50 globals)
 - [ ] ai_do_cloak_stuff — cloaking behavior

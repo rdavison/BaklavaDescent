@@ -549,6 +549,12 @@ void cd_ox_do_physics_align_object(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* ai_move_relative_to_player: decide and apply AI movement relative to player.
+   packed[56] input, out_buf[6] output: [vx,vy,vz, ai_evaded, danger_laser_num, prand_state] */
+void cd_ox_ai_move_relative_to_player(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* check_vector_to_object: compute intersection with adjusted collision radius.
    Returns distance (0 = no hit), writes intersection point to out_intp*. */
 int32_t cd_ox_check_vector_to_object(

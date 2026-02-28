@@ -121,6 +121,7 @@ static const value* g_set_object_turnroll = NULL;
 static const value* g_lead_player = NULL;
 static const value* g_homing_missile_turn_towards_velocity = NULL;
 static const value* g_do_physics_align_object = NULL;
+static const value* g_ai_move_relative_to_player = NULL;
 static const value* g_check_vector_to_object = NULL;
 static const value* g_set_next_fire_time_d1 = NULL;
 static const value* g_set_next_fire_time_d2 = NULL;
@@ -420,6 +421,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_lead_player = caml_named_value("cd_lead_player");
     g_homing_missile_turn_towards_velocity = caml_named_value("cd_homing_missile_turn_towards_velocity");
     g_do_physics_align_object = caml_named_value("cd_do_physics_align_object");
+    g_ai_move_relative_to_player = caml_named_value("cd_ai_move_relative_to_player");
     g_check_vector_to_object = caml_named_value("cd_check_vector_to_object");
     g_set_next_fire_time_d1 = caml_named_value("cd_set_next_fire_time_d1");
     g_set_next_fire_time_d2 = caml_named_value("cd_set_next_fire_time_d2");
@@ -552,6 +554,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_lead_player
         || !g_homing_missile_turn_towards_velocity
         || !g_do_physics_align_object
+        || !g_ai_move_relative_to_player
         || !g_check_vector_to_object
         || !g_set_next_fire_time_d1
         || !g_set_next_fire_time_d2
@@ -692,6 +695,7 @@ int cd_ox_is_ready(void)
            && g_lead_player
            && g_homing_missile_turn_towards_velocity
            && g_do_physics_align_object
+           && g_ai_move_relative_to_player
            && g_check_vector_to_object
            && g_set_next_fire_time_d1
            && g_set_next_fire_time_d2
@@ -2387,6 +2391,22 @@ void cd_ox_do_physics_align_object(
         Store_field(arr, i, Val_long(packed[i]));
     const value result = caml_callback(*g_do_physics_align_object, arr);
     for (int i = 0; i < 11; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_ai_move_relative_to_player(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_ai_move_relative_to_player");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_ai_move_relative_to_player, arr);
+    for (int i = 0; i < 6; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

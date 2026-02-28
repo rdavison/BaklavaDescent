@@ -1661,6 +1661,64 @@ void move_away_from_player(object* objp, vms_vector* vec_to_player, int attack_t
 //	If the flag evade_only is set, then only allowed to evade, not allowed to move otherwise (must have mode == AIM_STILL).
 void ai_move_relative_to_player(object* objp, ai_local* ailp, fix dist_to_player, vms_vector* vec_to_player, fix circle_distance, int evade_only)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] ai_move_relative_to_player (D1)\n"); ox_logged = 1; }
+	physics_info* pptr = &objp->mtype.phys_info;
+	robot_info* robptr = &Robot_info[objp->id];
+	int objnum = (int)(objp - Objects);
+	int player_cloaked = (ConsoleObject->flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0;
+	int dl_num = objp->ctype.ai_info.danger_laser_num;
+	object* dobjp = (dl_num != -1) ? &Objects[dl_num] : NULL;
+	int32_t packed[56] = {
+		pptr->velocity.x, pptr->velocity.y, pptr->velocity.z,           // 0-2
+		vec_to_player->x, vec_to_player->y, vec_to_player->z,           // 3-5
+		dist_to_player,                                                   // 6
+		circle_distance,                                                  // 7
+		evade_only,                                                       // 8
+		objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,  // 9-11
+		objp->orient.uvec.x, objp->orient.uvec.y, objp->orient.uvec.z,  // 12-14
+		objp->orient.rvec.x, objp->orient.rvec.y, objp->orient.rvec.z,  // 15-17
+		objp->pos.x, objp->pos.y, objp->pos.z,                          // 18-20
+		objp->shields,                                                    // 21
+		dl_num,                                                           // 22
+		(int32_t)objp->ctype.ai_info.danger_laser_signature,             // 23
+		dobjp ? dobjp->type : 0,                                         // 24
+		dobjp ? (int32_t)dobjp->signature : 0,                           // 25
+		dobjp ? dobjp->pos.x : 0, dobjp ? dobjp->pos.y : 0, dobjp ? dobjp->pos.z : 0,  // 26-28
+		dobjp ? dobjp->render_type : 0,                                  // 29
+		dobjp ? dobjp->orient.fvec.x : 0, dobjp ? dobjp->orient.fvec.y : 0, dobjp ? dobjp->orient.fvec.z : 0,  // 30-32
+		dobjp ? dobjp->mtype.phys_info.velocity.x : 0, dobjp ? dobjp->mtype.phys_info.velocity.y : 0, dobjp ? dobjp->mtype.phys_info.velocity.z : 0,  // 33-35
+		robptr->attack_type,                                              // 36
+		robptr->field_of_view[Difficulty_level],                          // 37
+		robptr->evade_speed[Difficulty_level],                            // 38
+		robptr->firing_wait[Difficulty_level],                            // 39
+		robptr->max_speed[Difficulty_level],                              // 40
+		robptr->strength,                                                 // 41
+		ailp->next_fire,                                                  // 42
+		Difficulty_level,                                                 // 43
+		FrameTime,                                                        // 44
+		FrameCount,                                                       // 45
+		objnum,                                                           // 46
+		Player_is_dead ? 1 : 0,                                           // 47
+		player_cloaked,                                                   // 48
+		(int32_t)P_Rand_get_state(),                                      // 49
+		0,   /* is_d2 = false */                                          // 50
+		0,   /* player_visibility (D2 only) */                            // 51
+		0,   /* game_time_shr18_masked (D2 only) */                       // 52
+		0,   /* companion (D2 only) */                                    // 53
+		0,   /* thief (D2 only) */                                        // 54
+		0,   /* kamikaze (D2 only) */                                     // 55
+	};
+	int32_t out[6];
+	cd_ox_ai_move_relative_to_player(packed, 56, out);
+	pptr->velocity.x = out[0];
+	pptr->velocity.y = out[1];
+	pptr->velocity.z = out[2];
+	ai_evaded = out[3];
+	objp->ctype.ai_info.danger_laser_num = out[4];
+	P_Rand_set_state((unsigned int)out[5]);
+#else
 	object* dobjp;
 	robot_info* robptr = &Robot_info[objp->id];
 
@@ -1740,7 +1798,7 @@ void ai_move_relative_to_player(object* objp, ai_local* ailp, fix dist_to_player
 		else
 			move_towards_player(objp, vec_to_player);
 	}
-
+#endif
 }
 
 // --------------------------------------------------------------------------------------------------------------------

@@ -597,6 +597,240 @@ let move_away_from_player
   if speed > max_speed then nvx * 3 / 4, nvy * 3 / 4, nvz * 3 / 4 else nvx, nvy, nvz
 ;;
 
+(* p_rand_step: advance a P_Rand LCG state and return (value, new_state).
+   Same LCG as in ox_fvi.ml — duplicated here to avoid circular dependency.
+   C original: misc/rand.cpp P_Rand *)
+let p_rand_step state =
+  let s = Int64.of_int (state land 0xFFFFFFFF) in
+  let s = if state < 0 then Int64.(s + 0x100000000L) else s in
+  let next = Int64.(to_int_exn (bit_and ((s * 1103515245L) + 12345L) 0xFFFFFFFFL)) in
+  let value = (next lsr 16) land 0x7FFF in
+  value, next
+;;
+
+(* ai_move_relative_to_player: decide and apply AI movement relative to the player.
+   C original: main_d1/ai.cpp + main_d2/ai2.cpp ai_move_relative_to_player
+
+   Packed input array layout (56 ints):
+     [0-2]    velocity (vx, vy, vz)
+     [3-5]    vec_to_player (px, py, pz)
+     [6]      dist_to_player
+     [7]      circle_distance
+     [8]      evade_only
+     [9-11]   orient fvec
+     [12-14]  orient uvec
+     [15-17]  orient rvec
+     [18-20]  objp pos
+     [21]     objp shields
+     [22]     danger_laser_num (-1 if none)
+     [23]     danger_laser_signature (ai_info)
+     [24]     danger_laser_obj_type
+     [25]     danger_laser_obj_signature
+     [26-28]  danger_laser_obj_pos
+     [29]     danger_laser_obj_render_type (RT_POLYOBJ=1)
+     [30-32]  danger_laser_obj_orient_fvec
+     [33-35]  danger_laser_obj_velocity
+     [36]     robot attack_type
+     [37]     robot field_of_view[Diff]
+     [38]     robot evade_speed[Diff]
+     [39]     robot firing_wait[Diff]
+     [40]     robot max_speed[Diff]
+     [41]     robot strength
+     [42]     ailp next_fire
+     [43]     Difficulty_level
+     [44]     FrameTime
+     [45]     FrameCount
+     [46]     objnum
+     [47]     Player_is_dead
+     [48]     player_cloaked
+     [49]     prand_state
+     [50]     is_d2
+     [51]     player_visibility (D2)
+     [52]     game_time_shr18_masked (D2: (GameTime >> 18) & 0x0f)
+     [53]     companion (D2)
+     [54]     thief (D2)
+     [55]     kamikaze (D2)
+
+   Returns array (6 ints):
+     [0-2]  new velocity
+     [3]    ai_evaded (0 or 1)
+     [4]    new_danger_laser_num
+     [5]    new_prand_state *)
+let ai_move_relative_to_player (packed : int array) =
+  let velocity = ref (packed.(0), packed.(1), packed.(2)) in
+  let vec_to_player = packed.(3), packed.(4), packed.(5) in
+  let dist_to_player = packed.(6) in
+  let circle_distance = packed.(7) in
+  let evade_only = packed.(8) in
+  let fvec = packed.(9), packed.(10), packed.(11) in
+  let uvec = packed.(12), packed.(13), packed.(14) in
+  let rvec = packed.(15), packed.(16), packed.(17) in
+  let objp_pos = packed.(18), packed.(19), packed.(20) in
+  let shields = packed.(21) in
+  let danger_laser_num = ref packed.(22) in
+  let danger_laser_sig = packed.(23) in
+  let dl_type = packed.(24) in
+  let dl_sig = packed.(25) in
+  let dl_pos = packed.(26), packed.(27), packed.(28) in
+  let dl_render_type = packed.(29) in
+  let dl_fvec = packed.(30), packed.(31), packed.(32) in
+  let dl_velocity = packed.(33), packed.(34), packed.(35) in
+  let attack_type = packed.(36) in
+  let field_of_view = packed.(37) in
+  let evade_speed = packed.(38) in
+  let firing_wait = packed.(39) in
+  let max_speed = packed.(40) in
+  let strength = packed.(41) in
+  let next_fire = packed.(42) in
+  let _difficulty = packed.(43) in
+  let frame_time = packed.(44) in
+  let frame_count = packed.(45) in
+  let objnum = packed.(46) in
+  let player_is_dead = packed.(47) <> 0 in
+  let player_cloaked = packed.(48) <> 0 in
+  let prand_state = ref packed.(49) in
+  let is_d2 = packed.(50) <> 0 in
+  let player_visibility = packed.(51) in
+  let game_time_shr18_masked = packed.(52) in
+  let companion = packed.(53) <> 0 in
+  let thief = packed.(54) <> 0 in
+  let kamikaze = packed.(55) <> 0 in
+  let ai_evaded = ref 0 in
+  let obj_weapon = 7 in
+  let rt_polyobj = 1 in
+  (* Helper: call move_around_player with current state *)
+  let do_move_around fast_flag =
+    velocity
+    := move_around_player
+         ~velocity:!velocity
+         ~vec_to_player
+         ~fvec
+         ~frame_time
+         ~frame_count
+         ~objnum
+         ~fast_flag
+         ~shields
+         ~strength
+         ~field_of_view
+         ~max_speed
+         ~player_cloaked
+         ~skip_objnum1:is_d2
+  in
+  let do_move_away at =
+    velocity
+    := move_away_from_player
+         ~velocity:!velocity
+         ~vec_to_player
+         ~uvec
+         ~rvec
+         ~frame_time
+         ~frame_count
+         ~objnum
+         ~attack_type:at
+         ~max_speed
+  in
+  let do_move_towards () =
+    velocity
+    := move_towards_vector
+         ~velocity:!velocity
+         ~vec_goal:vec_to_player
+         ~fvec
+         ~frame_time
+         ~difficulty:_difficulty
+         ~max_speed
+         ~attack_type
+         ~dot_based:is_d2
+         ~is_thief:thief
+         ~is_kamikaze:kamikaze
+  in
+  let early_return = ref false in
+  (* Laser avoidance *)
+  if !danger_laser_num <> -1
+  then
+    if dl_type = obj_weapon && dl_sig = danger_laser_sig
+    then (
+      let vec_to_laser = Ox_math.vm_vec_sub ~a:dl_pos ~b:objp_pos in
+      let dist_to_laser, vec_to_laser_n =
+        Ox_math.vm_vec_normalize_quick ~v:vec_to_laser
+      in
+      let dot = Ox_math.vm_vec_dotprod ~a:vec_to_laser_n ~b:fvec in
+      let check = if is_d2 && companion then true else dot > field_of_view in
+      if check
+      then (
+        (* Get laser's direction *)
+        let laser_fvec =
+          if dl_render_type = rt_polyobj
+          then dl_fvec
+          else (
+            let _mag, nv = Ox_math.vm_vec_normalize_quick ~v:dl_velocity in
+            nv)
+        in
+        let laser_vec_to_robot = Ox_math.vm_vec_sub ~a:objp_pos ~b:dl_pos in
+        let _mag, laser_vec_to_robot_n =
+          Ox_math.vm_vec_normalize_quick ~v:laser_vec_to_robot
+        in
+        let laser_robot_dot =
+          Ox_math.vm_vec_dotprod ~a:laser_fvec ~b:laser_vec_to_robot_n
+        in
+        if laser_robot_dot > f1_0 * 7 / 8 && dist_to_laser < f1_0 * 80
+        then (
+          ai_evaded := 1;
+          do_move_around evade_speed));
+      early_return := true
+      (* else: type/sig mismatch, fall through *));
+  if not !early_return
+  then (
+    (* Evade-only check *)
+    let evade_only_return =
+      if attack_type = 0 && (not (is_d2 && thief)) && evade_only <> 0 then true else false
+    in
+    if not evade_only_return
+    then (
+      (* Clear danger laser *)
+      danger_laser_num := -1;
+      (* Movement selection *)
+      if attack_type = 1
+      then
+        if
+          (* Green guy *)
+          (next_fire > firing_wait / 4 && dist_to_player < f1_0 * 30) || player_is_dead
+        then (
+          let rval, new_state = p_rand_step !prand_state in
+          prand_state := new_state;
+          if rval < 8192 then do_move_around (-1) else do_move_away 1)
+        else do_move_towards ()
+      else if is_d2 && thief
+      then do_move_towards ()
+      else if is_d2 && kamikaze
+      then do_move_towards ()
+      else if dist_to_player < circle_distance
+      then do_move_away 0
+      else if is_d2
+      then (
+        let objval = objnum land 0x0f lxor 0x0a in
+        if dist_to_player < (3 + objval) * circle_distance / 2 && next_fire > -f1_0
+        then do_move_around (-1)
+        else if -next_fire > f1_0 + (objval lsl 12) && player_visibility <> 0
+        then
+          if game_time_shr18_masked lxor objval > 4
+          then do_move_away 0
+          else do_move_around (-1)
+        else do_move_towards ())
+      else if dist_to_player < circle_distance * 2
+      then do_move_around (-1)
+      else do_move_towards ())
+    else danger_laser_num := -1);
+  let vx, vy, vz = !velocity in
+  let result = Array.create ~len:6 0 in
+  result.(0) <- vx;
+  result.(1) <- vy;
+  result.(2) <- vz;
+  result.(3) <- !ai_evaded;
+  result.(4) <- !danger_laser_num;
+  result.(5) <- !prand_state;
+  result
+;;
+
 (* set_object_turnroll: compute new turnroll (banking angle) based on rotvel.y.
    C original: physics.cpp set_object_turnroll
    Constants: TURNROLL_SCALE = 0x4ec4/2, ROLL_RATE = 0x2000.
