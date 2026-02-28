@@ -176,6 +176,7 @@ static const value* g_create_all_vertnum_lists = NULL;
 static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
+static const value* g_object_intersects_wall = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -301,7 +302,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_create_all_vertnum_lists
           && g_robot_get_anim_state
           && g_set_robot_state
-          && g_robot_set_angles))
+          && g_robot_set_angles
+          && g_object_intersects_wall))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -443,6 +445,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
+    g_object_intersects_wall = caml_named_value("cd_object_intersects_wall");
 
     if (!g_i2f
         || !g_f2i
@@ -565,7 +568,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_create_all_vertnum_lists
         || !g_robot_get_anim_state
         || !g_set_robot_state
-        || !g_robot_set_angles)
+        || !g_robot_set_angles
+        || !g_object_intersects_wall)
     {
         return 1;
     }
@@ -685,7 +689,8 @@ int cd_ox_is_ready(void)
            && g_create_walls_on_side
            && g_robot_get_anim_state
            && g_set_robot_state
-           && g_robot_set_angles;
+           && g_robot_set_angles
+           && g_object_intersects_wall;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3082,5 +3087,17 @@ int cd_ox_openable_doors_in_segment_d2(const int32_t* packed, int packed_len)
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
     int result = Int_val(caml_callback(*g_openable_doors_in_segment_d2, arr));
+    CAMLreturnT(int, result);
+}
+
+int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_object_intersects_wall");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_object_intersects_wall, arr));
     CAMLreturnT(int, result);
 }

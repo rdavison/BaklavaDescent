@@ -748,6 +748,11 @@ int cd_ox_ai_door_is_openable_d2(
 int cd_ox_openable_doors_in_segment_d1(const int32_t* packed, int packed_len);
 int cd_ox_openable_doors_in_segment_d2(const int32_t* packed, int packed_len);
 
+/* object_intersects_wall: check if sphere pokes through any wall.
+   packed layout: header(6) + n_segments × 80 ints per segment.
+   Returns 1 if intersects, 0 if not. */
+int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

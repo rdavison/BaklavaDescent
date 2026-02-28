@@ -121,7 +121,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Unported
 - [ ] find_vector_intersection — top-level FVI dispatcher (walks segment tree, calls check_line_to_face per side)
 - [ ] fvi_sub — recursive FVI traversal
-- [ ] sphere_intersects_wall — sphere-wall intersection
+- [x] sphere_intersects_wall / object_intersects_wall — sphere-wall intersection (recursive, pre-packed segments)
 - [ ] check_line_to_seg_face — line-segment-face check wrapper
 - [ ] fvi_hit_object — checks all objects in segment for intersection
 

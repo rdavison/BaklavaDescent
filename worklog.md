@@ -1255,3 +1255,24 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §36 — Port sphere_intersects_wall / object_intersects_wall to OxCaml
+
+- **Functions:** `sphere_intersects_wall` (recursive segment traversal) and `object_intersects_wall` (thin wrapper). D1 and D2 are functionally identical — single shared OCaml implementation.
+
+- **Challenge:** The function recurses into adjacent segments at runtime, reading `Segments[]` and `Vertices[]` globals. Previously deemed "not portable" due to this.
+
+- **Solution:** Pre-pack ALL segment data at the C callsite (`object_intersects_wall`), pass as a flat int array to OCaml. OCaml does the full recursive traversal with a visited-set array. All inner geometry functions (`get_seg_masks`, `create_abs_vertex_lists`, `check_sphere_to_face`, `lookup_vpos`) are already ported.
+
+- **Packed array layout:** Header (6 ints: pnt.xyz, rad, segnum, n_segments) + per-segment blocks (80 ints each: children[6], side_types[6], seg_verts[8], normals[36], vertex_positions[24]). Total = 6 + n_segments × 80 ints.
+
+- **Bridge design:** `#ifdef USE_OX_BRIDGE` replaces the entire `object_intersects_wall` body in both D1 and D2. Packs all segments, calls `cd_ox_object_intersects_wall`, frees buffer. The C `sphere_intersects_wall` is untouched (only called from `object_intersects_wall`).
+
+- **Files modified:** `ox/ox_fvi.ml`, `ox/fvi_bridge.ml`, `ox/bridge.c`, `ox/bridge.h`, `main_d1/fvi.cpp`, `main_d2/fvi.cpp`, `ox/tests/parity_expect.ml`, `CHECKLIST.md`.
+
+- **Parity tests:** 5 expect tests — tiny segment inside tolerance (0), sphere at center of solid-walled segment (1), sphere near shared face with child traversal (0), sphere hits solid wall with one open side (1), cycle prevention with mutual children (0).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

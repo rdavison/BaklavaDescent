@@ -333,6 +333,113 @@ let obj_weapon = 5
      otherobj_parent_type - otherobj->ctype.laser_info.parent_type
 
    Returns: (distance, intersection_point) — 0 distance means no hit *)
+(* sphere_intersects_wall: check whether a sphere pokes through any wall
+   of its segment, recursing into adjacent connected segments.
+
+   Packed array layout:
+   Header (6 ints): pnt.x, pnt.y, pnt.z, rad, segnum, n_segments
+   Per-segment (80 ints each):
+     [0..5]   children[0..5]
+     [6..11]  side_types[0..5]
+     [12..19] seg_verts[0..7] (absolute vertex indices)
+     [20..55] normals: side 0..5, normals[0].xyz then normals[1].xyz
+     [56..79] vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz
+
+   Returns 1 if sphere intersects a solid wall, 0 otherwise.
+   IS_CHILD(child) = child > -1. *)
+let sphere_intersects_wall (arr : int array) =
+  let pnt = arr.(0), arr.(1), arr.(2) in
+  let rad = arr.(3) in
+  let start_segnum = arr.(4) in
+  let n_segments = arr.(5) in
+  let header = 6 in
+  let per_seg = 80 in
+  (* Build a segnum -> index map. We use a simple scan since segment numbers
+     may be sparse. The C callsite packs segments in order, and we need to
+     map segment numbers to their offset in the packed array. We'll store
+     the segment numbers in an array and do linear lookup, or we can use
+     the children values directly as segment numbers and find them. *)
+  (* Actually, the C callsite packs ALL segments (Highest_segment_index+1),
+     indexed directly by segment number. So segment i's data is at
+     header + i * per_seg. *)
+  let visited = Array.create ~len:n_segments false in
+  let get_seg_base segnum = header + (segnum * per_seg) in
+  let rec walk segnum =
+    if segnum < 0 || segnum >= n_segments
+    then 0
+    else if visited.(segnum)
+    then 0
+    else (
+      visited.(segnum) <- true;
+      let base = get_seg_base segnum in
+      let children = Array.init 6 ~f:(fun i -> arr.(base + i)) in
+      let side_types = Array.init 6 ~f:(fun i -> arr.(base + 6 + i)) in
+      let seg_verts = Array.init 8 ~f:(fun i -> arr.(base + 12 + i)) in
+      let normals =
+        Array.init 12 ~f:(fun i ->
+          let off = base + 20 + (i * 3) in
+          arr.(off), arr.(off + 1), arr.(off + 2))
+      in
+      let seg_vert_positions =
+        Array.init 8 ~f:(fun i ->
+          let off = base + 56 + (i * 3) in
+          arr.(off), arr.(off + 1), arr.(off + 2))
+      in
+      (* get_seg_masks to find facemask *)
+      let facemask, _sidemask, _centermask =
+        Ox_gameseg.get_seg_masks
+          ~checkp:pnt
+          ~rad
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if facemask = 0
+      then 0
+      else (
+        let result = ref 0 in
+        let facebit = ref 1 in
+        let side = ref 0 in
+        while !side < 6 && facemask >= !facebit && !result = 0 do
+          let face = ref 0 in
+          while !face < 2 && !result = 0 do
+            if facemask land !facebit <> 0
+            then (
+              let sn = !side in
+              let fn = !face in
+              let _num_faces, vertex_list =
+                Ox_gameseg.create_abs_vertex_lists
+                  ~side_type:side_types.(sn)
+                  ~seg_verts
+                  ~sidenum:sn
+              in
+              let nv = if _num_faces = 1 then 4 else 3 in
+              let norm = normals.((sn * 2) + fn) in
+              (* Build vertex positions for this face *)
+              let vpos abs_idx =
+                Ox_gameseg.lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx
+              in
+              let face_verts =
+                Array.init nv ~f:(fun i -> vpos vertex_list.((fn * 3) + i))
+              in
+              let face_hit_type =
+                check_sphere_to_face ~pnt ~norm ~nv ~rad ~vertex_positions:face_verts
+              in
+              if face_hit_type <> 0
+              then (
+                let child = children.(sn) in
+                if child <= -1 then result := 1 else if walk child <> 0 then result := 1));
+            facebit := !facebit lsl 1;
+            incr face
+          done;
+          incr side
+        done;
+        !result))
+  in
+  walk start_segnum
+;;
+
 let check_vector_to_object
       ~p0
       ~p1

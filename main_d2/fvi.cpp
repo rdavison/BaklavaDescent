@@ -1490,9 +1490,66 @@ int sphere_intersects_wall(vms_vector *pnt,int segnum,fix rad)
 //Returns true if the object is through any walls
 int object_intersects_wall(object *objp)
 {
+#ifdef USE_OX_BRIDGE
+	int n_segments = Highest_segment_index + 1;
+	int packed_len = 6 + n_segments * 80;
+	int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
+	if (!packed) return 0;
+
+	// Header
+	packed[0] = objp->pos.x;
+	packed[1] = objp->pos.y;
+	packed[2] = objp->pos.z;
+	packed[3] = objp->size;
+	packed[4] = objp->segnum;
+	packed[5] = n_segments;
+
+	// Per-segment data (80 ints each)
+	for (int s = 0; s < n_segments; s++)
+	{
+		segment* seg = &Segments[s];
+		int base = 6 + s * 80;
+
+		// children[0..5]
+		for (int i = 0; i < 6; i++)
+			packed[base + i] = seg->children[i];
+
+		// side_types[0..5]
+		for (int i = 0; i < 6; i++)
+			packed[base + 6 + i] = seg->sides[i].type;
+
+		// seg_verts[0..7]
+		for (int i = 0; i < 8; i++)
+			packed[base + 12 + i] = seg->verts[i];
+
+		// normals: side 0..5, normals[0].xyz then normals[1].xyz = 36 ints
+		for (int i = 0; i < 6; i++)
+		{
+			packed[base + 20 + i * 6 + 0] = seg->sides[i].normals[0].x;
+			packed[base + 20 + i * 6 + 1] = seg->sides[i].normals[0].y;
+			packed[base + 20 + i * 6 + 2] = seg->sides[i].normals[0].z;
+			packed[base + 20 + i * 6 + 3] = seg->sides[i].normals[1].x;
+			packed[base + 20 + i * 6 + 4] = seg->sides[i].normals[1].y;
+			packed[base + 20 + i * 6 + 5] = seg->sides[i].normals[1].z;
+		}
+
+		// vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz = 24 ints
+		for (int i = 0; i < 8; i++)
+		{
+			packed[base + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+			packed[base + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+			packed[base + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+		}
+	}
+
+	int result = cd_ox_object_intersects_wall(packed, packed_len);
+	free(packed);
+	return result;
+#else
 	n_segs_visited = 0;
 
 	return sphere_intersects_wall(&objp->pos,objp->segnum,objp->size);
+#endif
 }
 
 

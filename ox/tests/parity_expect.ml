@@ -11550,3 +11550,208 @@ let%expect_test "openable_doors_d2 - skip hidden, find next" =
   printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
   [%expect {| 2 |}]
 ;;
+
+(* --- sphere_intersects_wall parity tests --- *)
+
+(* Helper: build a cube segment's 80-int data block.
+   The cube spans [cx-half..cx+half] in each axis.
+   Vertex ordering matches Descent's segment vertex layout:
+     verts 0-3: front face (z=cz-half), 4-7: back face (z=cz+half)
+     0=(x-,y-,z-) 1=(x+,y-,z-) 2=(x+,y+,z-) 3=(x-,y+,z-)
+     4=(x-,y-,z+) 5=(x+,y-,z+) 6=(x+,y+,z+) 7=(x-,y+,z+)
+
+   Side ordering (from segment.h):
+     0=left(WLEFT:7623), 1=top(WTOP:0473), 2=right(WRIGHT:0154),
+     3=bottom(WBOTTOM:2651), 4=back(WBACK:4567), 5=front(WFRONT:3210)
+
+   Normals point inward (toward center) for a segment with no children.
+   All sides are SIDE_IS_QUAD (type=1), so normals[0]=normals[1] per side.
+
+   children: array of 6 child segment numbers (-1 = solid wall).
+   vert_base: starting absolute vertex index for this segment's 8 verts. *)
+let mk_seg_data ~cx ~cy ~cz ~half ~children ~vert_base =
+  let h = half in
+  (* 8 vertex positions *)
+  let vpos =
+    [| cx - h, cy - h, cz - h (* 0 *)
+     ; cx + h, cy - h, cz - h (* 1 *)
+     ; cx + h, cy + h, cz - h (* 2 *)
+     ; cx - h, cy + h, cz - h (* 3 *)
+     ; cx - h, cy - h, cz + h (* 4 *)
+     ; cx + h, cy - h, cz + h (* 5 *)
+     ; cx + h, cy + h, cz + h (* 6 *)
+     ; cx - h, cy + h, cz + h (* 7 *)
+    |]
+  in
+  (* Outward-pointing normals for each side (matching Descent convention).
+     Computed from side_to_verts winding via cross product of first two edges. *)
+  let f1 = 0x10000 in
+  let side_normals =
+    [| 0, f1, 0 (* side 0: verts 7,6,2,3 → y=+h face, normal +y *)
+     ; -f1, 0, 0 (* side 1: verts 0,4,7,3 → x=-h face, normal -x *)
+     ; 0, -f1, 0 (* side 2: verts 0,1,5,4 → y=-h face, normal -y *)
+     ; f1, 0, 0 (* side 3: verts 2,6,5,1 → x=+h face, normal +x *)
+     ; 0, 0, f1 (* side 4: verts 4,5,6,7 → z=+h face, normal +z *)
+     ; 0, 0, -f1 (* side 5: verts 3,2,1,0 → z=-h face, normal -z *)
+    |]
+  in
+  let buf = Array.create ~len:80 0 in
+  (* children[0..5] *)
+  for i = 0 to 5 do
+    buf.(i) <- children.(i)
+  done;
+  (* side_types[0..5] = all SIDE_IS_QUAD *)
+  for i = 0 to 5 do
+    buf.(6 + i) <- 1
+  done;
+  (* seg_verts[0..7] = absolute vertex indices *)
+  for i = 0 to 7 do
+    buf.(12 + i) <- vert_base + i
+  done;
+  (* normals: 6 sides × 2 normals × 3 components = 36 ints *)
+  for s = 0 to 5 do
+    let nx, ny, nz = side_normals.(s) in
+    (* normals[0] *)
+    buf.(20 + (s * 6) + 0) <- nx;
+    buf.(20 + (s * 6) + 1) <- ny;
+    buf.(20 + (s * 6) + 2) <- nz;
+    (* normals[1] = same for quad *)
+    buf.(20 + (s * 6) + 3) <- nx;
+    buf.(20 + (s * 6) + 4) <- ny;
+    buf.(20 + (s * 6) + 5) <- nz
+  done;
+  (* vertex_positions: 8 verts × 3 components = 24 ints *)
+  for i = 0 to 7 do
+    let x, y, z = vpos.(i) in
+    buf.(56 + (i * 3) + 0) <- x;
+    buf.(56 + (i * 3) + 1) <- y;
+    buf.(56 + (i * 3) + 2) <- z
+  done;
+  buf
+;;
+
+let mk_sphere_wall_packed ~pnt:(px, py, pz) ~rad ~segnum ~seg_blocks =
+  let n_segments = Array.length seg_blocks in
+  let header = [| px; py; pz; rad; segnum; n_segments |] in
+  Array.concat (header :: Array.to_list seg_blocks)
+;;
+
+let%expect_test "sphere_intersects_wall - tiny segment, sphere inside tolerance" =
+  (* Segment so small that d-rad > -plane_dist_tolerance(250) for all faces.
+     half=100, rad=50: d=-100 per face, d-rad=-150 > -250 → facemask=0 → returns 0 *)
+  let children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg = mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:100 ~children ~vert_base:0 in
+  let packed =
+    mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:50 ~segnum:0 ~seg_blocks:[| seg |]
+  in
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  [%expect {| 0 |}]
+;;
+
+let%expect_test "sphere_intersects_wall - sphere at face, solid wall (intersects)" =
+  let f1 = 0x10000 in
+  let children = [| -1; -1; -1; -1; -1; -1 |] in
+  (* Sphere at center of large segment. All faces flagged, all children=-1 → hits. *)
+  let seg = mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children ~vert_base:0 in
+  let packed =
+    mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg |]
+  in
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  [%expect {| 1 |}]
+;;
+
+let%expect_test "sphere_intersects_wall - sphere near shared face, no solid hit" =
+  let f1 = 0x10000 in
+  (* Two adjacent segments along the x axis sharing the x=+h face of seg 0.
+     Seg 0: x=[-5,+5], seg 1: x=[+5,+15]. Both have half=5*f1.
+     Sphere at x=+4 (near the shared face), rad=2*f1.
+     Side 3 of seg 0 (x=+h, normal +x) has child=1.
+     The sphere pokes through side 3 into seg 1, but in seg 1 the sphere is
+     at x=+4 which is only 1*f1 inside from the x=+5 face of seg 1 (side 1).
+     The sphere does NOT poke through seg 1's far wall at x=+15.
+     Other sides of seg 0 have children pointing to seg 1 so no solid hits.
+     This tests the traversal path: seg 0 → seg 1 → no further hits → 0. *)
+  let seg0_children = [| 1; 1; 1; 1; 1; 1 |] in
+  let seg0 =
+    mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children:seg0_children ~vert_base:0
+  in
+  let seg1_children = [| 0; 0; 0; 0; 0; 0 |] in
+  let seg1 =
+    mk_seg_data
+      ~cx:(10 * f1)
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg1_children
+      ~vert_base:8
+  in
+  (* Sphere at x=4*f1, well inside seg 0 but pokes through all faces due to
+     get_seg_masks reporting everything. In seg 1, sphere is at x=4*f1 which
+     is 11*f1 from the x=+15 face — well inside. But actually the sphere
+     center is at x=4*f1 while seg 1's x=-h face is at x=5*f1, so d for that
+     face = dot((-1,0,0), (4*f1-5*f1, ...)) = dot((-1,0,0), (-f1,...)) = f1 > 0.
+     Positive d means sphere is on the OUTSIDE (normal side) of that face.
+     d-rad = f1-2*f1 = -f1 < -250 → face IS flagged.
+     But check_sphere_to_face: the sphere center projects inside the face at
+     distance f1, which is less than rad=2*f1, so it's a hit. Then child=0
+     but seg 0 is already visited → skip. Other faces of seg 1: sphere is well
+     inside → children all point to seg 0 (visited) → skip. Returns 0! *)
+  let packed =
+    mk_sphere_wall_packed
+      ~pnt:(4 * f1, 0, 0)
+      ~rad:(2 * f1)
+      ~segnum:0
+      ~seg_blocks:[| seg0; seg1 |]
+  in
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  [%expect {| 0 |}]
+;;
+
+let%expect_test "sphere_intersects_wall - sphere hits solid wall on one side" =
+  let f1 = 0x10000 in
+  (* Seg 0 at center. Side 3 (x=+h, +x normal) has child=1.
+     All other sides are solid (-1).
+     Sphere at center → facemask set for all faces. check_sphere_to_face hits.
+     Side 0 (y=+h) child=-1 → returns 1 immediately. *)
+  let seg0_children = [| -1; -1; -1; 1; -1; -1 |] in
+  let seg0 =
+    mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children:seg0_children ~vert_base:0
+  in
+  let seg1_children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg1 =
+    mk_seg_data
+      ~cx:(10 * f1)
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg1_children
+      ~vert_base:8
+  in
+  let packed =
+    mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg0; seg1 |]
+  in
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  [%expect {| 1 |}]
+;;
+
+let%expect_test "sphere_intersects_wall - cycle prevention" =
+  let f1 = 0x10000 in
+  (* Seg 0 and seg 1 are mutual neighbors. Seg 0 children all point to seg 1,
+     seg 1 children all point to seg 0. Sphere at center of seg 0.
+     After visiting seg 0, recursing to seg 1, seg 1 tries to go back to seg 0
+     but it's already visited. Seg 1 has no other solid walls to hit because
+     all its children point to already-visited seg 0 → returns 0. *)
+  let seg0_children = [| 1; 1; 1; 1; 1; 1 |] in
+  let seg0 =
+    mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children:seg0_children ~vert_base:0
+  in
+  let seg1_children = [| 0; 0; 0; 0; 0; 0 |] in
+  let seg1 =
+    mk_seg_data ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children:seg1_children ~vert_base:8
+  in
+  let packed =
+    mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg0; seg1 |]
+  in
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  [%expect {| 0 |}]
+;;
