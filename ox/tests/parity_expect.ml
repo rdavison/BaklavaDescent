@@ -10914,3 +10914,97 @@ let%expect_test "extract_shortpos" =
       vel: (4096, 8192, 12288)
     |}]
 ;;
+
+(* --- create_walls_on_side parity -------------------------------------- *)
+let%expect_test "create_walls_on_side - planar quad" =
+  (* A perfectly planar quad (all 4 verts coplanar) should return SIDE_IS_QUAD=1 *)
+  let v0 = 0, 0, 0 in
+  let v1 = 65536, 0, 0 in
+  let v2 = 65536, 65536, 0 in
+  let v3 = 0, 65536, 0 in
+  let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z) =
+    Ox_gameseg.create_walls_on_side
+      ~v0
+      ~v1
+      ~v2
+      ~v3
+      ~vi0:10
+      ~vi1:20
+      ~vi2:30
+      ~vi3:40
+      ~has_child:false
+  in
+  printf "planar quad:\n";
+  printf "  type=%d\n" side_type;
+  printf "  n0=(%d, %d, %d)\n" n0x n0y n0z;
+  printf "  n1=(%d, %d, %d)\n" n1x n1y n1z;
+  [%expect
+    {|
+    planar quad:
+      type=1
+      n0=(0, 0, 65536)
+      n1=(0, 0, 65536)
+    |}]
+;;
+
+let%expect_test "create_walls_on_side - non-planar no child" =
+  (* Non-planar quad (v3 lifted off plane), no child → should triangulate *)
+  let v0 = 0, 0, 0 in
+  let v1 = 65536, 0, 0 in
+  let v2 = 65536, 65536, 0 in
+  let v3 = 0, 65536, 32768 in
+  let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z) =
+    Ox_gameseg.create_walls_on_side
+      ~v0
+      ~v1
+      ~v2
+      ~v3
+      ~vi0:10
+      ~vi1:20
+      ~vi2:30
+      ~vi3:40
+      ~has_child:false
+  in
+  printf "non-planar no child:\n";
+  printf "  type=%d\n" side_type;
+  printf "  n0=(%d, %d, %d)\n" n0x n0y n0z;
+  printf "  n1=(%d, %d, %d)\n" n1x n1y n1z;
+  [%expect
+    {|
+    non-planar no child:
+      type=2
+      n0=(0, 0, 65536)
+      n1=(26754, -26754, 53509)
+    |}]
+;;
+
+let%expect_test "create_walls_on_side - non-planar with child (wall)" =
+  (* Non-planar quad with child → wall case triangulation *)
+  let v0 = 0, 0, 0 in
+  let v1 = 65536, 0, 0 in
+  let v2 = 65536, 65536, 0 in
+  let v3 = 0, 65536, 32768 in
+  let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z) =
+    Ox_gameseg.create_walls_on_side
+      ~v0
+      ~v1
+      ~v2
+      ~v3
+      ~vi0:10
+      ~vi1:20
+      ~vi2:30
+      ~vi3:40
+      ~has_child:true
+  in
+  printf "non-planar with child:\n";
+  printf "  type=%d\n" side_type;
+  printf "  n0=(%d, %d, %d)\n" n0x n0y n0z;
+  printf "  n1=(%d, %d, %d)\n" n1x n1y n1z;
+  [%expect
+    {|
+    non-planar with child:
+      type=2
+      n0=(0, 0, 65536)
+      n1=(26754, -26754, 53509)
+    |}]
+;;

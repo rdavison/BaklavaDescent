@@ -370,3 +370,122 @@ let extract_shortpos
   let vel = velx lsl vel_precision, vely lsl vel_precision, velz lsl vel_precision in
   orient, pos, vel
 ;;
+
+(* --- create_walls_on_side --------------------------------------------- *)
+(* Determine side type (quad or triangulated) and compute face normals.
+   Combines C functions: create_walls_on_side, add_side_as_quad, add_side_as_2_triangles.
+   v0..v3: 4 vertex positions (as vec3), vi0..vi3: their absolute vertex indices,
+   has_child: whether there's a child segment on this side.
+   Returns (side_type, normal0, normal1). *)
+
+let side_is_quad = 1
+let side_is_tri_02 = 2
+let side_is_tri_13 = 3
+let plane_dist_tolerance = 250
+let vec_negate (x, y, z) = -x, -y, -z
+
+(* Helper: look up vertex position by absolute index from our 4 known vertices *)
+let make_pos_lookup ~v0 ~vi0 ~v1 ~vi1 ~v2 ~vi2 ~v3 ~vi3 =
+  fun vi ->
+  if vi = vi0
+  then v0
+  else if vi = vi1
+  then v1
+  else if vi = vi2
+  then v2
+  else if vi = vi3
+  then v3
+  else failwith "create_walls_on_side: unknown vertex index"
+;;
+
+(* add_side_as_2_triangles logic: determine triangulation and compute normals *)
+let triangulate_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child =
+  let pos_of = make_pos_lookup ~v0 ~vi0 ~v1 ~vi1 ~v2 ~vi2 ~v3 ~vi3 in
+  if not has_child
+  then (
+    (* Non-wall case: use dot product to choose triangulation *)
+    let norm = Ox_math.vm_vec_normal ~p0:v0 ~p1:v1 ~p2:v2 in
+    let vec_13 = Ox_math.vm_vec_sub ~a:v3 ~b:v1 in
+    let dot = Ox_math.vm_vec_dotprod ~a:norm ~b:vec_13 in
+    if dot >= 0
+    then (
+      let n0 = Ox_math.vm_vec_normal ~p0:v0 ~p1:v1 ~p2:v2 in
+      let n1 = Ox_math.vm_vec_normal ~p0:v0 ~p1:v2 ~p2:v3 in
+      side_is_tri_02, n0, n1)
+    else (
+      let n0 = Ox_math.vm_vec_normal ~p0:v0 ~p1:v1 ~p2:v3 in
+      let n1 = Ox_math.vm_vec_normal ~p0:v1 ~p1:v2 ~p2:v3 in
+      side_is_tri_13, n0, n1))
+  else (
+    (* Wall case: use get_verts_for_normal for consistent normals *)
+    let vs0, _vs1, _vs2, _vs3, _nf =
+      get_verts_for_normal ~va:vi0 ~vb:vi1 ~vc:vi2 ~vd:vi3
+    in
+    if vs0 = vi0 || vs0 = vi2
+    then (
+      (* TRI_02 *)
+      let s0, s1, s2, _, nf0 = get_verts_for_normal ~va:vi0 ~vb:vi1 ~vc:vi2 ~vd:32767 in
+      let n0 = Ox_math.vm_vec_normal ~p0:(pos_of s0) ~p1:(pos_of s1) ~p2:(pos_of s2) in
+      let n0 = if nf0 <> 0 then vec_negate n0 else n0 in
+      let s0, s1, s2, _, nf1 = get_verts_for_normal ~va:vi0 ~vb:vi2 ~vc:vi3 ~vd:32767 in
+      let n1 = Ox_math.vm_vec_normal ~p0:(pos_of s0) ~p1:(pos_of s1) ~p2:(pos_of s2) in
+      let n1 = if nf1 <> 0 then vec_negate n1 else n1 in
+      side_is_tri_02, n0, n1)
+    else (
+      (* TRI_13 *)
+      let s0, s1, s2, _, nf0 = get_verts_for_normal ~va:vi0 ~vb:vi1 ~vc:vi3 ~vd:32767 in
+      let n0 = Ox_math.vm_vec_normal ~p0:(pos_of s0) ~p1:(pos_of s1) ~p2:(pos_of s2) in
+      let n0 = if nf0 <> 0 then vec_negate n0 else n0 in
+      let s0, s1, s2, _, nf1 = get_verts_for_normal ~va:vi1 ~vb:vi2 ~vc:vi3 ~vd:32767 in
+      let n1 = Ox_math.vm_vec_normal ~p0:(pos_of s0) ~p1:(pos_of s1) ~p2:(pos_of s2) in
+      let n1 = if nf1 <> 0 then vec_negate n1 else n1 in
+      side_is_tri_13, n0, n1))
+;;
+
+let create_walls_on_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child =
+  let pos_of = make_pos_lookup ~v0 ~vi0 ~v1 ~vi1 ~v2 ~vi2 ~v3 ~vi3 in
+  (* Step 1: Sort vertices, compute plane normal and planarity *)
+  let vm0, vm1, vm2, vm3, negate_flag =
+    get_verts_for_normal ~va:vi0 ~vb:vi1 ~vc:vi2 ~vd:vi3
+  in
+  let vn = Ox_math.vm_vec_normal ~p0:(pos_of vm0) ~p1:(pos_of vm1) ~p2:(pos_of vm2) in
+  let dist =
+    abs (Ox_math.vm_dist_to_plane ~checkp:(pos_of vm3) ~norm:vn ~planep:(pos_of vm0))
+  in
+  let vn = if negate_flag <> 0 then vec_negate vn else vn in
+  (* Step 2: If planar, return as quad *)
+  if dist <= plane_dist_tolerance
+  then side_is_quad, vn, vn
+  else (
+    (* Step 3: Triangulate *)
+    let side_type, n0, n1 =
+      triangulate_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child
+    in
+    (* Step 4: De-triangulation check *)
+    (* Build vertex list for the computed triangulation *)
+    let vl =
+      if side_type = side_is_tri_02
+      then [| vi0; vi1; vi2; vi2; vi3; vi0 |]
+      else [| vi3; vi0; vi1; vi1; vi2; vi3 |]
+    in
+    let vertnum = min vl.(0) vl.(2) in
+    let dist0 =
+      Ox_math.vm_dist_to_plane ~checkp:(pos_of vl.(1)) ~norm:n1 ~planep:(pos_of vertnum)
+    in
+    let dist1 =
+      Ox_math.vm_dist_to_plane ~checkp:(pos_of vl.(4)) ~norm:n0 ~planep:(pos_of vertnum)
+    in
+    let sign v =
+      if v > plane_dist_tolerance
+      then 1
+      else if v < -(plane_dist_tolerance + 1)
+      then -1
+      else 0
+    in
+    let s0 = sign dist0 in
+    let s1 = sign dist1 in
+    if s0 = 0 || s1 = 0 || s0 <> s1
+    then (* De-triangulate back to quad *)
+      side_is_quad, vn, vn
+    else side_type, n0, n1)
+;;

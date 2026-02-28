@@ -1174,3 +1174,24 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §32 — Port create_walls_on_side (+ add_side_as_quad, add_side_as_2_triangles)
+
+- **Scope:** `create_walls_on_side` and its two helpers `add_side_as_quad` and `add_side_as_2_triangles`. All combined into a single OCaml function. Identical logic between D1 and D2.
+
+- **`create_walls_on_side`** — Determines whether a segment side is planar (quad) or non-planar (triangulated), computes face normals accordingly. Core algorithm: sort 4 vertices via `get_verts_for_normal`, compute plane normal, check dist_to_plane. If within tolerance → quad. Otherwise → triangulate, then run a de-triangulation check to revert bogus triangulations.
+
+- **`add_side_as_2_triangles`** (inlined) — Two code paths: non-wall uses dot product to choose TRI_02/TRI_13, wall case uses `get_verts_for_normal` with sentinel value (32767) for consistent cross-segment normals.
+
+- **`add_side_as_quad`** (inlined) — Trivially sets type=QUAD and copies normal to both slots.
+
+- **Interface:** Packed 17 ints in (v0..v3 positions, vi0..vi3 absolute indices, has_child flag), returns 7 ints (side_type, normal0, normal1). No new modules needed — added to existing `ox_gameseg.ml` and `gameseg_bridge.ml`.
+
+- **Key design:** Passes vertex positions AND absolute indices through the bridge. OCaml uses a lookup closure (`make_pos_lookup`) to map from sorted vertex indices back to positions, avoiding global Vertices[] access.
+
+- **Parity tests:** 3 expect tests covering planar quad, non-planar without child (non-wall triangulation), non-planar with child (wall triangulation).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

@@ -1618,6 +1618,34 @@ int sign(fix v)
 // -------------------------------------------------------------------------------
 void create_walls_on_side(segment* sp, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] create_walls_on_side using cd_ox_create_walls_on_side.\n");
+		ox_bridge_logged = 1;
+	}
+	int v0 = sp->verts[Side_to_verts[sidenum][0]];
+	int v1 = sp->verts[Side_to_verts[sidenum][1]];
+	int v2 = sp->verts[Side_to_verts[sidenum][2]];
+	int v3 = sp->verts[Side_to_verts[sidenum][3]];
+	int32_t packed[17];
+	packed[0] = Vertices[v0].x; packed[1] = Vertices[v0].y; packed[2] = Vertices[v0].z;
+	packed[3] = Vertices[v1].x; packed[4] = Vertices[v1].y; packed[5] = Vertices[v1].z;
+	packed[6] = Vertices[v2].x; packed[7] = Vertices[v2].y; packed[8] = Vertices[v2].z;
+	packed[9] = Vertices[v3].x; packed[10] = Vertices[v3].y; packed[11] = Vertices[v3].z;
+	packed[12] = v0; packed[13] = v1; packed[14] = v2; packed[15] = v3;
+	packed[16] = IS_CHILD(sp->children[sidenum]) ? 1 : 0;
+	int32_t out_buf[7];
+	cd_ox_create_walls_on_side(packed, 17, out_buf);
+	sp->sides[sidenum].type = out_buf[0];
+	sp->sides[sidenum].normals[0].x = out_buf[1];
+	sp->sides[sidenum].normals[0].y = out_buf[2];
+	sp->sides[sidenum].normals[0].z = out_buf[3];
+	sp->sides[sidenum].normals[1].x = out_buf[4];
+	sp->sides[sidenum].normals[1].y = out_buf[5];
+	sp->sides[sidenum].normals[1].z = out_buf[6];
+#else
 	int	vm0, vm1, vm2, vm3, negate_flag;
 	int	v0, v1, v2, v3;
 	vms_vector vn;
@@ -1633,35 +1661,14 @@ void create_walls_on_side(segment* sp, int sidenum)
 	vm_vec_normal(&vn, &Vertices[vm0], &Vertices[vm1], &Vertices[vm2]);
 	dist_to_plane = abs(vm_dist_to_plane(&Vertices[vm3], &vn, &Vertices[vm0]));
 
-	//if ((sp-Segments == 0x7b) && (sidenum == 3)) {
-	//	mprintf((0, "Verts = %3i %3i %3i %3i, negate flag = %3i, dist = %8x\n", vm0, vm1, vm2, vm3, negate_flag, dist_to_plane));
-	//	mprintf((0, "  Normal = %8x %8x %8x\n", vn.x, vn.y, vn.z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm0, Vertices[vm0].x, Vertices[vm0].y, Vertices[vm0].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm1, Vertices[vm1].x, Vertices[vm1].y, Vertices[vm1].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm2, Vertices[vm2].x, Vertices[vm2].y, Vertices[vm2].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm3, Vertices[vm3].x, Vertices[vm3].y, Vertices[vm3].z));
-	//}
-
-	//if ((sp-Segments == 0x86) && (sidenum == 5)) {
-	//	mprintf((0, "Verts = %3i %3i %3i %3i, negate flag = %3i, dist = %8x\n", vm0, vm1, vm2, vm3, negate_flag, dist_to_plane));
-	//	mprintf((0, "  Normal = %8x %8x %8x\n", vn.x, vn.y, vn.z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm0, Vertices[vm0].x, Vertices[vm0].y, Vertices[vm0].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm1, Vertices[vm1].x, Vertices[vm1].y, Vertices[vm1].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm2, Vertices[vm2].x, Vertices[vm2].y, Vertices[vm2].z));
-	//	mprintf((0, "   Vert %3i = [%8x %8x %8x]\n", vm3, Vertices[vm3].x, Vertices[vm3].y, Vertices[vm3].z));
-	//}
-
 	if (negate_flag)
 		vm_vec_negate(&vn);
 
 	if (dist_to_plane <= PLANE_DIST_TOLERANCE)
 		add_side_as_quad(sp, sidenum, &vn);
-	else 
+	else
 	{
 		add_side_as_2_triangles(sp, sidenum);
-
-		//this code checks to see if we really should be triangulated, and
-		//de-triangulates if we shouldn't be.
 
 		{
 			int			num_faces;
@@ -1685,7 +1692,7 @@ void create_walls_on_side(segment* sp, int sidenum)
 			s0 = sign(dist0);
 			s1 = sign(dist1);
 
-			if (s0 == 0 || s1 == 0 || s0 != s1) 
+			if (s0 == 0 || s1 == 0 || s0 != s1)
 			{
 				sp->sides[sidenum].type = SIDE_IS_QUAD; 	//detriangulate!
 				sp->sides[sidenum].normals[0] = vn;
@@ -1694,7 +1701,7 @@ void create_walls_on_side(segment* sp, int sidenum)
 
 		}
 	}
-
+#endif
 }
 
 // -------------------------------------------------------------------------------

@@ -196,6 +196,25 @@ let cd_extract_shortpos (packed : int array) =
   buf
 ;;
 
+(* create_walls_on_side: packed int array → int array (7 ints)
+   Input: [v0(3), v1(3), v2(3), v3(3), vi0, vi1, vi2, vi3, has_child] = 17 ints
+   Output: [side_type, n0x, n0y, n0z, n1x, n1y, n1z] = 7 ints *)
+let cd_create_walls_on_side (packed : int array) =
+  let v0 = packed.(0), packed.(1), packed.(2) in
+  let v1 = packed.(3), packed.(4), packed.(5) in
+  let v2 = packed.(6), packed.(7), packed.(8) in
+  let v3 = packed.(9), packed.(10), packed.(11) in
+  let vi0 = packed.(12) in
+  let vi1 = packed.(13) in
+  let vi2 = packed.(14) in
+  let vi3 = packed.(15) in
+  let has_child = packed.(16) <> 0 in
+  let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z) =
+    Ox_gameseg.create_walls_on_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child
+  in
+  [| side_type; n0x; n0y; n0z; n1x; n1y; n1z |]
+;;
+
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -207,5 +226,6 @@ let () =
   Callback.register "cd_extract_orient_from_segment" cd_extract_orient_from_segment;
   Callback.register "cd_find_connect_side" cd_find_connect_side;
   Callback.register "cd_create_shortpos" cd_create_shortpos;
-  Callback.register "cd_extract_shortpos" cd_extract_shortpos
+  Callback.register "cd_extract_shortpos" cd_extract_shortpos;
+  Callback.register "cd_create_walls_on_side" cd_create_walls_on_side
 ;;

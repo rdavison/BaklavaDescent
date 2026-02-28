@@ -165,6 +165,7 @@ static const value* g_calc_controlcen_gun_point = NULL;
 static const value* g_find_connect_side = NULL;
 static const value* g_create_shortpos = NULL;
 static const value* g_extract_shortpos = NULL;
+static const value* g_create_walls_on_side = NULL;
 static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
@@ -283,6 +284,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_find_connect_side
           && g_create_shortpos
           && g_extract_shortpos
+          && g_create_walls_on_side
           && g_robot_get_anim_state
           && g_set_robot_state
           && g_robot_set_angles))
@@ -416,6 +418,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_connect_side = caml_named_value("cd_find_connect_side");
     g_create_shortpos = caml_named_value("cd_create_shortpos");
     g_extract_shortpos = caml_named_value("cd_extract_shortpos");
+    g_create_walls_on_side = caml_named_value("cd_create_walls_on_side");
     g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
@@ -531,6 +534,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_connect_side
         || !g_create_shortpos
         || !g_extract_shortpos
+        || !g_create_walls_on_side
         || !g_robot_get_anim_state
         || !g_set_robot_state
         || !g_robot_set_angles)
@@ -650,6 +654,7 @@ int cd_ox_is_ready(void)
            && g_find_connect_side
            && g_create_shortpos
            && g_extract_shortpos
+           && g_create_walls_on_side
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles;
@@ -2926,6 +2931,22 @@ void cd_ox_extract_shortpos(
         Store_field(arr, i, Val_long(packed[i]));
     result = caml_callback(*g_extract_shortpos, arr);
     for (int i = 0; i < 15; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_create_walls_on_side(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_create_walls_on_side");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_create_walls_on_side, arr);
+    for (int i = 0; i < 7; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }
