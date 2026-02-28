@@ -11755,3 +11755,186 @@ let%expect_test "sphere_intersects_wall - cycle prevention" =
   printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
   [%expect {| 0 |}]
 ;;
+
+(* --- find_point_seg parity tests --- *)
+
+(* Helper: build a cube segment with INWARD-pointing normals.
+   In Descent, get_side_dists/get_seg_masks use centermask where bit=1 means
+   d < -250 (point is behind the plane). For centermask==0 to indicate
+   "point is inside", the normals must point inward: for an interior point,
+   d = dot(inward_normal, point - planep) > 0 (positive), so no bits are set.
+   This helper is identical to mk_seg_data but with negated normals. *)
+let mk_seg_data_inward ~cx ~cy ~cz ~half ~children ~vert_base =
+  let h = half in
+  let vpos =
+    [| cx - h, cy - h, cz - h
+     ; cx + h, cy - h, cz - h
+     ; cx + h, cy + h, cz - h
+     ; cx - h, cy + h, cz - h
+     ; cx - h, cy - h, cz + h
+     ; cx + h, cy - h, cz + h
+     ; cx + h, cy + h, cz + h
+     ; cx - h, cy + h, cz + h
+    |]
+  in
+  let f1 = 0x10000 in
+  (* Inward-pointing normals (negated from mk_seg_data) *)
+  let side_normals =
+    [| 0, -f1, 0 (* side 0: y=+h face, inward = -y *)
+     ; f1, 0, 0 (* side 1: x=-h face, inward = +x *)
+     ; 0, f1, 0 (* side 2: y=-h face, inward = +y *)
+     ; -f1, 0, 0 (* side 3: x=+h face, inward = -x *)
+     ; 0, 0, -f1 (* side 4: z=+h face, inward = -z *)
+     ; 0, 0, f1 (* side 5: z=-h face, inward = +z *)
+    |]
+  in
+  let buf = Array.create ~len:80 0 in
+  for i = 0 to 5 do
+    buf.(i) <- children.(i)
+  done;
+  for i = 0 to 5 do
+    buf.(6 + i) <- 1
+  done;
+  for i = 0 to 7 do
+    buf.(12 + i) <- vert_base + i
+  done;
+  for s = 0 to 5 do
+    let nx, ny, nz = side_normals.(s) in
+    buf.(20 + (s * 6) + 0) <- nx;
+    buf.(20 + (s * 6) + 1) <- ny;
+    buf.(20 + (s * 6) + 2) <- nz;
+    buf.(20 + (s * 6) + 3) <- nx;
+    buf.(20 + (s * 6) + 4) <- ny;
+    buf.(20 + (s * 6) + 5) <- nz
+  done;
+  for i = 0 to 7 do
+    let x, y, z = vpos.(i) in
+    buf.(56 + (i * 3) + 0) <- x;
+    buf.(56 + (i * 3) + 1) <- y;
+    buf.(56 + (i * 3) + 2) <- z
+  done;
+  buf
+;;
+
+let mk_find_point_seg_packed ~pnt:(px, py, pz) ~segnum ~doing_lighting_hack ~seg_blocks =
+  let n_segments = Array.length seg_blocks in
+  let header = [| px; py; pz; segnum; n_segments; doing_lighting_hack |] in
+  Array.concat (header :: Array.to_list seg_blocks)
+;;
+
+let%expect_test "find_point_seg - point at center of hint segment" =
+  let f1 = 0x10000 in
+  let children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg = mk_seg_data_inward ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children ~vert_base:0 in
+  let packed =
+    mk_find_point_seg_packed
+      ~pnt:(0, 0, 0)
+      ~segnum:0
+      ~doing_lighting_hack:0
+      ~seg_blocks:[| seg |]
+  in
+  printf "%d\n" (Ox_gameseg.find_point_seg packed);
+  [%expect {| 0 |}]
+;;
+
+let%expect_test "find_point_seg - point in adjacent child" =
+  let f1 = 0x10000 in
+  (* Seg 0 at origin, seg 1 adjacent along +x axis.
+     Point at x=8*f1 is outside seg 0 but inside seg 1.
+     Side 3 (x=+h, inward=-x) of seg 0 has child=1. *)
+  let seg0_children = [| -1; -1; -1; 1; -1; -1 |] in
+  let seg0 =
+    mk_seg_data_inward
+      ~cx:0
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg0_children
+      ~vert_base:0
+  in
+  let seg1_children = [| -1; 0; -1; -1; -1; -1 |] in
+  let seg1 =
+    mk_seg_data_inward
+      ~cx:(10 * f1)
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg1_children
+      ~vert_base:8
+  in
+  let packed =
+    mk_find_point_seg_packed
+      ~pnt:(8 * f1, 0, 0)
+      ~segnum:0
+      ~doing_lighting_hack:0
+      ~seg_blocks:[| seg0; seg1 |]
+  in
+  printf "%d\n" (Ox_gameseg.find_point_seg packed);
+  [%expect {| 1 |}]
+;;
+
+let%expect_test "find_point_seg - exhaustive scan finds segment" =
+  let f1 = 0x10000 in
+  (* Seg 0 at origin (all solid), seg 1 far away, disconnected.
+     Point is at center of seg 1. Hint is seg 0, trace can't reach seg 1.
+     Falls back to exhaustive scan. *)
+  let seg0_children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg0 =
+    mk_seg_data_inward
+      ~cx:0
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg0_children
+      ~vert_base:0
+  in
+  let seg1_children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg1 =
+    mk_seg_data_inward
+      ~cx:(100 * f1)
+      ~cy:0
+      ~cz:0
+      ~half:(5 * f1)
+      ~children:seg1_children
+      ~vert_base:8
+  in
+  let packed =
+    mk_find_point_seg_packed
+      ~pnt:(100 * f1, 0, 0)
+      ~segnum:0
+      ~doing_lighting_hack:0
+      ~seg_blocks:[| seg0; seg1 |]
+  in
+  printf "%d\n" (Ox_gameseg.find_point_seg packed);
+  [%expect {| 1 |}]
+;;
+
+let%expect_test "find_point_seg - point nowhere returns -1" =
+  let f1 = 0x10000 in
+  let children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg = mk_seg_data_inward ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children ~vert_base:0 in
+  let packed =
+    mk_find_point_seg_packed
+      ~pnt:(500 * f1, 500 * f1, 500 * f1)
+      ~segnum:0
+      ~doing_lighting_hack:0
+      ~seg_blocks:[| seg |]
+  in
+  printf "%d\n" (Ox_gameseg.find_point_seg packed);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "find_point_seg - no hint, exhaustive finds segment" =
+  let f1 = 0x10000 in
+  let children = [| -1; -1; -1; -1; -1; -1 |] in
+  let seg = mk_seg_data_inward ~cx:0 ~cy:0 ~cz:0 ~half:(5 * f1) ~children ~vert_base:0 in
+  let packed =
+    mk_find_point_seg_packed
+      ~pnt:(0, 0, 0)
+      ~segnum:(-1)
+      ~doing_lighting_hack:0
+      ~seg_blocks:[| seg |]
+  in
+  printf "%d\n" (Ox_gameseg.find_point_seg packed);
+  [%expect {| 0 |}]
+;;

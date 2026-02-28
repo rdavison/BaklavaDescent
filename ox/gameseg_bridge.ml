@@ -240,6 +240,11 @@ let cd_create_all_vertnum_lists side_type =
   buf
 ;;
 
+(* find_point_seg: packed array → int (segment number or -1)
+   Packed layout: header(6) + n_segments × 80 per-segment data.
+   See Ox_gameseg.find_point_seg for full layout docs. *)
+let cd_find_point_seg (arr : int array) = Ox_gameseg.find_point_seg arr
+
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -255,5 +260,6 @@ let () =
   Callback.register "cd_create_walls_on_side" cd_create_walls_on_side;
   Callback.register "cd_check_norms" cd_check_norms;
   Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;
-  Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists
+  Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists;
+  Callback.register "cd_find_point_seg" cd_find_point_seg
 ;;

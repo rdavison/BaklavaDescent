@@ -753,6 +753,12 @@ int cd_ox_openable_doors_in_segment_d2(const int32_t* packed, int packed_len);
    Returns 1 if intersects, 0 if not. */
 int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len);
 
+/* find_point_seg: find segment containing a point.
+   packed layout: header(6) + n_segments × 80 ints per segment.
+   Header: p.xyz, segnum(hint,-1), n_segments, doing_lighting_hack.
+   Returns segment number or -1. */
+int cd_ox_find_point_seg(const int32_t* packed, int packed_len);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

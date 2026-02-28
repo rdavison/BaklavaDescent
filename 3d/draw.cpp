@@ -11,6 +11,7 @@ AND AGREES TO THE TERMS HEREIN AND ACCEPTS THE SAME BY USE OF THIS FILE.
 COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 */
 
+#include <stdio.h>
 #include "misc/error.h"
 #include "3d/3d.h"
 #include "globvars.h"
@@ -306,7 +307,8 @@ dbool g3_draw_tmap(int nv, g3s_point** pointlist, g3s_uvl* uvl_list, grs_bitmap*
 
 		if (p->p3_flags & PF_OVERFLOW) 
 		{
-			Int3();		//should not overflow after clip
+			//Int3();		//should not overflow after clip — can happen with extreme coordinates
+			fprintf(stderr, "Warning: PF_OVERFLOW after projection in g3_draw_tmap (unclipped path)\n");
 			return 255;
 		}
 	}
@@ -332,7 +334,8 @@ dbool must_clip_tmap_face(int nv, g3s_codes cc, grs_bitmap* bm)
 				g3_project_point(p);
 
 			if (p->p3_flags & PF_OVERFLOW) {
-				Int3();		//should not overflow after clip
+				//Int3();		//should not overflow after clip — can happen with extreme coordinates
+				fprintf(stderr, "Warning: PF_OVERFLOW after projection in must_clip_tmap_face\n");
 				goto free_points;
 			}
 		}

@@ -941,12 +941,66 @@ int	Exhaustive_count = 0, Exhaustive_failed_count = 0;
 //Returns segnum if found, or -1
 int find_point_seg(vms_vector* p, int segnum)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] find_point_seg using cd_ox_find_point_seg.\n");
+		ox_bridge_logged = 1;
+	}
+
+	int n_segments = Highest_segment_index + 1;
+	int packed_len = 6 + n_segments * 80;
+	int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
+	if (!packed) return -1;
+
+	// Header
+	packed[0] = p->x;
+	packed[1] = p->y;
+	packed[2] = p->z;
+	packed[3] = segnum;
+	packed[4] = n_segments;
+	packed[5] = 0; // D1: Doing_lighting_hack_flag is always 0 at runtime
+
+	// Per-segment data (80 ints each)
+	for (int s = 0; s < n_segments; s++)
+	{
+		segment* seg = &Segments[s];
+		int base = 6 + s * 80;
+
+		for (int i = 0; i < 6; i++)
+			packed[base + i] = seg->children[i];
+		for (int i = 0; i < 6; i++)
+			packed[base + 6 + i] = seg->sides[i].type;
+		for (int i = 0; i < 8; i++)
+			packed[base + 12 + i] = seg->verts[i];
+		for (int i = 0; i < 6; i++)
+		{
+			packed[base + 20 + i * 6 + 0] = seg->sides[i].normals[0].x;
+			packed[base + 20 + i * 6 + 1] = seg->sides[i].normals[0].y;
+			packed[base + 20 + i * 6 + 2] = seg->sides[i].normals[0].z;
+			packed[base + 20 + i * 6 + 3] = seg->sides[i].normals[1].x;
+			packed[base + 20 + i * 6 + 4] = seg->sides[i].normals[1].y;
+			packed[base + 20 + i * 6 + 5] = seg->sides[i].normals[1].z;
+		}
+		for (int i = 0; i < 8; i++)
+		{
+			packed[base + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+			packed[base + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+			packed[base + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+		}
+	}
+
+	int result = cd_ox_find_point_seg(packed, packed_len);
+	free(packed);
+	return result;
+#else
 	int newseg;
 
 	//allow segnum==-1, meaning we have no idea what segment point is in
 	Assert((segnum <= Highest_segment_index) && (segnum >= -1));
 
-	if (segnum != -1) 
+	if (segnum != -1)
 	{
 		newseg = trace_segs(p, segnum, 0);
 
@@ -960,7 +1014,7 @@ int find_point_seg(vms_vector* p, int segnum)
 	//	This Doing_lighting_hack_flag thing added by mk because the hundreds of scrolling messages were
 	//	slowing down lighting, and in about 98% of cases, it would just return -1 anyway.
 	//	Matt: This really should be fixed, though.  We're probably screwing up our lighting in a few places.
-	if (!Doing_lighting_hack_flag) 
+	if (!Doing_lighting_hack_flag)
 	{
 		mprintf((1, "Warning: doing exhaustive search to find point segment (%i times)\n", ++Exhaustive_count));
 
@@ -974,6 +1028,7 @@ int find_point_seg(vms_vector* p, int segnum)
 	}
 	else
 		return -1;
+#endif
 }
 
 

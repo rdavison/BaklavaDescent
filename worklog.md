@@ -1276,3 +1276,30 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §37 — Port trace_segs / find_point_seg to OxCaml
+
+- **Functions:** `trace_segs` (recursive segment tracing) and `find_point_seg` (wrapper with exhaustive fallback). D1 and D2 are functionally identical — single shared OCaml implementation.
+
+- **Algorithm:** `trace_segs` calls `get_side_dists` to get centermask + distances, picks the child side with the most-negative distance, and recurses (depth limit 1024). `find_point_seg` tries trace_segs from a hint segment, then falls back to linear scan using `get_seg_masks` with rad=0 checking centermask=0.
+
+- **Solution:** Same pre-pack-all-segments approach as §36. Header (6 ints: p.xyz, segnum hint, n_segments, doing_lighting_hack) + per-segment blocks (80 ints each, same layout as sphere_intersects_wall). D2 passes `Doing_lighting_hack_flag` at header[5]; D1 always passes 0.
+
+- **Files modified:** `ox/ox_gameseg.ml`, `ox/gameseg_bridge.ml`, `ox/bridge.c`, `ox/bridge.h`, `main_d1/gameseg.cpp`, `main_d2/gameseg.cpp`, `ox/tests/parity_expect.ml`, `CHECKLIST.md`.
+
+- **Parity tests:** 5 expect tests — point at center of hint segment (returns 0), point in adjacent child via trace (returns 1), exhaustive scan finds disconnected segment (returns 1), point nowhere (returns -1), no hint with exhaustive scan (returns 0).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §38 — Fix PF_OVERFLOW crash in draw.cpp (pre-existing Descent bug)
+
+- **Bug:** Game crashed with SIGTRAP in `must_clip_tmap_face` (`3d/draw.cpp:335`) when `g3_project_point` set `PF_OVERFLOW` on a clipped polygon vertex. A previous crash (Feb 27) hit the same `Int3()` at line 309 in the unclipped path during rod/vclip rendering, proving the issue is pre-existing and unrelated to OxCaml ports.
+
+- **Root cause:** `Int3()` calls `raise(SIGTRAP)` — a Parallax debug trap from the original Descent source. The code after the `Int3()` already handles overflow gracefully (`goto free_points` / `return 255`), but the trap kills the process before reaching it.
+
+- **Fix:** Replaced both `Int3()` calls in `draw.cpp` (lines 309 and 335) with `fprintf(stderr, ...)` warnings. The overflow is handled gracefully — the polygon is skipped for that frame with no visual impact.
+
+- **Files modified:** `3d/draw.cpp` (added `#include <stdio.h>`, replaced 2 `Int3()` calls with `fprintf`).

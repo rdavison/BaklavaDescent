@@ -177,6 +177,7 @@ static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
 static const value* g_object_intersects_wall = NULL;
+static const value* g_find_point_seg = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -303,7 +304,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_robot_get_anim_state
           && g_set_robot_state
           && g_robot_set_angles
-          && g_object_intersects_wall))
+          && g_object_intersects_wall
+          && g_find_point_seg))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -446,6 +448,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
     g_object_intersects_wall = caml_named_value("cd_object_intersects_wall");
+    g_find_point_seg = caml_named_value("cd_find_point_seg");
 
     if (!g_i2f
         || !g_f2i
@@ -569,7 +572,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_robot_get_anim_state
         || !g_set_robot_state
         || !g_robot_set_angles
-        || !g_object_intersects_wall)
+        || !g_object_intersects_wall
+        || !g_find_point_seg)
     {
         return 1;
     }
@@ -690,7 +694,8 @@ int cd_ox_is_ready(void)
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles
-           && g_object_intersects_wall;
+           && g_object_intersects_wall
+           && g_find_point_seg;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3099,5 +3104,17 @@ int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len)
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
     int result = Int_val(caml_callback(*g_object_intersects_wall, arr));
+    CAMLreturnT(int, result);
+}
+
+int cd_ox_find_point_seg(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_find_point_seg");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_find_point_seg, arr));
     CAMLreturnT(int, result);
 }

@@ -533,3 +533,146 @@ let create_all_vertnum_lists ~side_type =
     2, [| 3; 0; 1; 1; 2; 3 |]
   | _ -> failwith (Printf.sprintf "Illegal side type %d" side_type)
 ;;
+
+(* --- trace_segs + find_point_seg ------------------------------------- *)
+(* Packed array layout (same 80-int-per-segment as sphere_intersects_wall):
+   Header (6 ints):
+     [0..2] p.x, p.y, p.z
+     [3]    segnum (hint, -1 if unknown)
+     [4]    n_segments
+     [5]    doing_lighting_hack (D1: always 0; D2: runtime flag)
+
+   Per-segment (80 ints each):
+     [0..5]   children[0..5]
+     [6..11]  side_types[0..5]
+     [12..19] seg_verts[0..7]
+     [20..55] normals: side 0..5, normals[0].xyz then normals[1].xyz
+     [56..79] vertex_positions: vert 0..7, xyz
+
+   Returns segment number or -1. *)
+
+let find_point_seg (arr : int array) =
+  let px = arr.(0) in
+  let py = arr.(1) in
+  let pz = arr.(2) in
+  let segnum = arr.(3) in
+  let n_segments = arr.(4) in
+  let doing_lighting_hack = arr.(5) in
+  let header = 6 in
+  let per_seg = 80 in
+  let get_seg_base s = header + (s * per_seg) in
+  let unpack_seg s =
+    let base = get_seg_base s in
+    let children = Array.init 6 ~f:(fun i -> arr.(base + i)) in
+    let side_types = Array.init 6 ~f:(fun i -> arr.(base + 6 + i)) in
+    let seg_verts = Array.init 8 ~f:(fun i -> arr.(base + 12 + i)) in
+    let normals =
+      Array.init 12 ~f:(fun i ->
+        let off = base + 20 + (i * 3) in
+        arr.(off), arr.(off + 1), arr.(off + 2))
+    in
+    let seg_vert_positions =
+      Array.init 8 ~f:(fun i ->
+        let off = base + 56 + (i * 3) in
+        arr.(off), arr.(off + 1), arr.(off + 2))
+    in
+    children, side_types, seg_verts, normals, seg_vert_positions
+  in
+  (* trace_segs: recursively find segment containing point by following
+     the child side with the most-negative distance. *)
+  let rec trace s iterations =
+    if s < 0 || s >= n_segments
+    then -1
+    else if iterations > 1024
+    then s
+    else (
+      let children, side_types, seg_verts, normals, seg_vert_positions = unpack_seg s in
+      let centermask, side_dists =
+        get_side_dists
+          ~checkp:(px, py, pz)
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if centermask = 0
+      then s
+      else (
+        (* Make a mutable copy of side_dists so we can zero out tried sides *)
+        let sd = Array.copy side_dists in
+        let result = ref (-1) in
+        let continue_ = ref true in
+        while !continue_ do
+          let biggest_side = ref (-1) in
+          let biggest_val = ref 0 in
+          let bit = ref 1 in
+          for sn = 0 to 5 do
+            if centermask land !bit <> 0 && children.(sn) > -1 && sd.(sn) < !biggest_val
+            then (
+              biggest_val := sd.(sn);
+              biggest_side := sn);
+            bit := !bit lsl 1
+          done;
+          if !biggest_side <> -1
+          then (
+            sd.(!biggest_side) <- 0;
+            let check = trace children.(!biggest_side) (iterations + 1) in
+            if check <> -1
+            then (
+              result := check;
+              continue_ := false))
+          else continue_ := false
+        done;
+        !result))
+  in
+  (* find_point_seg: try trace_segs from hint, fall back to exhaustive scan *)
+  if segnum >= 0 && segnum < n_segments
+  then (
+    let newseg = trace segnum 0 in
+    if newseg <> -1
+    then newseg
+    else if doing_lighting_hack = 0
+    then (
+      (* Exhaustive scan: find first segment where centermask=0 *)
+      let found = ref (-1) in
+      let s = ref 0 in
+      while !s < n_segments && !found = -1 do
+        let _children, side_types, seg_verts, normals, seg_vert_positions =
+          unpack_seg !s
+        in
+        let _facemask, _sidemask, centermask =
+          get_seg_masks
+            ~checkp:(px, py, pz)
+            ~rad:0
+            ~seg_verts
+            ~side_types
+            ~normals
+            ~seg_vert_positions
+        in
+        if centermask = 0 then found := !s;
+        incr s
+      done;
+      !found)
+    else -1)
+  else if doing_lighting_hack = 0
+  then (
+    (* segnum=-1: no hint, go straight to exhaustive *)
+    let found = ref (-1) in
+    let s = ref 0 in
+    while !s < n_segments && !found = -1 do
+      let _children, side_types, seg_verts, normals, seg_vert_positions = unpack_seg !s in
+      let _facemask, _sidemask, centermask =
+        get_seg_masks
+          ~checkp:(px, py, pz)
+          ~rad:0
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if centermask = 0 then found := !s;
+      incr s
+    done;
+    !found)
+  else -1
+;;

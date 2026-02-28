@@ -83,8 +83,8 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Unported — Segment Queries
 - [x] find_connect_side — finds connected segment side
-- [ ] find_point_seg — finds segment containing a point (uses FVI)
-- [ ] trace_segs — traces segment path
+- [x] find_point_seg — finds segment containing a point (uses FVI)
+- [x] trace_segs — traces segment path
 - [ ] find_connected_distance — distance between segments via connectivity
 
 ### Unported — Segment Construction/Validation
