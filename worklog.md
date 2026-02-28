@@ -1054,3 +1054,38 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 27) Convert `apply_damage_to_robot` D1 from defunctionalized effect tree to OCaml 5 algebraic effects
+
+**What:** Replaced the defunctionalized effect tree pattern (§12) with OCaml 5 algebraic effects. The old approach built a `result_node` tree in OCaml, serialized it to a flat int array, returned it to C, and C walked the tree executing effects. The new approach uses `Effect.perform` calls in OCaml, handled by an `Effect.Deep.match_with` handler in the bridge that calls back into C for each side effect/query. This eliminates ~70 lines of tree types + serialization in OCaml and ~75 lines of tree-walking interpreter in C.
+
+- **`ox/ox_collide.ml`:**
+  - Deleted: `damage_effect` type, `result_node` type, `serialize_effect`, `serialize_node`, `node_size` (~70 lines).
+  - Added: 5 algebraic effect declarations (`Increment_kills`, `Start_boss_death`, `Explode_object`, `Send_net_robot_explode`, `Query_multi_explode`) via `type _ Effect.t +=`.
+  - `apply_damage_to_robot_d1` now uses `Effect.perform` directly — logic reads like normal imperative code. Return type changed from `(int * bool * result_node)` to `(int * bool * int)`.
+
+- **`ox/collide_bridge.ml`:**
+  - Replaced array serialization with `Effect.Deep.match_with` handler that catches each effect and delegates to 5 `external` C functions.
+  - Returns `(int * int * int)` tuple (new_shields, boss_hit_int, ret).
+
+- **`ox/bridge.h` / `ox/bridge.c`:**
+  - Added 5 function pointer typedefs + `cd_ox_register_collide_effects()` registration function.
+  - Added 5 `CAMLprim` wrappers (`cd_ox_effect_increment_kills`, etc.) that OCaml calls via `external`.
+  - Changed `cd_ox_apply_damage_to_robot_d1` signature from `(out_buf, out_len)` to `(out_new_shields, out_boss_been_hit, out_return_value)` — reads 3-element tuple via `Field(result, 0/1/2)`.
+
+- **`main_d1/collide.cpp`:**
+  - Replaced 75-line tree walker with ~15 lines: one-time lambda registration of 5 effect callbacks + simple call reading 3 output values.
+
+- **`ox/tests/collide_expect.ml`:**
+  - Replaced `pp_effect`/`pp_node`/`test_serialized` with `run_with_mock` — a mock `Effect.Deep.match_with` handler that records performed effects as strings.
+  - 10 test cases: original 6 scenarios + 4 new multiplayer tests covering both `multi_explode_result=true` and `=false` branches.
+
+- **Fix: pre-existing game launch failure.**
+  - `scripts/ox/build_bridge.sh` was missing `ox_ai.ml`, `ai_bridge.ml`, `ox_lighting.ml`, `lighting_bridge.ml` — 7 callbacks never registered, causing `cd_ox_init_runtime` to return 1.
+  - Added missing files to build script and `CMakeLists.txt` DEPENDS list.
+  - Added `ignore` references in `math_bridge.ml` to force AI and lighting bridge module initialization.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all 10 expect tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+  - Game launches and robot kills work correctly in-game.
