@@ -267,7 +267,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Unported — AI Frame Logic
 - [ ] do_ai_frame — main AI frame (massive, reads ~50 globals)
 - [ ] ai_do_cloak_stuff — cloaking behavior
-- [ ] do_firing_stuff — firing decision dispatcher
+- [x] do_firing_stuff — firing decision dispatcher (D1+D2)
 - [ ] ai_do_actual_firing_stuff — main firing logic
 - [ ] maybe_ai_do_actual_firing_stuff — conditional firing
 

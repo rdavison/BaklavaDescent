@@ -331,3 +331,63 @@ let openable_doors_in_segment_d2 ~(sides : int array) =
   in
   check 0
 ;;
+
+(* do_firing_stuff: decide whether to upgrade GOAL_STATE based on player visibility and facing.
+   C original: main_d1/ai.cpp + main_d2/ai2.cpp do_firing_stuff
+   D1 checks player_visibility >= 1. D2 also checks dist_to_last_fired_upon_player_pos.
+   Identical inner logic in D1 and D2.
+
+   Packed input (12 ints):
+     [0-2]  fvec (x, y, z)
+     [3-5]  vec_to_player (x, y, z)
+     [6]    player_visibility
+     [7]    player_cloaked (0 or 1)
+     [8]    GOAL_STATE
+     [9]    player_awareness_type
+     [10]   player_awareness_time
+     [11]   is_d2_nearby (D2: 1 if dist < FIRE_AT_NEARBY_PLAYER_THRESHOLD, else 0)
+
+   Returns array (3 ints):
+     [0]  new GOAL_STATE
+     [1]  new player_awareness_type
+     [2]  new player_awareness_time *)
+let do_firing_stuff (packed : int array) =
+  let fvec = packed.(0), packed.(1), packed.(2) in
+  let vec_to_player = packed.(3), packed.(4), packed.(5) in
+  let player_visibility = packed.(6) in
+  let player_cloaked = packed.(7) <> 0 in
+  let goal_state = ref packed.(8) in
+  let awareness_type = ref packed.(9) in
+  let awareness_time = ref packed.(10) in
+  let is_d2_nearby = packed.(11) <> 0 in
+  let ais_none = 0 in
+  let ais_rest = 1 in
+  let ais_srch = 2 in
+  let ais_lock = 3 in
+  let ais_fire = 5 in
+  let pa_nearby_robot_fired = 1 in
+  let player_awareness_initial_time = 3 * f1_0 in
+  if is_d2_nearby || player_visibility >= 1
+  then (
+    let dot = Ox_math.vm_vec_dotprod ~a:fvec ~b:vec_to_player in
+    if dot >= 7 * f1_0 / 8 || player_cloaked
+    then (
+      match !goal_state with
+      | gs when gs = ais_none || gs = ais_rest || gs = ais_srch || gs = ais_lock ->
+        goal_state := ais_fire;
+        if !awareness_type <= pa_nearby_robot_fired
+        then (
+          awareness_type := pa_nearby_robot_fired;
+          awareness_time := player_awareness_initial_time)
+      | _ -> ())
+    else if dot >= f1_0 / 2
+    then (
+      match !goal_state with
+      | gs when gs = ais_none || gs = ais_rest || gs = ais_srch -> goal_state := ais_lock
+      | _ -> ()));
+  let result = Array.create ~len:3 0 in
+  result.(0) <- !goal_state;
+  result.(1) <- !awareness_type;
+  result.(2) <- !awareness_time;
+  result
+;;

@@ -1571,3 +1571,23 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §48 bridge active.
+
+### §49 — Port do_firing_stuff to OxCaml (D1 + D2)
+
+- **What:** `do_firing_stuff` — firing decision dispatcher for AI robots. Computes dot product between robot forward vector and vector-to-player, then transitions goal state to AIS_FIRE or AIS_LOCK based on facing angle. D1 ~35 lines, D2 ~35 lines. Called 3-4× per robot per frame (high frequency).
+
+- **Design:** Trivial packed array (12 ints in, 3 ints out). Input: fvec(3), vec_to_player(3), player_visibility, player_cloaked flag, GOAL_STATE, player_awareness_type, player_awareness_time, is_d2_nearby flag. Output: new GOAL_STATE, awareness_type, awareness_time. Pure logic — one dot product + state machine transitions.
+
+- **D1 vs D2 differences:** D2 adds `Dist_to_last_fired_upon_player_pos < FIRE_AT_NEARBY_PLAYER_THRESHOLD` as an additional trigger condition (packed as `is_d2_nearby` boolean).
+
+- **Files modified:**
+  - `ox/ox_ai.ml` — `do_firing_stuff` (~50 lines)
+  - `ox/ai_bridge.ml` — `cd_do_firing_stuff` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_do_firing_stuff` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_do_firing_stuff` declaration
+  - `ox/dune` — added `ox_math` dependency to `ox_ai` library (for `vm_vec_dotprod`)
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `do_firing_stuff`
+  - `main_d2/ai2.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.

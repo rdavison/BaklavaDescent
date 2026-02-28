@@ -89,7 +89,7 @@
 
 (library
  (name ox_ai)
- (libraries core)
+ (libraries core ox_math)
  (modules ox_ai)
  (flags
   (:standard -open Core)))

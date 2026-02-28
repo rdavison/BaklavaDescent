@@ -110,6 +110,9 @@ let cd_openable_doors_in_segment_d2 (packed : int array) =
   Ox_ai.openable_doors_in_segment_d2 ~sides:packed
 ;;
 
+(* do_firing_stuff: packed 12-int array → 3-int array *)
+let cd_do_firing_stuff (packed : int array) = Ox_ai.do_firing_stuff packed
+
 let () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
@@ -119,5 +122,6 @@ let () =
   Callback.register "cd_ai_door_is_openable_d1" cd_ai_door_is_openable_d1;
   Callback.register "cd_ai_door_is_openable_d2" cd_ai_door_is_openable_d2;
   Callback.register "cd_openable_doors_in_segment_d1" cd_openable_doors_in_segment_d1;
-  Callback.register "cd_openable_doors_in_segment_d2" cd_openable_doors_in_segment_d2
+  Callback.register "cd_openable_doors_in_segment_d2" cd_openable_doors_in_segment_d2;
+  Callback.register "cd_do_firing_stuff" cd_do_firing_stuff
 ;;

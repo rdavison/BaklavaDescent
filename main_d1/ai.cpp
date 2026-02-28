@@ -1998,6 +1998,34 @@ int	Break_on_object = -1;
 
 void do_firing_stuff(object* obj, int player_visibility, vms_vector* vec_to_player)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { fprintf(stderr, "[OX] do_firing_stuff (D1)\n"); ox_logged = 1; }
+		int objnum = obj - Objects;
+		ai_static* aip = &obj->ctype.ai_info;
+		ai_local* ailp = &Ai_local_info[objnum];
+		int32_t packed[12];
+		packed[0] = obj->orient.fvec.x;
+		packed[1] = obj->orient.fvec.y;
+		packed[2] = obj->orient.fvec.z;
+		packed[3] = vec_to_player->x;
+		packed[4] = vec_to_player->y;
+		packed[5] = vec_to_player->z;
+		packed[6] = player_visibility;
+		packed[7] = (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0;
+		packed[8] = aip->GOAL_STATE;
+		packed[9] = ailp->player_awareness_type;
+		packed[10] = ailp->player_awareness_time;
+		packed[11] = 0; /* D1: no dist_to_last_fired check */
+		int32_t out[3];
+		cd_ox_do_firing_stuff(packed, 12, out);
+		aip->GOAL_STATE = out[0];
+		ailp->player_awareness_type = out[1];
+		ailp->player_awareness_time = out[2];
+		return;
+	}
+#endif
 	//mprintf((0, "!"));
 	if (player_visibility >= 1) {
 		//	Now, if in robot's field of view, lock onto player
