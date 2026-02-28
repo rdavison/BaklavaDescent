@@ -1237,6 +1237,74 @@ void add_to_fcd_cache(int seg0, int seg1, int depth, fix dist)
 //	Return the distance.
 fix find_connected_distance(vms_vector *p0, int seg0, vms_vector *p1, int seg1, int max_depth, int wid_flag)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] find_connected_distance using cd_ox_find_connected_distance (D2).\n");
+		ox_bridge_logged = 1;
+	}
+
+	// Quick returns before cache (same as original)
+	if (seg0 == seg1) {
+		Connected_segment_distance = 0;
+		return vm_vec_dist_quick(p0, p1);
+	} else {
+		int conn_side;
+		if ((conn_side = find_connect_side(&Segments[seg0], &Segments[seg1])) != -1) {
+			if (WALL_IS_DOORWAY(&Segments[seg1], conn_side) & wid_flag) {
+				Connected_segment_distance = 1;
+				return vm_vec_dist_quick(p0, p1);
+			}
+		}
+	}
+
+	// Periodically flush cache
+	if ((GameTime - Last_fcd_flush_time > F1_0*2) || (GameTime < Last_fcd_flush_time)) {
+		flush_fcd_cache();
+		Last_fcd_flush_time = GameTime;
+	}
+
+	// Check cache
+	for (int i = 0; i < MAX_FCD_CACHE; i++)
+		if ((Fcd_cache[i].seg0 == seg0) && (Fcd_cache[i].seg1 == seg1)) {
+			Connected_segment_distance = Fcd_cache[i].csd;
+			return Fcd_cache[i].dist;
+		}
+
+	// Pack data for OCaml BFS
+	int n_segs = Highest_segment_index + 1;
+	int packed_len = 12 + n_segs * 15;
+	int32_t* packed = (int32_t*)alloca(packed_len * sizeof(int32_t));
+	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
+	packed[3] = seg0;
+	packed[4] = p1->x; packed[5] = p1->y; packed[6] = p1->z;
+	packed[7] = seg1;
+	packed[8] = max_depth;
+	packed[9] = wid_flag;
+	packed[10] = n_segs;
+	packed[11] = 1; // D2: check WID on adjacency shortcut
+	for (int s = 0; s < n_segs; s++)
+	{
+		int base = 12 + s * 15;
+		segment* segp = &Segments[s];
+		for (int j = 0; j < 6; j++)
+			packed[base + j] = segp->children[j];
+		for (int j = 0; j < 6; j++)
+			packed[base + 6 + j] = WALL_IS_DOORWAY(segp, j);
+		vms_vector center;
+		compute_segment_center(&center, segp);
+		packed[base + 12] = center.x;
+		packed[base + 13] = center.y;
+		packed[base + 14] = center.z;
+	}
+
+	int32_t dist, csd;
+	cd_ox_find_connected_distance(packed, packed_len, &dist, &csd);
+	Connected_segment_distance = csd;
+	add_to_fcd_cache(seg0, seg1, csd, dist);
+	return dist;
+#else
 	int		cur_seg;
 	int		sidenum;
 	int		qtail = 0, qhead = 0;
@@ -1252,7 +1320,7 @@ fix find_connected_distance(vms_vector *p0, int seg0, vms_vector *p1, int seg1, 
 	//	If > this, will overrun point_segs buffer
 #ifdef WINDOWS
 	if (max_depth == -1) max_depth = 200;
-#endif	
+#endif
 
 	if (max_depth > MAX_LOC_POINT_SEGS-2) {
 		mprintf((1, "Warning: In find_connected_distance, max_depth = %i, limited to %i\n", max_depth, MAX_LOC_POINT_SEGS-2));
@@ -1385,7 +1453,7 @@ fcd_done1: ;
 	add_to_fcd_cache(seg0, seg1, num_points, dist);
 
 	return dist;
-
+#endif
 }
 
 int8_t convert_to_byte(fix f)

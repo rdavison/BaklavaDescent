@@ -1303,3 +1303,25 @@ First AI system function ported. Determines whether a robot can open a door on a
 - **Fix:** Replaced both `Int3()` calls in `draw.cpp` (lines 309 and 335) with `fprintf(stderr, ...)` warnings. The overflow is handled gracefully — the polygon is skipped for that frame with no visual impact.
 
 - **Files modified:** `3d/draw.cpp` (added `#include <stdio.h>`, replaced 2 `Int3()` calls with `fprintf`).
+
+### §39 — Port find_connected_distance to OxCaml
+
+- **Function:** BFS-based distance computation between two points via segment connectivity. Used by AI pathfinding, sound propagation, player spawning, and explosion logic (~13 callsites across D1/D2).
+
+- **Approach:** Lightweight 15-int-per-segment packed layout (vs 80 ints for find_point_seg). Pre-evaluates `WALL_IS_DOORWAY` and segment centers at the C callsite, so OCaml does pure BFS without needing `wall_is_doorway()`, `check_transparency()`, or `Vertices[]`. D2's `Fcd_cache` stays in C, wrapping the OCaml BFS call.
+
+- **Header layout (12 ints):** p0.xyz, seg0, p1.xyz, seg1, max_depth, wid_flag, n_segments, check_wid_on_adjacency (0=D1, 1=D2).
+
+- **D1 vs D2 difference:** D1 adjacency shortcut skips WID check; D2 checks `WALL_IS_DOORWAY` on the connecting side. Controlled by `check_wid_on_adjacency` flag.
+
+- **Files modified:**
+  - `ox/ox_gameseg.ml` — `find_connected_distance` (BFS + path reconstruction)
+  - `ox/gameseg_bridge.ml` — `cd_find_connected_distance` bridge + `Callback.register`
+  - `ox/bridge.c` — static pointer, init/ready checks, C wrapper returning 2 ints via out params
+  - `ox/bridge.h` — declaration
+  - `main_d1/gameseg.cpp` — `#ifdef USE_OX_BRIDGE` around `find_connected_distance`
+  - `main_d2/gameseg.cpp` — same, with D2 cache logic wrapping the OCaml call
+  - `ox/tests/parity_expect.ml` — 6 parity tests (same-seg, adjacent, two-hop, disconnected, max-depth, wid-filtering)
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune runtest ox/tests` passes, `dune fmt` clean, `cmake --build build-ox -j8` clean (D1+D2). Launched D1, played through a level — AI pathfinding, sound propagation, and robot pursuit all work correctly.

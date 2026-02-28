@@ -178,6 +178,7 @@ static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
 static const value* g_object_intersects_wall = NULL;
 static const value* g_find_point_seg = NULL;
+static const value* g_find_connected_distance = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -449,6 +450,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
     g_object_intersects_wall = caml_named_value("cd_object_intersects_wall");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
+    g_find_connected_distance = caml_named_value("cd_find_connected_distance");
 
     if (!g_i2f
         || !g_f2i
@@ -573,7 +575,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_set_robot_state
         || !g_robot_set_angles
         || !g_object_intersects_wall
-        || !g_find_point_seg)
+        || !g_find_point_seg
+        || !g_find_connected_distance)
     {
         return 1;
     }
@@ -695,7 +698,8 @@ int cd_ox_is_ready(void)
            && g_set_robot_state
            && g_robot_set_angles
            && g_object_intersects_wall
-           && g_find_point_seg;
+           && g_find_point_seg
+           && g_find_connected_distance;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3117,4 +3121,19 @@ int cd_ox_find_point_seg(const int32_t* packed, int packed_len)
         Store_field(arr, i, Val_long(packed[i]));
     int result = Int_val(caml_callback(*g_find_point_seg, arr));
     CAMLreturnT(int, result);
+}
+
+void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
+                                    int32_t* out_dist, int32_t* out_csd)
+{
+    cd_ox_require_ready("cd_ox_find_connected_distance");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_find_connected_distance, arr);
+    *out_dist = Int_val(Field(result, 0));
+    *out_csd = Int_val(Field(result, 1));
+    CAMLreturn0;
 }

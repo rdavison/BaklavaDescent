@@ -759,6 +759,14 @@ int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len);
    Returns segment number or -1. */
 int cd_ox_find_point_seg(const int32_t* packed, int packed_len);
 
+/* find_connected_distance: BFS distance between two points via segment connectivity.
+   packed layout: header(12) + n_segments × 15 ints per segment.
+   Header: p0.xyz, seg0, p1.xyz, seg1, max_depth, wid_flag, n_segments, check_wid_on_adjacency.
+   Per-segment: children(6), wid(6), center.xyz.
+   Writes distance (fix, or -1) to out_dist, path length count to out_csd. */
+void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
+                                    int32_t* out_dist, int32_t* out_csd);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

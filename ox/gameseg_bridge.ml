@@ -245,6 +245,12 @@ let cd_create_all_vertnum_lists side_type =
    See Ox_gameseg.find_point_seg for full layout docs. *)
 let cd_find_point_seg (arr : int array) = Ox_gameseg.find_point_seg arr
 
+(* find_connected_distance: packed array → int array (2 ints)
+   Packed layout: header(12) + n_segments × 15 per-segment data.
+   See Ox_gameseg.find_connected_distance for full layout docs.
+   Returns: [| distance (fix) or -1; connected_segment_distance |] *)
+let cd_find_connected_distance (arr : int array) = Ox_gameseg.find_connected_distance arr
+
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -261,5 +267,6 @@ let () =
   Callback.register "cd_check_norms" cd_check_norms;
   Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;
   Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists;
-  Callback.register "cd_find_point_seg" cd_find_point_seg
+  Callback.register "cd_find_point_seg" cd_find_point_seg;
+  Callback.register "cd_find_connected_distance" cd_find_connected_distance
 ;;

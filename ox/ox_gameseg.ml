@@ -308,6 +308,171 @@ let find_connect_side ~(children : int array) ~base_seg_num =
   loop 0
 ;;
 
+(* --- find_connected_distance ----------------------------------------- *)
+(* BFS to find distance between two points via segment connectivity.
+   Packed array layout:
+   Header (12 ints):
+     [0..2]  p0.x, p0.y, p0.z
+     [3]     seg0
+     [4..6]  p1.x, p1.y, p1.z
+     [7]     seg1
+     [8]     max_depth (-1 = unlimited)
+     [9]     wid_flag
+     [10]    n_segments
+     [11]    check_wid_on_adjacency (0=D1 skip, 1=D2 check)
+
+   Per-segment (15 ints each):
+     [0..5]   children[0..5]
+     [6..11]  wid[0..5] — pre-evaluated WALL_IS_DOORWAY results
+     [12..14] center.x, center.y, center.z — pre-computed segment center
+
+   Returns: [| distance (fix) or -1; connected_segment_distance |] *)
+
+let max_loc_point_segs = 64
+
+let find_connected_distance (arr : int array) =
+  let p0 = arr.(0), arr.(1), arr.(2) in
+  let seg0 = arr.(3) in
+  let p1 = arr.(4), arr.(5), arr.(6) in
+  let seg1 = arr.(7) in
+  let max_depth_raw = arr.(8) in
+  let wid_flag = arr.(9) in
+  let n_segments = arr.(10) in
+  let check_wid_adj = arr.(11) in
+  let header = 12 in
+  let per_seg = 15 in
+  let max_depth =
+    if max_depth_raw > max_loc_point_segs - 2
+    then max_loc_point_segs - 2
+    else max_depth_raw
+  in
+  let seg_children s i = arr.(header + (s * per_seg) + i) in
+  let seg_wid s i = arr.(header + (s * per_seg) + 6 + i) in
+  let seg_center s =
+    let base = header + (s * per_seg) + 12 in
+    arr.(base), arr.(base + 1), arr.(base + 2)
+  in
+  (* Quick return: same segment *)
+  if seg0 = seg1
+  then [| Ox_math.vm_vec_dist_quick ~a:p0 ~b:p1; 0 |]
+  else (
+    (* Adjacency check *)
+    let conn_side = ref (-1) in
+    for side = 0 to 5 do
+      if
+        !conn_side = -1 && seg0 >= 0 && seg0 < n_segments && seg_children seg0 side = seg1
+      then conn_side := side
+    done;
+    if
+      !conn_side <> -1
+      && (check_wid_adj = 0
+          || (seg1 >= 0 && seg1 < n_segments && seg_wid seg1 !conn_side land wid_flag <> 0)
+         )
+    then [| Ox_math.vm_vec_dist_quick ~a:p0 ~b:p1; 1 |]
+    else (
+      (* BFS *)
+      let visited = Array.create ~len:n_segments false in
+      let q_start = Array.create ~len:n_segments 0 in
+      let q_end = Array.create ~len:n_segments 0 in
+      let q_depth = Array.create ~len:n_segments 0 in
+      let qtail = ref 0 in
+      let qhead = ref 0 in
+      let cur_seg = ref seg0 in
+      let cur_depth = ref 0 in
+      let found = ref false in
+      let failed = ref false in
+      if seg0 >= 0 && seg0 < n_segments then visited.(seg0) <- true;
+      while !cur_seg <> seg1 && not !failed do
+        let cs = !cur_seg in
+        if cs < 0 || cs >= n_segments
+        then failed := true
+        else (
+          for sidenum = 0 to 5 do
+            if (not !failed) && seg_wid cs sidenum land wid_flag <> 0
+            then (
+              let child = seg_children cs sidenum in
+              if child >= 0 && child < n_segments && not visited.(child)
+              then (
+                let qt = !qtail in
+                q_start.(qt) <- cs;
+                q_end.(qt) <- child;
+                visited.(child) <- true;
+                q_depth.(qt) <- !cur_depth + 1;
+                qtail := qt + 1;
+                if max_depth <> -1 && !cur_depth + 1 = max_depth
+                then failed := true
+                else if max_depth = -1 && child = seg1
+                then (
+                  found := true;
+                  cur_seg := seg1)))
+          done;
+          if (not !found) && not !failed
+          then
+            if !qhead >= !qtail
+            then failed := true
+            else (
+              cur_seg := q_end.(!qhead);
+              cur_depth := q_depth.(!qhead);
+              qhead := !qhead + 1))
+      done;
+      if !failed
+      then [| -1; 1000 |]
+      else (
+        (* Path reconstruction: trace back from seg1 to seg0 *)
+        let path_centers = Array.create ~len:max_loc_point_segs (0, 0, 0) in
+        let num_points = ref 0 in
+        (* Find last queue entry ending at seg1 *)
+        let qt = ref (!qtail - 1) in
+        while !qt >= 0 && q_end.(!qt) <> seg1 do
+          qt := !qt - 1
+        done;
+        if !qt < 0
+        then [| -1; 1000 |]
+        else (
+          (* Walk backwards through BFS tree *)
+          let done_ = ref false in
+          while !qt >= 0 && not !done_ do
+            let this_seg = q_end.(!qt) in
+            let parent_seg = q_start.(!qt) in
+            if !num_points < max_loc_point_segs
+            then (
+              path_centers.(!num_points) <- seg_center this_seg;
+              num_points := !num_points + 1);
+            if parent_seg = seg0
+            then done_ := true
+            else (
+              qt := !qt - 1;
+              while !qt >= 0 && q_end.(!qt) <> parent_seg do
+                qt := !qt - 1
+              done;
+              if !qt < 0 then done_ := true)
+          done;
+          if !qt < 0 && not !done_
+          then [| -1; 1000 |]
+          else (
+            (* Add seg0 center *)
+            if !num_points < max_loc_point_segs && seg0 >= 0 && seg0 < n_segments
+            then (
+              path_centers.(!num_points) <- seg_center seg0;
+              num_points := !num_points + 1);
+            let np = !num_points in
+            if np = 1
+            then [| Ox_math.vm_vec_dist_quick ~a:p0 ~b:p1; np |]
+            else (
+              (* Sum distances along path:
+                 p1 -> path_centers[1] -> ... -> path_centers[np-2] -> p0 *)
+              let dist = ref 0 in
+              dist
+              := Ox_math.vm_vec_dist_quick ~a:p1 ~b:path_centers.(1)
+                 + Ox_math.vm_vec_dist_quick ~a:p0 ~b:path_centers.(np - 2);
+              for i = 1 to np - 3 do
+                dist
+                := !dist
+                   + Ox_math.vm_vec_dist_quick ~a:path_centers.(i) ~b:path_centers.(i + 1)
+              done;
+              [| !dist; np |]))))))
+;;
+
 let matrix_precision = 9
 let matrix_max = 0x7f
 let relpos_precision = 10

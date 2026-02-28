@@ -85,7 +85,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] find_connect_side — finds connected segment side
 - [x] find_point_seg — finds segment containing a point (uses FVI)
 - [x] trace_segs — traces segment path
-- [ ] find_connected_distance — distance between segments via connectivity
+- [x] find_connected_distance — distance between segments via connectivity
 
 ### Unported — Segment Construction/Validation
 - [x] create_all_vertex_lists — vertex coordinate lists for all faces

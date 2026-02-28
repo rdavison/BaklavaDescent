@@ -11938,3 +11938,227 @@ let%expect_test "find_point_seg - no hint, exhaustive finds segment" =
   printf "%d\n" (Ox_gameseg.find_point_seg packed);
   [%expect {| 0 |}]
 ;;
+
+(* --- find_connected_distance parity tests --- *)
+
+(* Helper: build per-segment block (15 ints) for find_connected_distance *)
+let mk_fcd_seg ~children ~wid ~(center : int * int * int) =
+  let cx, cy, cz = center in
+  Array.concat [ children (* 6 ints *); wid (* 6 ints *); [| cx; cy; cz |] (* 3 ints *) ]
+;;
+
+(* Helper: build packed array for find_connected_distance *)
+let mk_fcd_packed
+      ~p0:(p0x, p0y, p0z)
+      ~seg0
+      ~p1:(p1x, p1y, p1z)
+      ~seg1
+      ~max_depth
+      ~wid_flag
+      ~check_wid_adj
+      ~seg_blocks
+  =
+  let n_segs = Array.length seg_blocks in
+  let header =
+    [| p0x
+     ; p0y
+     ; p0z
+     ; seg0
+     ; p1x
+     ; p1y
+     ; p1z
+     ; seg1
+     ; max_depth
+     ; wid_flag
+     ; n_segs
+     ; check_wid_adj
+    |]
+  in
+  Array.concat (header :: Array.to_list seg_blocks)
+;;
+
+let wid_all = [| 0xFF; 0xFF; 0xFF; 0xFF; 0xFF; 0xFF |]
+let wid_none = [| 0; 0; 0; 0; 0; 0 |]
+
+let%expect_test "find_connected_distance - same segment" =
+  let f1 = 0x10000 in
+  let seg =
+    mk_fcd_seg ~children:[| -1; -1; -1; -1; -1; -1 |] ~wid:wid_none ~center:(0, 0, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(3 * f1, 4 * f1, 0)
+      ~seg1:0
+      ~max_depth:30
+      ~wid_flag:1
+      ~check_wid_adj:0
+      ~seg_blocks:[| seg |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  [%expect {| dist=335872 csd=0 |}]
+;;
+
+let%expect_test "find_connected_distance - adjacent segments (D1 mode)" =
+  let f1 = 0x10000 in
+  (* seg0 has child 1 on side 0, seg1 has child 0 on side 1 *)
+  let seg0 =
+    mk_fcd_seg ~children:[| 1; -1; -1; -1; -1; -1 |] ~wid:wid_all ~center:(0, 0, 0)
+  in
+  let seg1 =
+    mk_fcd_seg ~children:[| -1; 0; -1; -1; -1; -1 |] ~wid:wid_all ~center:(10 * f1, 0, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(10 * f1, 0, 0)
+      ~seg1:1
+      ~max_depth:30
+      ~wid_flag:1
+      ~check_wid_adj:0
+      ~seg_blocks:[| seg0; seg1 |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  (* Adjacent: direct quick distance *)
+  [%expect {| dist=655360 csd=1 |}]
+;;
+
+let%expect_test "find_connected_distance - two-hop BFS path" =
+  let f1 = 0x10000 in
+  (* seg0 -> seg1 -> seg2 (linear chain) *)
+  let seg0 =
+    mk_fcd_seg ~children:[| 1; -1; -1; -1; -1; -1 |] ~wid:wid_all ~center:(0, 0, 0)
+  in
+  let seg1 =
+    mk_fcd_seg ~children:[| -1; 0; 2; -1; -1; -1 |] ~wid:wid_all ~center:(5 * f1, 0, 0)
+  in
+  let seg2 =
+    mk_fcd_seg ~children:[| -1; 1; -1; -1; -1; -1 |] ~wid:wid_all ~center:(10 * f1, 0, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(10 * f1, 0, 0)
+      ~seg1:2
+      ~max_depth:30
+      ~wid_flag:1
+      ~check_wid_adj:0
+      ~seg_blocks:[| seg0; seg1; seg2 |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  (* Path: p1->center1 + center1->center0 + center0->p0
+     = dist_quick((10f1,0,0),(5f1,0,0)) + dist_quick((5f1,0,0),(0,0,0)) + dist_quick((0,0,0),(0,0,0))
+     Actually path_centers=[seg2_center, seg1_center, seg0_center] (3 points)
+     dist = dist_quick(p1, path[1]) + dist_quick(p0, path[np-2])
+          + dist_quick(path[1], path[2])
+     = dist_quick((10f1,0,0),(5f1,0,0)) + dist_quick((0,0,0),(5f1,0,0))
+     (no interior sum since np-3 < 1 for i=1..0)
+     Wait: np=3, so for i=1 to np-3=0, loop doesn't execute.
+     dist = dist_quick(p1, path[1]) + dist_quick(p0, path[1])
+     = 5*f1 + 5*f1 = 10*f1 = 655360 *)
+  [%expect {| dist=655360 csd=3 |}]
+;;
+
+let%expect_test "find_connected_distance - no path (disconnected)" =
+  (* Two isolated segments, no connections *)
+  let seg0 =
+    mk_fcd_seg ~children:[| -1; -1; -1; -1; -1; -1 |] ~wid:wid_none ~center:(0, 0, 0)
+  in
+  let seg1 =
+    mk_fcd_seg ~children:[| -1; -1; -1; -1; -1; -1 |] ~wid:wid_none ~center:(0x50000, 0, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(0x50000, 0, 0)
+      ~seg1:1
+      ~max_depth:30
+      ~wid_flag:1
+      ~check_wid_adj:0
+      ~seg_blocks:[| seg0; seg1 |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  [%expect {| dist=-1 csd=1000 |}]
+;;
+
+let%expect_test "find_connected_distance - max depth exceeded" =
+  let f1 = 0x10000 in
+  (* seg0 -> seg1 -> seg2, but max_depth=1 *)
+  let seg0 =
+    mk_fcd_seg ~children:[| 1; -1; -1; -1; -1; -1 |] ~wid:wid_all ~center:(0, 0, 0)
+  in
+  let seg1 =
+    mk_fcd_seg ~children:[| -1; 0; 2; -1; -1; -1 |] ~wid:wid_all ~center:(5 * f1, 0, 0)
+  in
+  let seg2 =
+    mk_fcd_seg ~children:[| -1; 1; -1; -1; -1; -1 |] ~wid:wid_all ~center:(10 * f1, 0, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(10 * f1, 0, 0)
+      ~seg1:2
+      ~max_depth:1
+      ~wid_flag:1
+      ~check_wid_adj:0
+      ~seg_blocks:[| seg0; seg1; seg2 |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  [%expect {| dist=-1 csd=1000 |}]
+;;
+
+let%expect_test "find_connected_distance - wid_flag filtering" =
+  let f1 = 0x10000 in
+  (* seg0 -> seg1 direct (side 0), but wid for that side is 0.
+     seg0 -> seg2 -> seg1 alternate path with wid=0xFF. *)
+  let seg0 =
+    mk_fcd_seg
+      ~children:[| 1; 2; -1; -1; -1; -1 |]
+      ~wid:[| 0; 0xFF; 0; 0; 0; 0 |]
+      ~center:(0, 0, 0)
+  in
+  let seg1 =
+    mk_fcd_seg
+      ~children:[| 0; 2; -1; -1; -1; -1 |]
+      ~wid:[| 0; 0xFF; 0; 0; 0; 0 |]
+      ~center:(10 * f1, 0, 0)
+  in
+  let seg2 =
+    mk_fcd_seg
+      ~children:[| -1; 0; 1; -1; -1; -1 |]
+      ~wid:[| 0; 0xFF; 0xFF; 0; 0; 0 |]
+      ~center:(5 * f1, 5 * f1, 0)
+  in
+  let packed =
+    mk_fcd_packed
+      ~p0:(0, 0, 0)
+      ~seg0:0
+      ~p1:(10 * f1, 0, 0)
+      ~seg1:1
+      ~max_depth:30
+      ~wid_flag:1
+      ~check_wid_adj:1
+      ~seg_blocks:[| seg0; seg1; seg2 |]
+  in
+  let result = Ox_gameseg.find_connected_distance packed in
+  printf "dist=%d csd=%d\n" result.(0) result.(1);
+  (* Path goes through seg2 since direct seg0->seg1 wid=0.
+     Adjacency shortcut blocked by check_wid_adj=1 and wid[0]=0.
+     BFS: seg0 -> (side 1, wid=0xFF) seg2 -> (side 2, wid=0xFF) seg1
+     path_centers = [seg1_center, seg2_center, seg0_center]
+     np = 3
+     dist = dist_quick(p1, path[1]) + dist_quick(p0, path[1])
+     path[1] = seg2_center = (5*f1, 5*f1, 0)
+     = dist_quick((10*f1,0,0),(5*f1,5*f1,0)) + dist_quick((0,0,0),(5*f1,5*f1,0)) *)
+  [%expect {| dist=901120 csd=3 |}]
+;;
