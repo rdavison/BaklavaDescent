@@ -1,28 +1,45 @@
 (library
  (name parity_expect)
  (modules parity_expect)
- (libraries core ox_math ox_3d ox_gameseg ox_fvi ox_curves ox_physics ox_ai ox_lighting ox_collide)
- (preprocess (pps ppx_jane))
+ (libraries
+  core
+  ox_math
+  ox_3d
+  ox_gameseg
+  ox_fvi
+  ox_curves
+  ox_physics
+  ox_ai
+  ox_lighting
+  ox_collide)
+ (preprocess
+  (pps ppx_jane))
  (inline_tests)
- (flags (:standard -open Core))
+ (flags
+  (:standard -open Core))
  (c_library_flags -L%{workspace_root}/build-ox-oracle -lc_oracle)
  (foreign_stubs
   (language cxx)
   (names c_fix_stubs)
   (include_dirs ../oracle)
-  (flags (:standard -std=c++17))))
+  (flags
+   (:standard -std=c++17))))
 
 (library
  (name collide_expect)
  (libraries core ox_collide)
  (modules collide_expect)
- (preprocess (pps ppx_jane))
+ (preprocess
+  (pps ppx_jane))
  (inline_tests)
- (flags (:standard -open Core)))
+ (flags
+  (:standard -open Core)))
 
 (executable
  (name bench_effects)
  (modules bench_effects)
  (libraries core time_now)
- (flags (:standard -open Core))
- (ocamlopt_flags (:standard -O2)))
+ (flags
+  (:standard -open Core))
+ (ocamlopt_flags
+  (:standard -O2)))

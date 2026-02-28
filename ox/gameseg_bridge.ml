@@ -1,6 +1,10 @@
 let cd_compute_center_point_on_side v0x v0y v0z v1x v1y v1z v2x v2y v2z v3x v3y v3z =
   Ox_gameseg.compute_center_point_on_side
-    (v0x, v0y, v0z) (v1x, v1y, v1z) (v2x, v2y, v2z) (v3x, v3y, v3z)
+    (v0x, v0y, v0z)
+    (v1x, v1y, v1z)
+    (v2x, v2y, v2z)
+    (v3x, v3y, v3z)
+;;
 
 let cd_compute_segment_center (arr : int array) =
   let v i = arr.(i * 3), arr.((i * 3) + 1), arr.((i * 3) + 2) in
@@ -8,19 +12,24 @@ let cd_compute_segment_center (arr : int array) =
     Ox_gameseg.compute_segment_center (v 0) (v 1) (v 2) (v 3) (v 4) (v 5) (v 6) (v 7)
   in
   [| cx; cy; cz |]
+;;
 
 let cd_get_verts_for_normal va vb vc vd =
   let v0, v1, v2, v3, negate_flag = Ox_gameseg.get_verts_for_normal va vb vc vd in
-  (v0, v1, v2, v3, negate_flag)
+  v0, v1, v2, v3, negate_flag
+;;
 
 let cd_create_abs_vertex_lists side_type (seg_verts : int array) sidenum =
-  let num_faces, vertices = Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum in
-  let result = Array.create ~len: 7 0 in
+  let num_faces, vertices =
+    Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum
+  in
+  let result = Array.create ~len:7 0 in
   result.(0) <- num_faces;
   for i = 0 to 5 do
     result.(i + 1) <- vertices.(i)
   done;
   result
+;;
 
 (* Pack format for get_seg_masks:
    [0..2]  = checkp (x,y,z)
@@ -47,10 +56,16 @@ let cd_get_seg_masks (arr : int array) =
       arr.(base), arr.(base + 1), arr.(base + 2))
   in
   let facemask, sidemask, centermask =
-    Ox_gameseg.get_seg_masks ~checkp:(cpx, cpy, cpz) ~rad ~seg_verts ~side_types
-      ~normals ~seg_vert_positions
+    Ox_gameseg.get_seg_masks
+      ~checkp:(cpx, cpy, cpz)
+      ~rad
+      ~seg_verts
+      ~side_types
+      ~normals
+      ~seg_vert_positions
   in
   [| facemask; sidemask; centermask |]
+;;
 
 (* Pack format for get_side_dists:
    [0..2]  = checkp (x,y,z)
@@ -75,15 +90,20 @@ let cd_get_side_dists (arr : int array) =
       arr.(base), arr.(base + 1), arr.(base + 2))
   in
   let mask, side_dists =
-    Ox_gameseg.get_side_dists ~checkp:(cpx, cpy, cpz) ~seg_verts ~side_types
-      ~normals ~seg_vert_positions
+    Ox_gameseg.get_side_dists
+      ~checkp:(cpx, cpy, cpz)
+      ~seg_verts
+      ~side_types
+      ~normals
+      ~seg_vert_positions
   in
-  let result = Array.create ~len: 7 0 in
+  let result = Array.create ~len:7 0 in
   result.(0) <- mask;
   for i = 0 to 5 do
     result.(i + 1) <- side_dists.(i)
   done;
   result
+;;
 
 let cd_extract_vector_from_segment (arr : int array) =
   let verts =
@@ -95,6 +115,7 @@ let cd_extract_vector_from_segment (arr : int array) =
   let end_side = arr.(25) in
   let vx, vy, vz = Ox_gameseg.extract_vector_from_segment verts start_side end_side in
   [| vx; vy; vz |]
+;;
 
 let cd_extract_orient_from_segment (arr : int array) =
   let verts =
@@ -106,6 +127,7 @@ let cd_extract_orient_from_segment (arr : int array) =
     Ox_gameseg.extract_orient_from_segment verts
   in
   [| r1; r2; r3; u1; u2; u3; f1; f2; f3 |]
+;;
 
 let () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
@@ -116,3 +138,4 @@ let () =
   Callback.register "cd_get_side_dists" cd_get_side_dists;
   Callback.register "cd_extract_vector_from_segment" cd_extract_vector_from_segment;
   Callback.register "cd_extract_orient_from_segment" cd_extract_orient_from_segment
+;;

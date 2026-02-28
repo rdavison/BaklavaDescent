@@ -6,83 +6,125 @@ let cd_vm_vec_avg ax ay az bx by bz = Ox_math.vm_vec_avg ~a:(ax, ay, az) ~b:(bx,
 
 let cd_vm_vec_avg4 a1 a2 a3 b1 b2 b3 c1 c2 c3 d1 d2 d3 =
   Ox_math.vm_vec_avg4 ~a:(a1, a2, a3) ~b:(b1, b2, b3) ~c:(c1, c2, c3) ~d:(d1, d2, d3)
+;;
 
 let cd_vm_vec_copy_scale sx sy sz k = Ox_math.vm_vec_copy_scale ~v:(sx, sy, sz) ~k
 
 let cd_vm_vec_scale_add ax ay az bx by bz k =
   Ox_math.vm_vec_scale_add ~a:(ax, ay, az) ~b:(bx, by, bz) ~k
+;;
 
 let cd_vm_vec_scale_add2 dx dy dz sx sy sz k =
   Ox_math.vm_vec_scale_add2 ~dest:(dx, dy, dz) ~src:(sx, sy, sz) ~k
+;;
 
 let cd_vm_vec_scale2 dx dy dz n d = Ox_math.vm_vec_scale2 ~v:(dx, dy, dz) ~n ~d
 let cd_vm_vec_mag x y z = Ox_math.vm_vec_mag ~v:(x, y, z)
 let cd_vm_vec_dist x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dist ~a:(x0, y0, z0) ~b:(x1, y1, z1)
-let cd_vm_vec_dotprod x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dotprod ~a:(x0, y0, z0) ~b:(x1, y1, z1)
+
+let cd_vm_vec_dotprod x0 y0 z0 x1 y1 z1 =
+  Ox_math.vm_vec_dotprod ~a:(x0, y0, z0) ~b:(x1, y1, z1)
+;;
+
 let cd_vm_vec_dot3 x y z vx vy vz = Ox_math.vm_vec_dot3 ~x ~y ~z ~v:(vx, vy, vz)
 
 let cd_vm_vec_crossprod x0 y0 z0 x1 y1 z1 =
   Ox_math.vm_vec_crossprod ~a:(x0, y0, z0) ~b:(x1, y1, z1)
+;;
 
 let cd_vm_vec_perp p0x p0y p0z p1x p1y p1z p2x p2y p2z =
   Ox_math.vm_vec_perp ~p0:(p0x, p0y, p0z) ~p1:(p1x, p1y, p1z) ~p2:(p2x, p2y, p2z)
+;;
 
 let cd_vm_vec_copy_normalize sx sy sz =
   let m, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize ~v:(sx, sy, sz) in
-  (m, nx, ny, nz)
+  m, nx, ny, nz
+;;
 
 let cd_vm_vec_rotate sx sy sz r1 r2 r3 u1 u2 u3 f1 f2 f3 =
   Ox_math.vm_vec_rotate ~src:(sx, sy, sz) ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+;;
 
 let cd_sincos_2_matrix sinp cosp sinb cosb sinh cosh =
   Ox_math.sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh
+;;
 
 let cd_vm_angles_2_matrix p b h = Ox_math.vm_angles_2_matrix ~v:(p, b, h)
-
 let cd_vm_vec_ang_2_matrix vx vy vz a = Ox_math.vm_vec_ang_2_matrix ~v:(vx, vy, vz) ~a
 
 let cd_vm_transpose_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 =
   Ox_math.vm_transpose_matrix ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+;;
 
-let cd_vm_matrix_x_matrix s0r1 s0r2 s0r3 s0u1 s0u2 s0u3 s0f1 s0f2 s0f3
-    s1r1 s1r2 s1r3 s1u1 s1u2 s1u3 s1f1 s1f2 s1f3 =
+let cd_vm_matrix_x_matrix
+      s0r1
+      s0r2
+      s0r3
+      s0u1
+      s0u2
+      s0u3
+      s0f1
+      s0f2
+      s0f3
+      s1r1
+      s1r2
+      s1r3
+      s1u1
+      s1u2
+      s1u3
+      s1f1
+      s1f2
+      s1f3
+  =
   Ox_math.vm_matrix_x_matrix
     ~a:((s0r1, s0r2, s0r3), (s0u1, s0u2, s0u3), (s0f1, s0f2, s0f3))
     ~b:((s1r1, s1r2, s1r3), (s1u1, s1u2, s1u3), (s1f1, s1f2, s1f3))
+;;
 
 let cd_vm_vector_2_matrix fx fy fz has_uvec ux uy uz has_rvec rx ry rz =
   let uvec = if has_uvec <> 0 then Some (ux, uy, uz) else None in
   let rvec = if has_rvec <> 0 then Some (rx, ry, rz) else None in
   Ox_math.vm_vector_2_matrix ~fvec:(fx, fy, fz) ~uvec ~rvec
+;;
 
 let cd_vm_vector_2_matrix_norm fx fy fz has_uvec ux uy uz has_rvec rx ry rz =
   let uvec = if has_uvec <> 0 then Some (ux, uy, uz) else None in
   let rvec = if has_rvec <> 0 then Some (rx, ry, rz) else None in
   Ox_math.vm_vector_2_matrix_norm ~fvec:(fx, fy, fz) ~uvec ~rvec
+;;
 
 let cd_vm_extract_angles_matrix r1 r2 r3 u1 u2 u3 f1 f2 f3 =
   Ox_math.vm_extract_angles_matrix ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3))
+;;
 
 let cd_vm_extract_angles_vector_normalized x y z =
   Ox_math.vm_extract_angles_vector_normalized ~v:(x, y, z)
+;;
 
 let cd_vm_extract_angles_vector ip ib ih vx vy vz =
   Ox_math.vm_extract_angles_vector ~angles:(ip, ib, ih) ~v:(vx, vy, vz)
+;;
 
 let cd_vm_vec_delta_ang_norm v0x v0y v0z v1x v1y v1z has_fvec fx fy fz =
   let fvec = if has_fvec <> 0 then Some (fx, fy, fz) else None in
   Ox_math.vm_vec_delta_ang_norm ~v0:(v0x, v0y, v0z) ~v1:(v1x, v1y, v1z) ~fvec
+;;
 
 let cd_vm_vec_delta_ang v0x v0y v0z v1x v1y v1z has_fvec fx fy fz =
   let fvec = if has_fvec <> 0 then Some (fx, fy, fz) else None in
   Ox_math.vm_vec_delta_ang ~v0:(v0x, v0y, v0z) ~v1:(v1x, v1y, v1z) ~fvec
+;;
 
 let cd_vm_vec_mag_quick x y z = Ox_math.vm_vec_mag_quick ~v:(x, y, z)
-let cd_vm_vec_dist_quick x0 y0 z0 x1 y1 z1 = Ox_math.vm_vec_dist_quick ~a:(x0, y0, z0) ~b:(x1, y1, z1)
+
+let cd_vm_vec_dist_quick x0 y0 z0 x1 y1 z1 =
+  Ox_math.vm_vec_dist_quick ~a:(x0, y0, z0) ~b:(x1, y1, z1)
+;;
 
 let cd_vm_vec_copy_normalize_quick sx sy sz =
   let m, (nx, ny, nz) = Ox_math.vm_vec_copy_normalize_quick ~v:(sx, sy, sz) in
-  (m, nx, ny, nz)
+  m, nx, ny, nz
+;;
 
 let () =
   (* Register named callbacks so C can resolve these via caml_named_value(). *)
@@ -123,7 +165,9 @@ let () =
   Callback.register "cd_vm_vector_2_matrix" cd_vm_vector_2_matrix;
   Callback.register "cd_vm_vector_2_matrix_norm" cd_vm_vector_2_matrix_norm;
   Callback.register "cd_vm_extract_angles_matrix" cd_vm_extract_angles_matrix;
-  Callback.register "cd_vm_extract_angles_vector_normalized" cd_vm_extract_angles_vector_normalized;
+  Callback.register
+    "cd_vm_extract_angles_vector_normalized"
+    cd_vm_extract_angles_vector_normalized;
   Callback.register "cd_vm_extract_angles_vector" cd_vm_extract_angles_vector;
   Callback.register "cd_vm_vec_delta_ang_norm" cd_vm_vec_delta_ang_norm;
   Callback.register "cd_vm_vec_delta_ang" cd_vm_vec_delta_ang;
@@ -133,74 +177,266 @@ let () =
   (* Force 3D bridge module initialization so its callbacks are registered. *)
   ignore (G3d_bridge.cd_g3_code_point : int -> int -> int -> int);
   (* Force FVI bridge module initialization so its callbacks are registered. *)
-  ignore (Fvi_bridge.cd_check_vector_to_sphere_1 :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  ignore
+    (Fvi_bridge.cd_check_vector_to_sphere_1
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int);
   (* Force collide bridge module initialization so its callbacks are registered. *)
-  ignore (Collide_bridge.cd_apply_damage_to_robot_d1 :
-    int -> int -> int -> int -> int -> int -> int -> int * int * int);
-  ignore (Collide_bridge.cd_apply_damage_to_robot_d2 :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int);
-  ignore (Collide_bridge.cd_apply_damage_to_clutter :
-    int -> int -> int -> int -> int * int);
-  ignore (Collide_bridge.cd_apply_damage_to_controlcen :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int);
-  ignore (Collide_bridge.cd_apply_damage_to_player_d1 :
-    int -> int -> int -> int -> int -> int -> int -> int * int);
-  ignore (Collide_bridge.cd_apply_damage_to_player_d2 :
-    int -> int -> int -> int -> int -> int -> int -> int -> int * int);
-  ignore (Collide_bridge.cd_maybe_kill_weapon_d1 :
-    int -> int -> int -> int -> int -> int * int);
-  ignore (Collide_bridge.cd_maybe_kill_weapon_d2 :
-    int -> int -> int -> int -> int -> int -> int * int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_robot_d1
+     : int -> int -> int -> int -> int -> int -> int -> int * int * int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_robot_d2
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_clutter : int -> int -> int -> int -> int * int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_controlcen
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_player_d1
+     : int -> int -> int -> int -> int -> int -> int -> int * int);
+  ignore
+    (Collide_bridge.cd_apply_damage_to_player_d2
+     : int -> int -> int -> int -> int -> int -> int -> int -> int * int);
+  ignore
+    (Collide_bridge.cd_maybe_kill_weapon_d1
+     : int -> int -> int -> int -> int -> int * int);
+  ignore
+    (Collide_bridge.cd_maybe_kill_weapon_d2
+     : int -> int -> int -> int -> int -> int -> int * int);
   ignore (Collide_bridge.cd_calc_best_gun : int array -> int);
-  ignore (Collide_bridge.cd_chase_angles :
-    int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
+  ignore
+    (Collide_bridge.cd_chase_angles
+     : int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
   ignore (Collide_bridge.cd_laser_are_related_d1 : int array -> int);
   ignore (Collide_bridge.cd_laser_are_related_d2 : int array -> int);
-  ignore (Collide_bridge.cd_calc_controlcen_gun_point :
-    int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int * int * int * int * int * int);
+  ignore
+    (Collide_bridge.cd_calc_controlcen_gun_point
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int * int * int);
   (* Force physics bridge module initialization so its callbacks are registered. *)
-  ignore (Physics_bridge.cd_physics_turn_towards_vector :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int);
-  ignore (Physics_bridge.cd_do_physics_sim_rot :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int * int * int * int * int * int * int * int * int * int * int * int * int * int);
+  ignore
+    (Physics_bridge.cd_physics_turn_towards_vector
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int);
+  ignore
+    (Physics_bridge.cd_do_physics_sim_rot
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int
+          * int);
   ignore (Physics_bridge.cd_calc_gun_point : int array -> int * int * int);
-  ignore (Physics_bridge.cd_phys_apply_force :
-    int -> int -> int -> int -> int -> int -> int -> int * int * int);
-  ignore (Physics_bridge.cd_phys_apply_rot :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
-  ignore (Physics_bridge.cd_ai_turn_towards_vector :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int * int * int * int * int * int * int * int * int);
-  ignore (Physics_bridge.cd_set_thrust_from_velocity :
-    int -> int -> int -> int -> int -> int * int * int);
-  ignore (Physics_bridge.cd_move_towards_vector :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int * int * int);
+  ignore
+    (Physics_bridge.cd_phys_apply_force
+     : int -> int -> int -> int -> int -> int -> int -> int * int * int);
+  ignore
+    (Physics_bridge.cd_phys_apply_rot
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int);
+  ignore
+    (Physics_bridge.cd_ai_turn_towards_vector
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int * int * int * int * int * int);
+  ignore
+    (Physics_bridge.cd_set_thrust_from_velocity
+     : int -> int -> int -> int -> int -> int * int * int);
+  ignore
+    (Physics_bridge.cd_move_towards_vector
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int);
   ignore (Physics_bridge.cd_move_around_player : int array -> int * int * int);
-  ignore (Physics_bridge.cd_move_away_from_player :
-    int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int * int * int);
-  ignore (Physics_bridge.cd_set_object_turnroll :
-    int -> int -> int -> int);
-  ignore (Physics_bridge.cd_lead_player :
-    int -> int -> int -> int -> int -> int -> int -> int -> int ->
-    int -> int -> int -> int -> int -> int -> int -> int * int * int * int);
-  ignore (Physics_bridge.cd_homing_missile_turn_towards_velocity :
-    int -> int -> int -> int -> int -> int -> int ->
-    int * int * int * int * int * int * int * int * int);
+  ignore
+    (Physics_bridge.cd_move_away_from_player
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int);
+  ignore (Physics_bridge.cd_set_object_turnroll : int -> int -> int -> int);
+  ignore
+    (Physics_bridge.cd_lead_player
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int);
+  ignore
+    (Physics_bridge.cd_homing_missile_turn_towards_velocity
+     : int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int * int * int * int * int * int * int * int * int);
   (* Force AI bridge module initialization so its callbacks are registered. *)
-  ignore (Ai_bridge.cd_set_next_fire_time_d1 :
-    int -> int -> int -> int * int);
+  ignore (Ai_bridge.cd_set_next_fire_time_d1 : int -> int -> int -> int * int);
   ignore (Ai_bridge.cd_ai_behavior_to_mode_d1 : int -> int);
-  ignore (Ai_bridge.cd_ai_turn_randomly :
-    int -> int -> int -> int * int * int);
+  ignore (Ai_bridge.cd_ai_turn_randomly : int -> int -> int -> int * int * int);
   (* Force lighting bridge module initialization so its callbacks are registered. *)
-  ignore (Lighting_bridge.cd_compute_headlight_light_d1 :
-    int -> int -> int -> int -> int -> int -> int);
-  ignore (Lighting_bridge.cd_compute_headlight_light_d2 :
-    int -> int -> int -> int -> int -> int -> int -> int -> int)
+  ignore
+    (Lighting_bridge.cd_compute_headlight_light_d1
+     : int -> int -> int -> int -> int -> int -> int);
+  ignore
+    (Lighting_bridge.cd_compute_headlight_light_d2
+     : int -> int -> int -> int -> int -> int -> int -> int -> int)
+;;
