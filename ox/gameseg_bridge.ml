@@ -1,27 +1,35 @@
 let cd_compute_center_point_on_side v0x v0y v0z v1x v1y v1z v2x v2y v2z v3x v3y v3z =
   Ox_gameseg.compute_center_point_on_side
-    (v0x, v0y, v0z)
-    (v1x, v1y, v1z)
-    (v2x, v2y, v2z)
-    (v3x, v3y, v3z)
+    ~v0:(v0x, v0y, v0z)
+    ~v1:(v1x, v1y, v1z)
+    ~v2:(v2x, v2y, v2z)
+    ~v3:(v3x, v3y, v3z)
 ;;
 
 let cd_compute_segment_center (arr : int array) =
   let v i = arr.(i * 3), arr.((i * 3) + 1), arr.((i * 3) + 2) in
   let cx, cy, cz =
-    Ox_gameseg.compute_segment_center (v 0) (v 1) (v 2) (v 3) (v 4) (v 5) (v 6) (v 7)
+    Ox_gameseg.compute_segment_center
+      ~v0:(v 0)
+      ~v1:(v 1)
+      ~v2:(v 2)
+      ~v3:(v 3)
+      ~v4:(v 4)
+      ~v5:(v 5)
+      ~v6:(v 6)
+      ~v7:(v 7)
   in
   [| cx; cy; cz |]
 ;;
 
 let cd_get_verts_for_normal va vb vc vd =
-  let v0, v1, v2, v3, negate_flag = Ox_gameseg.get_verts_for_normal va vb vc vd in
+  let v0, v1, v2, v3, negate_flag = Ox_gameseg.get_verts_for_normal ~va ~vb ~vc ~vd in
   v0, v1, v2, v3, negate_flag
 ;;
 
 let cd_create_abs_vertex_lists side_type (seg_verts : int array) sidenum =
   let num_faces, vertices =
-    Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum
+    Ox_gameseg.create_abs_vertex_lists ~side_type ~seg_verts ~sidenum
   in
   let result = Array.create ~len:7 0 in
   result.(0) <- num_faces;
@@ -113,7 +121,7 @@ let cd_extract_vector_from_segment (arr : int array) =
   in
   let start_side = arr.(24) in
   let end_side = arr.(25) in
-  let vx, vy, vz = Ox_gameseg.extract_vector_from_segment verts start_side end_side in
+  let vx, vy, vz = Ox_gameseg.extract_vector_from_segment ~verts ~start_side ~end_side in
   [| vx; vy; vz |]
 ;;
 

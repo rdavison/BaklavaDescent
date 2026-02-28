@@ -33,7 +33,7 @@ let cd_check_line_to_face (arr : int array) =
       arr.(base), arr.(base + 1), arr.(base + 2))
   in
   let num_faces, vertex_list =
-    Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum
+    Ox_gameseg.create_abs_vertex_lists ~side_type ~seg_verts ~sidenum
   in
   let hit, (npx, npy, npz) =
     Ox_fvi.check_line_to_face
@@ -67,7 +67,7 @@ let cd_special_check_line_to_face (arr : int array) =
       arr.(base), arr.(base + 1), arr.(base + 2))
   in
   let num_faces, vertex_list =
-    Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum
+    Ox_gameseg.create_abs_vertex_lists ~side_type ~seg_verts ~sidenum
   in
   let hit, (npx, npy, npz) =
     Ox_fvi.special_check_line_to_face

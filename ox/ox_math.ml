@@ -182,18 +182,18 @@ let fix_isqrt ~a =
     iter 0 r0)
 ;;
 
-let wrap_add_i32 a b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
+let wrap_add_i32 ~a ~b = Int64.(wrap_i64_to_fix (of_int a + of_int b))
 
 let vm_vec_scale_add2 ~dest:(dx, dy, dz) ~src:(sx, sy, sz) ~k =
-  ( wrap_add_i32 dx (fixmul ~a:sx ~b:k)
-  , wrap_add_i32 dy (fixmul ~a:sy ~b:k)
-  , wrap_add_i32 dz (fixmul ~a:sz ~b:k) )
+  ( wrap_add_i32 ~a:dx ~b:(fixmul ~a:sx ~b:k)
+  , wrap_add_i32 ~a:dy ~b:(fixmul ~a:sy ~b:k)
+  , wrap_add_i32 ~a:dz ~b:(fixmul ~a:sz ~b:k) )
 ;;
 
 let vm_vec_scale_add ~a:(ax, ay, az) ~b:(bx, by, bz) ~k =
-  ( wrap_add_i32 ax (fixmul ~a:bx ~b:k)
-  , wrap_add_i32 ay (fixmul ~a:by ~b:k)
-  , wrap_add_i32 az (fixmul ~a:bz ~b:k) )
+  ( wrap_add_i32 ~a:ax ~b:(fixmul ~a:bx ~b:k)
+  , wrap_add_i32 ~a:ay ~b:(fixmul ~a:by ~b:k)
+  , wrap_add_i32 ~a:az ~b:(fixmul ~a:bz ~b:k) )
 ;;
 
 let vm_vec_scale2 ~v:(dx, dy, dz) ~n ~d =
@@ -203,29 +203,29 @@ let vm_vec_scale2 ~v:(dx, dy, dz) ~n ~d =
 ;;
 
 let vm_vec_add ~a:(ax, ay, az) ~b:(bx, by, bz) =
-  wrap_add_i32 ax bx, wrap_add_i32 ay by, wrap_add_i32 az bz
+  wrap_add_i32 ~a:ax ~b:bx, wrap_add_i32 ~a:ay ~b:by, wrap_add_i32 ~a:az ~b:bz
 ;;
 
 let vm_vec_sub ~a:(ax, ay, az) ~b:(bx, by, bz) =
-  wrap_add_i32 ax (-bx), wrap_add_i32 ay (-by), wrap_add_i32 az (-bz)
+  wrap_add_i32 ~a:ax ~b:(-bx), wrap_add_i32 ~a:ay ~b:(-by), wrap_add_i32 ~a:az ~b:(-bz)
 ;;
 
 let vm_vec_add2 ~a:(dx, dy, dz) ~b:(sx, sy, sz) =
-  wrap_add_i32 dx sx, wrap_add_i32 dy sy, wrap_add_i32 dz sz
+  wrap_add_i32 ~a:dx ~b:sx, wrap_add_i32 ~a:dy ~b:sy, wrap_add_i32 ~a:dz ~b:sz
 ;;
 
 let vm_vec_sub2 ~a:(dx, dy, dz) ~b:(sx, sy, sz) =
-  wrap_add_i32 dx (-sx), wrap_add_i32 dy (-sy), wrap_add_i32 dz (-sz)
+  wrap_add_i32 ~a:dx ~b:(-sx), wrap_add_i32 ~a:dy ~b:(-sy), wrap_add_i32 ~a:dz ~b:(-sz)
 ;;
 
 let vm_vec_avg ~a:(ax, ay, az) ~b:(bx, by, bz) =
-  wrap_add_i32 ax bx / 2, wrap_add_i32 ay by / 2, wrap_add_i32 az bz / 2
+  wrap_add_i32 ~a:ax ~b:bx / 2, wrap_add_i32 ~a:ay ~b:by / 2, wrap_add_i32 ~a:az ~b:bz / 2
 ;;
 
 let vm_vec_avg4 ~a:(a1, a2, a3) ~b:(b1, b2, b3) ~c:(c1, c2, c3) ~d:(d1, d2, d3) =
-  let x = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a1 b1) c1) d1 in
-  let y = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a2 b2) c2) d2 in
-  let z = wrap_add_i32 (wrap_add_i32 (wrap_add_i32 a3 b3) c3) d3 in
+  let x = wrap_add_i32 ~a:(wrap_add_i32 ~a:(wrap_add_i32 ~a:a1 ~b:b1) ~b:c1) ~b:d1 in
+  let y = wrap_add_i32 ~a:(wrap_add_i32 ~a:(wrap_add_i32 ~a:a2 ~b:b2) ~b:c2) ~b:d2 in
+  let z = wrap_add_i32 ~a:(wrap_add_i32 ~a:(wrap_add_i32 ~a:a3 ~b:b3) ~b:c3) ~b:d3 in
   x / 4, y / 4, z / 4
 ;;
 
@@ -270,8 +270,8 @@ let vm_vec_mag_quick ~v:(x, y, z) =
       let t2 = !a in
       a := !b;
       b := t2));
-  let bc = wrap_add_i32 (!b asr 2) (!c asr 3) in
-  wrap_add_i32 !a (wrap_add_i32 bc (bc asr 1))
+  let bc = wrap_add_i32 ~a:(!b asr 2) ~b:(!c asr 3) in
+  wrap_add_i32 ~a:!a ~b:(wrap_add_i32 ~a:bc ~b:(bc asr 1))
 ;;
 
 let vm_vec_dist_quick ~a ~b = vm_vec_mag_quick ~v:(vm_vec_sub ~a ~b)
@@ -286,14 +286,14 @@ let fixquadadjust q =
 let u32_mask = Int64.of_string "0xFFFFFFFF"
 let u32_bits x = Int64.bit_and (Int64.of_int x) u32_mask
 let i32_from_u32 x = wrap_i64_to_fix (Int64.bit_and x u32_mask)
-let fixmulaccum q a b = Int64.(q + (of_int a * of_int b))
+let fixmulaccum ~q ~a ~b = Int64.(q + (of_int a * of_int b))
 
-let fixdivquadlong n d =
+let fixdivquadlong ~n ~d =
   let den = u32_bits d in
   if Int64.equal den 0L then 1 else wrap_i64_to_fix Int64.(n / den)
 ;;
 
-let fixquadnegate low high =
+let fixquadnegate ~low ~high =
   let low_u = u32_bits low in
   let new_low_u = Int64.bit_and Int64.(neg low_u) u32_mask in
   let borrow = if Int64.equal new_low_u 0L then 0 else 1 in
@@ -301,7 +301,7 @@ let fixquadnegate low high =
   i32_from_u32 new_low_u, new_high
 ;;
 
-let ufixdivquadlong nl nh d =
+let ufixdivquadlong ~nl ~nh ~d =
   let den = u32_bits d in
   if Int64.equal den 0L
   then 0
@@ -374,46 +374,48 @@ let vm_dist_to_plane ~checkp ~norm ~planep =
   vm_vec_dotprod ~a:(vm_vec_sub ~a:checkp ~b:planep) ~b:norm
 ;;
 
-let bitand_i32 a b = wrap_i64_to_fix Int64.(bit_and (of_int a) (of_int b))
-let bitor_i32 a b = wrap_i64_to_fix Int64.(bit_or (of_int a) (of_int b))
-let shl_i32 a n = wrap_i64_to_fix Int64.(shift_left (of_int a) n)
-let asr_i32 a n = wrap_i64_to_fix Int64.(shift_right (of_int a) n)
+let bitand_i32 ~a ~b = wrap_i64_to_fix Int64.(bit_and (of_int a) (of_int b))
+let bitor_i32 ~a ~b = wrap_i64_to_fix Int64.(bit_or (of_int a) (of_int b))
+let shl_i32 ~a ~n = wrap_i64_to_fix Int64.(shift_left (of_int a) n)
+let asr_i32 ~a ~n = wrap_i64_to_fix Int64.(shift_right (of_int a) n)
 let abs_i32_c a = wrap_i64_to_fix (Int64.of_int (Int.abs a))
 
 let check_vec ~v:(x, y, z) =
   let x = ref x in
   let y = ref y in
   let z = ref z in
-  let check = ref (bitor_i32 (bitor_i32 (abs_i32_c !x) (abs_i32_c !y)) (abs_i32_c !z)) in
+  let check =
+    ref (bitor_i32 ~a:(bitor_i32 ~a:(abs_i32_c !x) ~b:(abs_i32_c !y)) ~b:(abs_i32_c !z))
+  in
   let cnt = ref 0 in
   if !check <> 0
   then
-    if bitand_i32 !check 0xFFFC0000 <> 0
+    if bitand_i32 ~a:!check ~b:0xFFFC0000 <> 0
     then (
-      while bitand_i32 !check 0xFFF00000 <> 0 do
+      while bitand_i32 ~a:!check ~b:0xFFF00000 <> 0 do
         cnt := !cnt + 4;
-        check := asr_i32 !check 4
+        check := asr_i32 ~a:!check ~n:4
       done;
-      while bitand_i32 !check 0xFFFC0000 <> 0 do
+      while bitand_i32 ~a:!check ~b:0xFFFC0000 <> 0 do
         cnt := !cnt + 2;
-        check := asr_i32 !check 2
+        check := asr_i32 ~a:!check ~n:2
       done;
-      x := asr_i32 !x !cnt;
-      y := asr_i32 !y !cnt;
-      z := asr_i32 !z !cnt)
-    else if bitand_i32 !check 0xFFFF8000 = 0
+      x := asr_i32 ~a:!x ~n:!cnt;
+      y := asr_i32 ~a:!y ~n:!cnt;
+      z := asr_i32 ~a:!z ~n:!cnt)
+    else if bitand_i32 ~a:!check ~b:0xFFFF8000 = 0
     then (
-      while bitand_i32 !check 0xFFFFF000 = 0 do
+      while bitand_i32 ~a:!check ~b:0xFFFFF000 = 0 do
         cnt := !cnt + 4;
-        check := shl_i32 !check 4
+        check := shl_i32 ~a:!check ~n:4
       done;
-      while bitand_i32 !check 0xFFFF8000 = 0 do
+      while bitand_i32 ~a:!check ~b:0xFFFF8000 = 0 do
         cnt := !cnt + 2;
-        check := shl_i32 !check 2
+        check := shl_i32 ~a:!check ~n:2
       done;
-      x := asr_i32 !x !cnt;
-      y := asr_i32 !y !cnt;
-      z := asr_i32 !z !cnt);
+      x := asr_i32 ~a:!x ~n:!cnt;
+      y := asr_i32 ~a:!y ~n:!cnt;
+      z := asr_i32 ~a:!z ~n:!cnt);
   !x, !y, !z
 ;;
 
@@ -433,10 +435,10 @@ let sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh =
   let cbch = fixmul ~a:cosb ~b:cosh in
   let cbsh = fixmul ~a:cosb ~b:sinh in
   let sbch = fixmul ~a:sinb ~b:cosh in
-  let rvec_x = wrap_add_i32 cbch (fixmul ~a:sinp ~b:sbsh) in
-  let uvec_z = wrap_add_i32 sbsh (fixmul ~a:sinp ~b:cbch) in
-  let uvec_x = wrap_add_i32 (fixmul ~a:sinp ~b:cbsh) (-sbch) in
-  let rvec_z = wrap_add_i32 (fixmul ~a:sinp ~b:sbch) (-cbsh) in
+  let rvec_x = wrap_add_i32 ~a:cbch ~b:(fixmul ~a:sinp ~b:sbsh) in
+  let uvec_z = wrap_add_i32 ~a:sbsh ~b:(fixmul ~a:sinp ~b:cbch) in
+  let uvec_x = wrap_add_i32 ~a:(fixmul ~a:sinp ~b:cbsh) ~b:(-sbch) in
+  let rvec_z = wrap_add_i32 ~a:(fixmul ~a:sinp ~b:sbch) ~b:(-cbsh) in
   let fvec_x = fixmul ~a:sinh ~b:cosp in
   let rvec_y = fixmul ~a:sinb ~b:cosp in
   let uvec_y = fixmul ~a:cosb ~b:cosp in
@@ -457,7 +459,9 @@ let vm_vec_ang_2_matrix ~v:(vx, vy, vz) ~a =
   let a = wrap_i64_to_fixang (Int64.of_int a) in
   let sinb, cosb = fix_sincos ~a in
   let sinp = neg_i32 vy in
-  let cosp = fix_sqrt ~a:(wrap_add_i32 0x10000 (neg_i32 (fixmul ~a:sinp ~b:sinp))) in
+  let cosp =
+    fix_sqrt ~a:(wrap_add_i32 ~a:0x10000 ~b:(neg_i32 (fixmul ~a:sinp ~b:sinp)))
+  in
   let sinh = fixdiv ~a:vx ~b:cosp in
   let cosh = fixdiv ~a:vz ~b:cosp in
   sincos_2_matrix ~sinp ~cosp ~sinb ~cosb ~sinh ~cosh

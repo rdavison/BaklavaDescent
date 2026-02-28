@@ -3338,7 +3338,11 @@ let%expect_test "fixquadadjust parity C vs Ox" =
 ;;
 
 let%expect_test "fixmulaccum parity C vs Ox" =
-  check_ternop_i64_out "fixmulaccum" c_fixmulaccum Ox_math.fixmulaccum fixmulaccum_cases;
+  check_ternop_i64_out
+    "fixmulaccum"
+    c_fixmulaccum
+    (fun q a b -> Ox_math.fixmulaccum ~q ~a ~b)
+    fixmulaccum_cases;
   [%expect
     {|
     fixmulaccum q=0 a=0 b=0 c=0 ox=0 eq=true
@@ -3353,7 +3357,7 @@ let%expect_test "fixdivquadlong parity C vs Ox" =
   check_binop_i64_int
     "fixdivquadlong"
     c_fixdivquadlong
-    Ox_math.fixdivquadlong
+    (fun n d -> Ox_math.fixdivquadlong ~n ~d)
     fixdivquadlong_cases;
   [%expect
     {|
@@ -3372,7 +3376,7 @@ let%expect_test "fixquadnegate parity C vs Ox" =
   check_binop_pair
     "fixquadnegate"
     c_fixquadnegate
-    Ox_math.fixquadnegate
+    (fun low high -> Ox_math.fixquadnegate ~low ~high)
     fixquadnegate_cases;
   [%expect
     {|
@@ -3389,7 +3393,7 @@ let%expect_test "ufixdivquadlong parity C vs Ox" =
   check_ternop
     "ufixdivquadlong"
     c_ufixdivquadlong
-    Ox_math.ufixdivquadlong
+    (fun nl nh d -> Ox_math.ufixdivquadlong ~nl ~nh ~d)
     ufixdivquadlong_cases;
   [%expect
     {|
@@ -4301,7 +4305,7 @@ let%expect_test "randomized fixmulaccum parity C vs Ox" =
     ~test_count:5000
     ~gen
     c_fixmulaccum
-    Ox_math.fixmulaccum;
+    (fun q a b -> Ox_math.fixmulaccum ~q ~a ~b);
   [%expect {| fixmulaccum random total=5000 mismatches=0 |}]
 ;;
 
@@ -4317,7 +4321,7 @@ let%expect_test "randomized fixdivquadlong parity C vs Ox" =
     ~test_count:5000
     ~gen
     c_fixdivquadlong
-    Ox_math.fixdivquadlong;
+    (fun n d -> Ox_math.fixdivquadlong ~n ~d);
   [%expect {| fixdivquadlong random total=5000 mismatches=0 |}]
 ;;
 
@@ -4327,7 +4331,7 @@ let%expect_test "randomized fixquadnegate parity C vs Ox" =
     ~seed:"fixquadnegate-seed-v1"
     ~test_count:5000
     c_fixquadnegate
-    Ox_math.fixquadnegate;
+    (fun low high -> Ox_math.fixquadnegate ~low ~high);
   [%expect {| fixquadnegate random total=5000 mismatches=0 |}]
 ;;
 
@@ -4341,7 +4345,7 @@ let%expect_test "randomized ufixdivquadlong parity C vs Ox" =
        c_ufixdivquadlong nl nh d)
     (fun nl nh d ->
        let d = if Int.equal d 0 then 1 else d in
-       Ox_math.ufixdivquadlong nl nh d);
+       Ox_math.ufixdivquadlong ~nl ~nh ~d);
   [%expect {| ufixdivquadlong random total=5000 mismatches=0 |}]
 ;;
 
@@ -5076,7 +5080,7 @@ let checkmuldiv_cases =
 let%expect_test "checkmuldiv parity C vs Ox" =
   List.iter checkmuldiv_cases ~f:(fun (a, b, c) ->
     let c_ok, c_r = c_checkmuldiv a b c in
-    let ox_ok, ox_r = Ox_3d.checkmuldiv a b c in
+    let ox_ok, ox_r = Ox_3d.checkmuldiv ~a ~b ~c in
     let ox_ok_i = if ox_ok then 1 else 0 in
     printf
       "checkmuldiv a=%d b=%d c=%d c_ok=%d c_r=%d ox_ok=%d ox_r=%d eq=%b\n"
@@ -5186,7 +5190,7 @@ let%expect_test "g3_rotate_delta_x parity C vs Ox" =
   let dx = 0x20000 in
   let c_rx, c_ry, c_rz = c_g3_rotate_delta_x r1 r2 r3 u1 u2 u3 f1 f2 f3 dx in
   let ox_rx, ox_ry, ox_rz =
-    Ox_3d.g3_rotate_delta_x ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dx
+    Ox_3d.g3_rotate_delta_x ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dx
   in
   let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
   printf
@@ -5207,7 +5211,7 @@ let%expect_test "g3_rotate_delta_y parity C vs Ox" =
   let dy = 0x20000 in
   let c_rx, c_ry, c_rz = c_g3_rotate_delta_y r1 r2 r3 u1 u2 u3 f1 f2 f3 dy in
   let ox_rx, ox_ry, ox_rz =
-    Ox_3d.g3_rotate_delta_y ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dy
+    Ox_3d.g3_rotate_delta_y ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dy
   in
   let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
   printf
@@ -5228,7 +5232,7 @@ let%expect_test "g3_rotate_delta_z parity C vs Ox" =
   let dz = 0x20000 in
   let c_rx, c_ry, c_rz = c_g3_rotate_delta_z r1 r2 r3 u1 u2 u3 f1 f2 f3 dz in
   let ox_rx, ox_ry, ox_rz =
-    Ox_3d.g3_rotate_delta_z ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dz
+    Ox_3d.g3_rotate_delta_z ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dz
   in
   let eq = c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz in
   printf
@@ -5363,7 +5367,7 @@ let%expect_test "randomized checkmuldiv parity C vs Ox" =
   |> Sequence.iter ~f:(fun (a, b, c) ->
     incr total;
     let c_ok, c_r = c_checkmuldiv a b c in
-    let ox_ok_b, ox_r = Ox_3d.checkmuldiv a b c in
+    let ox_ok_b, ox_r = Ox_3d.checkmuldiv ~a ~b ~c in
     let ox_ok = if ox_ok_b then 1 else 0 in
     if not (Int.equal c_ok ox_ok && Int.equal c_r ox_r)
     then (
@@ -5499,7 +5503,7 @@ let%expect_test "randomized g3_rotate_delta_x parity C vs Ox" =
     incr total;
     let c_rx, c_ry, c_rz = c_g3_rotate_delta_x r1 r2 r3 u1 u2 u3 f1 f2 f3 dx in
     let ox_rx, ox_ry, ox_rz =
-      Ox_3d.g3_rotate_delta_x ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dx
+      Ox_3d.g3_rotate_delta_x ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dx
     in
     if not (c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz)
     then (
@@ -5532,7 +5536,7 @@ let%expect_test "randomized g3_rotate_delta_y parity C vs Ox" =
     incr total;
     let c_rx, c_ry, c_rz = c_g3_rotate_delta_y r1 r2 r3 u1 u2 u3 f1 f2 f3 dy in
     let ox_rx, ox_ry, ox_rz =
-      Ox_3d.g3_rotate_delta_y ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dy
+      Ox_3d.g3_rotate_delta_y ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dy
     in
     if not (c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz)
     then (
@@ -5565,7 +5569,7 @@ let%expect_test "randomized g3_rotate_delta_z parity C vs Ox" =
     incr total;
     let c_rx, c_ry, c_rz = c_g3_rotate_delta_z r1 r2 r3 u1 u2 u3 f1 f2 f3 dz in
     let ox_rx, ox_ry, ox_rz =
-      Ox_3d.g3_rotate_delta_z ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dz
+      Ox_3d.g3_rotate_delta_z ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dz
     in
     if not (c_rx = ox_rx && c_ry = ox_ry && c_rz = ox_rz)
     then (
@@ -6050,7 +6054,12 @@ let%expect_test "randomized clip_line parity C vs Ox" =
         c_clip_line p0x p0y p0z p0c p1x p1y p1z p1c codes_or
       in
       let (op0x, op0y, op0z), op0c, (op1x, op1y, op1z), op1c, o_clip_b =
-        Ox_3d.clip_line (p0x, p0y, p0z) p0c (p1x, p1y, p1z) p1c codes_or
+        Ox_3d.clip_line
+          ~p0:(p0x, p0y, p0z)
+          ~p0_codes:p0c
+          ~p1:(p1x, p1y, p1z)
+          ~p1_codes:p1c
+          ~codes_or
       in
       let o_clip = if o_clip_b then 1 else 0 in
       let eq =
@@ -6363,7 +6372,11 @@ let%expect_test "randomized do_facing_check_computed parity C vs Ox" =
     incr total;
     let c_res = c_do_facing_check_computed p0x p0y p0z p1x p1y p1z p2x p2y p2z in
     let ox_res =
-      if Ox_3d.do_facing_check_computed (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
+      if
+        Ox_3d.do_facing_check_computed
+          ~p0:(p0x, p0y, p0z)
+          ~p1:(p1x, p1y, p1z)
+          ~p2:(p2x, p2y, p2z)
       then 1
       else 0
     in
@@ -6476,7 +6489,7 @@ let%expect_test "compute_center_point_on_side parity C vs Ox" =
   in
   List.iter cases ~f:(fun (v0, v1, v2, v3) ->
     let cx, cy, cz = c_compute_center_point_on_side v0 v1 v2 v3 in
-    let ox, oy, oz = Ox_gameseg.compute_center_point_on_side v0 v1 v2 v3 in
+    let ox, oy, oz = Ox_gameseg.compute_center_point_on_side ~v0 ~v1 ~v2 ~v3 in
     printf
       "compute_center_point_on_side c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
       cx
@@ -6508,14 +6521,14 @@ let%expect_test "compute_segment_center parity C vs Ox" =
   let cx, cy, cz = c_compute_segment_center_vecs verts in
   let ox, oy, oz =
     Ox_gameseg.compute_segment_center
-      verts.(0)
-      verts.(1)
-      verts.(2)
-      verts.(3)
-      verts.(4)
-      verts.(5)
-      verts.(6)
-      verts.(7)
+      ~v0:verts.(0)
+      ~v1:verts.(1)
+      ~v2:verts.(2)
+      ~v3:verts.(3)
+      ~v4:verts.(4)
+      ~v5:verts.(5)
+      ~v6:verts.(6)
+      ~v7:verts.(7)
   in
   printf
     "compute_segment_center c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
@@ -6534,7 +6547,7 @@ let%expect_test "get_verts_for_normal parity C vs Ox" =
   let cases = [ 3, 1, 4, 2; 10, 5, 3, 7; 100, 200, 50, 150; 1, 2, 3, 32767 ] in
   List.iter cases ~f:(fun (va, vb, vc, vd) ->
     let cv0, cv1, cv2, cv3, cnf = c_get_verts_for_normal va vb vc vd in
-    let ov0, ov1, ov2, ov3, onf = Ox_gameseg.get_verts_for_normal va vb vc vd in
+    let ov0, ov1, ov2, ov3, onf = Ox_gameseg.get_verts_for_normal ~va ~vb ~vc ~vd in
     let eq = cv0 = ov0 && cv1 = ov1 && cv2 = ov2 && cv3 = ov3 && cnf = onf in
     printf
       "get_verts_for_normal (%d,%d,%d,%d) c=(%d,%d,%d,%d,%d) ox=(%d,%d,%d,%d,%d) eq=%b\n"
@@ -6569,7 +6582,7 @@ let%expect_test "create_abs_vertex_lists parity C vs Ox" =
     let cnf, cv0, cv1, cv2, cv3, cv4, cv5 =
       c_create_abs_vertex_lists side_type seg_verts sidenum
     in
-    let onf, overts = Ox_gameseg.create_abs_vertex_lists side_type seg_verts sidenum in
+    let onf, overts = Ox_gameseg.create_abs_vertex_lists ~side_type ~seg_verts ~sidenum in
     let eq =
       cnf = onf
       && cv0 = overts.(0)
@@ -6637,7 +6650,9 @@ let%expect_test "extract_vector_from_segment parity C vs Ox" =
       let b = i * 3 in
       arr.(b), arr.(b + 1), arr.(b + 2))
   in
-  let ox, oy, oz = Ox_gameseg.extract_vector_from_segment verts_arr 5 4 in
+  let ox, oy, oz =
+    Ox_gameseg.extract_vector_from_segment ~verts:verts_arr ~start_side:5 ~end_side:4
+  in
   printf
     "extract_vector_from_segment c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
     cx
@@ -6651,7 +6666,9 @@ let%expect_test "extract_vector_from_segment parity C vs Ox" =
   arr.(24) <- 3;
   arr.(25) <- 1;
   let cx, cy, cz = c_extract_vector_from_segment arr in
-  let ox, oy, oz = Ox_gameseg.extract_vector_from_segment verts_arr 3 1 in
+  let ox, oy, oz =
+    Ox_gameseg.extract_vector_from_segment ~verts:verts_arr ~start_side:3 ~end_side:1
+  in
   printf
     "extract_vector_from_segment c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
     cx
@@ -7137,7 +7154,7 @@ let%expect_test "check_line_to_face parity C vs Ox" =
     arr.(22 + (i * 3) + 2) <- z);
   let c_hit, c_nx, c_ny, c_nz = c_check_line_to_face arr in
   let num_faces, vertex_list =
-    Ox_gameseg.create_abs_vertex_lists side_type test_seg_verts sidenum
+    Ox_gameseg.create_abs_vertex_lists ~side_type ~seg_verts:test_seg_verts ~sidenum
   in
   let ox_hit, (ox_nx, ox_ny, ox_nz) =
     Ox_fvi.check_line_to_face

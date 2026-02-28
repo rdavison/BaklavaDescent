@@ -21,19 +21,21 @@ let plane_dist_tolerance = 250
 
 type vec3 = int * int * int
 
-let compute_center_point_on_side (v0 : vec3) (v1 : vec3) (v2 : vec3) (v3 : vec3) : vec3 =
+let compute_center_point_on_side ~(v0 : vec3) ~(v1 : vec3) ~(v2 : vec3) ~(v3 : vec3)
+  : vec3
+  =
   Ox_math.vm_vec_avg4 ~a:v0 ~b:v1 ~c:v2 ~d:v3
 ;;
 
 let compute_segment_center
-      (v0 : vec3)
-      (v1 : vec3)
-      (v2 : vec3)
-      (v3 : vec3)
-      (v4 : vec3)
-      (v5 : vec3)
-      (v6 : vec3)
-      (v7 : vec3)
+      ~(v0 : vec3)
+      ~(v1 : vec3)
+      ~(v2 : vec3)
+      ~(v3 : vec3)
+      ~(v4 : vec3)
+      ~(v5 : vec3)
+      ~(v6 : vec3)
+      ~(v7 : vec3)
   : vec3
   =
   let open Ox_math in
@@ -58,7 +60,7 @@ let compute_segment_center
   sx / 8, sy / 8, sz / 8
 ;;
 
-let get_verts_for_normal va vb vc vd =
+let get_verts_for_normal ~va ~vb ~vc ~vd =
   let v = [| va; vb; vc; vd |] in
   let w = [| 0; 1; 2; 3 |] in
   for i = 1 to 3 do
@@ -79,36 +81,42 @@ let get_verts_for_normal va vb vc vd =
   v.(0), v.(1), v.(2), v.(3), negate_flag
 ;;
 
-let create_abs_vertex_lists side_type (verts : int array) sidenum =
+let create_abs_vertex_lists ~side_type ~(seg_verts : int array) ~sidenum =
   let sv = side_to_verts.(sidenum) in
   match side_type with
   | 1 ->
     (* SIDE_IS_QUAD *)
     let vertices =
-      [| verts.(sv.(0)); verts.(sv.(1)); verts.(sv.(2)); verts.(sv.(3)); 0; 0 |]
+      [| seg_verts.(sv.(0))
+       ; seg_verts.(sv.(1))
+       ; seg_verts.(sv.(2))
+       ; seg_verts.(sv.(3))
+       ; 0
+       ; 0
+      |]
     in
     1, vertices
   | 2 ->
     (* SIDE_IS_TRI_02 *)
     let vertices =
-      [| verts.(sv.(0))
-       ; verts.(sv.(1))
-       ; verts.(sv.(2))
-       ; verts.(sv.(2))
-       ; verts.(sv.(3))
-       ; verts.(sv.(0))
+      [| seg_verts.(sv.(0))
+       ; seg_verts.(sv.(1))
+       ; seg_verts.(sv.(2))
+       ; seg_verts.(sv.(2))
+       ; seg_verts.(sv.(3))
+       ; seg_verts.(sv.(0))
       |]
     in
     2, vertices
   | 3 ->
     (* SIDE_IS_TRI_13 *)
     let vertices =
-      [| verts.(sv.(3))
-       ; verts.(sv.(0))
-       ; verts.(sv.(1))
-       ; verts.(sv.(1))
-       ; verts.(sv.(2))
-       ; verts.(sv.(3))
+      [| seg_verts.(sv.(3))
+       ; seg_verts.(sv.(0))
+       ; seg_verts.(sv.(1))
+       ; seg_verts.(sv.(1))
+       ; seg_verts.(sv.(2))
+       ; seg_verts.(sv.(3))
       |]
     in
     2, vertices
@@ -118,7 +126,7 @@ let create_abs_vertex_lists side_type (verts : int array) sidenum =
 (* Lookup a vertex position by absolute vertex index.
    seg_verts maps relative index 0..7 to absolute vertex indices.
    seg_vert_positions.(i) is the position of seg_verts.(i). *)
-let lookup_vpos (seg_verts : int array) (seg_vert_positions : vec3 array) abs_idx =
+let lookup_vpos ~(seg_verts : int array) ~(seg_vert_positions : vec3 array) ~abs_idx =
   let rec find i =
     if i >= 8
     then 0, 0, 0 (* should not happen *)
@@ -137,7 +145,7 @@ let get_seg_masks
       ~(normals : vec3 array)
       ~(seg_vert_positions : vec3 array)
   =
-  let vpos = lookup_vpos seg_verts seg_vert_positions in
+  let vpos abs_idx = lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx in
   let facemask = ref 0 in
   let sidemask = ref 0 in
   let centermask = ref 0 in
@@ -147,7 +155,9 @@ let get_seg_masks
     let side_type = side_types.(sn) in
     let n0 = normals.(sn * 2) in
     let n1 = normals.((sn * 2) + 1) in
-    let num_faces, vertex_list = create_abs_vertex_lists side_type seg_verts sn in
+    let num_faces, vertex_list =
+      create_abs_vertex_lists ~side_type ~seg_verts ~sidenum:sn
+    in
     if num_faces = 2
     then (
       let vertnum = min vertex_list.(0) vertex_list.(2) in
@@ -203,7 +213,7 @@ let get_side_dists
       ~(normals : vec3 array)
       ~(seg_vert_positions : vec3 array)
   =
-  let vpos = lookup_vpos seg_verts seg_vert_positions in
+  let vpos abs_idx = lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx in
   let mask = ref 0 in
   let side_dists = Array.create ~len:6 0 in
   let facebit = ref 1 in
@@ -212,7 +222,9 @@ let get_side_dists
     let side_type = side_types.(sn) in
     let n0 = normals.(sn * 2) in
     let n1 = normals.((sn * 2) + 1) in
-    let num_faces, vertex_list = create_abs_vertex_lists side_type seg_verts sn in
+    let num_faces, vertex_list =
+      create_abs_vertex_lists ~side_type ~seg_verts ~sidenum:sn
+    in
     side_dists.(sn) <- 0;
     if num_faces = 2
     then (
@@ -262,7 +274,7 @@ let get_side_dists
   !mask, side_dists
 ;;
 
-let extract_vector_from_segment (verts : vec3 array) start_side end_side =
+let extract_vector_from_segment ~(verts : vec3 array) ~start_side ~end_side =
   let sv_start = side_to_verts.(start_side) in
   let sv_end = side_to_verts.(end_side) in
   let vs = ref (0, 0, 0) in
@@ -276,7 +288,7 @@ let extract_vector_from_segment (verts : vec3 array) start_side end_side =
 ;;
 
 let extract_orient_from_segment (verts : vec3 array) =
-  let fvec = extract_vector_from_segment verts wfront wback in
-  let uvec = extract_vector_from_segment verts wbottom wtop in
+  let fvec = extract_vector_from_segment ~verts ~start_side:wfront ~end_side:wback in
+  let uvec = extract_vector_from_segment ~verts ~start_side:wbottom ~end_side:wtop in
   Ox_math.vm_vector_2_matrix ~fvec ~uvec:(Some uvec) ~rvec:None
 ;;

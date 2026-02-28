@@ -113,17 +113,17 @@ let set_object_turnroll ~turnroll ~rotvel_y ~frame_time =
 let w32 v = Ox_math.wrap_i64_to_fix (Int64.of_int v)
 
 (* Helper: scale vector by fixpoint scalar — fixmul already wraps *)
-let vec_scale (x, y, z) s =
+let vec_scale ~v:(x, y, z) ~s =
   Ox_math.fixmul ~a:x ~b:s, Ox_math.fixmul ~a:y ~b:s, Ox_math.fixmul ~a:z ~b:s
 ;;
 
 (* Helper: add two vectors with int32 wrapping *)
-let vec_add (ax, ay, az) (bx, by, bz) = w32 (ax + bx), w32 (ay + by), w32 (az + bz)
+let vec_add ~a:(ax, ay, az) ~b:(bx, by, bz) = w32 (ax + bx), w32 (ay + by), w32 (az + bz)
 
 (* Helper: scale_add2: v += other * s, with int32 wrapping *)
-let vec_scale_add2 v other s =
-  let scaled = vec_scale other s in
-  vec_add v scaled
+let vec_scale_add2 ~v ~other ~s =
+  let scaled = vec_scale ~v:other ~s in
+  vec_add ~a:v ~b:scaled
 ;;
 
 (* Simulate rotational physics for one frame.
@@ -159,15 +159,15 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags ~turnroll ~
         let drag_scaled = drag * 5 / 2 in
         if flags land pf_uses_thrust <> 0
         then (
-          let accel = vec_scale rotthrust (Ox_math.fixdiv ~a:f1_0 ~b:mass) in
+          let accel = vec_scale ~v:rotthrust ~s:(Ox_math.fixdiv ~a:f1_0 ~b:mass) in
           (* Iterate count times: rotvel += accel; rotvel *= (1 - drag) *)
           let rv = ref rotvel in
           for _ = 1 to count do
-            rv := vec_scale (vec_add !rv accel) (f1_0 - drag_scaled)
+            rv := vec_scale ~v:(vec_add ~a:!rv ~b:accel) ~s:(f1_0 - drag_scaled)
           done;
           (* Linear scale on remaining bit *)
-          let rv = vec_scale_add2 !rv accel k in
-          vec_scale rv (f1_0 - Ox_math.fixmul ~a:k ~b:drag_scaled))
+          let rv = vec_scale_add2 ~v:!rv ~other:accel ~s:k in
+          vec_scale ~v:rv ~s:(f1_0 - Ox_math.fixmul ~a:k ~b:drag_scaled))
         else if flags land pf_free_spinning = 0
         then (
           (* No thrust, not free spinning: just apply drag *)
@@ -178,7 +178,7 @@ let do_physics_sim_rot ~rotvel ~rotthrust ~orient ~drag ~mass ~flags ~turnroll ~
           let total_drag =
             Ox_math.fixmul ~a:!total_drag ~b:(f1_0 - Ox_math.fixmul ~a:k ~b:drag_scaled)
           in
-          vec_scale rotvel total_drag)
+          vec_scale ~v:rotvel ~s:total_drag)
         else
           (* Free spinning: no drag applied *)
           rotvel)

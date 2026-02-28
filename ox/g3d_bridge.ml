@@ -1,7 +1,7 @@
 let cd_g3_code_point x y z = Ox_3d.g3_code_point (x, y, z)
 
 let cd_checkmuldiv a b c =
-  let ok, r = Ox_3d.checkmuldiv a b c in
+  let ok, r = Ox_3d.checkmuldiv ~a ~b ~c in
   (if ok then 1 else 0), r
 ;;
 
@@ -22,15 +22,15 @@ let cd_g3_project_point x y z canv_w2 canv_h2 =
 ;;
 
 let cd_g3_rotate_delta_x r1 r2 r3 u1 u2 u3 f1 f2 f3 dx =
-  Ox_3d.g3_rotate_delta_x ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dx
+  Ox_3d.g3_rotate_delta_x ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dx
 ;;
 
 let cd_g3_rotate_delta_y r1 r2 r3 u1 u2 u3 f1 f2 f3 dy =
-  Ox_3d.g3_rotate_delta_y ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dy
+  Ox_3d.g3_rotate_delta_y ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dy
 ;;
 
 let cd_g3_rotate_delta_z r1 r2 r3 u1 u2 u3 f1 f2 f3 dz =
-  Ox_3d.g3_rotate_delta_z ((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) dz
+  Ox_3d.g3_rotate_delta_z ~m:((r1, r2, r3), (u1, u2, u3), (f1, f2, f3)) ~dz
 ;;
 
 let cd_g3_calc_point_depth px py pz vpx vpy vpz fx fy fz =
@@ -160,14 +160,18 @@ let cd_g3_check_normal_facing vpx vpy vpz vx vy vz nx ny nz =
 ;;
 
 let cd_do_facing_check_computed p0x p0y p0z p1x p1y p1z p2x p2y p2z =
-  if Ox_3d.do_facing_check_computed (p0x, p0y, p0z) (p1x, p1y, p1z) (p2x, p2y, p2z)
+  if
+    Ox_3d.do_facing_check_computed
+      ~p0:(p0x, p0y, p0z)
+      ~p1:(p1x, p1y, p1z)
+      ~p2:(p2x, p2y, p2z)
   then 1
   else 0
 ;;
 
 let cd_clip_line p0x p0y p0z p0_codes p1x p1y p1z p1_codes codes_or =
   let (rp0x, rp0y, rp0z), rp0c, (rp1x, rp1y, rp1z), rp1c, clipped =
-    Ox_3d.clip_line (p0x, p0y, p0z) p0_codes (p1x, p1y, p1z) p1_codes codes_or
+    Ox_3d.clip_line ~p0:(p0x, p0y, p0z) ~p0_codes ~p1:(p1x, p1y, p1z) ~p1_codes ~codes_or
   in
   rp0x, rp0y, rp0z, rp0c, rp1x, rp1y, rp1z, rp1c, if clipped then 1 else 0
 ;;

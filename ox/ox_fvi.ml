@@ -13,7 +13,7 @@ let it_point = 3
 let wrap32 x = Ox_math.wrap_i64_to_fix (Int64.of_int x)
 
 (* Overflow guard: returns true if abs(a)*abs(b) would overflow bit 47+. *)
-let oflow_check a b =
+let oflow_check ~a ~b =
   let tmp = Int64.(abs (of_int a) * abs (of_int b)) in
   Int64.(shift_right tmp 47 <> 0L)
 ;;
@@ -44,7 +44,7 @@ let find_plane_line_intersection ~plane_pnt ~plane_norm ~p0 ~p1 ~rad =
     else (
       let k = fixdiv ~a:num ~b:den in
       let dx, dy, dz = d in
-      if oflow_check dx k || oflow_check dy k || oflow_check dz k
+      if oflow_check ~a:dx ~b:k || oflow_check ~a:dy ~b:k || oflow_check ~a:dz ~b:k
       then None
       else (
         let scaled = vm_vec_scale2 ~v:d ~n:num ~d:den in
@@ -149,12 +149,12 @@ let check_line_to_line ~p1 ~v1 ~p2 ~v2 =
   then false, 0, 0 (* parallel *)
   else (
     let d1 = calc_det_value ~rvec ~uvec:v2 ~fvec in
-    if oflow_check d1 cross_mag2
+    if oflow_check ~a:d1 ~b:cross_mag2
     then false, 0, 0
     else (
       let t1 = fixdiv ~a:d1 ~b:cross_mag2 in
       let d2 = calc_det_value ~rvec ~uvec:v1 ~fvec in
-      if oflow_check d2 cross_mag2
+      if oflow_check ~a:d2 ~b:cross_mag2
       then false, 0, 0
       else (
         let t2 = fixdiv ~a:d2 ~b:cross_mag2 in
@@ -179,7 +179,7 @@ let check_line_to_face
       ~(seg_vert_positions : vec3 array)
   =
   let open Ox_math in
-  let vpos = Ox_gameseg.lookup_vpos seg_verts seg_vert_positions in
+  let vpos abs_idx = Ox_gameseg.lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx in
   (* Use lowest point number as plane point *)
   let vertnum =
     if num_faces = 2
@@ -223,7 +223,7 @@ let special_check_line_to_face
       ~(seg_vert_positions : vec3 array)
   =
   let open Ox_math in
-  let vpos = Ox_gameseg.lookup_vpos seg_verts seg_vert_positions in
+  let vpos abs_idx = Ox_gameseg.lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx in
   (* Build vertex positions for this face *)
   let face_verts = Array.init nv ~f:(fun i -> vpos vertex_list.((facenum * 3) + i)) in
   (* Figure out which edge(s) to check against *)

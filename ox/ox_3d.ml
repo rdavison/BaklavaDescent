@@ -26,9 +26,9 @@ let g3_code_point (x, y, z) =
 
 (* Overflow-safe fixmul-then-divide: returns (ok, result).
    ok=true means the division didn't overflow. *)
-let checkmuldiv a b c =
+let checkmuldiv ~a ~b ~c =
   let q = ref 0L in
-  q := Ox_math.fixmulaccum !q a b;
+  q := Ox_math.fixmulaccum ~q:!q ~a ~b;
   let qt = !q in
   let high = Int64.to_int_exn (Int64.bit_and (Int64.shift_right qt 32) 0xFFFFFFFFL) in
   let low = Int64.to_int_exn (Int64.bit_and qt 0xFFFFFFFFL) in
@@ -42,7 +42,7 @@ let checkmuldiv a b c =
   let high =
     if low > 0x7FFFFFFF then Ox_math.wrap_i64_to_fix (Int64.of_int (high + 1)) else high
   in
-  if high >= c then false, 0 else true, Ox_math.fixdivquadlong qt c
+  if high >= c then false, 0 else true, Ox_math.fixdivquadlong ~n:qt ~d:c
 ;;
 
 (* Rotate a point from world space to view space.
@@ -58,39 +58,39 @@ let g3_rotate_point ~view_pos ~view_matrix src =
    Takes the rotated point (x, y, z), current codes and flags,
    and canvas half-dimensions (canv_w2, canv_h2).
    Returns (sx, sy, new_flags). *)
-let wrap_add a b = Ox_math.wrap_i64_to_fix Int64.(of_int a + of_int b)
-let wrap_sub a b = Ox_math.wrap_i64_to_fix Int64.(of_int a - of_int b)
+let wrap_add ~a ~b = Ox_math.wrap_i64_to_fix Int64.(of_int a + of_int b)
+let wrap_sub ~a ~b = Ox_math.wrap_i64_to_fix Int64.(of_int a - of_int b)
 
 let g3_project_point (x, y, z) ~canv_w2 ~canv_h2 =
-  let ok_x, tx = checkmuldiv x canv_w2 z in
+  let ok_x, tx = checkmuldiv ~a:x ~b:canv_w2 ~c:z in
   if ok_x
   then (
-    let ok_y, ty = checkmuldiv y canv_h2 z in
-    if ok_y then Some (wrap_add canv_w2 tx, wrap_sub canv_h2 ty) else None)
+    let ok_y, ty = checkmuldiv ~a:y ~b:canv_h2 ~c:z in
+    if ok_y then Some (wrap_add ~a:canv_w2 ~b:tx, wrap_sub ~a:canv_h2 ~b:ty) else None)
   else None
 ;;
 
 (* Delta rotation: extract column x of view matrix scaled by dx *)
-let g3_rotate_delta_x ((r1, _, _), (u1, _, _), (f1, _, _)) dx =
+let g3_rotate_delta_x ~m:((r1, _, _), (u1, _, _), (f1, _, _)) ~dx =
   Ox_math.fixmul ~a:r1 ~b:dx, Ox_math.fixmul ~a:u1 ~b:dx, Ox_math.fixmul ~a:f1 ~b:dx
 ;;
 
 (* Delta rotation: extract column y of view matrix scaled by dy *)
-let g3_rotate_delta_y ((_, r2, _), (_, u2, _), (_, f2, _)) dy =
+let g3_rotate_delta_y ~m:((_, r2, _), (_, u2, _), (_, f2, _)) ~dy =
   Ox_math.fixmul ~a:r2 ~b:dy, Ox_math.fixmul ~a:u2 ~b:dy, Ox_math.fixmul ~a:f2 ~b:dy
 ;;
 
 (* Delta rotation: extract column z of view matrix scaled by dz *)
-let g3_rotate_delta_z ((_, _, r3), (_, _, u3), (_, _, f3)) dz =
+let g3_rotate_delta_z ~m:((_, _, r3), (_, _, u3), (_, _, f3)) ~dz =
   Ox_math.fixmul ~a:r3 ~b:dz, Ox_math.fixmul ~a:u3 ~b:dz, Ox_math.fixmul ~a:f3 ~b:dz
 ;;
 
 (* Calculate the depth (z in view space) of a world-space point. *)
 let g3_calc_point_depth ~view_pos:(vpx, vpy, vpz) ~view_fvec:(fx, fy, fz) (px, py, pz) =
   let q = 0L in
-  let q = Ox_math.fixmulaccum q (wrap_sub px vpx) fx in
-  let q = Ox_math.fixmulaccum q (wrap_sub py vpy) fy in
-  let q = Ox_math.fixmulaccum q (wrap_sub pz vpz) fz in
+  let q = Ox_math.fixmulaccum ~q ~a:(wrap_sub ~a:px ~b:vpx) ~b:fx in
+  let q = Ox_math.fixmulaccum ~q ~a:(wrap_sub ~a:py ~b:vpy) ~b:fy in
+  let q = Ox_math.fixmulaccum ~q ~a:(wrap_sub ~a:pz ~b:vpz) ~b:fz in
   Ox_math.fixquadadjust q
 ;;
 
@@ -126,14 +126,14 @@ let g3_point_2_vec ~canv_w2 ~canv_h2 ~matrix_scale:(msx, msy, msz) ~unscaled_mat
   let sy16 = Ox_math.wrap_i64_to_fix (Int64.of_int (Int.shift_left sy 16)) in
   let tx =
     Ox_math.fixmuldiv
-      ~a:(Ox_math.fixdiv ~a:(wrap_sub sx16 canv_w2) ~b:canv_w2)
+      ~a:(Ox_math.fixdiv ~a:(wrap_sub ~a:sx16 ~b:canv_w2) ~b:canv_w2)
       ~b:msz
       ~c:msx
   in
   let ty =
     Ox_math.neg_i32
       (Ox_math.fixmuldiv
-         ~a:(Ox_math.fixdiv ~a:(wrap_sub sy16 canv_h2) ~b:canv_h2)
+         ~a:(Ox_math.fixdiv ~a:(wrap_sub ~a:sy16 ~b:canv_h2) ~b:canv_h2)
          ~b:msz
          ~c:msy)
   in
@@ -186,11 +186,15 @@ let clip_edge
     then Ox_math.neg_i32 a, Ox_math.neg_i32 b
     else a, b
   in
-  let kn = wrap_sub a on_z in
-  let kd = wrap_sub (wrap_sub kn b) (Ox_math.neg_i32 off_z) in
+  let kn = wrap_sub ~a ~b:on_z in
+  let kd = wrap_sub ~a:(wrap_sub ~a:kn ~b) ~b:(Ox_math.neg_i32 off_z) in
   let psx_ratio = Ox_math.fixdiv ~a:kn ~b:kd in
-  let tmp_x = wrap_add on_x (Ox_math.fixmul ~a:(wrap_sub off_x on_x) ~b:psx_ratio) in
-  let tmp_y = wrap_add on_y (Ox_math.fixmul ~a:(wrap_sub off_y on_y) ~b:psx_ratio) in
+  let tmp_x =
+    wrap_add ~a:on_x ~b:(Ox_math.fixmul ~a:(wrap_sub ~a:off_x ~b:on_x) ~b:psx_ratio)
+  in
+  let tmp_y =
+    wrap_add ~a:on_y ~b:(Ox_math.fixmul ~a:(wrap_sub ~a:off_y ~b:on_y) ~b:psx_ratio)
+  in
   let tmp_z = if plane_flag land (cc_off_top lor cc_off_bot) <> 0 then tmp_y else tmp_x in
   let tmp_z =
     if plane_flag land (cc_off_left lor cc_off_bot) <> 0
@@ -200,15 +204,21 @@ let clip_edge
   let tmp_u, tmp_v, flags_with_uvs =
     if on_flags land pf_uvs <> 0
     then (
-      let u = wrap_add on_u (Ox_math.fixmul ~a:(wrap_sub off_u on_u) ~b:psx_ratio) in
-      let v = wrap_add on_v (Ox_math.fixmul ~a:(wrap_sub off_v on_v) ~b:psx_ratio) in
+      let u =
+        wrap_add ~a:on_u ~b:(Ox_math.fixmul ~a:(wrap_sub ~a:off_u ~b:on_u) ~b:psx_ratio)
+      in
+      let v =
+        wrap_add ~a:on_v ~b:(Ox_math.fixmul ~a:(wrap_sub ~a:off_v ~b:on_v) ~b:psx_ratio)
+      in
       u, v, pf_uvs)
     else 0, 0, 0
   in
   let tmp_l, flags_with_ls =
     if on_flags land pf_ls <> 0
     then (
-      let l = wrap_add on_l (Ox_math.fixmul ~a:(wrap_sub off_l on_l) ~b:psx_ratio) in
+      let l =
+        wrap_add ~a:on_l ~b:(Ox_math.fixmul ~a:(wrap_sub ~a:off_l ~b:on_l) ~b:psx_ratio)
+      in
       l, pf_ls)
     else 0, 0
   in
@@ -228,7 +238,7 @@ let g3_check_normal_facing ~view_pos v norm =
 (* Clip a line segment against the viewing pyramid.
    Takes two endpoints (xyz + codes) and combined codes_or.
    Returns (p0_xyz, p0_codes, p1_xyz, p1_codes, clipped_away). *)
-let clip_line (p0x, p0y, p0z) p0_codes (p1x, p1y, p1z) p1_codes codes_or =
+let clip_line ~p0:(p0x, p0y, p0z) ~p0_codes ~p1:(p1x, p1y, p1z) ~p1_codes ~codes_or =
   let rec loop planes p0x p0y p0z p0c p1x p1y p1z p1c cor =
     match planes with
     | [] -> (p0x, p0y, p0z), p0c, (p1x, p1y, p1z), p1c, false
@@ -268,7 +278,7 @@ let clip_line (p0x, p0y, p0z) p0_codes (p1x, p1y, p1z) p1_codes codes_or =
 (* Sutherland-Hodgman: clip a polygon against one frustum plane.
    Points are tuples (x, y, z, u, v, l, flags, codes).
    Returns (clipped_points, codes_and, codes_or). *)
-let clip_plane plane_flag points =
+let clip_plane ~plane_flag ~points =
   let nv = List.length points in
   if nv = 0
   then [], 0xff, 0
@@ -354,7 +364,7 @@ let clip_polygon ~codes_or ~codes_and points =
       if c_or land pf = 0
       then loop rest pts c_or c_and
       else (
-        let clipped, new_and, new_or = clip_plane pf pts in
+        let clipped, new_and, new_or = clip_plane ~plane_flag:pf ~points:pts in
         if new_and <> 0
         then clipped, new_or, new_and
         else loop rest clipped new_or new_and)
@@ -364,7 +374,7 @@ let clip_polygon ~codes_or ~codes_and points =
 
 (* Compute facing check from 3 rotated vertices (no explicit normal).
    Returns true if the polygon faces the viewer. *)
-let do_facing_check_computed p0 p1 p2 =
+let do_facing_check_computed ~p0 ~p1 ~p2 =
   let tempv = Ox_math.vm_vec_perp ~p0 ~p1 ~p2 in
   Ox_math.vm_vec_dotprod ~a:tempv ~b:p1 < 0
 ;;
