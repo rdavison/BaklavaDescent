@@ -1026,3 +1026,18 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 25) Port `ai_behavior_to_mode` (D1+D2) + `ai_turn_randomly` (D1) to Ox
+
+**What:** Ported three more functions from the skip list.
+
+- **`ai_behavior_to_mode`** — Pure switch/enum mapping: AIB_* behavior constants (0x80-0x86) → AIM_* mode constants (0-5). D1 has 6 cases (STILL, NORMAL, HIDE, RUN_FROM, FOLLOW_PATH, STATION). D2 has 7 cases (STILL, NORMAL, BEHIND, RUN_FROM, SNIPE, STATION, FOLLOW). Previously categorized as "trivially small" — ported anyway for completeness.
+
+- **`ai_turn_randomly`** (D1 only) — Computes new rotational velocity by applying a chaotic feedback loop: y += F1_0/64, x += y/6, y += z/4, z += x/10, then clamp each axis to F1_0/8. The P_Rand cheat shortcut (1/4 chance of calling ai_turn_towards_vector instead) stays at the callsite.
+
+- **Parity tests:** Exhaustive enum tests for both behavior_to_mode functions + 5000 randomized for ai_turn_randomly, 0 mismatches.
+- **Engine wiring:** D1 `ai.cpp` (behavior_to_mode + turn_randomly), D2 `ai2.cpp` (behavior_to_mode only).
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

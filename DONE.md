@@ -4,7 +4,7 @@
 
 The pure-computation porting phase is **effectively complete**. All functions in the ChocolateDescent codebase that can be cleanly extracted as pure scalar/vector computations following the established bridge pattern have been ported to OxCaml with parity tests.
 
-## What Was Ported (24 Worklog Entries)
+## What Was Ported (25 Worklog Entries)
 
 ### Core Math Layer
 - **Fixed-point arithmetic**: i2f, f2i, fixmul, fixdiv, fix_sqrt, fix_isqrt, fix_asin, fix_acos, fix_atan2, fix_sincos, fix_fastsincos
@@ -28,6 +28,7 @@ The pure-computation porting phase is **effectively complete**. All functions in
 - **Movement**: ai_turn_towards_vector, set_thrust_from_velocity, move_towards_vector, move_around_player, move_away_from_player
 - **Targeting**: lead_player, compute_lead_component
 - **Fire timing**: set_next_fire_time (D1+D2)
+- **Behavior**: ai_behavior_to_mode (D1+D2), ai_turn_randomly (D1)
 
 ### Weapons
 - **Homing**: homing_missile_turn_towards_velocity

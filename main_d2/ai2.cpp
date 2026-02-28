@@ -104,6 +104,9 @@ void init_ai_system(void)
 //	Given a behavior, set initial mode.
 int ai_behavior_to_mode(int behavior)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_ai_behavior_to_mode_d2(behavior);
+#else
 	switch (behavior) {
 		case AIB_STILL:			return AIM_STILL;
 		case AIB_NORMAL:			return AIM_CHASE_OBJECT;
@@ -116,6 +119,7 @@ int ai_behavior_to_mode(int behavior)
 	}
 
 	return AIM_STILL;
+#endif
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

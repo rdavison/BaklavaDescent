@@ -391,6 +391,15 @@ int32_t c_oracle_compute_headlight_light_d2(
     int32_t face_light, int32_t beam_brightness,
     int32_t player_flags, int32_t player_energy, int is_viewer);
 
+/* ai_behavior_to_mode */
+int c_oracle_ai_behavior_to_mode_d1(int behavior);
+int c_oracle_ai_behavior_to_mode_d2(int behavior);
+
+/* ai_turn_randomly D1 */
+void c_oracle_ai_turn_randomly(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
+
 #ifdef __cplusplus
 }
 #endif

@@ -102,6 +102,9 @@ static const value* g_set_next_fire_time_d1 = NULL;
 static const value* g_set_next_fire_time_d2 = NULL;
 static const value* g_compute_headlight_light_d1 = NULL;
 static const value* g_compute_headlight_light_d2 = NULL;
+static const value* g_ai_behavior_to_mode_d1 = NULL;
+static const value* g_ai_behavior_to_mode_d2 = NULL;
+static const value* g_ai_turn_randomly = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -197,7 +200,10 @@ static void cd_ox_require_ready(const char* fn)
           && g_set_next_fire_time_d1
           && g_set_next_fire_time_d2
           && g_compute_headlight_light_d1
-          && g_compute_headlight_light_d2))
+          && g_compute_headlight_light_d2
+          && g_ai_behavior_to_mode_d1
+          && g_ai_behavior_to_mode_d2
+          && g_ai_turn_randomly))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -309,6 +315,9 @@ int cd_ox_init_runtime(const char* executable_path)
     g_set_next_fire_time_d2 = caml_named_value("cd_set_next_fire_time_d2");
     g_compute_headlight_light_d1 = caml_named_value("cd_compute_headlight_light_d1");
     g_compute_headlight_light_d2 = caml_named_value("cd_compute_headlight_light_d2");
+    g_ai_behavior_to_mode_d1 = caml_named_value("cd_ai_behavior_to_mode_d1");
+    g_ai_behavior_to_mode_d2 = caml_named_value("cd_ai_behavior_to_mode_d2");
+    g_ai_turn_randomly = caml_named_value("cd_ai_turn_randomly");
 
     if (!g_i2f
         || !g_f2i
@@ -401,7 +410,10 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_set_next_fire_time_d1
         || !g_set_next_fire_time_d2
         || !g_compute_headlight_light_d1
-        || !g_compute_headlight_light_d2)
+        || !g_compute_headlight_light_d2
+        || !g_ai_behavior_to_mode_d1
+        || !g_ai_behavior_to_mode_d2
+        || !g_ai_turn_randomly)
     {
         return 1;
     }
@@ -502,7 +514,10 @@ int cd_ox_is_ready(void)
            && g_set_next_fire_time_d1
            && g_set_next_fire_time_d2
            && g_compute_headlight_light_d1
-           && g_compute_headlight_light_d2;
+           && g_compute_headlight_light_d2
+           && g_ai_behavior_to_mode_d1
+           && g_ai_behavior_to_mode_d2
+           && g_ai_turn_randomly;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -2061,4 +2076,32 @@ int32_t cd_ox_compute_headlight_light_d2(
     };
     const value out = caml_callbackN(*g_compute_headlight_light_d2, 8, args);
     return Int_val(out);
+}
+
+int cd_ox_ai_behavior_to_mode_d1(int behavior)
+{
+    cd_ox_require_ready("cd_ox_ai_behavior_to_mode_d1");
+    return Int_val(caml_callback(*g_ai_behavior_to_mode_d1, Val_long(behavior)));
+}
+
+int cd_ox_ai_behavior_to_mode_d2(int behavior)
+{
+    cd_ox_require_ready("cd_ox_ai_behavior_to_mode_d2");
+    return Int_val(caml_callback(*g_ai_behavior_to_mode_d2, Val_long(behavior)));
+}
+
+void cd_ox_ai_turn_randomly(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz)
+{
+    cd_ox_require_ready("cd_ox_ai_turn_randomly");
+    value args[3] = {
+        Val_long(rvx),
+        Val_long(rvy),
+        Val_long(rvz),
+    };
+    const value out = caml_callbackN(*g_ai_turn_randomly, 3, args);
+    *out_rx = Int_val(Field(out, 0));
+    *out_ry = Int_val(Field(out, 1));
+    *out_rz = Int_val(Field(out, 2));
 }

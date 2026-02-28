@@ -2549,3 +2549,73 @@ int32_t c_oracle_compute_headlight_light_d2(
 
     return light;
 }
+
+/* --- ai_behavior_to_mode D1 --- */
+#define D1_AIB_STILL        0x80
+#define D1_AIB_NORMAL       0x81
+#define D1_AIB_HIDE         0x82
+#define D1_AIB_RUN_FROM     0x83
+#define D1_AIB_FOLLOW_PATH  0x84
+#define D1_AIB_STATION      0x85
+
+#define AIM_STILL            0
+#define AIM_FOLLOW_PATH_     2
+#define AIM_CHASE_OBJECT     3
+#define AIM_RUN_FROM_OBJECT  4
+#define AIM_HIDE             5
+#define AIM_BEHIND           5
+
+int c_oracle_ai_behavior_to_mode_d1(int behavior)
+{
+    switch (behavior) {
+        case D1_AIB_STILL:       return AIM_STILL;
+        case D1_AIB_NORMAL:      return AIM_CHASE_OBJECT;
+        case D1_AIB_HIDE:        return AIM_HIDE;
+        case D1_AIB_RUN_FROM:    return AIM_RUN_FROM_OBJECT;
+        case D1_AIB_FOLLOW_PATH: return AIM_FOLLOW_PATH_;
+        case D1_AIB_STATION:     return AIM_STILL;
+        default:                 return AIM_STILL;
+    }
+}
+
+/* --- ai_behavior_to_mode D2 --- */
+#define D2_AIB_STILL     0x80
+#define D2_AIB_NORMAL    0x81
+#define D2_AIB_BEHIND    0x82
+#define D2_AIB_RUN_FROM  0x83
+#define D2_AIB_SNIPE     0x84
+#define D2_AIB_STATION   0x85
+#define D2_AIB_FOLLOW    0x86
+
+int c_oracle_ai_behavior_to_mode_d2(int behavior)
+{
+    switch (behavior) {
+        case D2_AIB_STILL:     return AIM_STILL;
+        case D2_AIB_NORMAL:    return AIM_CHASE_OBJECT;
+        case D2_AIB_BEHIND:    return AIM_BEHIND;
+        case D2_AIB_RUN_FROM:  return AIM_RUN_FROM_OBJECT;
+        case D2_AIB_SNIPE:     return AIM_STILL;
+        case D2_AIB_STATION:   return AIM_STILL;
+        case D2_AIB_FOLLOW:    return AIM_FOLLOW_PATH_;
+        default:               return AIM_STILL;
+    }
+}
+
+/* --- ai_turn_randomly D1 --- */
+void c_oracle_ai_turn_randomly(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz)
+{
+    int32_t y = rvy + F1_0 / 64;
+    int32_t x = rvx + y / 6;
+    y = y + rvz / 4;
+    int32_t z = rvz + x / 10;
+
+    if (abs(x) > F1_0 / 8) x /= 4;
+    if (abs(y) > F1_0 / 8) y /= 4;
+    if (abs(z) > F1_0 / 8) z /= 4;
+
+    *out_rx = x;
+    *out_ry = y;
+    *out_rz = z;
+}

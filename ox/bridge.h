@@ -530,6 +530,18 @@ int32_t cd_ox_compute_headlight_light_d1(
     int32_t point_x, int32_t point_y, int32_t point_z,
     int32_t face_light, int32_t beam_brightness, int use_beam);
 
+/* ai_behavior_to_mode D1: convert behavior enum to mode enum. */
+int cd_ox_ai_behavior_to_mode_d1(int behavior);
+
+/* ai_behavior_to_mode D2: convert behavior enum to mode enum. */
+int cd_ox_ai_behavior_to_mode_d2(int behavior);
+
+/* ai_turn_randomly D1: compute new rotvel from current rotvel.
+   Returns new rotvel in out_rx/ry/rz. */
+void cd_ox_ai_turn_randomly(
+    int32_t rvx, int32_t rvy, int32_t rvz,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
+
 /* compute_headlight_light D2: compute headlight illumination at a point.
    Computes use_beam internally from player state.
    Returns fix light intensity. */

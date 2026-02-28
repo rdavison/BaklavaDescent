@@ -23,8 +23,25 @@ let cd_set_next_fire_time_d2
   in
   (new_rfc, new_next_fire, nf2_valid, new_next_fire2)
 
+(* ai_behavior_to_mode: single int → single int *)
+let cd_ai_behavior_to_mode_d1 behavior =
+  Ox_ai.ai_behavior_to_mode_d1 behavior
+
+let cd_ai_behavior_to_mode_d2 behavior =
+  Ox_ai.ai_behavior_to_mode_d2 behavior
+
+(* ai_turn_randomly: 3 scalars → 3-int tuple *)
+let cd_ai_turn_randomly rvx rvy rvz =
+  Ox_ai.ai_turn_randomly ~rvx ~rvy ~rvz
+
 let () =
   Callback.register "cd_set_next_fire_time_d1"
     cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2"
-    cd_set_next_fire_time_d2
+    cd_set_next_fire_time_d2;
+  Callback.register "cd_ai_behavior_to_mode_d1"
+    cd_ai_behavior_to_mode_d1;
+  Callback.register "cd_ai_behavior_to_mode_d2"
+    cd_ai_behavior_to_mode_d2;
+  Callback.register "cd_ai_turn_randomly"
+    cd_ai_turn_randomly

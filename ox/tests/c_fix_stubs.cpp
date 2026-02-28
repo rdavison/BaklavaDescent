@@ -2877,3 +2877,29 @@ extern "C" CAMLprim value caml_c_compute_headlight_light_d2_bc(value* argv, int 
         argv[0], argv[1], argv[2], argv[3],
         argv[4], argv[5], argv[6], argv[7]);
 }
+
+/* --- ai_behavior_to_mode D1 --- */
+extern "C" CAMLprim value caml_c_ai_behavior_to_mode_d1(value v_beh)
+{
+    return Val_long(c_oracle_ai_behavior_to_mode_d1(Long_val(v_beh)));
+}
+
+/* --- ai_behavior_to_mode D2 --- */
+extern "C" CAMLprim value caml_c_ai_behavior_to_mode_d2(value v_beh)
+{
+    return Val_long(c_oracle_ai_behavior_to_mode_d2(Long_val(v_beh)));
+}
+
+/* --- ai_turn_randomly D1 --- */
+extern "C" CAMLprim value caml_c_ai_turn_randomly(
+    value v_rx, value v_ry, value v_rz)
+{
+    int32_t ox, oy, oz;
+    c_oracle_ai_turn_randomly(Long_val(v_rx), Long_val(v_ry), Long_val(v_rz),
+        &ox, &oy, &oz);
+    value result = caml_alloc(3, 0);
+    Store_field(result, 0, Val_long(ox));
+    Store_field(result, 1, Val_long(oy));
+    Store_field(result, 2, Val_long(oz));
+    return result;
+}

@@ -349,6 +349,9 @@ void john_cheat_func_1(int key)
 //	Given a behavior, set initial mode.
 int ai_behavior_to_mode(int behavior)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_ai_behavior_to_mode_d1(behavior);
+#else
 	switch (behavior) {
 	case AIB_STILL:			return AIM_STILL;
 	case AIB_NORMAL:			return AIM_CHASE_OBJECT;
@@ -360,6 +363,7 @@ int ai_behavior_to_mode(int behavior)
 	}
 
 	return AIM_STILL;
+#endif
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -680,14 +684,26 @@ void ai_turn_towards_vector(vms_vector* goal_vector, object* objp, fix rate)
 // --------------------------------------------------------------------------------------------------------------------
 void ai_turn_randomly(vms_vector* vec_to_player, object* obj, fix rate, int previous_visibility)
 {
-	vms_vector	curvec;
-
 	//	Random turning looks too stupid, so 1/4 of time, cheat.
 	if (previous_visibility)
 		if (P_Rand() > 0x7400) {
 			ai_turn_towards_vector(vec_to_player, obj, rate);
 			return;
 		}
+
+#ifdef USE_OX_BRIDGE
+	int32_t rx, ry, rz;
+	cd_ox_ai_turn_randomly(
+		obj->mtype.phys_info.rotvel.x,
+		obj->mtype.phys_info.rotvel.y,
+		obj->mtype.phys_info.rotvel.z,
+		&rx, &ry, &rz);
+	obj->mtype.phys_info.rotvel.x = rx;
+	obj->mtype.phys_info.rotvel.y = ry;
+	obj->mtype.phys_info.rotvel.z = rz;
+#else
+	vms_vector	curvec;
+
 	//--debug-- 	if (P_Rand() > 0x6000)
 	//--debug-- 		Prevented_turns++;
 
@@ -704,6 +720,7 @@ void ai_turn_randomly(vms_vector* vec_to_player, object* obj, fix rate, int prev
 	if (abs(curvec.z) > F1_0 / 8) curvec.z /= 4;
 
 	obj->mtype.phys_info.rotvel = curvec;
+#endif
 
 }
 

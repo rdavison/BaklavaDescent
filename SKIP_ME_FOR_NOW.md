@@ -40,7 +40,7 @@ Not worth the bridge overhead (3 lines or less of logic, wrapping already-ported
 
 - **`check_and_fix_matrix`** (D1+D2 physics.cpp) — 3 lines: calls `vm_vector_2_matrix()` (already ported). Already used as internal helper in `ox_physics.ml`.
 
-- **`ai_behavior_to_mode`** (D1+D2 ai.cpp/ai2.cpp) — Pure switch/enum mapping. D1 and D2 have different mappings.
+- ~~**`ai_behavior_to_mode`** (D1+D2)~~ — **PORTED** (worklog #25). Pure switch/enum mapping.
 
 - **`get_explosion_vclip`** (D1+D2 fireball.cpp) — Simple lookup based on object type.
 
@@ -56,7 +56,7 @@ These are already implemented in OCaml as internal helpers within existing porte
 
 ## D1-Only (No D2 Equivalent)
 
-- **`ai_turn_randomly`** (D1 ai.cpp) — Exists only in D1; commented out as "unused" in D2 equivalent code.
+- ~~**`ai_turn_randomly`** (D1 ai.cpp)~~ — **PORTED** (worklog #25). Returns new rotvel; P_Rand/cheat shortcut stays at callsite.
 
 ## Complex Data Dependencies
 

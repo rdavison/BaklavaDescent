@@ -7303,3 +7303,83 @@ let%expect_test "compute_headlight_light_d2: random parity" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "compute_headlight_light_d2 parity failed" ();
   [%expect {| compute_headlight_light_d2 random total=5000 mismatches=0 |}]
+
+(* ── ai_behavior_to_mode D1 ────────────────────────────── *)
+
+external c_ai_behavior_to_mode_d1 : int -> int = "caml_c_ai_behavior_to_mode_d1"
+
+let%expect_test "ai_behavior_to_mode_d1: all behaviors" =
+  let cases = [0x80; 0x81; 0x82; 0x83; 0x84; 0x85; 0xFF] in
+  List.iter cases ~f:(fun b ->
+    let c = c_ai_behavior_to_mode_d1 b in
+    let o = Ox_ai.ai_behavior_to_mode_d1 b in
+    printf "beh=0x%02x C=%d Ox=%d %s\n" b c o
+      (if c = o then "OK" else "MISMATCH"));
+  [%expect {|
+    beh=0x80 C=0 Ox=0 OK
+    beh=0x81 C=3 Ox=3 OK
+    beh=0x82 C=5 Ox=5 OK
+    beh=0x83 C=4 Ox=4 OK
+    beh=0x84 C=2 Ox=2 OK
+    beh=0x85 C=0 Ox=0 OK
+    beh=0xff C=0 Ox=0 OK |}]
+
+(* ── ai_behavior_to_mode D2 ────────────────────────────── *)
+
+external c_ai_behavior_to_mode_d2 : int -> int = "caml_c_ai_behavior_to_mode_d2"
+
+let%expect_test "ai_behavior_to_mode_d2: all behaviors" =
+  let cases = [0x80; 0x81; 0x82; 0x83; 0x84; 0x85; 0x86; 0xFF] in
+  List.iter cases ~f:(fun b ->
+    let c = c_ai_behavior_to_mode_d2 b in
+    let o = Ox_ai.ai_behavior_to_mode_d2 b in
+    printf "beh=0x%02x C=%d Ox=%d %s\n" b c o
+      (if c = o then "OK" else "MISMATCH"));
+  [%expect {|
+    beh=0x80 C=0 Ox=0 OK
+    beh=0x81 C=3 Ox=3 OK
+    beh=0x82 C=5 Ox=5 OK
+    beh=0x83 C=4 Ox=4 OK
+    beh=0x84 C=0 Ox=0 OK
+    beh=0x85 C=0 Ox=0 OK
+    beh=0x86 C=2 Ox=2 OK
+    beh=0xff C=0 Ox=0 OK |}]
+
+(* ── ai_turn_randomly (D1 only) ────────────────────────── *)
+
+external c_ai_turn_randomly
+  : int -> int -> int -> int * int * int
+  = "caml_c_ai_turn_randomly"
+
+let%expect_test "ai_turn_randomly: basic test" =
+  let f1_0 = 0x10000 in
+  let (cx, cy, cz) = c_ai_turn_randomly 0 0 0 in
+  let (ox, oy, oz) = Ox_ai.ai_turn_randomly ~rvx:0 ~rvy:0 ~rvz:0 in
+  printf "C=(%d,%d,%d) Ox=(%d,%d,%d)\n" cx cy cz ox oy oz;
+  (* y starts at 0+f1_0/64=1024, x=0+1024/6=170, z=0+170/10=17 *)
+  ignore f1_0;
+  [%expect {| C=(170,1024,17) Ox=(170,1024,17) |}]
+
+let%expect_test "ai_turn_randomly: random parity" =
+  let state = Random.State.make [| 88888 |] in
+  let mismatches = ref 0 in
+  let total = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    let rx = Random.State.int state 0x10000 - 0x8000 in
+    let ry = Random.State.int state 0x10000 - 0x8000 in
+    let rz = Random.State.int state 0x10000 - 0x8000 in
+    let (cx, cy, cz) = c_ai_turn_randomly rx ry rz in
+    let (ox, oy, oz) = Ox_ai.ai_turn_randomly ~rvx:rx ~rvy:ry ~rvz:rz in
+    incr total;
+    if cx <> ox || cy <> oy || cz <> oz then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "C=(%d,%d,%d) Ox=(%d,%d,%d)" cx cy cz ox oy oz)
+    end
+  done;
+  printf "ai_turn_randomly random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "ai_turn_randomly parity failed" ();
+  [%expect {| ai_turn_randomly random total=5000 mismatches=0 |}]
