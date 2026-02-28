@@ -517,7 +517,24 @@ if (Dont_move_ai_objects)
 	//do thrust & drag
 	
 	if ((drag = obj->mtype.phys_info.drag) != 0) {
-
+#ifdef USE_OX_BRIDGE
+		int32_t packed[10];
+		packed[0] = obj->mtype.phys_info.velocity.x;
+		packed[1] = obj->mtype.phys_info.velocity.y;
+		packed[2] = obj->mtype.phys_info.velocity.z;
+		packed[3] = obj->mtype.phys_info.thrust.x;
+		packed[4] = obj->mtype.phys_info.thrust.y;
+		packed[5] = obj->mtype.phys_info.thrust.z;
+		packed[6] = drag;
+		packed[7] = obj->mtype.phys_info.mass;
+		packed[8] = obj->mtype.phys_info.flags;
+		packed[9] = sim_time;
+		int32_t out[3];
+		cd_ox_do_physics_drag(packed, 10, out);
+		obj->mtype.phys_info.velocity.x = out[0];
+		obj->mtype.phys_info.velocity.y = out[1];
+		obj->mtype.phys_info.velocity.z = out[2];
+#else
 		int count;
 		vms_vector accel;
 		fix r,k;
@@ -555,6 +572,7 @@ if (Dont_move_ai_objects)
 
 			vm_vec_scale(&obj->mtype.phys_info.velocity,total_drag);
 		}
+#endif
 	}
 
 	#ifdef EXTRA_DEBUG

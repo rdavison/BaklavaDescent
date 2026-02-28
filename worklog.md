@@ -1610,3 +1610,20 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §49+§50 bridges active.
+
+### §51 — Port do_physics_drag to OxCaml (D1 + D2)
+
+- **What:** `do_physics_drag` — velocity integration with thrust and drag. Extracted from `do_physics_sim` (the most frequently called function in the engine). Identical logic in D1 and D2. Called once per physics object per frame (50-100+ calls/frame). Computes new velocity by iterating thrust+drag in FT-sized steps, then applying a linear remainder.
+
+- **Design:** Packed array bridge (10 ints in, 3 ints out). Input: velocity(3), thrust(3), drag, mass, phys_flags, sim_time. OCaml computes `count = sim_time / FT; r = sim_time % FT; k = fixdiv(r, FT)`, then either: (a) PF_USES_THRUST path: accel = thrust/mass, loop count times: vel += accel, vel *= (1-drag), then linear remainder; or (b) no-thrust path: accumulate total_drag, scale velocity. Returns new velocity.
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `do_physics_drag` (~60 lines)
+  - `ox/physics_bridge.ml` — `cd_do_physics_drag` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_do_physics_drag` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_do_physics_drag` declaration
+  - `main_d1/physics.cpp` — `#ifdef USE_OX_BRIDGE` around drag/thrust block in `do_physics_sim`
+  - `main_d2/physics.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.

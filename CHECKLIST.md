@@ -143,6 +143,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Unported
 - [ ] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI)
+- [x] do_physics_drag — thrust/drag velocity integration subpart of do_physics_sim (D1+D2)
 - [ ] bump_one_object — applies bump force + damage
 - [ ] bump_two_objects — mutual bump between two objects
 - [ ] bump_this_object — simple bump helper

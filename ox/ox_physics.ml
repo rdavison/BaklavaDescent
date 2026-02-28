@@ -1442,3 +1442,73 @@ let do_silly_animation (packed : int array) =
     ~len:n_guns_plus_1;
   result
 ;;
+
+(* do_physics_drag — velocity integration with thrust and drag.
+   Extracted from do_physics_sim (physics.cpp). Identical in D1 and D2.
+   Called once per physics object per frame (50-100+ calls/frame).
+
+   FT = f1_0/64 = 1024
+   PF_USES_THRUST = 0x40
+
+   Packed input (11 ints):
+     0-2: velocity (vx, vy, vz)
+     3-5: thrust (tx, ty, tz)
+     6:   drag
+     7:   mass
+     8:   phys_flags
+     9:   sim_time (FrameTime)
+   Returns array (3 ints): new velocity (vx, vy, vz) *)
+let do_physics_drag (packed : int array) =
+  let ft = f1_0 / 64 in
+  let pf_uses_thrust = 0x40 in
+  let vx = ref packed.(0) in
+  let vy = ref packed.(1) in
+  let vz = ref packed.(2) in
+  let tx = packed.(3) in
+  let ty = packed.(4) in
+  let tz = packed.(5) in
+  let drag = packed.(6) in
+  let mass = packed.(7) in
+  let phys_flags = packed.(8) in
+  let sim_time = packed.(9) in
+  let count = ref (sim_time / ft) in
+  let r = sim_time mod ft in
+  let k = Ox_math.fixdiv ~a:r ~b:ft in
+  if phys_flags land pf_uses_thrust <> 0
+  then (
+    (* accel = thrust / mass *)
+    let inv_mass = Ox_math.fixdiv ~a:f1_0 ~b:mass in
+    let ax = Ox_math.fixmul ~a:tx ~b:inv_mass in
+    let ay = Ox_math.fixmul ~a:ty ~b:inv_mass in
+    let az = Ox_math.fixmul ~a:tz ~b:inv_mass in
+    let one_minus_drag = f1_0 - drag in
+    while !count > 0 do
+      (* vel += accel; vel *= (1 - drag) *)
+      vx := Ox_math.fixmul ~a:(!vx + ax) ~b:one_minus_drag;
+      vy := Ox_math.fixmul ~a:(!vy + ay) ~b:one_minus_drag;
+      vz := Ox_math.fixmul ~a:(!vz + az) ~b:one_minus_drag;
+      count := !count - 1
+    done;
+    (* Linear remainder: vel += accel*k; vel *= (1 - k*drag) *)
+    let k_accel_x = Ox_math.fixmul ~a:ax ~b:k in
+    let k_accel_y = Ox_math.fixmul ~a:ay ~b:k in
+    let k_accel_z = Ox_math.fixmul ~a:az ~b:k in
+    let one_minus_k_drag = f1_0 - Ox_math.fixmul ~a:k ~b:drag in
+    vx := Ox_math.fixmul ~a:(!vx + k_accel_x) ~b:one_minus_k_drag;
+    vy := Ox_math.fixmul ~a:(!vy + k_accel_y) ~b:one_minus_k_drag;
+    vz := Ox_math.fixmul ~a:(!vz + k_accel_z) ~b:one_minus_k_drag)
+  else (
+    (* No thrust: just accumulate drag *)
+    let total_drag = ref f1_0 in
+    let one_minus_drag = f1_0 - drag in
+    while !count > 0 do
+      total_drag := Ox_math.fixmul ~a:!total_drag ~b:one_minus_drag;
+      count := !count - 1
+    done;
+    let one_minus_k_drag = f1_0 - Ox_math.fixmul ~a:k ~b:drag in
+    total_drag := Ox_math.fixmul ~a:!total_drag ~b:one_minus_k_drag;
+    vx := Ox_math.fixmul ~a:!vx ~b:!total_drag;
+    vy := Ox_math.fixmul ~a:!vy ~b:!total_drag;
+    vz := Ox_math.fixmul ~a:!vz ~b:!total_drag);
+  [| !vx; !vy; !vz |]
+;;

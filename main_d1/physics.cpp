@@ -477,8 +477,26 @@ void do_physics_sim(object* obj)
 
 		//do thrust & drag
 
-	if ((drag = obj->mtype.phys_info.drag) != 0) 
+	if ((drag = obj->mtype.phys_info.drag) != 0)
 	{
+#ifdef USE_OX_BRIDGE
+		int32_t packed[10];
+		packed[0] = obj->mtype.phys_info.velocity.x;
+		packed[1] = obj->mtype.phys_info.velocity.y;
+		packed[2] = obj->mtype.phys_info.velocity.z;
+		packed[3] = obj->mtype.phys_info.thrust.x;
+		packed[4] = obj->mtype.phys_info.thrust.y;
+		packed[5] = obj->mtype.phys_info.thrust.z;
+		packed[6] = drag;
+		packed[7] = obj->mtype.phys_info.mass;
+		packed[8] = obj->mtype.phys_info.flags;
+		packed[9] = sim_time;
+		int32_t out[3];
+		cd_ox_do_physics_drag(packed, 10, out);
+		obj->mtype.phys_info.velocity.x = out[0];
+		obj->mtype.phys_info.velocity.y = out[1];
+		obj->mtype.phys_info.velocity.z = out[2];
+#else
 		int count;
 		vms_vector accel;
 		fix r, k;
@@ -487,12 +505,12 @@ void do_physics_sim(object* obj)
 		r = sim_time % FT;
 		k = fixdiv(r, FT);
 
-		if (obj->mtype.phys_info.flags & PF_USES_THRUST) 
+		if (obj->mtype.phys_info.flags & PF_USES_THRUST)
 		{
 
 			vm_vec_copy_scale(&accel, &obj->mtype.phys_info.thrust, fixdiv(f1_0, obj->mtype.phys_info.mass));
 
-			while (count--) 
+			while (count--)
 			{
 				vm_vec_add2(&obj->mtype.phys_info.velocity, &accel);
 				vm_vec_scale(&obj->mtype.phys_info.velocity, f1_0 - drag);
@@ -502,7 +520,7 @@ void do_physics_sim(object* obj)
 			vm_vec_scale_add2(&obj->mtype.phys_info.velocity, &accel, k);
 			vm_vec_scale(&obj->mtype.phys_info.velocity, f1_0 - fixmul(k, drag));
 		}
-		else 
+		else
 		{
 			fix total_drag = f1_0;
 
@@ -513,6 +531,7 @@ void do_physics_sim(object* obj)
 			total_drag = fixmul(total_drag, f1_0 - fixmul(k, drag));
 			vm_vec_scale(&obj->mtype.phys_info.velocity, total_drag);
 		}
+#endif
 	}
 
 #ifdef EXTRA_DEBUG

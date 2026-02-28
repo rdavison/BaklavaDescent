@@ -638,6 +638,12 @@ void cd_ox_compute_object_light(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* do_physics_drag: velocity integration with thrust and drag.
+   packed[10] in, out_buf[3] out (new velocity vx, vy, vz). */
+void cd_ox_do_physics_drag(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* -- Clutter damage (shared D1/D2) ------------------------------------ */
 typedef void (*cd_effect_explode_object_delay_clutter_fn)(int obj_id, int delay);
 void cd_ox_register_clutter_effects(

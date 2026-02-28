@@ -402,3 +402,6 @@ let () =
   Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel;
   Callback.register "cd_do_silly_animation" cd_do_silly_animation
 ;;
+
+let cd_do_physics_drag (packed : int array) = Ox_physics.do_physics_drag packed
+let () = Callback.register "cd_do_physics_drag" cd_do_physics_drag
