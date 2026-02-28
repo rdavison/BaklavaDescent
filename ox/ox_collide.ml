@@ -111,3 +111,21 @@ let apply_damage_to_robot_d1
     end else
       (new_shields, set_boss_been_hit, Leaf (0, []))
   end
+
+(* ── get_explosion_vclip ────────────────────────────────── *)
+
+let obj_robot = 2
+let obj_player = 4
+let vclip_small_explosion = 2
+
+(* Pure function: extracts vclip_num from pre-extracted scalar args.
+   obj_type, stage, exp1_vclip_num, exp2_vclip_num, expl_vclip_num *)
+let get_explosion_vclip ~obj_type ~stage
+    ~exp1_vclip_num ~exp2_vclip_num ~expl_vclip_num =
+  if obj_type = obj_robot then begin
+    if stage = 0 && exp1_vclip_num > -1 then exp1_vclip_num
+    else if stage = 1 && exp2_vclip_num > -1 then exp2_vclip_num
+    else vclip_small_explosion
+  end
+  else if obj_type = obj_player && expl_vclip_num > -1 then expl_vclip_num
+  else vclip_small_explosion

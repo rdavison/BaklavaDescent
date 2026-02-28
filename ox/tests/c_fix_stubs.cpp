@@ -2903,3 +2903,12 @@ extern "C" CAMLprim value caml_c_ai_turn_randomly(
     Store_field(result, 2, Val_long(oz));
     return result;
 }
+
+/* --- get_explosion_vclip --- */
+extern "C" CAMLprim value caml_c_get_explosion_vclip(
+    value v_ot, value v_st, value v_e1, value v_e2, value v_ep)
+{
+    return Val_long(c_oracle_get_explosion_vclip(
+        Long_val(v_ot), Long_val(v_st),
+        Long_val(v_e1), Long_val(v_e2), Long_val(v_ep)));
+}

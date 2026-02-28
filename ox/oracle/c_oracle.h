@@ -400,6 +400,11 @@ void c_oracle_ai_turn_randomly(
     int32_t rvx, int32_t rvy, int32_t rvz,
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz);
 
+/* get_explosion_vclip */
+int c_oracle_get_explosion_vclip(
+    int obj_type, int stage,
+    int exp1_vclip_num, int exp2_vclip_num, int expl_vclip_num);
+
 #ifdef __cplusplus
 }
 #endif

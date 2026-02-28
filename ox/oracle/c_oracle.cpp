@@ -2619,3 +2619,22 @@ void c_oracle_ai_turn_randomly(
     *out_ry = y;
     *out_rz = z;
 }
+
+/* --- get_explosion_vclip --- */
+#define VCLIP_SMALL_EXPLOSION 2
+
+int c_oracle_get_explosion_vclip(
+    int obj_type, int stage,
+    int exp1_vclip_num, int exp2_vclip_num, int expl_vclip_num)
+{
+    if (obj_type == OBJ_ROBOT) {
+        if (stage == 0 && exp1_vclip_num > -1)
+            return exp1_vclip_num;
+        else if (stage == 1 && exp2_vclip_num > -1)
+            return exp2_vclip_num;
+    }
+    else if (obj_type == OBJ_PLAYER && expl_vclip_num > -1)
+        return expl_vclip_num;
+
+    return VCLIP_SMALL_EXPLOSION;
+}

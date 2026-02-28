@@ -42,7 +42,7 @@ Not worth the bridge overhead (3 lines or less of logic, wrapping already-ported
 
 - ~~**`ai_behavior_to_mode`** (D1+D2)~~ — **PORTED** (worklog #25). Pure switch/enum mapping.
 
-- **`get_explosion_vclip`** (D1+D2 fireball.cpp) — Simple lookup based on object type.
+- ~~**`get_explosion_vclip`** (D1+D2 fireball.cpp)~~ — **PORTED** (worklog #26). Simple lookup based on object type.
 
 ## Already Internal Helpers
 

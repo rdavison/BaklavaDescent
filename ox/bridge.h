@@ -530,6 +530,12 @@ int32_t cd_ox_compute_headlight_light_d1(
     int32_t point_x, int32_t point_y, int32_t point_z,
     int32_t face_light, int32_t beam_brightness, int use_beam);
 
+/* get_explosion_vclip: returns vclip index based on object type/stage.
+   Callsite extracts Robot_info/Player_ship fields as scalar args. */
+int cd_ox_get_explosion_vclip(
+    int obj_type, int stage,
+    int exp1_vclip_num, int exp2_vclip_num, int expl_vclip_num);
+
 /* ai_behavior_to_mode D1: convert behavior enum to mode enum. */
 int cd_ox_ai_behavior_to_mode_d1(int behavior);
 

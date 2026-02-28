@@ -14,6 +14,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>
 #include <string.h>
 #include "misc/rand.h"
+#include "ox/bridge.h"
 #include "misc/error.h"
 #include "3d/3d.h"
 #include "inferno.h"
@@ -846,7 +847,14 @@ int call_object_create_egg(object* objp, int count, int type, int id)
 //what vclip does this explode with?
 int get_explosion_vclip(object* obj, int stage)
 {
-	if (obj->type == OBJ_ROBOT) 
+#ifdef USE_OX_BRIDGE
+	return cd_ox_get_explosion_vclip(
+		obj->type, stage,
+		(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].exp1_vclip_num : -1,
+		(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].exp2_vclip_num : -1,
+		Player_ship->expl_vclip_num);
+#else
+	if (obj->type == OBJ_ROBOT)
 	{
 		if (stage == 0 && Robot_info[obj->id].exp1_vclip_num > -1)
 			return Robot_info[obj->id].exp1_vclip_num;
@@ -857,6 +865,7 @@ int get_explosion_vclip(object* obj, int stage)
 		return Player_ship->expl_vclip_num;
 
 	return VCLIP_SMALL_EXPLOSION;		//default
+#endif
 }
 
 //blow up a polygon model

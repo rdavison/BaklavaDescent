@@ -102,6 +102,7 @@ static const value* g_set_next_fire_time_d1 = NULL;
 static const value* g_set_next_fire_time_d2 = NULL;
 static const value* g_compute_headlight_light_d1 = NULL;
 static const value* g_compute_headlight_light_d2 = NULL;
+static const value* g_get_explosion_vclip = NULL;
 static const value* g_ai_behavior_to_mode_d1 = NULL;
 static const value* g_ai_behavior_to_mode_d2 = NULL;
 static const value* g_ai_turn_randomly = NULL;
@@ -201,6 +202,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_set_next_fire_time_d2
           && g_compute_headlight_light_d1
           && g_compute_headlight_light_d2
+          && g_get_explosion_vclip
           && g_ai_behavior_to_mode_d1
           && g_ai_behavior_to_mode_d2
           && g_ai_turn_randomly))
@@ -315,6 +317,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_set_next_fire_time_d2 = caml_named_value("cd_set_next_fire_time_d2");
     g_compute_headlight_light_d1 = caml_named_value("cd_compute_headlight_light_d1");
     g_compute_headlight_light_d2 = caml_named_value("cd_compute_headlight_light_d2");
+    g_get_explosion_vclip = caml_named_value("cd_get_explosion_vclip");
     g_ai_behavior_to_mode_d1 = caml_named_value("cd_ai_behavior_to_mode_d1");
     g_ai_behavior_to_mode_d2 = caml_named_value("cd_ai_behavior_to_mode_d2");
     g_ai_turn_randomly = caml_named_value("cd_ai_turn_randomly");
@@ -411,6 +414,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_set_next_fire_time_d2
         || !g_compute_headlight_light_d1
         || !g_compute_headlight_light_d2
+        || !g_get_explosion_vclip
         || !g_ai_behavior_to_mode_d1
         || !g_ai_behavior_to_mode_d2
         || !g_ai_turn_randomly)
@@ -515,6 +519,7 @@ int cd_ox_is_ready(void)
            && g_set_next_fire_time_d2
            && g_compute_headlight_light_d1
            && g_compute_headlight_light_d2
+           && g_get_explosion_vclip
            && g_ai_behavior_to_mode_d1
            && g_ai_behavior_to_mode_d2
            && g_ai_turn_randomly;
@@ -2104,4 +2109,19 @@ void cd_ox_ai_turn_randomly(
     *out_rx = Int_val(Field(out, 0));
     *out_ry = Int_val(Field(out, 1));
     *out_rz = Int_val(Field(out, 2));
+}
+
+int cd_ox_get_explosion_vclip(
+    int obj_type, int stage,
+    int exp1_vclip_num, int exp2_vclip_num, int expl_vclip_num)
+{
+    cd_ox_require_ready("cd_ox_get_explosion_vclip");
+    value args[5] = {
+        Val_long(obj_type),
+        Val_long(stage),
+        Val_long(exp1_vclip_num),
+        Val_long(exp2_vclip_num),
+        Val_long(expl_vclip_num),
+    };
+    return Int_val(caml_callbackN(*g_get_explosion_vclip, 5, args));
 }

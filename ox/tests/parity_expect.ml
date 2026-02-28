@@ -7383,3 +7383,39 @@ let%expect_test "ai_turn_randomly: random parity" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "ai_turn_randomly parity failed" ();
   [%expect {| ai_turn_randomly random total=5000 mismatches=0 |}]
+
+(* ── get_explosion_vclip ────────────────────────────────── *)
+
+external c_get_explosion_vclip
+  : int -> int -> int -> int -> int -> int
+  = "caml_c_get_explosion_vclip"
+
+let%expect_test "get_explosion_vclip: all cases" =
+  let obj_robot = 2 in
+  let obj_player = 4 in
+  let obj_weapon = 5 in
+  (* Robot stage 0 with valid exp1 *)
+  let cases = [
+    (obj_robot, 0, 10, 20, 30, "robot_s0_valid");
+    (obj_robot, 0, -1, 20, 30, "robot_s0_invalid");
+    (obj_robot, 1, 10, 20, 30, "robot_s1_valid");
+    (obj_robot, 1, 10, -1, 30, "robot_s1_invalid");
+    (obj_player, 0, 10, 20, 30, "player_valid");
+    (obj_player, 0, 10, 20, -1, "player_invalid");
+    (obj_weapon, 0, 10, 20, 30, "weapon_default");
+  ] in
+  List.iter cases ~f:(fun (ot, st, e1, e2, ep, label) ->
+    let c = c_get_explosion_vclip ot st e1 e2 ep in
+    let o = Ox_collide.get_explosion_vclip ~obj_type:ot ~stage:st
+      ~exp1_vclip_num:e1 ~exp2_vclip_num:e2 ~expl_vclip_num:ep in
+    printf "%s: C=%d Ox=%d %s\n" label c o
+      (if c = o then "OK" else "MISMATCH"));
+  [%expect {|
+    robot_s0_valid: C=10 Ox=10 OK
+    robot_s0_invalid: C=2 Ox=2 OK
+    robot_s1_valid: C=20 Ox=20 OK
+    robot_s1_invalid: C=2 Ox=2 OK
+    player_valid: C=30 Ox=30 OK
+    player_invalid: C=2 Ox=2 OK
+    weapon_default: C=2 Ox=2 OK
+    |}]

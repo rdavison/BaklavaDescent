@@ -4,7 +4,7 @@
 
 The pure-computation porting phase is **effectively complete**. All functions in the ChocolateDescent codebase that can be cleanly extracted as pure scalar/vector computations following the established bridge pattern have been ported to OxCaml with parity tests.
 
-## What Was Ported (25 Worklog Entries)
+## What Was Ported (26 Worklog Entries)
 
 ### Core Math Layer
 - **Fixed-point arithmetic**: i2f, f2i, fixmul, fixdiv, fix_sqrt, fix_isqrt, fix_asin, fix_acos, fix_atan2, fix_sincos, fix_fastsincos
@@ -21,7 +21,7 @@ The pure-computation porting phase is **effectively complete**. All functions in
 
 ### Physics/Collision
 - **FVI**: check_line_to_face, special_check_line_to_face, check_vector_to_sphere_1, check_vector_to_object
-- **Collide**: apply_damage_to_robot_d1
+- **Collide**: apply_damage_to_robot_d1, get_explosion_vclip (D1+D2)
 - **Physics**: physics_turn_towards_vector, phys_apply_force, phys_apply_rot, do_physics_sim_rot, calc_gun_point, set_object_turnroll, do_physics_align_object
 
 ### AI

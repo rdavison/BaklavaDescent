@@ -23,5 +23,12 @@ let cd_apply_damage_to_robot_d1
   let _end_pos = Ox_collide.serialize_node buf 2 tree in
   buf
 
+(* get_explosion_vclip: 5 scalar args → int *)
+let cd_get_explosion_vclip obj_type stage
+    exp1_vclip_num exp2_vclip_num expl_vclip_num =
+  Ox_collide.get_explosion_vclip ~obj_type ~stage
+    ~exp1_vclip_num ~exp2_vclip_num ~expl_vclip_num
+
 let () =
-  Callback.register "cd_apply_damage_to_robot_d1" cd_apply_damage_to_robot_d1
+  Callback.register "cd_apply_damage_to_robot_d1" cd_apply_damage_to_robot_d1;
+  Callback.register "cd_get_explosion_vclip" cd_get_explosion_vclip

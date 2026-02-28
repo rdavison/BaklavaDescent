@@ -1041,3 +1041,16 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 26) Port `get_explosion_vclip` (D1+D2) to Ox
+
+**What:** Ported the explosion vclip lookup from fireball.cpp (identical D1/D2 logic).
+
+- **`get_explosion_vclip`** — Pure lookup: for robots, returns exp1_vclip_num (stage 0) or exp2_vclip_num (stage 1) if valid (> -1), else falls through to VCLIP_SMALL_EXPLOSION (2). For players, returns expl_vclip_num if valid, else VCLIP_SMALL_EXPLOSION. All other types get VCLIP_SMALL_EXPLOSION. Previously categorized as "trivially small" — ported for completeness.
+
+- **Parity tests:** 7 exhaustive cases covering robot stage 0/1 valid/invalid, player valid/invalid, weapon default — 0 mismatches.
+- **Engine wiring:** D1 `fireball.cpp`, D2 `fireball.cpp` — scalar args extracted at callsite (obj->type, stage, Robot_info fields conditionally, Player_ship->expl_vclip_num).
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
