@@ -13,3 +13,5 @@ as described in copying.txt.
 
 int P_Rand();
 void P_SRand(int seed);
+unsigned int P_Rand_get_state(void);
+void P_Rand_set_state(unsigned int s);

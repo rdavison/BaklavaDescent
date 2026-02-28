@@ -171,6 +171,8 @@ let cd_player_is_visible_from_object (arr : int array) =
   Ox_fvi.player_is_visible_from_object arr
 ;;
 
+let cd_compute_vis_and_vec (arr : int array) = Ox_fvi.compute_vis_and_vec arr
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
@@ -181,5 +183,6 @@ let () =
   Callback.register "cd_find_homing_object_complete" cd_find_homing_object_complete;
   Callback.register "cd_find_homing_object" cd_find_homing_object;
   Callback.register "cd_track_track_goal" cd_track_track_goal;
-  Callback.register "cd_player_is_visible_from_object" cd_player_is_visible_from_object
+  Callback.register "cd_player_is_visible_from_object" cd_player_is_visible_from_object;
+  Callback.register "cd_compute_vis_and_vec" cd_compute_vis_and_vec
 ;;

@@ -1445,3 +1445,43 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: both D1 and D2 launch and play correctly with all §42+§43 bridges active.
+
+---
+
+## §44 — Port `compute_vis_and_vec` to OxCaml (D1 + D2)
+
+**Date:** 2026-02-28
+
+- **What:** Ported `compute_vis_and_vec` — the AI visibility computation function that determines whether a robot can see the player, computes `vec_to_player`, manages cloak tracking, plays sounds, and updates AI state. Called every AI frame for every robot.
+
+- **Design:** Single bridge crossing wraps `player_is_visible_from_object` (already ported) plus all surrounding game logic:
+  1. Cloak handling: `make_random_vector` via internal P_Rand LCG, `vm_vec_scale_add` for position drift
+  2. `vec_to_player` computation (from cloak position or `Believed_player_pos`)
+  3. Calls `player_is_visible_from_object` internally (OCaml → OCaml, no extra bridge crossing)
+  4. Wake-up code: `AIS_REST` → `AIS_FIRE` transition
+  5. Sound event dispatch (returned as data for C to play via `digi_link_sound_to_pos`)
+  6. AI state updates (`previous_visibility`, `time_player_seen`, etc.)
+  7. D2 awareness-based visibility upgrade
+
+- **P_Rand approach:** Added `P_Rand_get_state()` / `P_Rand_set_state()` to `misc/rand.cpp` to access the static `randNext` variable. The OCaml code reimplements the LCG (`randNext * 1103515245 + 12345` mod 2^32) using Int64 arithmetic to avoid overflow. PRNG state is passed in and returned, giving exact parity with the original C code.
+
+- **Packed array extension:** CVV extension (19 ints) appended after the player_vis extension:
+  - Input: player_cloaked, Difficulty_level, cloak state, prand_state, ailp fields, aip fields, sound IDs, Player_exploded, next_fire2, awareness
+  - Return (28 ints): player_visibility, vec_to_player, pos, pviso results, updated cloak/PRNG/ailp/aip state, sound events (count + up to 2 sound IDs)
+
+- **D1/D2 differences:**
+  - D1 uses `FQ_CHECK_OBJS` for FVI, checks `Player_exploded` before sounds
+  - D2 uses `FQ_TRANSWALL` only, checks `next_fire2` in cloaked sound condition, manages `SUB_FLAGS`, applies awareness upgrade
+
+- **Files modified:**
+  - `misc/rand.cpp` — `P_Rand_get_state()`, `P_Rand_set_state()` (4 lines)
+  - `misc/rand.h` — declarations
+  - `ox/ox_fvi.ml` — `p_rand_step`, `make_random_vector_prng`, `compute_vis_and_vec` (~150 lines)
+  - `ox/fvi_bridge.ml` — `cd_compute_vis_and_vec` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_compute_vis_and_vec` static pointer, init/ready, C wrapper (returns 28-element array)
+  - `ox/bridge.h` — `cd_ox_compute_vis_and_vec` declaration
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `compute_vis_and_vec`
+  - `main_d2/ai2.cpp` — same, with D2-specific handling
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).

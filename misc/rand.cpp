@@ -21,3 +21,13 @@ void P_SRand(int seed)
 {
 	randNext = seed;
 }
+
+unsigned int P_Rand_get_state(void)
+{
+	return randNext;
+}
+
+void P_Rand_set_state(unsigned int s)
+{
+	randNext = s;
+}

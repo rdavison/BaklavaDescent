@@ -801,6 +801,15 @@ void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_resu
    [result(0/1/2), pos.xyz, need_move_center, sub_flags, hit_type, hit_pos.xyz, hit_seg] */
 void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, int32_t* out);
 
+/* compute_vis_and_vec: AI visibility + vec_to_player computation.
+   Packed layout: FVI format + pv_ext(20) + cvv_ext(19).
+   Returns 28-element result via out array:
+   [player_vis, vtp.xyz, pos.xyz, need_move_center, sub_flags, hit_type, hit_pos.xyz,
+    hit_seg, cloak_last_time, cloak_last_pos.xyz, prand_state, ailp_next_misc_sound_time,
+    ailp_prev_vis, ailp_time_player_seen, ailp_time_player_sound_attacked,
+    aip_GOAL_STATE, aip_CURRENT_STATE, sound_count, sound1_id, sound2_id] */
+void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

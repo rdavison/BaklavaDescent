@@ -184,6 +184,7 @@ static const value* g_find_homing_object_complete = NULL;
 static const value* g_find_homing_object = NULL;
 static const value* g_track_track_goal = NULL;
 static const value* g_player_is_visible_from_object = NULL;
+static const value* g_compute_vis_and_vec = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -461,6 +462,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_homing_object = caml_named_value("cd_find_homing_object");
     g_track_track_goal = caml_named_value("cd_track_track_goal");
     g_player_is_visible_from_object = caml_named_value("cd_player_is_visible_from_object");
+    g_compute_vis_and_vec = caml_named_value("cd_compute_vis_and_vec");
 
     if (!g_i2f
         || !g_f2i
@@ -591,7 +593,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_homing_object_complete
         || !g_find_homing_object
         || !g_track_track_goal
-        || !g_player_is_visible_from_object)
+        || !g_player_is_visible_from_object
+        || !g_compute_vis_and_vec)
     {
         return 1;
     }
@@ -719,7 +722,8 @@ int cd_ox_is_ready(void)
            && g_find_homing_object_complete
            && g_find_homing_object
            && g_track_track_goal
-           && g_player_is_visible_from_object;
+           && g_player_is_visible_from_object
+           && g_compute_vis_and_vec;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3226,6 +3230,23 @@ void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, 
         Store_field(arr, i, Val_long(packed[i]));
     result = caml_callback(*g_player_is_visible_from_object, arr);
     for (int i = 0; i < 11; i++)
+        out[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+/* compute_vis_and_vec: returns 28-element result via out array.
+   Packed layout: FVI format + pv_ext(20) + cvv_ext(19).
+   The packed array is mutable (OCaml modifies vec_to_player in pv_ext). */
+void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out)
+{
+    cd_ox_require_ready("cd_ox_compute_vis_and_vec");
+    CAMLparam0();
+    CAMLlocal1(result);
+    value arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_compute_vis_and_vec, arr);
+    for (int i = 0; i < 28; i++)
         out[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

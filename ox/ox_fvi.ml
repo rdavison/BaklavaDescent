@@ -2064,3 +2064,247 @@ let player_is_visible_from_object (arr : int array) =
    ; hit_seg
   |]
 ;;
+
+(* ===== compute_vis_and_vec =====
+
+   Packed array layout: FVI format + player_vis extension (20 ints) + CVV extension (19 ints).
+
+   CVV extension (appended after pv_ext at pv_base + 20):
+     [0]   player_cloaked (0 or 1)
+     [1]   Difficulty_level
+     [2]   cloak_last_time (Ai_cloak_info[cloak_index].last_time)
+     [3-5] cloak_last_position.xyz
+     [6]   prand_state (current randNext, unsigned 32-bit as signed int32)
+     [7]   ailp_next_misc_sound_time
+     [8]   ailp_next_fire
+     [9]   ailp_previous_visibility
+     [10]  ailp_time_player_seen
+     [11]  ailp_time_player_sound_attacked
+     [12]  aip_GOAL_STATE
+     [13]  aip_CURRENT_STATE
+     [14]  see_sound
+     [15]  attack_sound
+     [16]  Player_exploded (D1 only, 0 for D2)
+     [17]  ailp_next_fire2 (D2 only)
+     [18]  ailp_player_awareness_type (D2 only)
+
+   Returns 28-element array:
+     [0]    player_visibility
+     [1-3]  vec_to_player.xyz
+     [4-6]  pos.xyz (from pviso, possibly modified)
+     [7]    need_move_center
+     [8]    sub_flags (D2)
+     [9]    hit_type
+     [10-12] hit_pos.xyz
+     [13]   hit_seg
+     [14]   cloak_last_time (output)
+     [15-17] cloak_last_position.xyz (output)
+     [18]   prand_state (output)
+     [19]   ailp_next_misc_sound_time (output)
+     [20]   ailp_previous_visibility (output)
+     [21]   ailp_time_player_seen (output)
+     [22]   ailp_time_player_sound_attacked (output)
+     [23]   aip_GOAL_STATE (output)
+     [24]   aip_CURRENT_STATE (output)
+     [25]   sound_event_count
+     [26]   sound_event1_id
+     [27]   sound_event2_id *)
+
+let cvv_ext_size = 19
+
+(* P_Rand step: advance LCG state, return (value, new_state).
+   Replicates C unsigned 32-bit arithmetic. *)
+let p_rand_step state =
+  let s = Int64.of_int (state land 0xFFFFFFFF) in
+  let s = if state < 0 then Int64.(s + 0x100000000L) else s in
+  let next = Int64.(to_int_exn (bit_and ((s * 1103515245L) + 12345L) 0xFFFFFFFFL)) in
+  let value = (next lsr 16) land 0x7FFF in
+  value, next
+;;
+
+(* make_random_vector using PRNG state. Returns (vec, new_state). *)
+let make_random_vector_prng state =
+  let open Ox_math in
+  let rx, state = p_rand_step state in
+  let ry, state = p_rand_step state in
+  let rz, state = p_rand_step state in
+  let v = rx - 16384, ry - 16384, rz - 16384 in
+  let _, vnorm = vm_vec_copy_normalize_quick ~v in
+  vnorm, state
+;;
+
+let f1_0 = 0x10000
+let max_ai_cloak_info = 8
+let ais_rest = 1
+let ais_fire = 5
+let pa_nearby_robot_fired = 1
+
+let compute_vis_and_vec (arr : int array) =
+  let open Ox_math in
+  let n_objects = arr.(h_n_objects) in
+  let obj_data_base = get_obj_data_base arr in
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let pv_base = obj_data_base + (n_objects * obj_block_size) in
+  let cvv_base = pv_base + pv_ext_size in
+  let game_time = arr.(h_game_time) in
+  (* Read CVV extension *)
+  let player_cloaked = arr.(cvv_base + 0) <> 0 in
+  let difficulty_level = arr.(cvv_base + 1) in
+  let cloak_last_time = ref arr.(cvv_base + 2) in
+  let cloak_last_pos_x = ref arr.(cvv_base + 3) in
+  let cloak_last_pos_y = ref arr.(cvv_base + 4) in
+  let cloak_last_pos_z = ref arr.(cvv_base + 5) in
+  let prand_state = ref arr.(cvv_base + 6) in
+  let next_misc_sound_time = ref arr.(cvv_base + 7) in
+  let next_fire = arr.(cvv_base + 8) in
+  let previous_visibility = ref arr.(cvv_base + 9) in
+  let time_player_seen = ref arr.(cvv_base + 10) in
+  let time_player_sound_attacked = ref arr.(cvv_base + 11) in
+  let goal_state = ref arr.(cvv_base + 12) in
+  let current_state = ref arr.(cvv_base + 13) in
+  let see_sound = arr.(cvv_base + 14) in
+  let attack_sound = arr.(cvv_base + 15) in
+  let player_exploded = arr.(cvv_base + 16) <> 0 in
+  let next_fire2 = arr.(cvv_base + 17) in
+  let player_awareness_type = arr.(cvv_base + 18) in
+  (* Read pos from pv_ext *)
+  let pos_x = arr.(pv_base + 0) in
+  let pos_y = arr.(pv_base + 1) in
+  let pos_z = arr.(pv_base + 2) in
+  let pos = pos_x, pos_y, pos_z in
+  let sound_events = Array.create ~len:4 0 in
+  let sound_count = ref 0 in
+  let add_sound sid =
+    if !sound_count < 2
+    then (
+      sound_events.(!sound_count) <- sid;
+      sound_count := !sound_count + 1)
+  in
+  let player_visibility = ref 0 in
+  let vec_to_player_ref = ref (0, 0, 0) in
+  let pvis_result = ref [| 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0 |] in
+  if player_cloaked
+  then (
+    let delta_time = game_time - !cloak_last_time in
+    if delta_time > f1_0 * 2
+    then (
+      cloak_last_time := game_time;
+      let randvec, new_state = make_random_vector_prng !prand_state in
+      prand_state := new_state;
+      let new_pos =
+        vm_vec_scale_add
+          ~a:(!cloak_last_pos_x, !cloak_last_pos_y, !cloak_last_pos_z)
+          ~b:randvec
+          ~k:(8 * delta_time)
+      in
+      let nx, ny, nz = new_pos in
+      cloak_last_pos_x := nx;
+      cloak_last_pos_y := ny;
+      cloak_last_pos_z := nz);
+    let cloak_pos = !cloak_last_pos_x, !cloak_last_pos_y, !cloak_last_pos_z in
+    let diff = vm_vec_sub ~a:cloak_pos ~b:pos in
+    let dist, vec_norm = vm_vec_copy_normalize_quick ~v:diff in
+    vec_to_player_ref := vec_norm;
+    let vtpx, vtpy, vtpz = vec_norm in
+    arr.(pv_base + 11) <- vtpx;
+    arr.(pv_base + 12) <- vtpy;
+    arr.(pv_base + 13) <- vtpz;
+    pvis_result := player_is_visible_from_object arr;
+    player_visibility := !pvis_result.(0);
+    let fire_ok =
+      if is_d2 then next_fire < f1_0 || next_fire2 < f1_0 else next_fire < f1_0
+    in
+    if !next_misc_sound_time < game_time && fire_ok && dist < f1_0 * 20
+    then (
+      let rv, ns = p_rand_step !prand_state in
+      prand_state := ns;
+      next_misc_sound_time := game_time + ((rv + f1_0) * (7 - difficulty_level) / 1);
+      add_sound see_sound))
+  else (
+    let believed_player_pos =
+      arr.(pv_base + 14), arr.(pv_base + 15), arr.(pv_base + 16)
+    in
+    let diff = vm_vec_sub ~a:believed_player_pos ~b:pos in
+    let _, vec_norm = vm_vec_copy_normalize_quick ~v:diff in
+    let vec_norm =
+      let vx, vy, vz = vec_norm in
+      if vx = 0 && vy = 0 && vz = 0 then f1_0, 0, 0 else vx, vy, vz
+    in
+    vec_to_player_ref := vec_norm;
+    let vtpx, vtpy, vtpz = vec_norm in
+    arr.(pv_base + 11) <- vtpx;
+    arr.(pv_base + 12) <- vtpy;
+    arr.(pv_base + 13) <- vtpz;
+    pvis_result := player_is_visible_from_object arr;
+    player_visibility := !pvis_result.(0);
+    if !player_visibility = 2 && !previous_visibility <> 2
+    then
+      if !goal_state = ais_rest || !current_state = ais_rest
+      then (
+        goal_state := ais_fire;
+        current_state := ais_fire);
+    let do_sound_check = if is_d2 then true else not player_exploded in
+    if
+      do_sound_check
+      && !previous_visibility <> !player_visibility
+      && !player_visibility = 2
+    then
+      if !previous_visibility = 0
+      then (
+        if !time_player_seen + (f1_0 / 2) < game_time
+        then (
+          add_sound see_sound;
+          time_player_sound_attacked := game_time;
+          let rv, ns = p_rand_step !prand_state in
+          prand_state := ns;
+          next_misc_sound_time := game_time + f1_0 + (rv * 4)))
+      else if !time_player_sound_attacked + (f1_0 / 4) < game_time
+      then (
+        add_sound attack_sound;
+        time_player_sound_attacked := game_time);
+    if !player_visibility = 2 && !next_misc_sound_time < game_time
+    then (
+      let rv, ns = p_rand_step !prand_state in
+      prand_state := ns;
+      next_misc_sound_time := game_time + ((rv + f1_0) * (7 - difficulty_level) / 2);
+      add_sound attack_sound);
+    previous_visibility := !player_visibility);
+  (* D2: awareness-based visibility upgrade *)
+  let player_visibility =
+    if is_d2 && player_awareness_type >= pa_nearby_robot_fired && !player_visibility = 1
+    then 2
+    else !player_visibility
+  in
+  if player_visibility <> 0 then time_player_seen := game_time;
+  let pr = !pvis_result in
+  let vtpx, vtpy, vtpz = !vec_to_player_ref in
+  [| player_visibility
+   ; vtpx
+   ; vtpy
+   ; vtpz
+   ; pr.(1)
+   ; pr.(2)
+   ; pr.(3)
+   ; pr.(4)
+   ; pr.(5)
+   ; pr.(6)
+   ; pr.(7)
+   ; pr.(8)
+   ; pr.(9)
+   ; pr.(10)
+   ; !cloak_last_time
+   ; !cloak_last_pos_x
+   ; !cloak_last_pos_y
+   ; !cloak_last_pos_z
+   ; !prand_state
+   ; !next_misc_sound_time
+   ; !previous_visibility
+   ; !time_player_seen
+   ; !time_player_sound_attacked
+   ; !goal_state
+   ; !current_state
+   ; !sound_count
+   ; sound_events.(0)
+   ; sound_events.(1)
+  |]
+;;
