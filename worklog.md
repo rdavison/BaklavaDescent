@@ -1410,7 +1410,7 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/laser.cpp` — same, with D2-specific fields (`is_d2=1`, companion, `Robots_kill_robots_cheat`, `*dot = out_dot`)
   - `CHECKLIST.md` — marked done
 
-- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: D1+D2 play correctly.
 
 ### §43 — Port player_is_visible_from_object to OxCaml
 
@@ -1444,4 +1444,4 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/ai2.cpp` — same, with D2-specific SUB_FLAGS handling
   - `CHECKLIST.md` — marked done
 
-- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: both D1 and D2 launch and play correctly with all §42+§43 bridges active.
