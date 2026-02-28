@@ -97,6 +97,7 @@ static const value* g_set_object_turnroll = NULL;
 static const value* g_lead_player = NULL;
 static const value* g_homing_missile_turn_towards_velocity = NULL;
 static const value* g_do_physics_align_object = NULL;
+static const value* g_check_vector_to_object = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -187,7 +188,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_set_object_turnroll
           && g_lead_player
           && g_homing_missile_turn_towards_velocity
-          && g_do_physics_align_object))
+          && g_do_physics_align_object
+          && g_check_vector_to_object))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -294,6 +296,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_lead_player = caml_named_value("cd_lead_player");
     g_homing_missile_turn_towards_velocity = caml_named_value("cd_homing_missile_turn_towards_velocity");
     g_do_physics_align_object = caml_named_value("cd_do_physics_align_object");
+    g_check_vector_to_object = caml_named_value("cd_check_vector_to_object");
 
     if (!g_i2f
         || !g_f2i
@@ -381,7 +384,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_set_object_turnroll
         || !g_lead_player
         || !g_homing_missile_turn_towards_velocity
-        || !g_do_physics_align_object)
+        || !g_do_physics_align_object
+        || !g_check_vector_to_object)
     {
         return 1;
     }
@@ -477,7 +481,8 @@ int cd_ox_is_ready(void)
            && g_set_object_turnroll
            && g_lead_player
            && g_homing_missile_turn_towards_velocity
-           && g_do_physics_align_object;
+           && g_do_physics_align_object
+           && g_check_vector_to_object;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1931,4 +1936,31 @@ void cd_ox_do_physics_align_object(
     for (int i = 0; i < 11; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
+}
+
+int32_t cd_ox_check_vector_to_object(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t rad,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t obj_size, int obj_type, int attack_type,
+    int otherobj_type, int game_mode_coop, int otherobj_parent_type,
+    int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz)
+{
+    cd_ox_require_ready("cd_ox_check_vector_to_object");
+    value args[16] = {
+        Val_long(p0x), Val_long(p0y), Val_long(p0z),
+        Val_long(p1x), Val_long(p1y), Val_long(p1z),
+        Val_long(rad),
+        Val_long(opx), Val_long(opy), Val_long(opz),
+        Val_long(obj_size), Val_long(obj_type), Val_long(attack_type),
+        Val_long(otherobj_type), Val_long(game_mode_coop),
+        Val_long(otherobj_parent_type),
+    };
+    const value out = caml_callbackN(*g_check_vector_to_object, 16, args);
+    int32_t dist = Int_val(Field(out, 0));
+    *out_intpx = Int_val(Field(out, 1));
+    *out_intpy = Int_val(Field(out, 2));
+    *out_intpz = Int_val(Field(out, 3));
+    return dist;
 }

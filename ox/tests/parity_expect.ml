@@ -6991,3 +6991,107 @@ let%expect_test "randomized do_physics_align_object parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "do_physics_align_object parity failed" ();
   [%expect {| do_physics_align_object random total=5000 mismatches=0 |}]
+
+(* ---------- check_vector_to_object ---------- *)
+
+external c_check_vector_to_object
+  : int -> int -> int -> int -> int -> int -> int -> int -> int -> int ->
+    int -> int -> int -> int -> int -> int -> int * int * int * int
+  = "caml_c_check_vector_to_object_bc" "caml_c_check_vector_to_object"
+
+let%expect_test "check_vector_to_object: robot with attack_type gets 3/4 size" =
+  let f1_0 = 0x10000 in
+  (* Robot at origin, size=f1_0, attack_type=1 → size becomes 3/4 *)
+  let c = c_check_vector_to_object
+    0 0 (-f1_0 * 2) 0 0 0  (* p0 behind, p1 at origin *)
+    0  (* rad=0 *)
+    0 0 0  (* obj_pos = origin *)
+    f1_0  2  1  (* size, OBJ_ROBOT, attack_type=1 *)
+    0  0  0  (* otherobj_type, game_mode_coop=false, parent_type *)
+  in
+  let ox = Ox_fvi.check_vector_to_object
+    ~p0:(0, 0, -f1_0 * 2) ~p1:(0, 0, 0) ~rad:0
+    ~obj_pos:(0, 0, 0) ~obj_size:f1_0
+    ~obj_type:2 ~attack_type:1
+    ~otherobj_type:0 ~game_mode_coop:false ~otherobj_parent_type:0
+  in
+  let (cd, cix, ciy, ciz) = c in
+  let (od, (oix, oiy, oiz)) = ox in
+  printf "C:  dist=%d intp=(%d,%d,%d)\n" cd cix ciy ciz;
+  printf "Ox: dist=%d intp=(%d,%d,%d)\n" od oix oiy oiz;
+  printf "match=%b\n" (cd = od && cix = oix && ciy = oiy && ciz = oiz);
+  [%expect {|
+    C:  dist=81920 intp=(0,0,-49152)
+    Ox: dist=81920 intp=(0,0,-49152)
+    match=true |}]
+
+let%expect_test "check_vector_to_object: player vs player gets half size" =
+  let f1_0 = 0x10000 in
+  let c = c_check_vector_to_object
+    0 0 (-f1_0 * 2) 0 0 0
+    0
+    0 0 0
+    f1_0  4  0  (* size, OBJ_PLAYER, attack_type=0 *)
+    4  0  0  (* otherobj_type=OBJ_PLAYER, game_mode_coop=false, parent *)
+  in
+  let ox = Ox_fvi.check_vector_to_object
+    ~p0:(0, 0, -f1_0 * 2) ~p1:(0, 0, 0) ~rad:0
+    ~obj_pos:(0, 0, 0) ~obj_size:f1_0
+    ~obj_type:4 ~attack_type:0
+    ~otherobj_type:4 ~game_mode_coop:false ~otherobj_parent_type:0
+  in
+  let (cd, cix, ciy, ciz) = c in
+  let (od, (oix, oiy, oiz)) = ox in
+  printf "C:  dist=%d intp=(%d,%d,%d)\n" cd cix ciy ciz;
+  printf "Ox: dist=%d intp=(%d,%d,%d)\n" od oix oiy oiz;
+  printf "match=%b\n" (cd = od && cix = oix && ciy = oiy && ciz = oiz);
+  [%expect {|
+    C:  dist=98304 intp=(0,0,-32768)
+    Ox: dist=98304 intp=(0,0,-32768)
+    match=true |}]
+
+let%expect_test "randomized check_vector_to_object parity C vs Ox" =
+  let f1_0 = 0x10000 in
+  let state = Random.State.make [| 88888 |] in
+  let gen () = Random.State.int state 0x40000 - 0x20000 in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    let p0 = (gen (), gen (), gen ()) in
+    let p1 = (gen (), gen (), gen ()) in
+    let rad = Random.State.int state (f1_0 * 2) in
+    let obj_pos = (gen (), gen (), gen ()) in
+    let obj_size = Random.State.int state (f1_0 * 3) in
+    let obj_type = [| 0; 2; 4; 5 |].(Random.State.int state 4) in
+    let attack_type = Random.State.int state 2 in
+    let otherobj_type = [| 0; 2; 4; 5 |].(Random.State.int state 4) in
+    let game_mode_coop = Random.State.int state 2 in
+    let otherobj_parent_type = [| 0; 2; 4; 5 |].(Random.State.int state 4) in
+    let (p0x, p0y, p0z) = p0 in
+    let (p1x, p1y, p1z) = p1 in
+    let (opx, opy, opz) = obj_pos in
+    let (cd, cix, ciy, ciz) = c_check_vector_to_object
+      p0x p0y p0z p1x p1y p1z rad
+      opx opy opz obj_size obj_type attack_type
+      otherobj_type game_mode_coop otherobj_parent_type in
+    let (od, (oix, oiy, oiz)) = Ox_fvi.check_vector_to_object
+      ~p0 ~p1 ~rad ~obj_pos ~obj_size
+      ~obj_type ~attack_type ~otherobj_type
+      ~game_mode_coop:(game_mode_coop <> 0)
+      ~otherobj_parent_type in
+    incr total;
+    (* Only compare intersection point when dist != 0; C returns garbage intp on miss *)
+    let ok = cd = od && (cd = 0 || (cix = oix && ciy = oiy && ciz = oiz)) in
+    if not ok then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "dist C=%d Ox=%d intp C=(%d,%d,%d) Ox=(%d,%d,%d)"
+          cd od cix ciy ciz oix oiy oiz)
+    end
+  done;
+  printf "check_vector_to_object random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "check_vector_to_object parity failed" ();
+  [%expect {| check_vector_to_object random total=5000 mismatches=0 |}]

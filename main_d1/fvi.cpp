@@ -615,6 +615,19 @@ int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, v
 //if no intersects, returns 0, else fills in intp and returns dist
 fix check_vector_to_object(vms_vector* intp, vms_vector* p0, vms_vector* p1, fix rad, object* obj, object* otherobj)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_check_vector_to_object(
+		p0->x, p0->y, p0->z,
+		p1->x, p1->y, p1->z,
+		rad,
+		obj->pos.x, obj->pos.y, obj->pos.z,
+		obj->size, obj->type,
+		(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0,
+		otherobj->type,
+		(Game_mode & GM_MULTI_COOP) ? 1 : 0,
+		otherobj->ctype.laser_info.parent_type,
+		&intp->x, &intp->y, &intp->z);
+#else
 	fix size = obj->size;
 
 	if (obj->type == OBJ_ROBOT && Robot_info[obj->id].attack_type)
@@ -627,7 +640,7 @@ fix check_vector_to_object(vms_vector* intp, vms_vector* p0, vms_vector* p1, fix
 		size = size / 2;
 
 	return check_vector_to_sphere_1(intp, p0, p1, &obj->pos, size + rad);
-
+#endif
 }
 
 

@@ -497,6 +497,17 @@ void cd_ox_do_physics_align_object(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* check_vector_to_object: compute intersection with adjusted collision radius.
+   Returns distance (0 = no hit), writes intersection point to out_intp*. */
+int32_t cd_ox_check_vector_to_object(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t rad,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t obj_size, int obj_type, int attack_type,
+    int otherobj_type, int game_mode_coop, int otherobj_parent_type,
+    int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz);
+
 #ifdef __cplusplus
 }
 #endif

@@ -2368,3 +2368,44 @@ void c_oracle_do_physics_align_object(
         }
     }
 }
+
+/* Forward declaration from c_oracle_fvi */
+extern "C" int c_oracle_check_vector_to_sphere_1(
+    c_oracle_vec3* intp,
+    const c_oracle_vec3* p0, const c_oracle_vec3* p1,
+    const c_oracle_vec3* sphere_pos, int32_t sphere_rad);
+
+#define OBJ_ROBOT  2
+#define OBJ_PLAYER 4
+#define OBJ_WEAPON 5
+
+int32_t c_oracle_check_vector_to_object(
+    int32_t p0x, int32_t p0y, int32_t p0z,
+    int32_t p1x, int32_t p1y, int32_t p1z,
+    int32_t rad,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t obj_size, int obj_type, int attack_type,
+    int otherobj_type, int game_mode_coop, int otherobj_parent_type,
+    int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz)
+{
+    int32_t size = obj_size;
+
+    if (obj_type == OBJ_ROBOT && attack_type)
+        size = (size * 3) / 4;
+
+    if (obj_type == OBJ_PLAYER &&
+        ((otherobj_type == OBJ_PLAYER) ||
+         (game_mode_coop && otherobj_type == OBJ_WEAPON &&
+          otherobj_parent_type == OBJ_PLAYER)))
+        size = size / 2;
+
+    c_oracle_vec3 intp, p0, p1, spos;
+    p0.x = p0x; p0.y = p0y; p0.z = p0z;
+    p1.x = p1x; p1.y = p1y; p1.z = p1z;
+    spos.x = opx; spos.y = opy; spos.z = opz;
+    int32_t d = c_oracle_check_vector_to_sphere_1(&intp, &p0, &p1, &spos, size + rad);
+    *out_intpx = intp.x;
+    *out_intpy = intp.y;
+    *out_intpz = intp.z;
+    return d;
+}

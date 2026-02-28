@@ -288,3 +288,41 @@ let check_vector_to_sphere_1 ~p0 ~p1 ~sphere_pos ~sphere_rad =
       else 0, (0, 0, 0)
     end
   end
+
+(* Object type constants matching object.h *)
+let obj_robot = 2
+let obj_player = 4
+let obj_weapon = 5
+
+(* Check vector-to-object intersection with adjusted collision radius.
+   C original: fvi.cpp check_vector_to_object (D1+D2, identical)
+
+   Adjusts the target object's size based on type:
+   - Melee robots (attack_type != 0): size *= 3/4
+   - Players bumping into other players or coop weapon: size /= 2
+
+   Inputs:
+     p0, p1          - line segment endpoints (vec3)
+     rad              - collision radius from the moving object
+     obj_pos          - target object position (vec3)
+     obj_size         - target object size (fix)
+     obj_type         - target object type (OBJ_ROBOT, OBJ_PLAYER, etc.)
+     attack_type      - Robot_info[obj->id].attack_type (0 if not robot)
+     otherobj_type    - other object's type
+     game_mode_coop   - true if (Game_mode & GM_MULTI_COOP)
+     otherobj_parent_type - otherobj->ctype.laser_info.parent_type
+
+   Returns: (distance, intersection_point) — 0 distance means no hit *)
+let check_vector_to_object ~p0 ~p1 ~rad ~obj_pos ~obj_size
+    ~obj_type ~attack_type ~otherobj_type ~game_mode_coop
+    ~otherobj_parent_type =
+  let size = ref obj_size in
+  if obj_type = obj_robot && attack_type <> 0 then
+    size := (!size * 3) / 4;
+  if obj_type = obj_player &&
+     (otherobj_type = obj_player ||
+      (game_mode_coop && otherobj_type = obj_weapon &&
+       otherobj_parent_type = obj_player)) then
+    size := !size / 2;
+  check_vector_to_sphere_1 ~p0 ~p1 ~sphere_pos:obj_pos
+    ~sphere_rad:(!size + rad)

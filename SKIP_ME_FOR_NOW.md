@@ -12,7 +12,7 @@ These functions access complex global arrays (Objects[], Segments[], Players[], 
 
 - **`compute_headlight_light` D2** (D2 lighting.cpp) — Checks `Players[Player_num].flags`, `Viewer == &Objects[Players[Player_num].objnum]`, `Players[Player_num].energy` to decide beam mode. D1 version uses a simpler `use_beam` flag but still reads `Beam_brightness` global.
 
-- **`check_vector_to_object`** (D1+D2 fvi.cpp) — Reads `obj->type`, `Robot_info[obj->id].attack_type`, `otherobj->type`, `Game_mode`, `otherobj->ctype.laser_info.parent_type` to compute effective collision radius. Called from deep inside `fvi_sub()`.
+- ~~**`check_vector_to_object`**~~ — **PORTED** (worklog #23). Scalar args extracted at callsite; delegates to already-ported `check_vector_to_sphere_1`.
 
 - **`compute_light_intensity`** (D2 lighting.cpp) — ~120 lines, reads Objects[], Players[], Vclip[], Robot_info[], Powerup_info[], Weapon_info[] to determine light intensity based on object type and state.
 

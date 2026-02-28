@@ -2757,3 +2757,39 @@ extern "C" CAMLprim value caml_c_do_physics_align_object(value packed_arr)
         Store_field(result, i, Val_long(out_buf[i]));
     CAMLreturn(result);
 }
+
+/* check_vector_to_object: 16 args → 4-tuple (dist, intpx, intpy, intpz) */
+extern "C" CAMLprim value caml_c_check_vector_to_object(
+    value p0x, value p0y, value p0z,
+    value p1x, value p1y, value p1z,
+    value v_rad,
+    value opx, value opy, value opz,
+    value v_obj_size, value v_obj_type, value v_attack_type,
+    value v_otherobj_type, value v_game_mode_coop, value v_otherobj_parent_type)
+{
+    int32_t out_ix, out_iy, out_iz;
+    int32_t d = c_oracle_check_vector_to_object(
+        Long_val(p0x), Long_val(p0y), Long_val(p0z),
+        Long_val(p1x), Long_val(p1y), Long_val(p1z),
+        Long_val(v_rad),
+        Long_val(opx), Long_val(opy), Long_val(opz),
+        Long_val(v_obj_size), Long_val(v_obj_type), Long_val(v_attack_type),
+        Long_val(v_otherobj_type), Long_val(v_game_mode_coop),
+        Long_val(v_otherobj_parent_type),
+        &out_ix, &out_iy, &out_iz);
+    value result = caml_alloc(4, 0);
+    Store_field(result, 0, Val_long(d));
+    Store_field(result, 1, Val_long(out_ix));
+    Store_field(result, 2, Val_long(out_iy));
+    Store_field(result, 3, Val_long(out_iz));
+    return result;
+}
+
+extern "C" CAMLprim value caml_c_check_vector_to_object_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_check_vector_to_object(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5],
+        argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
+        argv[12], argv[13], argv[14], argv[15]);
+}

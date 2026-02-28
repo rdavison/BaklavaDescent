@@ -75,7 +75,31 @@ let cd_check_vector_to_sphere_1 p0x p0y p0z p1x p1y p1z spx spy spz srad =
   in
   (dist, ix, iy, iz)
 
+(* check_vector_to_object: 16 scalar args → 4 ints (dist, intpx, intpy, intpz)
+   p0(3) + p1(3) + rad(1) + obj_pos(3) + obj_size(1) + obj_type(1) +
+   attack_type(1) + otherobj_type(1) + game_mode_coop(1) +
+   otherobj_parent_type(1) = 16 in *)
+let cd_check_vector_to_object
+    p0x p0y p0z p1x p1y p1z rad
+    opx opy opz obj_size obj_type attack_type
+    otherobj_type game_mode_coop otherobj_parent_type =
+  let dist, (ix, iy, iz) =
+    Ox_fvi.check_vector_to_object
+      ~p0:(p0x, p0y, p0z)
+      ~p1:(p1x, p1y, p1z)
+      ~rad
+      ~obj_pos:(opx, opy, opz)
+      ~obj_size
+      ~obj_type
+      ~attack_type
+      ~otherobj_type
+      ~game_mode_coop:(game_mode_coop <> 0)
+      ~otherobj_parent_type
+  in
+  (dist, ix, iy, iz)
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
-  Callback.register "cd_check_vector_to_sphere_1" cd_check_vector_to_sphere_1
+  Callback.register "cd_check_vector_to_sphere_1" cd_check_vector_to_sphere_1;
+  Callback.register "cd_check_vector_to_object" cd_check_vector_to_object

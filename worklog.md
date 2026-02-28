@@ -985,3 +985,27 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass (including 5000 randomized parity).
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 23) Port `check_vector_to_object` to Ox — second "global state entangled" function
+
+**What:** Ported `check_vector_to_object` from `fvi.cpp` (D1+D2, identical logic). This function adjusts an object's collision radius based on type (robots get 3/4 size when attacking, players get 1/2 size when bumping other players or coop weapons), then delegates to `check_vector_to_sphere_1` (already ported). Previously categorized as "global state entangled" because it reads `Robot_info[].attack_type`, `Game_mode`, and `otherobj->ctype.laser_info.parent_type`, but all these are trivially extracted as scalar args at the callsite.
+
+- **1 new pure function in `ox/ox_fvi.ml`:**
+  - `check_vector_to_object` — takes ~10 scalar args (p0, p1, rad, obj_pos, obj_size, obj_type, attack_type, otherobj_type, game_mode_coop, otherobj_parent_type), computes effective size, delegates to `check_vector_to_sphere_1`.
+
+- **Bridge layer:**
+  - `cd_check_vector_to_object` in `fvi_bridge.ml` — 16-arg bridge wrapper returning `(dist, ix, iy, iz)` tuple.
+  - `cd_ox_check_vector_to_object` in `bridge.c` — calls OCaml via `caml_callbackN` with 16 args, reads 4-field result tuple.
+
+- **C oracle + parity tests:**
+  - `c_oracle_check_vector_to_object` in `c_oracle.cpp`.
+  - 2 deterministic tests + 5000 randomized — 0 mismatches.
+  - Key test detail: when dist=0 (no hit), C returns garbage intersection point values, so parity comparison only checks intp when dist != 0.
+
+- **Engine callsite wiring:**
+  - `main_d1/fvi.cpp` — `#ifdef USE_OX_BRIDGE` block extracts scalars, calls bridge, writes back intersection point.
+  - `main_d2/fvi.cpp` — same wiring.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass (including 5000 randomized parity).
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.
