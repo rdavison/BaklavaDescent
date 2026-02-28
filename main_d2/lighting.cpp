@@ -659,6 +659,33 @@ void start_lighting_frame(object* viewer)
 //object's center point is rotated.
 fix compute_object_light(object* obj, vms_vector* rotated_pnt)
 {
+#ifdef USE_OX_BRIDGE
+	int objnum = obj - Objects;
+	g3s_point objpnt;
+	if (!rotated_pnt) {
+		g3_rotate_point(&objpnt, &obj->pos);
+		rotated_pnt = &objpnt.p3_vec;
+	}
+	fix headlight_contrib;
+	if (CurrentLogicVersion >= LogicVer::FULL_1_0)
+		headlight_contrib = compute_headlight_light_on_object(obj);
+	else
+		headlight_contrib = compute_headlight_light(rotated_pnt, f1_0);
+	int32_t packed[8];
+	packed[0] = Segment2s[obj->segnum].static_light;
+	packed[1] = object_light[objnum];
+	packed[2] = object_sig[objnum];
+	packed[3] = obj->signature;
+	packed[4] = FrameTime;
+	packed[5] = reset_lighting_hack ? 1 : 0;
+	packed[6] = headlight_contrib;
+	packed[7] = compute_seg_dynamic_light(obj->segnum);
+	int32_t out[2];
+	cd_ox_compute_object_light(packed, 8, out);
+	object_light[objnum] = out[1];
+	object_sig[objnum] = obj->signature;
+	return out[0];
+#else
 	fix light;
 	g3s_point objpnt;
 	int objnum = obj - Objects;
@@ -707,6 +734,7 @@ fix compute_object_light(object* obj, vms_vector* rotated_pnt)
 	light += compute_seg_dynamic_light(obj->segnum);
 
 	return light;
+#endif
 }
 
 // ---------------------------------------------------------

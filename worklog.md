@@ -1591,3 +1591,22 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.
+
+### §50 — Port compute_object_light to OxCaml (D1 + D2)
+
+- **What:** `compute_object_light` — smooths lighting transitions for rendered objects. Interpolates cached light toward segment static light at LIGHT_RATE, then adds headlight and dynamic light contributions. Called 2-3× per rendered object per frame (40-90 calls/frame). D1 ~50 lines, D2 ~50 lines.
+
+- **Design:** Packed array bridge (8 ints in, 2 ints out). C pre-computes headlight contribution (via existing bridged `compute_headlight_light` / D2's `compute_headlight_light_on_object`) and dynamic light contribution (via `compute_seg_dynamic_light`), passing them as inputs. OCaml does the smoothing logic: compares cached object_light against static_light, applies frame-rate-limited delta, returns final light and updated cache value.
+
+- **D1 vs D2 differences:** D1 uses `object_id[objnum] == obj->id` for staleness, `Viewer != old_viewer` for viewer change. D2 uses `object_sig[objnum] == obj->signature`, `reset_lighting_hack` flag. D2 adds `compute_headlight_light_on_object` path for `LogicVersion >= FULL_1_0`. All differences handled on C side — OCaml receives a uniform `is_stale` flag.
+
+- **Files modified:**
+  - `ox/ox_lighting.ml` — `compute_object_light` (~35 lines)
+  - `ox/lighting_bridge.ml` — `cd_compute_object_light` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_compute_object_light` static pointer, init/ready, C wrapper
+  - `ox/bridge.h` — `cd_ox_compute_object_light` declaration
+  - `main_d1/lighting.cpp` — `#ifdef USE_OX_BRIDGE` around `compute_object_light`
+  - `main_d2/lighting.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.

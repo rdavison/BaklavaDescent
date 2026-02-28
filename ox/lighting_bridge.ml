@@ -40,7 +40,10 @@ let cd_compute_headlight_light_d2
     ~is_viewer
 ;;
 
+let cd_compute_object_light (packed : int array) = Ox_lighting.compute_object_light packed
+
 let () =
   Callback.register "cd_compute_headlight_light_d1" cd_compute_headlight_light_d1;
-  Callback.register "cd_compute_headlight_light_d2" cd_compute_headlight_light_d2
+  Callback.register "cd_compute_headlight_light_d2" cd_compute_headlight_light_d2;
+  Callback.register "cd_compute_object_light" cd_compute_object_light
 ;;

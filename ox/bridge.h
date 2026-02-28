@@ -632,6 +632,12 @@ int32_t cd_ox_compute_headlight_light_d2(
     int32_t face_light, int32_t beam_brightness,
     int32_t player_flags, int32_t player_energy, int is_viewer);
 
+/* compute_object_light: smooth light transitions for rendered objects.
+   packed[8] in, out_buf[2] out (final_light, new_object_light). */
+void cd_ox_compute_object_light(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* -- Clutter damage (shared D1/D2) ------------------------------------ */
 typedef void (*cd_effect_explode_object_delay_clutter_fn)(int obj_id, int delay);
 void cd_ox_register_clutter_effects(

@@ -372,7 +372,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] cast_muzzle_flash_light — muzzle flash light
 - [ ] set_dynamic_light — dynamic light state
 - [ ] compute_seg_dynamic_light — per-segment dynamic light
-- [ ] compute_object_light — per-object light
+- [x] compute_object_light — per-object light (D1+D2)
 
 ---
 

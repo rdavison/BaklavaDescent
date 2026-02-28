@@ -91,3 +91,51 @@ let compute_headlight_light_d2
         else light
       else light))
 ;;
+
+(* compute_object_light — smooths lighting transitions for rendered objects.
+   Shared between D1 and D2 (differences handled by C pre-computing headlight/dynamic).
+   LIGHT_RATE = i2f(4) = 0x40000.
+   Packed input (8 ints):
+     0: static_light      — Segments[segnum].static_light
+     1: object_light_cur   — cached object_light[objnum]
+     2: id_or_sig_cur      — cached object_id[objnum] (D1) or object_sig[objnum] (D2)
+     3: obj_id_or_sig      — obj->id (D1) or obj->signature (D2)
+     4: frame_time         — FrameTime
+     5: is_stale           — 1 if viewer changed (D1) or reset_lighting_hack (D2)
+     6: headlight_contrib  — pre-computed headlight light
+     7: dynamic_light      — pre-computed compute_seg_dynamic_light result
+   Returns array (2 ints):
+     0: final_light
+     1: new_object_light   — updated cache value *)
+let compute_object_light (packed : int array) =
+  let light_rate = 0x40000 in
+  (* i2f(4) = 4 << 16 *)
+  let static_light = packed.(0) in
+  let object_light_cur = packed.(1) in
+  let id_or_sig_cur = packed.(2) in
+  let obj_id_or_sig = packed.(3) in
+  let frame_time = packed.(4) in
+  let is_stale = packed.(5) <> 0 in
+  let headlight_contrib = packed.(6) in
+  let dynamic_light = packed.(7) in
+  let light, new_object_light =
+    if (not is_stale) && id_or_sig_cur = obj_id_or_sig
+    then (
+      (* Smooth transition toward static_light *)
+      let delta_light = static_light - object_light_cur in
+      let frame_delta = Ox_math.fixmul ~a:light_rate ~b:frame_time in
+      if Int.abs delta_light <= frame_delta
+      then static_light, static_light
+      else if delta_light < 0
+      then (
+        let new_ol = object_light_cur - frame_delta in
+        new_ol, new_ol)
+      else (
+        let new_ol = object_light_cur + frame_delta in
+        new_ol, new_ol))
+    else (* New object or stale — initialize cache *)
+      static_light, static_light
+  in
+  let light = light + headlight_contrib + dynamic_light in
+  [| light; new_object_light |]
+;;
