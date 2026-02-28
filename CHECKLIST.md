@@ -119,11 +119,11 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] check_vector_to_object
 
 ### Unported
-- [ ] find_vector_intersection — top-level FVI dispatcher (walks segment tree, calls check_line_to_face per side)
-- [ ] fvi_sub — recursive FVI traversal
+- [x] find_vector_intersection — top-level FVI dispatcher (walks segment tree, calls check_line_to_face per side)
+- [x] fvi_sub — recursive FVI traversal (inlined into find_vector_intersection)
 - [x] sphere_intersects_wall / object_intersects_wall — sphere-wall intersection (recursive, pre-packed segments)
-- [ ] check_line_to_seg_face — line-segment-face check wrapper
-- [ ] fvi_hit_object — checks all objects in segment for intersection
+- [x] check_line_to_seg_face — inlined into fvi_sub
+- [x] fvi_hit_object — object checking inlined into fvi_sub
 
 ---
 

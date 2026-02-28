@@ -1325,3 +1325,32 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune runtest ox/tests` passes, `dune fmt` clean, `cmake --build build-ox -j8` clean (D1+D2). Launched D1, played through a level — AI pathfinding, sound propagation, and robot pursuit all work correctly.
+
+### §40 — Port find_vector_intersection + fvi_sub to OxCaml
+
+- **Function:** `find_vector_intersection` is the top-level collision detection dispatcher. `fvi_sub` is its recursive worker that walks the segment graph testing line-vs-face and line-vs-object intersections. Together ~400 lines of C, the single biggest blocker for porting physics, AI visibility, and collision.
+
+- **Approach:** Large packed array with 87-int-per-segment layout (reuses existing 80-int geometry layout + 7 new fields: WALL_IS_DOORWAY[6] pre-evaluated per side + first_object linked list head). Objects packed at 14 ints each (type, id, flags, pos, size, next_in_seg, laser parent info, signature, attack_type). CollisionResult[16×16] table and header with query params, ignore list, game state flags.
+
+- **check_trans_wall handling:** When FQ_TRANSWALL or FQ_TRANSPOINT flags are set, transparent walls are treated as passable without pixel-level UV checks. This avoids packing texture/bitmap data and is functionally equivalent for gameplay.
+
+- **laser_are_related:** Calls existing `Ox_collide.laser_are_related_d1/d2` with packed object data extracted inline. Required adding `ox_collide` as a dependency of `ox_fvi` library (and reordering the link order in build_bridge.sh).
+
+- **D1 vs D2 differences handled:**
+  - D2 adds `FQ_IGNORE_POWERUPS` flag (skips OBJ_POWERUP collisions)
+  - D2 skips all robot-robot collisions unconditionally (D1 only skips non-melee pairs)
+  - D2 transparent wall check uses `(wid_flag & WID_RENDER_FLAG) && (wid_flag & WID_RENDPAST_FLAG)` instead of D1's `wid_flag == WID_TRANSPARENT_WALL`
+  - Controlled by `is_d2` flag in packed header
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — `fvi_state` type, `fvi_sub` recursive function, `find_vector_intersection` dispatcher, helper functions for unpacking segments/objects/collision table
+  - `ox/fvi_bridge.ml` — `cd_find_vector_intersection` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_find_vector_intersection` static pointer, init/ready checks, C wrapper
+  - `ox/bridge.h` — `cd_ox_find_vector_intersection` declaration
+  - `main_d1/fvi.cpp` — `#ifdef USE_OX_BRIDGE` around `find_vector_intersection` with full packing code
+  - `main_d2/fvi.cpp` — same, with `is_d2=1`
+  - `ox/dune` — added `ox_collide` dependency to `ox_fvi` library
+  - `scripts/ox/build_bridge.sh` — reordered link: `ox_collide` before `ox_fvi`
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).

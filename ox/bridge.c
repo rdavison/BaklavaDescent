@@ -179,6 +179,7 @@ static const value* g_robot_set_angles = NULL;
 static const value* g_object_intersects_wall = NULL;
 static const value* g_find_point_seg = NULL;
 static const value* g_find_connected_distance = NULL;
+static const value* g_find_vector_intersection = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -451,6 +452,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_object_intersects_wall = caml_named_value("cd_object_intersects_wall");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
+    g_find_vector_intersection = caml_named_value("cd_find_vector_intersection");
 
     if (!g_i2f
         || !g_f2i
@@ -576,7 +578,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_robot_set_angles
         || !g_object_intersects_wall
         || !g_find_point_seg
-        || !g_find_connected_distance)
+        || !g_find_connected_distance
+        || !g_find_vector_intersection)
     {
         return 1;
     }
@@ -699,7 +702,8 @@ int cd_ox_is_ready(void)
            && g_robot_set_angles
            && g_object_intersects_wall
            && g_find_point_seg
-           && g_find_connected_distance;
+           && g_find_connected_distance
+           && g_find_vector_intersection;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3135,5 +3139,22 @@ void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
     result = caml_callback(*g_find_connected_distance, arr);
     *out_dist = Int_val(Field(result, 0));
     *out_csd = Int_val(Field(result, 1));
+    CAMLreturn0;
+}
+
+void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
+                                     int32_t* out_buf, int* out_len)
+{
+    cd_ox_require_ready("cd_ox_find_vector_intersection");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_find_vector_intersection, arr);
+    int result_len = Wosize_val(result);
+    *out_len = result_len;
+    for (int i = 0; i < result_len; i++)
+        out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

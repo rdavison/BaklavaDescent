@@ -141,10 +141,17 @@ let cd_check_vector_to_object
    See Ox_fvi.sphere_intersects_wall for full layout docs. *)
 let cd_object_intersects_wall (arr : int array) = Ox_fvi.sphere_intersects_wall arr
 
+(* find_vector_intersection: packed array → int array (result)
+   See Ox_fvi.find_vector_intersection for full packed layout docs.
+   Returns: [| hit_type; hit_pnt.xyz; hit_seg; hit_side; hit_side_seg;
+               hit_object; wallnorm.xyz; n_segs; seglist... |] *)
+let cd_find_vector_intersection (arr : int array) = Ox_fvi.find_vector_intersection arr
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
   Callback.register "cd_check_vector_to_sphere_1" cd_check_vector_to_sphere_1;
   Callback.register "cd_check_vector_to_object" cd_check_vector_to_object;
-  Callback.register "cd_object_intersects_wall" cd_object_intersects_wall
+  Callback.register "cd_object_intersects_wall" cd_object_intersects_wall;
+  Callback.register "cd_find_vector_intersection" cd_find_vector_intersection
 ;;

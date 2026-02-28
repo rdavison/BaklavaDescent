@@ -767,6 +767,17 @@ int cd_ox_find_point_seg(const int32_t* packed, int packed_len);
 void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
                                     int32_t* out_dist, int32_t* out_csd);
 
+/* find_vector_intersection: top-level FVI dispatcher.
+   packed layout: header(18+N) + CollisionResult(256) + n_segments × 87 + n_objects × 14.
+   Header: p0.xyz, startseg, p1.xyz, rad, thisobjnum, flags, n_segments, n_objects,
+           player_objnum, physics_cheat, game_mode_coop, game_time, is_d2,
+           ignore_obj_count, ignore_obj_list[N].
+   out_buf: receives [hit_type, hit_pnt.xyz, hit_seg, hit_side, hit_side_seg,
+                      hit_object, wallnorm.xyz, n_segs, seglist...].
+   out_len: total number of ints written to out_buf. */
+void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
+                                     int32_t* out_buf, int* out_len);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

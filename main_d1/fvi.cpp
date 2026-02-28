@@ -674,6 +674,158 @@ int fvi_sub(vms_vector* intp, int* ints, vms_vector* p0, int startseg, vms_vecto
 //Returns the hit_data->hit_type
 int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] find_vector_intersection using cd_ox_find_vector_intersection.\n");
+			ox_bridge_logged = 1;
+		}
+
+		int n_segments = Highest_segment_index + 1;
+		int n_objects = Highest_object_index + 1;
+
+		// Count ignore_obj_list length
+		int ignore_count = 0;
+		if (fq->ignore_obj_list != NULL)
+		{
+			int* p = fq->ignore_obj_list;
+			while (*p != -1) { ignore_count++; p++; }
+		}
+
+		int header_len = 18 + ignore_count;
+		int collision_table_len = 16 * 16;  // MAX_OBJECT_TYPES * MAX_OBJECT_TYPES
+		int seg_data_len = n_segments * 87;
+		int obj_data_len = n_objects * 14;
+		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len;
+
+		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
+		if (!packed)
+		{
+			hit_data->hit_type = HIT_BAD_P0;
+			hit_data->hit_pnt = *fq->p0;
+			hit_data->hit_seg = fq->startseg;
+			hit_data->hit_side = hit_data->hit_object = 0;
+			hit_data->hit_side_seg = -1;
+			return HIT_BAD_P0;
+		}
+
+		// Pack header
+		packed[0] = fq->p0->x; packed[1] = fq->p0->y; packed[2] = fq->p0->z;
+		packed[3] = fq->startseg;
+		packed[4] = fq->p1->x; packed[5] = fq->p1->y; packed[6] = fq->p1->z;
+		packed[7] = fq->rad;
+		packed[8] = fq->thisobjnum;
+		packed[9] = fq->flags;
+		packed[10] = n_segments;
+		packed[11] = n_objects;
+		packed[12] = Players[Player_num].objnum;
+		packed[13] = (Physics_cheat_flag == 0xBADA55) ? 1 : 0;
+		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[15] = GameTime;
+		packed[16] = 0;  // is_d2 = 0 for D1
+		packed[17] = ignore_count;
+		for (int i = 0; i < ignore_count; i++)
+			packed[18 + i] = fq->ignore_obj_list[i];
+
+		// Pack collision table
+		int ct_base = header_len;
+		for (int a = 0; a < 16; a++)
+			for (int b = 0; b < 16; b++)
+				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
+
+		// Pack per-segment data (87 ints each)
+		int sd_base = ct_base + collision_table_len;
+		for (int s = 0; s < n_segments; s++)
+		{
+			segment* seg = &Segments[s];
+			int sb = sd_base + s * 87;
+
+			// children[6]
+			for (int i = 0; i < 6; i++)
+				packed[sb + i] = seg->children[i];
+
+			// side_types[6]
+			for (int i = 0; i < 6; i++)
+				packed[sb + 6 + i] = seg->sides[i].type;
+
+			// seg_verts[8]
+			for (int i = 0; i < 8; i++)
+				packed[sb + 12 + i] = seg->verts[i];
+
+			// normals[12]: side 0..5, normals[0].xyz then normals[1].xyz
+			for (int sn = 0; sn < 6; sn++)
+			{
+				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
+				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
+				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
+				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
+				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
+				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
+			}
+
+			// vertex_positions[8]: vert 0..7, xyz
+			for (int i = 0; i < 8; i++)
+			{
+				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+			}
+
+			// WALL_IS_DOORWAY[6]
+			for (int i = 0; i < 6; i++)
+				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
+
+			// first_object (head of object linked list)
+			packed[sb + 86] = seg->objects;
+		}
+
+		// Pack per-object data (14 ints each)
+		int od_base = sd_base + seg_data_len;
+		for (int o = 0; o < n_objects; o++)
+		{
+			object* obj = &Objects[o];
+			int ob = od_base + o * 14;
+			packed[ob + 0] = obj->type;
+			packed[ob + 1] = obj->id;
+			packed[ob + 2] = obj->flags;
+			packed[ob + 3] = obj->pos.x;
+			packed[ob + 4] = obj->pos.y;
+			packed[ob + 5] = obj->pos.z;
+			packed[ob + 6] = obj->size;
+			packed[ob + 7] = obj->next;
+			packed[ob + 8] = obj->ctype.laser_info.parent_type;
+			packed[ob + 9] = obj->ctype.laser_info.parent_num;
+			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
+			packed[ob + 11] = obj->ctype.laser_info.creation_time;
+			packed[ob + 12] = obj->signature;
+			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
+		}
+
+		int32_t out_buf[512];  // 12 + MAX_FVI_SEGS
+		int out_len = 0;
+		cd_ox_find_vector_intersection(packed, packed_len, out_buf, &out_len);
+		free(packed);
+
+		hit_data->hit_type = out_buf[0];
+		hit_data->hit_pnt.x = out_buf[1];
+		hit_data->hit_pnt.y = out_buf[2];
+		hit_data->hit_pnt.z = out_buf[3];
+		hit_data->hit_seg = out_buf[4];
+		hit_data->hit_side = out_buf[5];
+		hit_data->hit_side_seg = out_buf[6];
+		hit_data->hit_object = out_buf[7];
+		hit_data->hit_wallnorm.x = out_buf[8];
+		hit_data->hit_wallnorm.y = out_buf[9];
+		hit_data->hit_wallnorm.z = out_buf[10];
+		hit_data->n_segs = out_buf[11];
+		for (int i = 0; i < hit_data->n_segs && i < MAX_FVI_SEGS; i++)
+			hit_data->seglist[i] = out_buf[12 + i];
+
+		return hit_data->hit_type;
+	}
+#else
 	int hit_type, hit_seg, hit_seg2;
 	vms_vector hit_pnt;
 	int i;
@@ -796,7 +948,7 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 //		Int3();
 
 	return hit_type;
-
+#endif
 }
 
 //--unused-- fix check_dist(vms_vector *v0,vms_vector *v1)

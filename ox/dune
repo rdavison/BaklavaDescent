@@ -21,7 +21,7 @@
 
 (library
  (name ox_fvi)
- (libraries core ox_math ox_gameseg)
+ (libraries core ox_math ox_gameseg ox_collide)
  (modules ox_fvi)
  (flags
   (:standard -open Core)))
