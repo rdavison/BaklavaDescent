@@ -1,7 +1,7 @@
 (library
  (name parity_expect)
  (modules parity_expect)
- (libraries core ox_math ox_3d ox_gameseg ox_fvi ox_curves ox_physics)
+ (libraries core ox_math ox_3d ox_gameseg ox_fvi ox_curves ox_physics ox_ai ox_lighting)
  (preprocess (pps ppx_jane))
  (inline_tests)
  (flags (:standard -open Core))

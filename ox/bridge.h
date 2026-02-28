@@ -508,6 +508,36 @@ int32_t cd_ox_check_vector_to_object(
     int otherobj_type, int game_mode_coop, int otherobj_parent_type,
     int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz);
 
+/* set_next_fire_time D1: compute next fire timing.
+   Returns new_rapidfire_count and new_next_fire. */
+void cd_ox_set_next_fire_time_d1(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire);
+
+/* set_next_fire_time D2: compute next fire timing (more complex).
+   Returns new_rapidfire_count, new_next_fire, nf2_valid, new_next_fire2. */
+void cd_ox_set_next_fire_time_d2(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait, int32_t firing_wait2,
+    int gun_num, int weapon_type2, int behavior, int p_rand_val,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire,
+    int* out_nf2_valid, int32_t* out_next_fire2);
+
+/* compute_headlight_light D1: compute headlight illumination at a point.
+   Returns fix light intensity. */
+int32_t cd_ox_compute_headlight_light_d1(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness, int use_beam);
+
+/* compute_headlight_light D2: compute headlight illumination at a point.
+   Computes use_beam internally from player state.
+   Returns fix light intensity. */
+int32_t cd_ox_compute_headlight_light_d2(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness,
+    int32_t player_flags, int32_t player_energy, int is_viewer);
+
 #ifdef __cplusplus
 }
 #endif

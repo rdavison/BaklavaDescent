@@ -31,6 +31,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "player.h"
 #include "weapon.h"
 #include "powerup.h"
+#include "ox/bridge.h"
 #include "fvi.h"
 #include "robot.h"
 #include "multi.h"
@@ -718,19 +719,26 @@ fix compute_object_light(object* obj, vms_vector* rotated_pnt)
  //If no surface normal effect is wanted, pass F1_0 for face_light
 fix compute_headlight_light(vms_vector* point, fix face_light)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_compute_headlight_light_d2(
+		point->x, point->y, point->z,
+		face_light, Beam_brightness,
+		Players[Player_num].flags, Players[Player_num].energy,
+		(Viewer == &Objects[Players[Player_num].objnum]) ? 1 : 0);
+#else
 	fix light;
 	int use_beam = 0;		//flag for beam effect
 
 	light = Beam_brightness;
 
-	if ((Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT) && (Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT_ON) && Viewer == &Objects[Players[Player_num].objnum] && Players[Player_num].energy > 0) 
+	if ((Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT) && (Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT_ON) && Viewer == &Objects[Players[Player_num].objnum] && Players[Player_num].energy > 0)
 	{
 		light *= HEADLIGHT_BOOST_SCALE;
 		use_beam = 1;	//give us beam effect
 	}
 
 	if (light) //if no beam, don't bother with the rest of this
-	{				
+	{
 		fix point_dist;
 
 		point_dist = vm_vec_mag_quick(point);
@@ -739,7 +747,7 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 
 			light = 0;
 
-		else 
+		else
 		{
 			fix dist_scale, face_scale;
 
@@ -752,11 +760,11 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 			face_scale = f1_0 / 4 + face_light / 2;
 			light = fixmul(light, face_scale);
 
-			if (use_beam) 
+			if (use_beam)
 			{
 				fix beam_scale;
 
-				if (face_light > f1_0 * 3 / 4 && point->z > i2f(12)) 
+				if (face_light > f1_0 * 3 / 4 && point->z > i2f(12))
 				{
 					beam_scale = fixdiv(point->z, point_dist);
 					beam_scale = fixmul(beam_scale, beam_scale);	//square it
@@ -767,4 +775,5 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 	}
 
 	return light;
+#endif
 }

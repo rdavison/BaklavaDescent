@@ -75,9 +75,35 @@
  (wrapped false)
  (flags (:standard -open Core)))
 
+(library
+ (name ox_ai)
+ (libraries core)
+ (modules ox_ai)
+ (flags (:standard -open Core)))
+
+(library
+ (name bridge_ai)
+ (libraries core ox_ai)
+ (modules ai_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
+(library
+ (name ox_lighting)
+ (libraries core ox_math)
+ (modules ox_lighting)
+ (flags (:standard -open Core)))
+
+(library
+ (name bridge_lighting)
+ (libraries core ox_math ox_lighting)
+ (modules lighting_bridge)
+ (wrapped false)
+ (flags (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
  (modules math_bridge)
- (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg ox_fvi bridge_fvi ox_collide bridge_collide ox_physics bridge_physics)
+ (libraries core ox_math ox_3d bridge_3d ox_gameseg bridge_gameseg ox_fvi bridge_fvi ox_collide bridge_collide ox_physics bridge_physics ox_ai bridge_ai ox_lighting bridge_lighting)
  (flags (:standard -open Core)))

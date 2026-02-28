@@ -2793,3 +2793,87 @@ extern "C" CAMLprim value caml_c_check_vector_to_object_bc(value* argv, int argn
         argv[6], argv[7], argv[8], argv[9], argv[10], argv[11],
         argv[12], argv[13], argv[14], argv[15]);
 }
+
+/* --- set_next_fire_time D1 --- */
+extern "C" CAMLprim value caml_c_set_next_fire_time_d1(
+    value v_rfc, value v_rfc_limit, value v_fw)
+{
+    int32_t out_rfc, out_nf;
+    c_oracle_set_next_fire_time_d1(
+        Long_val(v_rfc), Long_val(v_rfc_limit), Long_val(v_fw),
+        &out_rfc, &out_nf);
+    value result = caml_alloc(2, 0);
+    Store_field(result, 0, Val_long(out_rfc));
+    Store_field(result, 1, Val_long(out_nf));
+    return result;
+}
+
+/* --- set_next_fire_time D2 --- */
+extern "C" CAMLprim value caml_c_set_next_fire_time_d2(
+    value v_rfc, value v_rfc_limit, value v_fw, value v_fw2,
+    value v_gun, value v_wt2, value v_beh, value v_prand)
+{
+    int32_t out_rfc, out_nf, out_nf2;
+    int out_nf2v;
+    c_oracle_set_next_fire_time_d2(
+        Long_val(v_rfc), Long_val(v_rfc_limit),
+        Long_val(v_fw), Long_val(v_fw2),
+        Long_val(v_gun), Long_val(v_wt2), Long_val(v_beh), Long_val(v_prand),
+        &out_rfc, &out_nf, &out_nf2v, &out_nf2);
+    value result = caml_alloc(4, 0);
+    Store_field(result, 0, Val_long(out_rfc));
+    Store_field(result, 1, Val_long(out_nf));
+    Store_field(result, 2, Val_long(out_nf2v));
+    Store_field(result, 3, Val_long(out_nf2));
+    return result;
+}
+
+/* --- compute_headlight_light D1 --- */
+extern "C" CAMLprim value caml_c_compute_headlight_light_d1(
+    value v_px, value v_py, value v_pz,
+    value v_fl, value v_bb, value v_ub)
+{
+    int32_t r = c_oracle_compute_headlight_light_d1(
+        Long_val(v_px), Long_val(v_py), Long_val(v_pz),
+        Long_val(v_fl), Long_val(v_bb), Long_val(v_ub));
+    return Val_long(r);
+}
+
+/* --- compute_headlight_light D1 bytecode wrapper --- */
+extern "C" CAMLprim value caml_c_compute_headlight_light_d1_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_compute_headlight_light_d1(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+/* --- set_next_fire_time D2 bytecode wrapper --- */
+extern "C" CAMLprim value caml_c_set_next_fire_time_d2_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_set_next_fire_time_d2(
+        argv[0], argv[1], argv[2], argv[3],
+        argv[4], argv[5], argv[6], argv[7]);
+}
+
+/* --- compute_headlight_light D2 --- */
+extern "C" CAMLprim value caml_c_compute_headlight_light_d2(
+    value v_px, value v_py, value v_pz,
+    value v_fl, value v_bb,
+    value v_pf, value v_pe, value v_iv)
+{
+    int32_t r = c_oracle_compute_headlight_light_d2(
+        Long_val(v_px), Long_val(v_py), Long_val(v_pz),
+        Long_val(v_fl), Long_val(v_bb),
+        Long_val(v_pf), Long_val(v_pe), Long_val(v_iv));
+    return Val_long(r);
+}
+
+/* --- compute_headlight_light D2 bytecode wrapper --- */
+extern "C" CAMLprim value caml_c_compute_headlight_light_d2_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_compute_headlight_light_d2(
+        argv[0], argv[1], argv[2], argv[3],
+        argv[4], argv[5], argv[6], argv[7]);
+}

@@ -1009,3 +1009,20 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass (including 5000 randomized parity).
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 24) Port `set_next_fire_time` (D1+D2) + `compute_headlight_light` (D1+D2) to Ox
+
+**What:** Ported four functions (two per D1/D2) that were previously categorized as "side effects" and "global state entangled".
+
+- **`set_next_fire_time`** — AI fire timing logic. D1 version is simple (increment rapidfire_count, check limit, set next_fire). D2 version adds snipe mode 50% skip (via P_Rand), secondary weapon support (next_fire2), and gun_num dispatch. Both return new values instead of mutating struct fields.
+
+- **`compute_headlight_light`** — Headlight illumination computation. D1 reads `Beam_brightness` and `use_beam` globals. D2 computes `use_beam` from player flags/energy/viewer state, and uses `HEADLIGHT_BOOST_SCALE=8` multiplier. Both use distance falloff, face-light scaling, and optional beam focusing. Note: D1 has `MAX_DIST_LOG=5`, D2 has `MAX_DIST_LOG=6` (same `MAX_DIST=0x400000`).
+
+- **New files:** `ox/ox_ai.ml`, `ox/ai_bridge.ml`, `ox/ox_lighting.ml`, `ox/lighting_bridge.ml`
+- **New dune libraries:** `ox_ai`, `bridge_ai`, `ox_lighting`, `bridge_lighting`
+- **C oracle + parity tests:** 4 deterministic + 4×5000 randomized tests, 0 mismatches across all.
+- **Engine wiring:** D1 `ai.cpp`, D2 `ai2.cpp`, D1 `lighting.cpp`, D2 `lighting.cpp` — all with `#ifdef USE_OX_BRIDGE`.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

@@ -98,6 +98,10 @@ static const value* g_lead_player = NULL;
 static const value* g_homing_missile_turn_towards_velocity = NULL;
 static const value* g_do_physics_align_object = NULL;
 static const value* g_check_vector_to_object = NULL;
+static const value* g_set_next_fire_time_d1 = NULL;
+static const value* g_set_next_fire_time_d2 = NULL;
+static const value* g_compute_headlight_light_d1 = NULL;
+static const value* g_compute_headlight_light_d2 = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -189,7 +193,11 @@ static void cd_ox_require_ready(const char* fn)
           && g_lead_player
           && g_homing_missile_turn_towards_velocity
           && g_do_physics_align_object
-          && g_check_vector_to_object))
+          && g_check_vector_to_object
+          && g_set_next_fire_time_d1
+          && g_set_next_fire_time_d2
+          && g_compute_headlight_light_d1
+          && g_compute_headlight_light_d2))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -297,6 +305,10 @@ int cd_ox_init_runtime(const char* executable_path)
     g_homing_missile_turn_towards_velocity = caml_named_value("cd_homing_missile_turn_towards_velocity");
     g_do_physics_align_object = caml_named_value("cd_do_physics_align_object");
     g_check_vector_to_object = caml_named_value("cd_check_vector_to_object");
+    g_set_next_fire_time_d1 = caml_named_value("cd_set_next_fire_time_d1");
+    g_set_next_fire_time_d2 = caml_named_value("cd_set_next_fire_time_d2");
+    g_compute_headlight_light_d1 = caml_named_value("cd_compute_headlight_light_d1");
+    g_compute_headlight_light_d2 = caml_named_value("cd_compute_headlight_light_d2");
 
     if (!g_i2f
         || !g_f2i
@@ -385,7 +397,11 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_lead_player
         || !g_homing_missile_turn_towards_velocity
         || !g_do_physics_align_object
-        || !g_check_vector_to_object)
+        || !g_check_vector_to_object
+        || !g_set_next_fire_time_d1
+        || !g_set_next_fire_time_d2
+        || !g_compute_headlight_light_d1
+        || !g_compute_headlight_light_d2)
     {
         return 1;
     }
@@ -482,7 +498,11 @@ int cd_ox_is_ready(void)
            && g_lead_player
            && g_homing_missile_turn_towards_velocity
            && g_do_physics_align_object
-           && g_check_vector_to_object;
+           && g_check_vector_to_object
+           && g_set_next_fire_time_d1
+           && g_set_next_fire_time_d2
+           && g_compute_headlight_light_d1
+           && g_compute_headlight_light_d2;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1963,4 +1983,82 @@ int32_t cd_ox_check_vector_to_object(
     *out_intpy = Int_val(Field(out, 2));
     *out_intpz = Int_val(Field(out, 3));
     return dist;
+}
+
+void cd_ox_set_next_fire_time_d1(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire)
+{
+    cd_ox_require_ready("cd_ox_set_next_fire_time_d1");
+    value args[3] = {
+        Val_long(rapidfire_count),
+        Val_long(rapidfire_count_limit),
+        Val_long(firing_wait),
+    };
+    const value out = caml_callbackN(*g_set_next_fire_time_d1, 3, args);
+    *out_rapidfire_count = Int_val(Field(out, 0));
+    *out_next_fire = Int_val(Field(out, 1));
+}
+
+void cd_ox_set_next_fire_time_d2(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait, int32_t firing_wait2,
+    int gun_num, int weapon_type2, int behavior, int p_rand_val,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire,
+    int* out_nf2_valid, int32_t* out_next_fire2)
+{
+    cd_ox_require_ready("cd_ox_set_next_fire_time_d2");
+    value args[8] = {
+        Val_long(rapidfire_count),
+        Val_long(rapidfire_count_limit),
+        Val_long(firing_wait),
+        Val_long(firing_wait2),
+        Val_long(gun_num),
+        Val_long(weapon_type2),
+        Val_long(behavior),
+        Val_long(p_rand_val),
+    };
+    const value out = caml_callbackN(*g_set_next_fire_time_d2, 8, args);
+    *out_rapidfire_count = Int_val(Field(out, 0));
+    *out_next_fire = Int_val(Field(out, 1));
+    *out_nf2_valid = Int_val(Field(out, 2));
+    *out_next_fire2 = Int_val(Field(out, 3));
+}
+
+int32_t cd_ox_compute_headlight_light_d1(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness, int use_beam)
+{
+    cd_ox_require_ready("cd_ox_compute_headlight_light_d1");
+    value args[6] = {
+        Val_long(point_x),
+        Val_long(point_y),
+        Val_long(point_z),
+        Val_long(face_light),
+        Val_long(beam_brightness),
+        Val_long(use_beam),
+    };
+    const value out = caml_callbackN(*g_compute_headlight_light_d1, 6, args);
+    return Int_val(out);
+}
+
+int32_t cd_ox_compute_headlight_light_d2(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness,
+    int32_t player_flags, int32_t player_energy, int is_viewer)
+{
+    cd_ox_require_ready("cd_ox_compute_headlight_light_d2");
+    value args[8] = {
+        Val_long(point_x),
+        Val_long(point_y),
+        Val_long(point_z),
+        Val_long(face_light),
+        Val_long(beam_brightness),
+        Val_long(player_flags),
+        Val_long(player_energy),
+        Val_long(is_viewer),
+    };
+    const value out = caml_callbackN(*g_compute_headlight_light_d2, 8, args);
+    return Int_val(out);
 }

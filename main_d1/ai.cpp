@@ -1048,6 +1048,16 @@ void ai_frame_animation(object* objp)
 // ----------------------------------------------------------------------------------
 void set_next_fire_time(ai_local* ailp, robot_info* robptr)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out_rfc, out_nf;
+	cd_ox_set_next_fire_time_d1(
+		ailp->rapidfire_count,
+		robptr->rapidfire_count[Difficulty_level],
+		robptr->firing_wait[Difficulty_level],
+		&out_rfc, &out_nf);
+	ailp->rapidfire_count = out_rfc;
+	ailp->next_fire = out_nf;
+#else
 	ailp->rapidfire_count++;
 
 	if (ailp->rapidfire_count < robptr->rapidfire_count[Difficulty_level]) {
@@ -1057,6 +1067,7 @@ void set_next_fire_time(ai_local* ailp, robot_info* robptr)
 		ailp->rapidfire_count = 0;
 		ailp->next_fire = robptr->firing_wait[Difficulty_level];
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------------

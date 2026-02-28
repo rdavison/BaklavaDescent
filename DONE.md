@@ -4,7 +4,7 @@
 
 The pure-computation porting phase is **effectively complete**. All functions in the ChocolateDescent codebase that can be cleanly extracted as pure scalar/vector computations following the established bridge pattern have been ported to OxCaml with parity tests.
 
-## What Was Ported (23 Worklog Entries)
+## What Was Ported (24 Worklog Entries)
 
 ### Core Math Layer
 - **Fixed-point arithmetic**: i2f, f2i, fixmul, fixdiv, fix_sqrt, fix_isqrt, fix_asin, fix_acos, fix_atan2, fix_sincos, fix_fastsincos
@@ -27,17 +27,21 @@ The pure-computation porting phase is **effectively complete**. All functions in
 ### AI
 - **Movement**: ai_turn_towards_vector, set_thrust_from_velocity, move_towards_vector, move_around_player, move_away_from_player
 - **Targeting**: lead_player, compute_lead_component
+- **Fire timing**: set_next_fire_time (D1+D2)
 
 ### Weapons
 - **Homing**: homing_missile_turn_towards_velocity
+
+### Lighting
+- **Headlight**: compute_headlight_light (D1+D2)
 
 ## What Remains (See SKIP_ME_FOR_NOW.md)
 
 All remaining unported functions break the established pattern in one or more ways:
 
-1. **Global state entanglement** (~8 remaining functions): Access Objects[], Segments[], Players[], Robot_info[], Walls[], GameBitmaps[] etc. `do_physics_align_object` and `check_vector_to_object` were ported using packed-array and scalar-extraction patterns respectively. Remaining examples: `apply_damage_to_robot` D2, `compute_headlight_light` D2.
+1. **Global state entanglement** (~7 remaining functions): Access Objects[], Segments[], Players[], Robot_info[], Walls[], GameBitmaps[] etc. `do_physics_align_object`, `check_vector_to_object`, and `compute_headlight_light` were ported using packed-array and scalar-extraction patterns. Remaining examples: `apply_damage_to_robot` D2, `compute_light_intensity` D2.
 
-2. **Side effects** (~5 functions): Modify game state, play sounds, create objects. Examples: `set_next_fire_time`, `do_robot_dying_frame`, `bump_one_object`.
+2. **Side effects** (~4 remaining functions): Modify game state, play sounds, create objects. `set_next_fire_time` was ported by returning new values. Remaining examples: `do_robot_dying_frame`, `bump_one_object`.
 
 3. **Already internal** (~7 functions): Already implemented as OCaml helpers inside existing ports. Examples: `physics_set_rotvel_and_saturate` (inside physics_turn_towards_vector), FVI sub-functions (inside check_line_to_face).
 

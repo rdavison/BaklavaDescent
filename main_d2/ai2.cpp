@@ -842,6 +842,23 @@ void ai_frame_animation(object *objp)
 // ----------------------------------------------------------------------------------
 void set_next_fire_time(object *objp, ai_local *ailp, robot_info *robptr, int gun_num)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out_rfc, out_nf, out_nf2;
+	int out_nf2v;
+	cd_ox_set_next_fire_time_d2(
+		ailp->rapidfire_count,
+		robptr->rapidfire_count[Difficulty_level],
+		robptr->firing_wait[Difficulty_level],
+		robptr->firing_wait2[Difficulty_level],
+		gun_num, robptr->weapon_type2,
+		objp->ctype.ai_info.behavior,
+		P_Rand(),
+		&out_rfc, &out_nf, &out_nf2v, &out_nf2);
+	ailp->rapidfire_count = out_rfc;
+	ailp->next_fire = out_nf;
+	if (out_nf2v)
+		ailp->next_fire2 = out_nf2;
+#else
 	//	For guys in snipe mode, they have a 50% shot of getting this shot in free.
 	if ((gun_num != 0) || (robptr->weapon_type2 == -1))
 		if ((objp->ctype.ai_info.behavior != AIB_SNIPE) || (P_Rand() > 16384))
@@ -868,6 +885,7 @@ void set_next_fire_time(object *objp, ai_local *ailp, robot_info *robptr, int gu
 		} else
 			ailp->next_fire2 = robptr->firing_wait2[Difficulty_level];
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------------

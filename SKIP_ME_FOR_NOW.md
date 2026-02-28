@@ -10,7 +10,7 @@ These functions access complex global arrays (Objects[], Segments[], Players[], 
 
 - **`apply_damage_to_robot` D2** (D2 collide.cpp) — Much more complex than D1 version. Has boss final-level hacks (`Current_mission_num`, `Current_level_num`, `Last_level`, `multi_all_players_alive()`), companion/buddy invulnerability, thief robot `Stolen_items[]` save/restore, `multi_explode_robot_sub()` + `multi_send_robot_explode()`, `special_reactor_stuff()`, smart blob creation, kamikaze handling. The effect-tree pattern from D1 would need significant expansion.
 
-- **`compute_headlight_light` D2** (D2 lighting.cpp) — Checks `Players[Player_num].flags`, `Viewer == &Objects[Players[Player_num].objnum]`, `Players[Player_num].energy` to decide beam mode. D1 version uses a simpler `use_beam` flag but still reads `Beam_brightness` global.
+- ~~**`compute_headlight_light` D1+D2**~~ — **PORTED** (worklog #24). Globals extracted as scalar args at callsite.
 
 - ~~**`check_vector_to_object`**~~ — **PORTED** (worklog #23). Scalar args extracted at callsite; delegates to already-ported `check_vector_to_sphere_1`.
 
@@ -26,7 +26,7 @@ These functions access complex global arrays (Objects[], Segments[], Players[], 
 
 These functions modify game state beyond their return values.
 
-- **`set_next_fire_time`** (D1+D2) — Modifies `ailp->rapidfire_count`, `ailp->next_fire`, `ailp->next_fire2`. Different signatures between D1 and D2.
+- ~~**`set_next_fire_time`** (D1+D2)~~ — **PORTED** (worklog #24). Returns new values instead of mutating struct fields.
 
 - **`do_robot_dying_frame`** (D2 ai2.cpp) — Plays sounds (`digi_link_sound_to_object2`), creates fireballs (`create_small_fireball_on_object`), modifies rotvel. D1 version doesn't exist as separate function.
 

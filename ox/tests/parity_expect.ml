@@ -7095,3 +7095,211 @@ let%expect_test "randomized check_vector_to_object parity C vs Ox" =
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "check_vector_to_object parity failed" ();
   [%expect {| check_vector_to_object random total=5000 mismatches=0 |}]
+
+(* ── set_next_fire_time D1 ────────────────────────────────── *)
+
+external c_set_next_fire_time_d1
+  : int -> int -> int -> int * int
+  = "caml_c_set_next_fire_time_d1"
+
+let%expect_test "set_next_fire_time_d1: rapid fire continues" =
+  let f1_0 = 0x10000 in
+  let c = c_set_next_fire_time_d1 2 5 (f1_0 * 2) in
+  let o = Ox_ai.set_next_fire_time_d1
+    ~rapidfire_count:2 ~rapidfire_count_limit:5 ~firing_wait:(f1_0 * 2) in
+  printf "C: rfc=%d nf=%d  Ox: rfc=%d nf=%d\n"
+    (fst c) (snd c) (fst o) (snd o);
+  [%expect {| C: rfc=3 nf=8192  Ox: rfc=3 nf=8192 |}]
+
+let%expect_test "set_next_fire_time_d1: rapid fire resets" =
+  let f1_0 = 0x10000 in
+  let c = c_set_next_fire_time_d1 4 5 (f1_0 * 2) in
+  let o = Ox_ai.set_next_fire_time_d1
+    ~rapidfire_count:4 ~rapidfire_count_limit:5 ~firing_wait:(f1_0 * 2) in
+  printf "C: rfc=%d nf=%d  Ox: rfc=%d nf=%d\n"
+    (fst c) (snd c) (fst o) (snd o);
+  [%expect {| C: rfc=0 nf=131072  Ox: rfc=0 nf=131072 |}]
+
+let%expect_test "set_next_fire_time_d1: random parity" =
+  let state = Random.State.make [| 44444 |] in
+  let mismatches = ref 0 in
+  let total = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    let rfc = Random.State.int state 10 in
+    let rfc_limit = 1 + Random.State.int state 10 in
+    let fw = 1 + Random.State.int state (0x10000 * 4) in
+    let (crfc, cnf) = c_set_next_fire_time_d1 rfc rfc_limit fw in
+    let (orfc, onf) = Ox_ai.set_next_fire_time_d1
+      ~rapidfire_count:rfc ~rapidfire_count_limit:rfc_limit ~firing_wait:fw in
+    incr total;
+    if crfc <> orfc || cnf <> onf then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "rfc C=%d Ox=%d nf C=%d Ox=%d" crfc orfc cnf onf)
+    end
+  done;
+  printf "set_next_fire_time_d1 random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "set_next_fire_time_d1 parity failed" ();
+  [%expect {| set_next_fire_time_d1 random total=5000 mismatches=0 |}]
+
+(* ── set_next_fire_time D2 ────────────────────────────────── *)
+
+external c_set_next_fire_time_d2
+  : int -> int -> int -> int -> int -> int -> int -> int -> int * int * int * int
+  = "caml_c_set_next_fire_time_d2_bc" "caml_c_set_next_fire_time_d2"
+
+let%expect_test "set_next_fire_time_d2: secondary weapon fire" =
+  let f1_0 = 0x10000 in
+  (* gun_num=0, weapon_type2 != -1 → secondary weapon path *)
+  let c = c_set_next_fire_time_d2 3 5 (f1_0 * 2) (f1_0 * 3) 0 7 0 20000 in
+  let o = Ox_ai.set_next_fire_time_d2
+    ~rapidfire_count:3 ~rapidfire_count_limit:5
+    ~firing_wait:(f1_0 * 2) ~firing_wait2:(f1_0 * 3)
+    ~gun_num:0 ~weapon_type2:7 ~behavior:0 ~p_rand_val:20000 in
+  let (crfc, cnf, cnf2v, cnf2) = c in
+  let (orfc, onf, onf2v, onf2) = o in
+  printf "C: rfc=%d nf=%d nf2v=%d nf2=%d  Ox: rfc=%d nf=%d nf2v=%d nf2=%d\n"
+    crfc cnf cnf2v cnf2 orfc onf onf2v onf2;
+  [%expect {| C: rfc=3 nf=0 nf2v=1 nf2=196608  Ox: rfc=3 nf=0 nf2v=1 nf2=196608 |}]
+
+let%expect_test "set_next_fire_time_d2: random parity" =
+  let state = Random.State.make [| 55555 |] in
+  let mismatches = ref 0 in
+  let total = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    let rfc = Random.State.int state 10 in
+    let rfc_limit = 1 + Random.State.int state 10 in
+    let fw = 1 + Random.State.int state (0x10000 * 4) in
+    let fw2 = 1 + Random.State.int state (0x10000 * 4) in
+    let gun_num = Random.State.int state 3 in
+    let wt2 = (Random.State.int state 20) - 1 in  (* -1 to 18 *)
+    let beh = Random.State.int state 8 in
+    let prand = Random.State.int state 32768 in
+    let (crfc, cnf, cnf2v, cnf2) =
+      c_set_next_fire_time_d2 rfc rfc_limit fw fw2 gun_num wt2 beh prand in
+    let (orfc, onf, onf2v, onf2) =
+      Ox_ai.set_next_fire_time_d2
+        ~rapidfire_count:rfc ~rapidfire_count_limit:rfc_limit
+        ~firing_wait:fw ~firing_wait2:fw2
+        ~gun_num ~weapon_type2:wt2 ~behavior:beh ~p_rand_val:prand in
+    incr total;
+    if crfc <> orfc || cnf <> onf || cnf2v <> onf2v || cnf2 <> onf2 then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "rfc C=%d Ox=%d nf C=%d Ox=%d nf2v C=%d Ox=%d nf2 C=%d Ox=%d"
+          crfc orfc cnf onf cnf2v onf2v cnf2 onf2)
+    end
+  done;
+  printf "set_next_fire_time_d2 random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "set_next_fire_time_d2 parity failed" ();
+  [%expect {| set_next_fire_time_d2 random total=5000 mismatches=0 |}]
+
+(* ── compute_headlight_light D1 ────────────────────────────── *)
+
+external c_compute_headlight_light_d1
+  : int -> int -> int -> int -> int -> int -> int
+  = "caml_c_compute_headlight_light_d1_bc" "caml_c_compute_headlight_light_d1"
+
+let%expect_test "compute_headlight_light_d1: basic beam test" =
+  let f1_0 = 0x10000 in
+  (* Point at (0, 0, f1_0*10), face_light=f1_0, beam=f1_0/2, use_beam=1 *)
+  let c = c_compute_headlight_light_d1 0 0 (f1_0 * 10) f1_0 (f1_0 / 2) 1 in
+  let o = Ox_lighting.compute_headlight_light_d1
+    ~point_x:0 ~point_y:0 ~point_z:(f1_0 * 10)
+    ~face_light:f1_0 ~beam_brightness:(f1_0 / 2) ~use_beam:1 in
+  printf "C=%d Ox=%d\n" c o;
+  [%expect {| C=41472 Ox=41472 |}]
+
+let%expect_test "compute_headlight_light_d1: random parity" =
+  let state = Random.State.make [| 66666 |] in
+  let mismatches = ref 0 in
+  let total = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    let px = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let py = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let pz = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let fl = Random.State.int state (0x10000 * 2) - 0x10000 in
+    let bb = Random.State.int state 0x10000 in
+    let ub = Random.State.int state 2 in
+    let c = c_compute_headlight_light_d1 px py pz fl bb ub in
+    let o = Ox_lighting.compute_headlight_light_d1
+      ~point_x:px ~point_y:py ~point_z:pz
+      ~face_light:fl ~beam_brightness:bb ~use_beam:ub in
+    incr total;
+    if c <> o then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "C=%d Ox=%d px=%d py=%d pz=%d fl=%d bb=%d ub=%d"
+          c o px py pz fl bb ub)
+    end
+  done;
+  printf "compute_headlight_light_d1 random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "compute_headlight_light_d1 parity failed" ();
+  [%expect {| compute_headlight_light_d1 random total=5000 mismatches=0 |}]
+
+(* ── compute_headlight_light D2 ────────────────────────────── *)
+
+external c_compute_headlight_light_d2
+  : int -> int -> int -> int -> int -> int -> int -> int -> int
+  = "caml_c_compute_headlight_light_d2_bc" "caml_c_compute_headlight_light_d2"
+
+let%expect_test "compute_headlight_light_d2: headlight on" =
+  let f1_0 = 0x10000 in
+  let pf_headlight = 0x08000000 in
+  let pf_headlight_on = 0x10000000 in
+  let pflags = pf_headlight lor pf_headlight_on in
+  let c = c_compute_headlight_light_d2
+    0 0 (f1_0 * 10) f1_0 (f1_0 / 2) pflags (f1_0 * 50) 1 in
+  let o = Ox_lighting.compute_headlight_light_d2
+    ~point_x:0 ~point_y:0 ~point_z:(f1_0 * 10)
+    ~face_light:f1_0 ~beam_brightness:(f1_0 / 2)
+    ~player_flags:pflags ~player_energy:(f1_0 * 50) ~is_viewer:1 in
+  printf "C=%d Ox=%d\n" c o;
+  [%expect {| C=165888 Ox=165888 |}]
+
+let%expect_test "compute_headlight_light_d2: random parity" =
+  let state = Random.State.make [| 77777 |] in
+  let mismatches = ref 0 in
+  let total = ref 0 in
+  let first_mismatch = ref None in
+  let pf_headlight = 0x08000000 in
+  let pf_headlight_on = 0x10000000 in
+  for _ = 1 to 5000 do
+    let px = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let py = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let pz = Random.State.int state (0x10000 * 100) - (0x10000 * 50) in
+    let fl = Random.State.int state (0x10000 * 2) - 0x10000 in
+    let bb = Random.State.int state 0x10000 in
+    (* Randomly set headlight flags *)
+    let pflags =
+      (if Random.State.int state 2 = 1 then pf_headlight else 0)
+      lor (if Random.State.int state 2 = 1 then pf_headlight_on else 0) in
+    let pe = Random.State.int state (0x10000 * 100) - 0x10000 in
+    let iv = Random.State.int state 2 in
+    let c = c_compute_headlight_light_d2 px py pz fl bb pflags pe iv in
+    let o = Ox_lighting.compute_headlight_light_d2
+      ~point_x:px ~point_y:py ~point_z:pz
+      ~face_light:fl ~beam_brightness:bb
+      ~player_flags:pflags ~player_energy:pe ~is_viewer:iv in
+    incr total;
+    if c <> o then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "C=%d Ox=%d px=%d py=%d pz=%d fl=%d bb=%d pf=%d pe=%d iv=%d"
+          c o px py pz fl bb pflags pe iv)
+    end
+  done;
+  printf "compute_headlight_light_d2 random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "compute_headlight_light_d2 parity failed" ();
+  [%expect {| compute_headlight_light_d2 random total=5000 mismatches=0 |}]

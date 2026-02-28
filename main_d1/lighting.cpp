@@ -28,6 +28,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "player.h"
 #include "weapon.h"
 #include "powerup.h"
+#include "ox/bridge.h"
 
 //global saying how bright the light beam is
 fix	Beam_brightness = (F1_0 / 2);
@@ -245,6 +246,11 @@ void set_dynamic_light(void)
 //If no surface normal effect is wanted, pass F1_0 for face_light
 fix compute_headlight_light(vms_vector* point, fix face_light)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_compute_headlight_light_d1(
+		point->x, point->y, point->z,
+		face_light, Beam_brightness, use_beam);
+#else
 	fix light;
 
 	light = Beam_brightness;
@@ -264,7 +270,7 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 
 			light = 0;
 
-		else 
+		else
 		{
 			fix dist_scale, temp_lightval;
 
@@ -274,7 +280,7 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 
 			light = Beam_brightness;
 
-			if (use_beam) 
+			if (use_beam)
 			{
 				fix beam_scale;
 
@@ -290,6 +296,7 @@ fix compute_headlight_light(vms_vector* point, fix face_light)
 	}
 
 	return light;
+#endif
 }
 
 //compute the average dynamic light in a segment.  Takes the segment number

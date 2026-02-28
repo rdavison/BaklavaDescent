@@ -1,5 +1,6 @@
 #include "c_oracle.h"
 
+#include <algorithm>
 #include <cmath>
 #include <stdlib.h>
 
@@ -2408,4 +2409,143 @@ int32_t c_oracle_check_vector_to_object(
     *out_intpy = intp.y;
     *out_intpz = intp.z;
     return d;
+}
+
+/* --- set_next_fire_time (D1) --- */
+void c_oracle_set_next_fire_time_d1(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire)
+{
+    int32_t rfc = rapidfire_count + 1;
+    if (rfc < rapidfire_count_limit) {
+        *out_rapidfire_count = rfc;
+        *out_next_fire = std::min((int32_t)(F1_0 / 8), firing_wait / 2);
+    } else {
+        *out_rapidfire_count = 0;
+        *out_next_fire = firing_wait;
+    }
+}
+
+/* --- set_next_fire_time (D2) --- */
+#define AIB_SNIPE 4
+
+void c_oracle_set_next_fire_time_d2(
+    int32_t rapidfire_count, int32_t rapidfire_count_limit,
+    int32_t firing_wait, int32_t firing_wait2,
+    int gun_num, int weapon_type2, int behavior, int p_rand_val,
+    int32_t* out_rapidfire_count, int32_t* out_next_fire,
+    int* out_nf2_valid, int32_t* out_next_fire2)
+{
+    int32_t rfc = rapidfire_count;
+
+    if ((gun_num != 0) || (weapon_type2 == -1))
+        if ((behavior != AIB_SNIPE) || (p_rand_val > 16384))
+            rfc++;
+
+    *out_nf2_valid = 0;
+    *out_next_fire2 = 0;
+
+    if (((gun_num != 0) || (weapon_type2 == -1)) && (rfc < rapidfire_count_limit)) {
+        *out_next_fire = std::min((int32_t)(F1_0 / 8), firing_wait / 2);
+    } else {
+        if ((weapon_type2 == -1) || (gun_num != 0)) {
+            *out_next_fire = firing_wait;
+            if (rfc >= rapidfire_count_limit)
+                rfc = 0;
+        } else {
+            *out_next_fire = 0;
+            *out_nf2_valid = 1;
+            *out_next_fire2 = firing_wait2;
+        }
+    }
+    *out_rapidfire_count = rfc;
+}
+
+/* --- compute_headlight_light (D1) --- */
+#define D1_MAX_DIST     0x400000
+#define D1_MAX_DIST_LOG 5
+
+int32_t c_oracle_compute_headlight_light_d1(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness, int use_beam)
+{
+    int32_t light = beam_brightness;
+    if (!light)
+        return 0;
+
+    if (face_light < 0)
+        face_light = 0;
+
+    c_oracle_vec3 pt;
+    pt.x = point_x; pt.y = point_y; pt.z = point_z;
+    int32_t point_dist = c_oracle_vm_vec_mag_quick(&pt);
+
+    if (point_dist >= D1_MAX_DIST)
+        return 0;
+
+    int32_t dist_scale = (D1_MAX_DIST - point_dist) >> D1_MAX_DIST_LOG;
+    int32_t temp_lightval = F1_0 / 4 + face_light / 2;
+    light = beam_brightness;
+
+    if (use_beam) {
+        int32_t beam_scale = c_oracle_fixdiv(point_z, point_dist);
+        beam_scale = c_oracle_fixmul(beam_scale, beam_scale);
+        light = c_oracle_fixmul(light, beam_scale);
+    }
+
+    light = c_oracle_fixmul(light, c_oracle_fixmul(dist_scale, temp_lightval));
+    return light;
+}
+
+/* --- compute_headlight_light (D2) --- */
+#define D2_MAX_DIST_LOG 6
+#define D2_MAX_DIST     (F1_0 << D2_MAX_DIST_LOG)
+#define HEADLIGHT_BOOST_SCALE 8
+#define PLAYER_FLAGS_HEADLIGHT     0x08000000
+#define PLAYER_FLAGS_HEADLIGHT_ON  0x10000000
+
+int32_t c_oracle_compute_headlight_light_d2(
+    int32_t point_x, int32_t point_y, int32_t point_z,
+    int32_t face_light, int32_t beam_brightness,
+    int32_t player_flags, int32_t player_energy, int is_viewer)
+{
+    int use_beam = 0;
+    int32_t light = beam_brightness;
+
+    if ((player_flags & PLAYER_FLAGS_HEADLIGHT) &&
+        (player_flags & PLAYER_FLAGS_HEADLIGHT_ON) &&
+        is_viewer && player_energy > 0)
+    {
+        light *= HEADLIGHT_BOOST_SCALE;
+        use_beam = 1;
+    }
+
+    if (!light)
+        return 0;
+
+    c_oracle_vec3 pt;
+    pt.x = point_x; pt.y = point_y; pt.z = point_z;
+    int32_t point_dist = c_oracle_vm_vec_mag_quick(&pt);
+
+    if (point_dist >= D2_MAX_DIST)
+        return 0;
+
+    int32_t dist_scale = (D2_MAX_DIST - point_dist) >> D2_MAX_DIST_LOG;
+    light = c_oracle_fixmul(light, dist_scale);
+
+    if (face_light < 0)
+        face_light = 0;
+    int32_t face_scale = F1_0 / 4 + face_light / 2;
+    light = c_oracle_fixmul(light, face_scale);
+
+    if (use_beam) {
+        if (face_light > F1_0 * 3 / 4 && point_z > (12 << 16)) {
+            int32_t beam_scale = c_oracle_fixdiv(point_z, point_dist);
+            beam_scale = c_oracle_fixmul(beam_scale, beam_scale);
+            light = c_oracle_fixmul(light, beam_scale);
+        }
+    }
+
+    return light;
 }
