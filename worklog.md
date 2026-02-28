@@ -1590,7 +1590,7 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/ai2.cpp` — same
   - `CHECKLIST.md` — marked done
 
-- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §49 bridge active.
 
 ### §50 — Port compute_object_light to OxCaml (D1 + D2)
 
@@ -1609,4 +1609,4 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/lighting.cpp` — same
   - `CHECKLIST.md` — marked done
 
-- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass.
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §49+§50 bridges active.
