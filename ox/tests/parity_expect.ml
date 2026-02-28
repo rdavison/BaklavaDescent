@@ -12162,3 +12162,505 @@ let%expect_test "find_connected_distance - wid_flag filtering" =
      = dist_quick((10*f1,0,0),(5*f1,5*f1,0)) + dist_quick((0,0,0),(5*f1,5*f1,0)) *)
   [%expect {| dist=901120 csd=3 |}]
 ;;
+
+(* --- find_homing_object_complete parity tests ----------------------------- *)
+
+(* Helper: build a full packed array for find_homing_object_complete.
+   Creates a single cubic segment with all objects placed at specified positions.
+   The segment is large enough that objects near center have clear visibility. *)
+
+let f1 = 0x10000
+let big = 10 * f1 (* half-size of test segment *)
+
+(* OBJ types *)
+let obj_robot = 2
+let obj_player = 4
+let obj_weapon = 5
+
+(* Build per-segment block (87 ints) for a single large cube *)
+let mk_homing_seg () =
+  let s = Array.create ~len:87 0 in
+  (* children: all -1 (no neighbors) *)
+  for i = 0 to 5 do
+    s.(i) <- -1
+  done;
+  (* side_types: all SIDE_IS_QUAD = 1 *)
+  for i = 0 to 5 do
+    s.(6 + i) <- 1
+  done;
+  (* seg_verts: 0..7 *)
+  for i = 0 to 7 do
+    s.(12 + i) <- i
+  done;
+  (* normals: 6 sides × 2 normals each = 12 vec3s
+     side 0 (right): +x, side 1 (top): +y, side 2 (front): +z
+     side 3 (left): -x, side 4 (bottom): -y, side 5 (back): -z *)
+  let norms = [| f1, 0, 0; 0, f1, 0; 0, 0, f1; -f1, 0, 0; 0, -f1, 0; 0, 0, -f1 |] in
+  for sn = 0 to 5 do
+    let nx, ny, nz = norms.(sn) in
+    (* normals[0] and normals[1] same for QUAD *)
+    s.(20 + (sn * 6) + 0) <- nx;
+    s.(20 + (sn * 6) + 1) <- ny;
+    s.(20 + (sn * 6) + 2) <- nz;
+    s.(20 + (sn * 6) + 3) <- nx;
+    s.(20 + (sn * 6) + 4) <- ny;
+    s.(20 + (sn * 6) + 5) <- nz
+  done;
+  (* vertex_positions: cube from -big to +big
+     v0=(-big,-big,-big), v1=(+big,-big,-big), v2=(+big,-big,+big), v3=(-big,-big,+big)
+     v4=(-big,+big,-big), v5=(+big,+big,-big), v6=(+big,+big,+big), v7=(-big,+big,+big) *)
+  let verts =
+    [| -big, -big, -big
+     ; big, -big, -big
+     ; big, -big, big
+     ; -big, -big, big
+     ; -big, big, -big
+     ; big, big, -big
+     ; big, big, big
+     ; -big, big, big
+    |]
+  in
+  for i = 0 to 7 do
+    let vx, vy, vz = verts.(i) in
+    s.(56 + (i * 3) + 0) <- vx;
+    s.(56 + (i * 3) + 1) <- vy;
+    s.(56 + (i * 3) + 2) <- vz
+  done;
+  (* wid: 0 for all sides (solid walls) *)
+  for i = 0 to 5 do
+    s.(80 + i) <- 0
+  done;
+  (* first_object: -1 *)
+  s.(86) <- -1;
+  s
+;;
+
+type homing_obj =
+  { obj_type : int
+  ; obj_id : int
+  ; obj_flags : int
+  ; pos : int * int * int
+  ; size : int
+  ; next_in_seg : int
+  ; parent_type : int
+  ; parent_num : int
+  ; parent_sig : int
+  ; creation_time : int
+  ; signature : int
+  ; attack_type : int
+  ; (* homing-specific *)
+    player_flags : int
+  ; team_id : int
+  ; ai_cloaked : int
+  ; robot_companion : int
+  ; segnum : int
+  }
+
+let mk_homing_obj
+      ?(obj_type = 0)
+      ?(obj_id = 0)
+      ?(obj_flags = 0)
+      ?(pos = 0, 0, 0)
+      ?(size = f1)
+      ?(next_in_seg = -1)
+      ?(parent_type = 0)
+      ?(parent_num = -1)
+      ?(parent_sig = 0)
+      ?(creation_time = 0)
+      ?(signature = 0)
+      ?(attack_type = 0)
+      ?(player_flags = 0)
+      ?(team_id = -1)
+      ?(ai_cloaked = 0)
+      ?(robot_companion = 0)
+      ?(segnum = 0)
+      ()
+  =
+  { obj_type
+  ; obj_id
+  ; obj_flags
+  ; pos
+  ; size
+  ; next_in_seg
+  ; parent_type
+  ; parent_num
+  ; parent_sig
+  ; creation_time
+  ; signature
+  ; attack_type
+  ; player_flags
+  ; team_id
+  ; ai_cloaked
+  ; robot_companion
+  ; segnum
+  }
+;;
+
+(* Build full packed array for find_homing_object_complete.
+   tracker_idx: index of the tracker object in objects array
+   curpos, fvec: search position and forward vector
+   track_types: (type1, type2)
+   game_mode: raw game mode flags
+   is_d2, is_omega: D2 flags *)
+let mk_homing_packed
+      ~objects
+      ~tracker_idx
+      ~curpos
+      ~fvec
+      ~(track_types : int * int)
+      ?(game_mode = 0)
+      ?(is_d2 = false)
+      ?(is_omega = false)
+      ()
+  =
+  let n_segments = 1 in
+  let n_objects = Array.length objects in
+  let tracker = objects.(tracker_idx) in
+  let tpx, tpy, tpz = tracker.pos in
+  let header_len = 18 in
+  let ct_len = 256 in
+  let seg_len = n_segments * 87 in
+  let obj_len = n_objects * 14 in
+  let hh_len = 19 in
+  let ho_len = n_objects * 5 in
+  let total = header_len + ct_len + seg_len + obj_len + hh_len + ho_len in
+  let a = Array.create ~len:total 0 in
+  (* FVI header *)
+  a.(8) <- tracker_idx;
+  (* thisobjnum *)
+  a.(9) <- 2;
+  (* FQ_TRANSWALL *)
+  a.(10) <- n_segments;
+  a.(11) <- n_objects;
+  a.(12) <- 0;
+  (* player_objnum *)
+  a.(14) <- (if game_mode land 16 <> 0 then 1 else 0);
+  (* GM_MULTI_COOP *)
+  a.(16) <- (if is_d2 then 1 else 0);
+  (* collision table: set weapon-vs-wall to non-zero for rad check *)
+  let ct_base = header_len in
+  a.(ct_base + (obj_weapon * 16) + 0) <- 1;
+  (* weapon vs OBJ_WALL=0 *)
+  (* segment data *)
+  let sd_base = ct_base + ct_len in
+  let seg = mk_homing_seg () in
+  Array.blit ~src:seg ~src_pos:0 ~dst:a ~dst_pos:sd_base ~len:87;
+  (* object data (14 ints each) *)
+  let od_base = sd_base + seg_len in
+  Array.iteri objects ~f:(fun i obj ->
+    let ob = od_base + (i * 14) in
+    let px, py, pz = obj.pos in
+    a.(ob + 0) <- obj.obj_type;
+    a.(ob + 1) <- obj.obj_id;
+    a.(ob + 2) <- obj.obj_flags;
+    a.(ob + 3) <- px;
+    a.(ob + 4) <- py;
+    a.(ob + 5) <- pz;
+    a.(ob + 6) <- obj.size;
+    a.(ob + 7) <- obj.next_in_seg;
+    a.(ob + 8) <- obj.parent_type;
+    a.(ob + 9) <- obj.parent_num;
+    a.(ob + 10) <- obj.parent_sig;
+    a.(ob + 11) <- obj.creation_time;
+    a.(ob + 12) <- obj.signature;
+    a.(ob + 13) <- obj.attack_type);
+  (* homing header (19 ints) *)
+  let hh_base = od_base + obj_len in
+  let cx, cy, cz = curpos in
+  let fx, fy, fz = fvec in
+  a.(hh_base + 0) <- cx;
+  a.(hh_base + 1) <- cy;
+  a.(hh_base + 2) <- cz;
+  a.(hh_base + 3) <- fx;
+  a.(hh_base + 4) <- fy;
+  a.(hh_base + 5) <- fz;
+  a.(hh_base + 6) <- tpx;
+  a.(hh_base + 7) <- tpy;
+  a.(hh_base + 8) <- tpz;
+  a.(hh_base + 9) <- tracker.segnum;
+  a.(hh_base + 10) <- tracker.parent_num;
+  a.(hh_base + 11) <- tracker.parent_type;
+  a.(hh_base + 12) <- tracker.parent_sig;
+  a.(hh_base + 13) <- tracker.obj_id;
+  let t1, t2 = track_types in
+  a.(hh_base + 14) <- t1;
+  a.(hh_base + 15) <- t2;
+  a.(hh_base + 16) <- n_objects - 1;
+  (* highest_object_index *)
+  a.(hh_base + 17) <- game_mode;
+  a.(hh_base + 18) <- (if is_omega then 1 else 0);
+  (* homing per-object (5 ints each) *)
+  let ho_base = hh_base + hh_len in
+  Array.iteri objects ~f:(fun i obj ->
+    let hob = ho_base + (i * 5) in
+    a.(hob + 0) <- obj.player_flags;
+    a.(hob + 1) <- obj.team_id;
+    a.(hob + 2) <- obj.ai_cloaked;
+    a.(hob + 3) <- obj.robot_companion;
+    a.(hob + 4) <- obj.segnum);
+  a
+;;
+
+let%expect_test "homing - no valid targets" =
+  (* Tracker is a weapon, only target is another weapon (wrong type) *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; (* tracker at origin *)
+       mk_homing_obj ~obj_type:obj_weapon ~obj_id:1 ~pos:(f1, 0, 0) ()
+       (* wrong type *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing - single robot target" =
+  (* Tracker weapon facing +X, robot at +X direction = perfect dot product *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; (* tracker *)
+       mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(f1, 0, 0) ()
+       (* robot target *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=1 |}]
+;;
+
+let%expect_test "homing - skip parent object" =
+  (* Robot is tracker's parent → should be skipped *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:1
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; (* tracker, parent is obj 1 *)
+       mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(f1, 0, 0) ()
+       (* parent robot *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing - skip cloaked robot" =
+  (* Robot is cloaked → should be skipped *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~ai_cloaked:1 ~pos:(f1, 0, 0) ()
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing - skip cloaked player" =
+  (* Player is cloaked → should be skipped *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; mk_homing_obj
+         ~obj_type:obj_player
+         ~obj_id:0
+         ~player_flags:2048 (* PLAYER_FLAGS_CLOAKED *)
+         ~pos:(f1, 0, 0)
+         ()
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_player, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing - best angle wins" =
+  (* Two robots: obj 1 at slight angle, obj 2 more directly ahead.
+     Both within tracking cone → obj 2 should win (better dot). *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; (* tracker *)
+       mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(3 * f1, f1, 0) ()
+     ; (* off-axis robot *)
+       mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(3 * f1, 0, 0) ()
+       (* directly ahead *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=2 |}]
+;;
+
+let%expect_test "homing - object behind tracker rejected (D1)" =
+  (* Robot behind tracker → dot < MIN_TRACKABLE_DOT → rejected *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(-f1, 0, 0) () (* behind *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing D2 - skip companion robot" =
+  (* D2: companion robot with player-fired missile → skip *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_type:obj_player
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~robot_companion:1 ~pos:(f1, 0, 0) ()
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, -1)
+      ~is_d2:true
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=-1 |}]
+;;
+
+let%expect_test "homing - track two types" =
+  (* Track both robots and players, both valid → best angle wins *)
+  let objects =
+    [| mk_homing_obj
+         ~obj_type:obj_weapon
+         ~obj_id:0
+         ~parent_num:(-1)
+         ~parent_sig:100
+         ~pos:(0, 0, 0)
+         ()
+     ; mk_homing_obj ~obj_type:obj_robot ~obj_id:0 ~pos:(3 * f1, f1, 0) ()
+     ; (* off-axis *)
+       mk_homing_obj ~obj_type:obj_player ~obj_id:0 ~pos:(3 * f1, 0, 0) ()
+       (* directly ahead *)
+    |]
+  in
+  let packed =
+    mk_homing_packed
+      ~objects
+      ~tracker_idx:0
+      ~curpos:(0, 0, 0)
+      ~fvec:(f1, 0, 0)
+      ~track_types:(obj_robot, obj_player)
+      ()
+  in
+  let r = Ox_fvi.find_homing_object_complete packed in
+  printf "result=%d\n" r;
+  [%expect {| result=2 |}]
+;;

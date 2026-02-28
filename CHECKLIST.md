@@ -212,11 +212,11 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] lead_player — AI lead firing solution
 
 ### Unported — Homing & Targeting
-- [ ] find_homing_object_complete — searches object list for homing target
+- [x] find_homing_object_complete — searches object list for homing target (with internal FVI visibility)
 - [ ] find_homing_object — homing target wrapper
 - [ ] track_track_goal — track goal classification (D2)
 - [ ] object_is_trackable — trackability check
-- [ ] object_to_object_visibility — LOS check between objects
+- [x] object_to_object_visibility — LOS check (inlined into find_homing_object_complete)
 
 ### Unported — Weapon Creation
 - [ ] Laser_create_new — creates laser/missile object
@@ -258,7 +258,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Unported — Visibility & Targeting
 - [ ] player_is_visible_from_object — visibility via FVI
 - [ ] compute_vis_and_vec — visibility ray to player
-- [ ] object_to_object_visibility — LOS check
+- [x] object_to_object_visibility — LOS check (inlined into find_homing_object_complete)
 
 ### Unported — AI Frame Logic
 - [ ] do_ai_frame — main AI frame (massive, reads ~50 globals)

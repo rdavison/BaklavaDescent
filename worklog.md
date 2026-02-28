@@ -1354,3 +1354,31 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).
+
+### §41 — Port find_homing_object_complete + object_to_object_visibility to OxCaml
+
+- **Functions:** `find_homing_object_complete` (66 lines D1, 95 lines D2) is the homing missile target selection logic — iterates all objects, filters by type/parent/cloaked/team/companion, checks distance and angle, and calls `object_to_object_visibility` for the best candidate. `object_to_object_visibility` is a thin wrapper around `find_vector_intersection` for LOS checks.
+
+- **Approach:** Reuses the FVI packed array format as its base (header + CollisionResult[256] + segments + objects), then appends homing-specific data. This allows `fvi_sub` to be called directly from OCaml for visibility checks without C round-trips — `object_to_object_visibility` is inlined as an OCaml helper (`visibility_check`) rather than a separate bridge function.
+
+- **Homing extension layout:**
+  - Homing header (19 ints): curpos.xyz, fvec.xyz, tracker_pos.xyz, tracker_segnum, tracker_parent_type, tracker_parent_num, track_goal_type_1, track_goal_type_2, game_mode, is_omega
+  - Per-object homing block (5 ints): player_flags, team_id, ai_CLOAKED, robot_companion, segnum
+
+- **D1 vs D2 differences:**
+  - D2 adds omega weapon support (different tracking thresholds: OMEGA_MIN_TRACKABLE_DOT=0xF000, OMEGA_MAX_TRACKABLE_DIST=0x500000)
+  - D2 adds proximity mine tracking (PROXIMITY_ID=16, SUPERPROX_ID=38) with dot amplification `((dot << 3) + dot) >> 3`
+  - D2 excludes companion robots (`Robot_info[id].companion`)
+  - D1 MIN_TRACKABLE_DOT=0xC000 (3*F1_0/4), D2=0xE000 (7*F1_0/8)
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — `visibility_check` helper (creates fresh fvi_state, calls fvi_sub with FQ_TRANSWALL), `find_homing_object_complete` (target iteration + filtering + distance/angle scoring)
+  - `ox/fvi_bridge.ml` — `cd_find_homing_object_complete` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_find_homing_object_complete` static pointer, init/ready checks, C wrapper
+  - `ox/bridge.h` — `cd_ox_find_homing_object_complete` declaration
+  - `main_d1/laser.cpp` — `#ifdef USE_OX_BRIDGE` around `find_homing_object_complete` with full packing code
+  - `main_d2/laser.cpp` — same, with `is_d2=1`, omega detection, companion field
+  - `ox/tests/parity_expect.ml` — 9 parity tests (no targets, single robot, skip parent, skip cloaked robot/player, best angle wins, behind tracker rejected, D2 skip companion, track two types)
+  - `CHECKLIST.md` — marked done (both Weapons and AI sections)
+
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes (9 new + all existing), `cmake --build build-ox -j8` clean (D1+D2).

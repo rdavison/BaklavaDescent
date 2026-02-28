@@ -147,11 +147,19 @@ let cd_object_intersects_wall (arr : int array) = Ox_fvi.sphere_intersects_wall 
                hit_object; wallnorm.xyz; n_segs; seglist... |] *)
 let cd_find_vector_intersection (arr : int array) = Ox_fvi.find_vector_intersection arr
 
+(* find_homing_object_complete: packed array → int (best object index or -1)
+   Packed layout: FVI format + homing extension.
+   See Ox_fvi.find_homing_object_complete for full layout docs. *)
+let cd_find_homing_object_complete (arr : int array) =
+  Ox_fvi.find_homing_object_complete arr
+;;
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
   Callback.register "cd_check_vector_to_sphere_1" cd_check_vector_to_sphere_1;
   Callback.register "cd_check_vector_to_object" cd_check_vector_to_object;
   Callback.register "cd_object_intersects_wall" cd_object_intersects_wall;
-  Callback.register "cd_find_vector_intersection" cd_find_vector_intersection
+  Callback.register "cd_find_vector_intersection" cd_find_vector_intersection;
+  Callback.register "cd_find_homing_object_complete" cd_find_homing_object_complete
 ;;

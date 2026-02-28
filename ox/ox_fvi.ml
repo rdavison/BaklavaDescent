@@ -1267,3 +1267,224 @@ let find_vector_intersection (arr : int array) =
     done;
     result)
 ;;
+
+(* ===== find_homing_object_complete =====
+
+   Packed array layout: FVI format base + homing extension.
+
+   Base: standard FVI packed format:
+     Header (18 ints, ignore_count=0)
+     CollisionResult[256]
+     Segment data (n_segments * 87)
+     Object data (n_objects * 14)
+
+   Homing extension (appended after FVI object data):
+     Homing header (19 ints):
+       [0..2]  curpos.xyz
+       [3..5]  tracker orient.fvec.xyz
+       [6..8]  tracker pos.xyz
+       [9]     tracker segnum
+       [10]    tracker parent_num
+       [11]    tracker parent_type
+       [12]    tracker parent_signature
+       [13]    tracker weapon_id
+       [14]    track_obj_type1
+       [15]    track_obj_type2
+       [16]    highest_object_index
+       [17]    game_mode_flags (raw Game_mode)
+       [18]    is_omega (0 or 1, D2 only)
+
+     Homing per-object data (n_objects * 5):
+       [0] player_flags (Players[id].flags if player, else 0)
+       [1] team_id (get_team(id) if player, else -1)
+       [2] ai_CLOAKED (ctype.ai_info.CLOAKED if robot, else 0)
+       [3] robot_companion (Robot_info[id].companion if D2 robot, else 0)
+       [4] segnum
+
+   Returns: best object index, or -1 if none found. *)
+
+let homing_header_size = 19
+let homing_obj_block_size = 5
+
+(* Homing header field offsets (relative to homing base) *)
+let hh_curpos_x = 0
+let hh_curpos_y = 1
+let hh_curpos_z = 2
+let hh_fvec_x = 3
+let hh_fvec_y = 4
+let hh_fvec_z = 5
+let hh_tracker_pos_x = 6
+let hh_tracker_pos_y = 7
+let hh_tracker_pos_z = 8
+let hh_tracker_segnum = 9
+let hh_tracker_parent_num = 10
+let hh_tracker_parent_type = 11
+let hh_tracker_parent_sig = 12
+let _hh_tracker_weapon_id = 13
+let hh_track_obj_type1 = 14
+let hh_track_obj_type2 = 15
+let hh_highest_object_index = 16
+let hh_game_mode_flags = 17
+let hh_is_omega = 18
+
+(* Game mode flag *)
+let gm_team = 256
+
+(* Tracking constants — D1 *)
+let d1_min_trackable_dot = 0xC000 (* 3*F1_0/4 *)
+let d1_max_trackable_dist = 0xFA0000 (* F1_0*250 *)
+
+(* Tracking constants — D2 *)
+let d2_min_trackable_dot = 0xE000 (* 7*F1_0/8 *)
+let d2_max_trackable_dist = 0xFA0000
+let d2_omega_min_trackable_dot = 0xF000 (* 15*F1_0/16 *)
+let d2_omega_max_trackable_dist = 0x500000 (* MAX_OMEGA_BLOBS * DESIRED_OMEGA_DIST *)
+
+(* D2 weapon IDs for proximity mine tracking *)
+let d2_proximity_id = 16
+let d2_superprox_id = 38
+
+(* PLAYER_FLAGS_CLOAKED *)
+let player_flags_cloaked = 2048
+
+(* Simple visibility check: calls fvi_sub to test line-of-sight.
+   Returns true if p0 can see p1 (no wall blocking). *)
+let visibility_check (arr : int array) ~p0 ~startseg ~p1 ~tracker_objnum =
+  let st = make_fvi_state () in
+  st.segs_visited.(0) <- startseg;
+  st.n_segs_visited <- 1;
+  st.fvi_hit_seg2 <- -1;
+  let ht, _, _, _, _ =
+    fvi_sub
+      arr
+      st
+      ~p0
+      ~startseg
+      ~p1
+      ~rad:0x10
+      ~thisobjnum:tracker_objnum
+      ~flags:fq_transwall
+      ~entry_seg:(-2)
+  in
+  ht <> hit_wall
+;;
+
+let find_homing_object_complete (arr : int array) =
+  let open Ox_math in
+  let n_objects = arr.(h_n_objects) in
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let obj_data_base = get_obj_data_base arr in
+  let homing_base = obj_data_base + (n_objects * obj_block_size) in
+  let homing_obj_base = homing_base + homing_header_size in
+  let curpos =
+    ( arr.(homing_base + hh_curpos_x)
+    , arr.(homing_base + hh_curpos_y)
+    , arr.(homing_base + hh_curpos_z) )
+  in
+  let fvec =
+    ( arr.(homing_base + hh_fvec_x)
+    , arr.(homing_base + hh_fvec_y)
+    , arr.(homing_base + hh_fvec_z) )
+  in
+  let tracker_pos =
+    ( arr.(homing_base + hh_tracker_pos_x)
+    , arr.(homing_base + hh_tracker_pos_y)
+    , arr.(homing_base + hh_tracker_pos_z) )
+  in
+  let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+  let tracker_parent_sig = arr.(homing_base + hh_tracker_parent_sig) in
+  let track_obj_type1 = arr.(homing_base + hh_track_obj_type1) in
+  let track_obj_type2 = arr.(homing_base + hh_track_obj_type2) in
+  let highest_object_index = arr.(homing_base + hh_highest_object_index) in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
+  let tracker_objnum = arr.(h_thisobjnum) in
+  let max_trackable_dist =
+    if is_d2
+    then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
+    else d1_max_trackable_dist
+  in
+  let min_trackable_dot =
+    if is_d2
+    then if is_omega then d2_omega_min_trackable_dot else d2_min_trackable_dot
+    else d1_min_trackable_dot
+  in
+  let max_dot = ref (-0x20000) in
+  let best_objnum = ref (-1) in
+  for objnum = 0 to highest_object_index do
+    let obj_base = obj_data_base + (objnum * obj_block_size) in
+    let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
+    let obj_type = arr.(obj_base) in
+    let obj_id = arr.(obj_base + 1) in
+    let obj_pos = arr.(obj_base + 3), arr.(obj_base + 4), arr.(obj_base + 5) in
+    let player_flags = arr.(hobj_base) in
+    let team_id = arr.(hobj_base + 1) in
+    let ai_cloaked = arr.(hobj_base + 2) in
+    let robot_companion = arr.(hobj_base + 3) in
+    let is_proximity = ref false in
+    let skip = ref false in
+    (* Type filter *)
+    if obj_type <> track_obj_type1 && obj_type <> track_obj_type2
+    then
+      if
+        is_d2
+        && obj_type = obj_weapon
+        && (obj_id = d2_proximity_id || obj_id = d2_superprox_id)
+      then (
+        let obj_parent_sig = arr.(obj_base + 10) in
+        if obj_parent_sig <> tracker_parent_sig
+        then is_proximity := true
+        else skip := true)
+      else skip := true;
+    (* Don't track shooter *)
+    if (not !skip) && objnum = tracker_parent_num then skip := true;
+    (* Don't track cloaked players *)
+    if (not !skip) && obj_type = obj_player
+    then (
+      if player_flags land player_flags_cloaked <> 0 then skip := true;
+      if
+        (not !skip)
+        && game_mode_flags land gm_team <> 0
+        && tracker_parent_type = obj_player
+      then (
+        let parent_hobj_base =
+          homing_obj_base + (tracker_parent_num * homing_obj_block_size)
+        in
+        let parent_team = arr.(parent_hobj_base + 1) in
+        if parent_team = team_id then skip := true));
+    (* Can't track cloaked robots *)
+    if (not !skip) && obj_type = obj_robot
+    then (
+      if ai_cloaked <> 0 then skip := true;
+      (* D2: don't track companion with player missiles *)
+      if (not !skip) && is_d2 && robot_companion <> 0 && tracker_parent_type = obj_player
+      then skip := true);
+    if not !skip
+    then (
+      let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
+      let dist = vm_vec_mag_quick ~v:vec_to_curobj in
+      if dist < max_trackable_dist
+      then (
+        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+        (* D2: proximity mines get dot amplified by 9/8 *)
+        let dot = if is_d2 && !is_proximity then ((dot lsl 3) + dot) asr 3 else dot in
+        if dot > min_trackable_dot
+        then
+          if dot > !max_dot
+          then
+            if
+              visibility_check
+                arr
+                ~p0:tracker_pos
+                ~startseg:tracker_segnum
+                ~p1:obj_pos
+                ~tracker_objnum
+            then (
+              max_dot := dot;
+              best_objnum := objnum)))
+  done;
+  !best_objnum
+;;

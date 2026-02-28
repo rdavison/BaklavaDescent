@@ -778,6 +778,12 @@ void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
 void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
                                      int32_t* out_buf, int* out_len);
 
+/* find_homing_object_complete: find best homing target from all objects.
+   packed layout: FVI format (header(18) + CollisionResult(256) + segments(n*87) + objects(n*14))
+   + homing header(19) + homing per-object(n*5).
+   Returns best object index or -1. */
+int cd_ox_find_homing_object_complete(const int32_t* packed, int packed_len);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.
