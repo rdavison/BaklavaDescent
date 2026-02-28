@@ -181,6 +181,8 @@ static const value* g_find_point_seg = NULL;
 static const value* g_find_connected_distance = NULL;
 static const value* g_find_vector_intersection = NULL;
 static const value* g_find_homing_object_complete = NULL;
+static const value* g_find_homing_object = NULL;
+static const value* g_track_track_goal = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -455,6 +457,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
     g_find_vector_intersection = caml_named_value("cd_find_vector_intersection");
     g_find_homing_object_complete = caml_named_value("cd_find_homing_object_complete");
+    g_find_homing_object = caml_named_value("cd_find_homing_object");
+    g_track_track_goal = caml_named_value("cd_track_track_goal");
 
     if (!g_i2f
         || !g_f2i
@@ -582,7 +586,9 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_point_seg
         || !g_find_connected_distance
         || !g_find_vector_intersection
-        || !g_find_homing_object_complete)
+        || !g_find_homing_object_complete
+        || !g_find_homing_object
+        || !g_track_track_goal)
     {
         return 1;
     }
@@ -707,7 +713,9 @@ int cd_ox_is_ready(void)
            && g_find_point_seg
            && g_find_connected_distance
            && g_find_vector_intersection
-           && g_find_homing_object_complete;
+           && g_find_homing_object_complete
+           && g_find_homing_object
+           && g_track_track_goal;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3173,4 +3181,30 @@ int cd_ox_find_homing_object_complete(const int32_t* packed, int packed_len)
         Store_field(arr, i, Val_long(packed[i]));
     int result = Int_val(caml_callback(*g_find_homing_object_complete, arr));
     CAMLreturnT(int, result);
+}
+
+int cd_ox_find_homing_object(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_find_homing_object");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_find_homing_object, arr));
+    CAMLreturnT(int, result);
+}
+
+void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_result, int* out_dot)
+{
+    cd_ox_require_ready("cd_ox_track_track_goal");
+    CAMLparam0();
+    CAMLlocal1(result);
+    value arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_track_track_goal, arr);
+    *out_result = Int_val(Field(result, 0));
+    *out_dot = Int_val(Field(result, 1));
+    CAMLreturn0;
 }

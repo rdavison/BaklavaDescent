@@ -1382,3 +1382,32 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done (both Weapons and AI sections)
 
 - **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes (9 new + all existing), `cmake --build build-ox -j8` clean (D1+D2).
+
+### §42 — Port find_homing_object + track_track_goal + object_is_trackable to OxCaml
+
+- **What:** Ported the "homing trio" — the three remaining homing/tracking functions from `laser.cpp` (D1+D2). These handle per-frame target tracking for homing missiles.
+  - `object_is_trackable` — checks if a tracked object is still valid (cloaked, companion, dot product, visibility). Inlined into `track_track_goal` in OCaml.
+  - `track_track_goal` — per-frame tracking update: recheck current target every 8 frames, full rescan every 4 frames. D2 returns dot via out-param.
+  - `find_homing_object` — homing target search for singleplayer (rendered object list iteration with distance/angle checks). Multiplayer dispatches to `find_homing_object_complete`.
+
+- **Packed format extension:** Extended the existing homing packed array with a "tracking extension" block (7-int header appended AFTER homing per-object data). This preserves backward compatibility — `find_homing_object_complete` reads from the same offsets unchanged.
+  - Tracking extension: `min_trackable_dot`, `frame_count`, `robots_kill_robots_cheat`, `gm_multi_robots`, `track_goal`, `n_rendered_objects`, `track_goal_obj_type`
+  - Variable-length rendered object list follows the header (for D2 `Window_rendered_data`, D1 `Ordered_rendered_object_list`)
+
+- **D1/D2 differences handled:**
+  - D2 `track_track_goal` returns dot via out-param (D1 doesn't need it)
+  - D2 has `Robots_kill_robots_cheat`, companion robot exclusion, `GM_MULTI_ROBOTS`
+  - D2 `find_homing_object` uses `Window_rendered_data` (search stays in C, passes rendered list to OCaml)
+  - D2 singleplayer path has distance check + "retry with full normalize" for near-threshold dots
+  - D1 uses 0xC000 min trackable dot, D2 uses 0xE000
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — `object_is_trackable`, `track_track_goal`, `find_homing_object` (~200 lines)
+  - `ox/fvi_bridge.ml` — `cd_find_homing_object`, `cd_track_track_goal` bridges + `Callback.register`
+  - `ox/bridge.c` — `g_find_homing_object`, `g_track_track_goal` static pointers, init/ready, C wrappers
+  - `ox/bridge.h` — declarations for both new functions
+  - `main_d1/laser.cpp` — `#ifdef USE_OX_BRIDGE` around `find_homing_object` and `track_track_goal`
+  - `main_d2/laser.cpp` — same, with D2-specific fields (`is_d2=1`, companion, `Robots_kill_robots_cheat`, `*dot = out_dot`)
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` clean, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2).

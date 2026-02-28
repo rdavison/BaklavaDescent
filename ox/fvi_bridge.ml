@@ -154,6 +154,16 @@ let cd_find_homing_object_complete (arr : int array) =
   Ox_fvi.find_homing_object_complete arr
 ;;
 
+(* find_homing_object: packed array → int (best object index or -1)
+   Packed layout: FVI format + homing extension + tracking extension.
+   See Ox_fvi.find_homing_object for full layout docs. *)
+let cd_find_homing_object (arr : int array) = Ox_fvi.find_homing_object arr
+
+(* track_track_goal: packed array → int array [| result; dot |]
+   Same packed layout as find_homing_object.
+   See Ox_fvi.track_track_goal for full layout docs. *)
+let cd_track_track_goal (arr : int array) = Ox_fvi.track_track_goal arr
+
 let () =
   Callback.register "cd_check_line_to_face" cd_check_line_to_face;
   Callback.register "cd_special_check_line_to_face" cd_special_check_line_to_face;
@@ -161,5 +171,7 @@ let () =
   Callback.register "cd_check_vector_to_object" cd_check_vector_to_object;
   Callback.register "cd_object_intersects_wall" cd_object_intersects_wall;
   Callback.register "cd_find_vector_intersection" cd_find_vector_intersection;
-  Callback.register "cd_find_homing_object_complete" cd_find_homing_object_complete
+  Callback.register "cd_find_homing_object_complete" cd_find_homing_object_complete;
+  Callback.register "cd_find_homing_object" cd_find_homing_object;
+  Callback.register "cd_track_track_goal" cd_track_track_goal
 ;;

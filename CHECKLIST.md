@@ -213,9 +213,9 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Unported — Homing & Targeting
 - [x] find_homing_object_complete — searches object list for homing target (with internal FVI visibility)
-- [ ] find_homing_object — homing target wrapper
-- [ ] track_track_goal — track goal classification (D2)
-- [ ] object_is_trackable — trackability check
+- [x] find_homing_object — homing target wrapper (D1+D2, uses find_homing_object_complete internally)
+- [x] track_track_goal — track goal update (D1+D2, includes object_is_trackable)
+- [x] object_is_trackable — trackability check (inlined into track_track_goal)
 - [x] object_to_object_visibility — LOS check (inlined into find_homing_object_complete)
 
 ### Unported — Weapon Creation

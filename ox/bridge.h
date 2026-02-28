@@ -784,6 +784,17 @@ void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
    Returns best object index or -1. */
 int cd_ox_find_homing_object_complete(const int32_t* packed, int packed_len);
 
+/* find_homing_object: initial target acquisition for homing missiles.
+   Same packed layout as find_homing_object_complete + tracking extension
+   (7 ints + rendered_object_list).
+   Returns best object index or -1. */
+int cd_ox_find_homing_object(const int32_t* packed, int packed_len);
+
+/* track_track_goal: per-frame tracking update.
+   Same packed layout as find_homing_object.
+   Returns track result via out_result and dot product via out_dot. */
+void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_result, int* out_dot);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

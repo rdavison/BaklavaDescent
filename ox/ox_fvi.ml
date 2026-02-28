@@ -1488,3 +1488,403 @@ let find_homing_object_complete (arr : int array) =
   done;
   !best_objnum
 ;;
+
+(* ===== find_homing_object + track_track_goal + object_is_trackable =====
+
+   These extend the homing packed format with a "tracking extension" block
+   appended after the homing per-object data.
+
+   Tracking extension header (7 ints):
+     [0] min_trackable_dot (runtime value of Min_trackable_dot)
+     [1] frame_count (FrameCount)
+     [2] robots_kill_robots_cheat (0 for D1)
+     [3] gm_multi_robots (1 if Game_mode & GM_MULTI_ROBOTS, else 0)
+     [4] track_goal (for track_track_goal; -1 for find_homing_object)
+     [5] n_rendered_objects (0 when not applicable)
+     [6] track_goal_obj_type (Objects[track_goal].type if track_goal >= 0, else -1)
+
+   Followed by rendered_object_list[n_rendered_objects]. *)
+
+let tracking_ext_header_size = 7
+let te_min_trackable_dot = 0
+let te_frame_count = 1
+let te_robots_kill_robots_cheat = 2
+let te_gm_multi_robots = 3
+let te_track_goal = 4
+let te_n_rendered_objects = 5
+let te_track_goal_obj_type = 6
+
+(* Game mode flags *)
+let gm_multi = 38
+let gm_multi_coop = 16
+
+let get_tracking_ext_base (arr : int array) =
+  let n_objects = arr.(h_n_objects) in
+  let obj_data_base = get_obj_data_base arr in
+  let homing_base = obj_data_base + (n_objects * obj_block_size) in
+  let homing_obj_base = homing_base + homing_header_size in
+  homing_obj_base + (n_objects * homing_obj_block_size)
+;;
+
+(* object_is_trackable — inlined helper for track_track_goal.
+   Returns (is_trackable, dot) where dot is the computed dot product.
+   For D2, the caller needs dot even on success. *)
+let object_is_trackable (arr : int array) ~track_goal =
+  let open Ox_math in
+  if track_goal = -1
+  then false, 0
+  else (
+    let n_objects = arr.(h_n_objects) in
+    let is_d2 = arr.(h_is_d2) <> 0 in
+    let obj_data_base = get_obj_data_base arr in
+    let homing_base = obj_data_base + (n_objects * obj_block_size) in
+    let homing_obj_base = homing_base + homing_header_size in
+    let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+    let te_base = get_tracking_ext_base arr in
+    let min_trackable_dot = arr.(te_base + te_min_trackable_dot) in
+    let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+    (* GM_MULTI_COOP check *)
+    if game_mode_flags land gm_multi_coop <> 0
+    then false, 0
+    else (
+      let player_objnum = arr.(h_player_objnum) in
+      let goal_obj_base = obj_data_base + (track_goal * obj_block_size) in
+      let goal_hobj_base = homing_obj_base + (track_goal * homing_obj_block_size) in
+      let goal_type = arr.(goal_obj_base) in
+      let goal_pos =
+        arr.(goal_obj_base + 3), arr.(goal_obj_base + 4), arr.(goal_obj_base + 5)
+      in
+      let goal_player_flags = arr.(goal_hobj_base) in
+      let goal_ai_cloaked = arr.(goal_hobj_base + 2) in
+      let goal_robot_companion = arr.(goal_hobj_base + 3) in
+      (* Don't track cloaked player *)
+      if track_goal = player_objnum && goal_player_flags land player_flags_cloaked <> 0
+      then false, 0
+      else if goal_type = obj_robot
+      then
+        if goal_ai_cloaked <> 0
+        then false, 0
+        else if is_d2 && goal_robot_companion <> 0 && tracker_parent_type = obj_player
+        then false, 0
+        else (
+          let tracker_pos =
+            ( arr.(homing_base + hh_tracker_pos_x)
+            , arr.(homing_base + hh_tracker_pos_y)
+            , arr.(homing_base + hh_tracker_pos_z) )
+          in
+          let fvec =
+            ( arr.(homing_base + hh_fvec_x)
+            , arr.(homing_base + hh_fvec_y)
+            , arr.(homing_base + hh_fvec_z) )
+          in
+          let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
+          let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
+          let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+          (* D2: retry with full normalize if close *)
+          let dot =
+            if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
+            then (
+              let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
+              vm_vec_dotprod ~a:vec_full ~b:fvec)
+            else dot
+          in
+          if dot >= min_trackable_dot
+          then (
+            let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+            let tracker_objnum = arr.(h_thisobjnum) in
+            let vis =
+              visibility_check
+                arr
+                ~p0:tracker_pos
+                ~startseg:tracker_segnum
+                ~p1:goal_pos
+                ~tracker_objnum
+            in
+            if vis then true, dot else false, dot)
+          else false, dot)
+      else (
+        (* Non-robot (player or other) — same logic without companion check *)
+        let tracker_pos =
+          ( arr.(homing_base + hh_tracker_pos_x)
+          , arr.(homing_base + hh_tracker_pos_y)
+          , arr.(homing_base + hh_tracker_pos_z) )
+        in
+        let fvec =
+          ( arr.(homing_base + hh_fvec_x)
+          , arr.(homing_base + hh_fvec_y)
+          , arr.(homing_base + hh_fvec_z) )
+        in
+        let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
+        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
+        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+        let dot =
+          if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
+          then (
+            let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
+            vm_vec_dotprod ~a:vec_full ~b:fvec)
+          else dot
+        in
+        if dot >= min_trackable_dot
+        then (
+          let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+          let tracker_objnum = arr.(h_thisobjnum) in
+          let vis =
+            visibility_check
+              arr
+              ~p0:tracker_pos
+              ~startseg:tracker_segnum
+              ~p1:goal_pos
+              ~tracker_objnum
+          in
+          if vis then true, dot else false, dot)
+        else false, dot)))
+;;
+
+(* track_track_goal — per-frame tracking update.
+   Returns [| result; dot |] where dot is from the trackability check. *)
+let track_track_goal (arr : int array) =
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let n_objects = arr.(h_n_objects) in
+  let obj_data_base = get_obj_data_base arr in
+  let homing_base = obj_data_base + (n_objects * obj_block_size) in
+  let homing_obj_base = homing_base + homing_header_size in
+  let te_base = get_tracking_ext_base arr in
+  let track_goal = arr.(te_base + te_track_goal) in
+  let frame_count = arr.(te_base + te_frame_count) in
+  let tracker_objnum = arr.(h_thisobjnum) in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let trackable, dot = object_is_trackable arr ~track_goal in
+  (* D1: if trackable, return track_goal *)
+  (* D2: if trackable AND not on the 8th-frame full-rescan, return track_goal *)
+  let frame_hash = tracker_objnum lxor frame_count in
+  if trackable && ((not is_d2) || frame_hash mod 8 <> 0)
+  then [| track_goal; dot |]
+  else if frame_hash mod 4 = 0
+  then (
+    let parent_obj_base = obj_data_base + (tracker_parent_num * obj_block_size) in
+    let parent_type = arr.(parent_obj_base) in
+    let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
+    let gm_multi_robots_flag = arr.(te_base + te_gm_multi_robots) in
+    let track_goal_obj_type = arr.(te_base + te_track_goal_obj_type) in
+    let rval =
+      if parent_type = obj_player
+      then
+        if track_goal = -1
+        then (
+          if game_mode_flags land gm_multi <> 0
+          then
+            if game_mode_flags land gm_multi_coop <> 0
+            then (
+              arr.(homing_base + hh_track_obj_type1) <- obj_robot;
+              arr.(homing_base + hh_track_obj_type2) <- -1)
+            else if gm_multi_robots_flag <> 0
+            then (
+              arr.(homing_base + hh_track_obj_type1) <- obj_player;
+              arr.(homing_base + hh_track_obj_type2) <- obj_robot)
+            else (
+              arr.(homing_base + hh_track_obj_type1) <- obj_player;
+              arr.(homing_base + hh_track_obj_type2) <- -1)
+          else (
+            arr.(homing_base + hh_track_obj_type1) <- obj_player;
+            arr.(homing_base + hh_track_obj_type2) <- obj_robot);
+          (* Use tracker pos as curpos for find_homing_object_complete *)
+          let homing_obj_end = homing_obj_base + (n_objects * homing_obj_block_size) in
+          let _ = homing_obj_end in
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete arr)
+        else if track_goal_obj_type = obj_player || track_goal_obj_type = obj_robot
+        then (
+          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
+          arr.(homing_base + hh_track_obj_type2) <- -1;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete arr)
+        else -1
+      else (
+        let goal2_type =
+          if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1
+        in
+        if track_goal = -1
+        then (
+          arr.(homing_base + hh_track_obj_type1) <- obj_player;
+          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete arr)
+        else (
+          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
+          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete arr))
+    in
+    [| rval; dot |])
+  else [| -1; dot |]
+;;
+
+(* find_homing_object — initial target acquisition.
+   Returns best_objnum or -1.
+   In multiplayer: dispatches to find_homing_object_complete with computed track types.
+   In singleplayer, not player-fired: returns player if not cloaked.
+   In singleplayer, player-fired: iterates rendered object list. *)
+let find_homing_object (arr : int array) =
+  let open Ox_math in
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let n_objects = arr.(h_n_objects) in
+  let obj_data_base = get_obj_data_base arr in
+  let homing_base = obj_data_base + (n_objects * obj_block_size) in
+  let homing_obj_base = homing_base + homing_header_size in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+  let player_objnum = arr.(h_player_objnum) in
+  let te_base = get_tracking_ext_base arr in
+  let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
+  if game_mode_flags land gm_multi <> 0
+  then (
+    (* Multiplayer — dispatch to find_homing_object_complete *)
+    if tracker_parent_type = obj_player
+    then
+      if game_mode_flags land gm_multi_coop <> 0
+      then (
+        arr.(homing_base + hh_track_obj_type1) <- obj_robot;
+        arr.(homing_base + hh_track_obj_type2) <- -1)
+      else (
+        arr.(homing_base + hh_track_obj_type1) <- obj_player;
+        arr.(homing_base + hh_track_obj_type2) <- obj_robot)
+    else (
+      let goal2_type = if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1 in
+      arr.(homing_base + hh_track_obj_type1) <- obj_player;
+      arr.(homing_base + hh_track_obj_type2) <- goal2_type);
+    find_homing_object_complete arr)
+  else if tracker_parent_num <> player_objnum
+  then (
+    (* Singleplayer, not fired by player — track player if not cloaked *)
+    let player_hobj_base = homing_obj_base + (player_objnum * homing_obj_block_size) in
+    let player_flags = arr.(player_hobj_base) in
+    if player_flags land player_flags_cloaked <> 0 then -1 else player_objnum)
+  else (
+    (* Singleplayer, fired by player — iterate rendered object list *)
+    let n_rendered = arr.(te_base + te_n_rendered_objects) in
+    let rendered_list_base = te_base + tracking_ext_header_size in
+    let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
+    let cur_min_trackable_dot =
+      if is_d2 && is_omega then d2_omega_min_trackable_dot else d1_min_trackable_dot
+    in
+    let max_trackable_dist =
+      if is_d2
+      then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
+      else d1_max_trackable_dist
+    in
+    let curpos =
+      ( arr.(homing_base + hh_curpos_x)
+      , arr.(homing_base + hh_curpos_y)
+      , arr.(homing_base + hh_curpos_z) )
+    in
+    let fvec =
+      ( arr.(homing_base + hh_fvec_x)
+      , arr.(homing_base + hh_fvec_y)
+      , arr.(homing_base + hh_fvec_z) )
+    in
+    let tracker_pos =
+      ( arr.(homing_base + hh_tracker_pos_x)
+      , arr.(homing_base + hh_tracker_pos_y)
+      , arr.(homing_base + hh_tracker_pos_z) )
+    in
+    let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+    let tracker_objnum = arr.(h_thisobjnum) in
+    let max_dot = ref (-0x20000) in
+    let best_objnum = ref (-1) in
+    for i = n_rendered - 1 downto 0 do
+      let objnum = arr.(rendered_list_base + i) in
+      if objnum <> player_objnum
+      then (
+        let obj_base = obj_data_base + (objnum * obj_block_size) in
+        let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
+        let obj_type = arr.(obj_base) in
+        let ai_cloaked = arr.(hobj_base + 2) in
+        let robot_companion = arr.(hobj_base + 3) in
+        let skip = ref false in
+        if obj_type = obj_robot
+        then (
+          if ai_cloaked <> 0 then skip := true;
+          if
+            (not !skip)
+            && is_d2
+            && robot_companion <> 0
+            && tracker_parent_type = obj_player
+          then skip := true);
+        if not !skip
+        then (
+          let obj_pos = arr.(obj_base + 3), arr.(obj_base + 4), arr.(obj_base + 5) in
+          let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
+          (* D1 uses normalize_quick without distance check;
+             D2 uses normalize_quick and checks distance *)
+          if is_d2
+          then (
+            let dist, vec_norm_q = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+            if dist < max_trackable_dist
+            then (
+              let dot = vm_vec_dotprod ~a:vec_norm_q ~b:fvec in
+              if dot > cur_min_trackable_dot
+              then (
+                if dot > !max_dot
+                then
+                  if
+                    visibility_check
+                      arr
+                      ~p0:tracker_pos
+                      ~startseg:tracker_segnum
+                      ~p1:obj_pos
+                      ~tracker_objnum
+                  then (
+                    max_dot := dot;
+                    best_objnum := objnum))
+              else if dot > 0x10000 - ((0x10000 - cur_min_trackable_dot) * 2)
+              then (
+                (* D2: retry with full normalize on original vector *)
+                let _, vec_full =
+                  vm_vec_copy_normalize ~v:(vm_vec_sub ~a:obj_pos ~b:curpos)
+                in
+                let dot = vm_vec_dotprod ~a:vec_full ~b:fvec in
+                if dot > cur_min_trackable_dot
+                then
+                  if dot > !max_dot
+                  then
+                    if
+                      visibility_check
+                        arr
+                        ~p0:tracker_pos
+                        ~startseg:tracker_segnum
+                        ~p1:obj_pos
+                        ~tracker_objnum
+                    then (
+                      max_dot := dot;
+                      best_objnum := objnum))))
+          else (
+            (* D1: no distance check, just normalize_quick and dot *)
+            let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+            let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+            if dot > cur_min_trackable_dot
+            then
+              if dot > !max_dot
+              then
+                if
+                  visibility_check
+                    arr
+                    ~p0:tracker_pos
+                    ~startseg:tracker_segnum
+                    ~p1:obj_pos
+                    ~tracker_objnum
+                then (
+                  max_dot := dot;
+                  best_objnum := objnum))))
+    done;
+    !best_objnum)
+;;
