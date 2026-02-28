@@ -81,6 +81,44 @@ void check_and_fix_matrix(vms_matrix* m)
 
 void do_physics_align_object(object* obj)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] do_physics_align_object using cd_ox_do_physics_align_object.\n");
+		ox_bridge_logged = 1;
+	}
+	/* Pack 54-int array: side normals[0](18), normals[1](18), num_faces(6),
+	   orient(9), turnroll(1), floor_levelling(1), FrameTime(1) */
+	int32_t packed[54];
+	segment* seg = &Segments[obj->segnum];
+	for (int i = 0; i < 6; i++) {
+		packed[i*3]     = seg->sides[i].normals[0].x;
+		packed[i*3 + 1] = seg->sides[i].normals[0].y;
+		packed[i*3 + 2] = seg->sides[i].normals[0].z;
+	}
+	for (int i = 0; i < 6; i++) {
+		packed[18 + i*3]     = seg->sides[i].normals[1].x;
+		packed[18 + i*3 + 1] = seg->sides[i].normals[1].y;
+		packed[18 + i*3 + 2] = seg->sides[i].normals[1].z;
+	}
+	for (int i = 0; i < 6; i++)
+		packed[36 + i] = get_num_faces(&seg->sides[i]);
+	packed[42] = obj->orient.rvec.x; packed[43] = obj->orient.rvec.y; packed[44] = obj->orient.rvec.z;
+	packed[45] = obj->orient.uvec.x; packed[46] = obj->orient.uvec.y; packed[47] = obj->orient.uvec.z;
+	packed[48] = obj->orient.fvec.x; packed[49] = obj->orient.fvec.y; packed[50] = obj->orient.fvec.z;
+	packed[51] = obj->mtype.phys_info.turnroll;
+	packed[52] = floor_levelling ? 1 : 0;
+	packed[53] = FrameTime;
+	int32_t out_buf[11];
+	cd_ox_do_physics_align_object(packed, 54, out_buf);
+	if (out_buf[0]) {
+		obj->orient.rvec.x = out_buf[1]; obj->orient.rvec.y = out_buf[2]; obj->orient.rvec.z = out_buf[3];
+		obj->orient.uvec.x = out_buf[4]; obj->orient.uvec.y = out_buf[5]; obj->orient.uvec.z = out_buf[6];
+		obj->orient.fvec.x = out_buf[7]; obj->orient.fvec.y = out_buf[8]; obj->orient.fvec.z = out_buf[9];
+	}
+	floor_levelling = out_buf[10];
+#else
 	vms_vector desired_upvec;
 	fixang delta_ang, roll_ang;
 	//vms_vector forvec = {0,0,f1_0};
@@ -90,14 +128,14 @@ void do_physics_align_object(object* obj)
 
 	// bank player according to segment orientation
 	//find side of segment that player is most alligned with
-	for (i = 0; i < 6; i++) 
-	{				
+	for (i = 0; i < 6; i++)
+	{
 		d = vm_vec_dot(&Segments[obj->segnum].sides[i].normals[0], &obj->orient.uvec);
 
 		if (d > largest_d) { largest_d = d; best_side = i; }
 	}
 
-	if (floor_levelling) 
+	if (floor_levelling)
 	{
 		// old way: used floor's normal as upvec
 		desired_upvec = Segments[obj->segnum].sides[3].normals[0];
@@ -115,7 +153,7 @@ void do_physics_align_object(object* obj)
 		else
 			desired_upvec = Segments[obj->segnum].sides[best_side].normals[0];
 
-	if (labs(vm_vec_dot(&desired_upvec, &obj->orient.fvec)) < f1_0 / 2) 
+	if (labs(vm_vec_dot(&desired_upvec, &obj->orient.fvec)) < f1_0 / 2)
 	{
 		fixang save_delta_ang;
 		vms_angvec tangles;
@@ -126,7 +164,7 @@ void do_physics_align_object(object* obj)
 
 		delta_ang += obj->mtype.phys_info.turnroll;
 
-		if (abs(delta_ang) > DAMP_ANG) 
+		if (abs(delta_ang) > DAMP_ANG)
 		{
 			vms_matrix rotmat, new_pm;
 
@@ -143,7 +181,7 @@ void do_physics_align_object(object* obj)
 		}
 		else floor_levelling = 0;
 	}
-
+#endif
 }
 
 void set_object_turnroll(object* obj)

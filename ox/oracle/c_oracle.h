@@ -350,6 +350,12 @@ void c_oracle_homing_missile_turn_towards_velocity(
     int32_t frame_time,
     int32_t* out_orient);
 
+/* do_physics_align_object: align object orientation to segment floor.
+   packed: 54-int input array, out_buf: 11-int output array. */
+void c_oracle_do_physics_align_object(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 #ifdef __cplusplus
 }
 #endif

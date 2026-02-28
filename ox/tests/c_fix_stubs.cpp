@@ -2740,3 +2740,20 @@ extern "C" CAMLprim value caml_c_homing_missile_turn_towards_velocity_bc(value* 
     return caml_c_homing_missile_turn_towards_velocity(
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
 }
+
+/* do_physics_align_object: int array (54) → int array (11) */
+extern "C" CAMLprim value caml_c_do_physics_align_object(value packed_arr)
+{
+    CAMLparam1(packed_arr);
+    CAMLlocal1(result);
+    int len = Wosize_val(packed_arr);
+    int32_t packed[54];
+    for (int i = 0; i < len && i < 54; i++)
+        packed[i] = Long_val(Field(packed_arr, i));
+    int32_t out_buf[11];
+    c_oracle_do_physics_align_object(packed, len, out_buf);
+    result = caml_alloc(11, 0);
+    for (int i = 0; i < 11; i++)
+        Store_field(result, i, Val_long(out_buf[i]));
+    CAMLreturn(result);
+}

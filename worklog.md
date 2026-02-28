@@ -952,3 +952,36 @@ Start an incremental, function-by-function port from C/C++ to OxCaml with strong
 - **Verification:**
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### 22) Port `do_physics_align_object` to Ox — first "global state entangled" function
+
+**What:** Ported `do_physics_align_object` from `physics.cpp` (D1+D2, identical logic). This function aligns the player's orientation to the segment floor by finding the most-aligned side normal, computing a delta roll angle, and applying a damped rotation. Previously categorized as "too entangled with global state" (reads `Segments[]` normals, `floor_levelling` global), it was ported using the **packed int array pattern** — C extracts all segment data at the callsite and passes it as a flat 54-int array.
+
+- **1 new pure function in `ox/ox_physics.ml`:**
+  - `do_physics_align_object` — takes packed array, finds best-aligned side via dot products, computes desired up vector (averaging normals for 2-face sides), applies damped roll via `vm_vec_delta_ang` + `fixmul(FrameTime, ROLL_RATE)`. Returns `(orient_changed, new_orient, new_floor_levelling)`.
+  - Key fix: `fixang` (int16) wrapping for `delta_ang` and `roll_ang` via `wrap_i32_to_fixang`, matching C's implicit int16 truncation.
+
+- **Packed array layout (54 ints):**
+  - `[0..17]` = 6 side `normals[0]` (6 × 3 fix values)
+  - `[18..35]` = 6 side `normals[1]` (6 × 3 fix values)
+  - `[36..41]` = `num_faces` per side (6 ints)
+  - `[42..50]` = orient matrix (9 fix values)
+  - `[51]` = turnroll, `[52]` = floor_levelling, `[53]` = FrameTime
+
+- **Bridge layer:**
+  - `cd_do_physics_align_object` in `physics_bridge.ml` — unpacks result to flat 11-int array `[tag, orient(9), floor_levelling]`.
+  - `cd_ox_do_physics_align_object` in `bridge.c` — allocates OCaml array, calls callback, reads 11-int result.
+
+- **C oracle + parity tests:**
+  - `c_oracle_do_physics_align_object` in `c_oracle.cpp`.
+  - 2 deterministic tests + 5000 randomized — 0 mismatches.
+
+- **Engine callsite wiring:**
+  - `main_d1/physics.cpp` — `#ifdef USE_OX_BRIDGE` block packs segment data, calls bridge, writes back orient + floor_levelling.
+  - `main_d2/physics.cpp` — same wiring, with `COMPACT_SEGS` ifdef handling for D2's alternate segment access path.
+
+- **Design note:** This is the first function from the "too entangled with global state" category to be ported. The packed-array approach keeps OCaml pure while C handles global state extraction. The 54-int array is comparable to `calc_gun_point`'s 86-int array.
+
+- **Verification:**
+  - `dune runtest ox/tests` — all tests pass (including 5000 randomized parity).
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

@@ -96,6 +96,7 @@ static const value* g_move_away_from_player = NULL;
 static const value* g_set_object_turnroll = NULL;
 static const value* g_lead_player = NULL;
 static const value* g_homing_missile_turn_towards_velocity = NULL;
+static const value* g_do_physics_align_object = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -185,7 +186,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_move_away_from_player
           && g_set_object_turnroll
           && g_lead_player
-          && g_homing_missile_turn_towards_velocity))
+          && g_homing_missile_turn_towards_velocity
+          && g_do_physics_align_object))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -291,6 +293,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_set_object_turnroll = caml_named_value("cd_set_object_turnroll");
     g_lead_player = caml_named_value("cd_lead_player");
     g_homing_missile_turn_towards_velocity = caml_named_value("cd_homing_missile_turn_towards_velocity");
+    g_do_physics_align_object = caml_named_value("cd_do_physics_align_object");
 
     if (!g_i2f
         || !g_f2i
@@ -377,7 +380,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_move_away_from_player
         || !g_set_object_turnroll
         || !g_lead_player
-        || !g_homing_missile_turn_towards_velocity)
+        || !g_homing_missile_turn_towards_velocity
+        || !g_do_physics_align_object)
     {
         return 1;
     }
@@ -472,7 +476,8 @@ int cd_ox_is_ready(void)
            && g_move_away_from_player
            && g_set_object_turnroll
            && g_lead_player
-           && g_homing_missile_turn_towards_velocity;
+           && g_homing_missile_turn_towards_velocity
+           && g_do_physics_align_object;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -1910,4 +1915,20 @@ void cd_ox_homing_missile_turn_towards_velocity(
     const value out = caml_callbackN(*g_homing_missile_turn_towards_velocity, 7, args);
     for (int i = 0; i < 9; i++)
         out_orient[i] = Int_val(Field(out, i));
+}
+
+void cd_ox_do_physics_align_object(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_do_physics_align_object");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_do_physics_align_object, arr);
+    for (int i = 0; i < 11; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
 }

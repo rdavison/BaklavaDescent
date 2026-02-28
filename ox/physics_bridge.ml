@@ -200,6 +200,22 @@ let cd_homing_missile_turn_towards_velocity
   in
   (nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz)
 
+(* do_physics_align_object: packed int array (54) → flat int array (11)
+   Output: [tag, rvec(3), uvec(3), fvec(3), floor_levelling]
+   tag=0: orient unchanged, tag=1: orient was modified *)
+let cd_do_physics_align_object (packed : int array) =
+  let (orient_changed, ((nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz)),
+       new_floor_levelling) =
+    Ox_physics.do_physics_align_object packed
+  in
+  let buf = Array.create ~len:11 0 in
+  buf.(0) <- (if orient_changed then 1 else 0);
+  buf.(1) <- nrx; buf.(2) <- nry; buf.(3) <- nrz;
+  buf.(4) <- nux; buf.(5) <- nuy; buf.(6) <- nuz;
+  buf.(7) <- nfx; buf.(8) <- nfy; buf.(9) <- nfz;
+  buf.(10) <- (if new_floor_levelling then 1 else 0);
+  buf
+
 let () =
   Callback.register "cd_physics_turn_towards_vector"
     cd_physics_turn_towards_vector;
@@ -226,4 +242,6 @@ let () =
   Callback.register "cd_lead_player"
     cd_lead_player;
   Callback.register "cd_homing_missile_turn_towards_velocity"
-    cd_homing_missile_turn_towards_velocity
+    cd_homing_missile_turn_towards_velocity;
+  Callback.register "cd_do_physics_align_object"
+    cd_do_physics_align_object

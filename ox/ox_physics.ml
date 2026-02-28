@@ -606,3 +606,91 @@ let homing_missile_turn_towards_velocity ~norm_vel ~fvec ~frame_time =
   in
   let (_mag, new_fvec_n) = Ox_math.vm_vec_normalize_quick new_fvec in
   Ox_math.vm_vector_2_matrix new_fvec_n None None
+
+(* Align object orientation to the segment it's in.
+   C original: physics.cpp do_physics_align_object
+
+   Banks the player according to segment orientation by finding
+   the side most aligned with the up vector, computing the roll
+   angle needed, and applying a damped roll.
+
+   Inputs (packed array of 54 ints):
+     [0..17]   6 side normals[0] (6 × 3 fix values)
+     [18..35]  6 side normals[1] (6 × 3 fix values)
+     [36..41]  num_faces per side (6 ints)
+     [42..50]  orient (rx,ry,rz, ux,uy,uz, fx,fy,fz)
+     [51]      turnroll
+     [52]      floor_levelling (0 or 1)
+     [53]      FrameTime
+
+   Returns: (orient_changed, new_orient, new_floor_levelling)
+     orient_changed = true if orientation was modified
+     new_floor_levelling = false if levelling completed *)
+let do_physics_align_object (packed : int array) =
+  let damp_ang = 0x400 in
+  (* Unpack side normals *)
+  let side_normal0 i =
+    let base = i * 3 in
+    (packed.(base), packed.(base + 1), packed.(base + 2)) in
+  let side_normal1 i =
+    let base = 18 + i * 3 in
+    (packed.(base), packed.(base + 1), packed.(base + 2)) in
+  let num_faces i = packed.(36 + i) in
+  let orient =
+    ((packed.(42), packed.(43), packed.(44)),
+     (packed.(45), packed.(46), packed.(47)),
+     (packed.(48), packed.(49), packed.(50))) in
+  let turnroll = packed.(51) in
+  let floor_levelling = packed.(52) <> 0 in
+  let frame_time = packed.(53) in
+  let (_rvec, uvec, fvec) = orient in
+  (* Find side most aligned with up vector *)
+  let best_side = ref 0 in
+  let largest_d = ref (- f1_0) in
+  for i = 0 to 5 do
+    let d = Ox_math.vm_vec_dotprod (side_normal0 i) uvec in
+    if d > !largest_d then begin
+      largest_d := d;
+      best_side := i
+    end
+  done;
+  (* Determine desired up vector *)
+  let desired_upvec =
+    if floor_levelling then
+      (* Old way: use floor's normal (side 3) *)
+      side_normal0 3
+    else if num_faces !best_side = 2 then begin
+      (* Average the two normals *)
+      let (n0x, n0y, n0z) = side_normal0 !best_side in
+      let (n1x, n1y, n1z) = side_normal1 !best_side in
+      let avg = ((n0x + n1x) / 2, (n0y + n1y) / 2, (n0z + n1z) / 2) in
+      let (_mag, normalized) = Ox_math.vm_vec_copy_normalize avg in
+      normalized
+    end else
+      side_normal0 !best_side
+  in
+  (* Check if desired_upvec is not too parallel to fvec *)
+  let fixang v = Ox_math.wrap_i32_to_fixang v in
+  if Int.abs (Ox_math.vm_vec_dotprod desired_upvec fvec) < f1_0 / 2 then begin
+    let temp_matrix = Ox_math.vm_vector_2_matrix fvec (Some desired_upvec) None in
+    let (_temp_rvec, temp_uvec, _temp_fvec) = temp_matrix in
+    (* C uses fixang (int16_t) for delta_ang and roll_ang *)
+    let delta_ang =
+      Ox_math.vm_vec_delta_ang uvec temp_uvec (Some fvec) in
+    let delta_ang = fixang (delta_ang + turnroll) in
+    if Int.abs delta_ang > damp_ang then begin
+      let roll_ang = fixang (Ox_math.fixmul frame_time roll_rate) in
+      let roll_ang =
+        if Int.abs delta_ang < roll_ang then delta_ang
+        else if delta_ang < 0 then - roll_ang
+        else roll_ang
+      in
+      let rotmat = Ox_math.vm_angles_2_matrix (0, roll_ang, 0) in
+      let new_orient = Ox_math.vm_matrix_x_matrix orient rotmat in
+      (true, new_orient, floor_levelling)
+    end else
+      (* Delta is small enough: stop levelling *)
+      (false, orient, false)
+  end else
+    (* desired_upvec too parallel to fvec: no change *)
+    (false, orient, floor_levelling)

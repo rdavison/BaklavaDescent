@@ -2267,3 +2267,104 @@ void c_oracle_homing_missile_turn_towards_velocity(
     out_orient[3] = orient.uvec.x; out_orient[4] = orient.uvec.y; out_orient[5] = orient.uvec.z;
     out_orient[6] = orient.fvec.x; out_orient[7] = orient.fvec.y; out_orient[8] = orient.fvec.z;
 }
+
+void c_oracle_do_physics_align_object(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    (void)packed_len;
+    const int32_t DAMP_ANG_VAL = 0x400;
+
+    /* Unpack side normals[0] (indices 0..17) */
+    c_oracle_vec3 side_normal0[6];
+    for (int i = 0; i < 6; i++) {
+        int base = i * 3;
+        side_normal0[i].x = packed[base];
+        side_normal0[i].y = packed[base + 1];
+        side_normal0[i].z = packed[base + 2];
+    }
+    /* Unpack side normals[1] (indices 18..35) */
+    c_oracle_vec3 side_normal1[6];
+    for (int i = 0; i < 6; i++) {
+        int base = 18 + i * 3;
+        side_normal1[i].x = packed[base];
+        side_normal1[i].y = packed[base + 1];
+        side_normal1[i].z = packed[base + 2];
+    }
+    /* Unpack num_faces (indices 36..41) */
+    int num_faces[6];
+    for (int i = 0; i < 6; i++)
+        num_faces[i] = packed[36 + i];
+
+    /* Unpack orient (indices 42..50) */
+    c_oracle_mat3 orient;
+    orient.rvec.x = packed[42]; orient.rvec.y = packed[43]; orient.rvec.z = packed[44];
+    orient.uvec.x = packed[45]; orient.uvec.y = packed[46]; orient.uvec.z = packed[47];
+    orient.fvec.x = packed[48]; orient.fvec.y = packed[49]; orient.fvec.z = packed[50];
+
+    int32_t turnroll = packed[51];
+    int floor_levelling = packed[52];
+    int32_t frame_time = packed[53];
+
+    /* Find side most aligned with up vector */
+    int best_side = 0;
+    int32_t largest_d = -(int32_t)0x10000;
+    for (int i = 0; i < 6; i++) {
+        int32_t d = c_oracle_vm_vec_dotprod(&side_normal0[i], &orient.uvec);
+        if (d > largest_d) { largest_d = d; best_side = i; }
+    }
+
+    /* Determine desired up vector */
+    c_oracle_vec3 desired_upvec;
+    if (floor_levelling) {
+        desired_upvec = side_normal0[3];
+    } else if (num_faces[best_side] == 2) {
+        desired_upvec.x = (side_normal0[best_side].x + side_normal1[best_side].x) / 2;
+        desired_upvec.y = (side_normal0[best_side].y + side_normal1[best_side].y) / 2;
+        desired_upvec.z = (side_normal0[best_side].z + side_normal1[best_side].z) / 2;
+        c_oracle_vm_vec_copy_normalize(&desired_upvec, &desired_upvec);
+    } else {
+        desired_upvec = side_normal0[best_side];
+    }
+
+    /* Default: no change */
+    out_buf[0] = 0;  /* tag = no orient change */
+    out_buf[1] = orient.rvec.x; out_buf[2] = orient.rvec.y; out_buf[3] = orient.rvec.z;
+    out_buf[4] = orient.uvec.x; out_buf[5] = orient.uvec.y; out_buf[6] = orient.uvec.z;
+    out_buf[7] = orient.fvec.x; out_buf[8] = orient.fvec.y; out_buf[9] = orient.fvec.z;
+    out_buf[10] = floor_levelling;
+
+    if (labs(c_oracle_vm_vec_dotprod(&desired_upvec, &orient.fvec)) < (int32_t)0x10000 / 2) {
+        c_oracle_mat3 temp_matrix;
+        c_oracle_vm_vector_2_matrix(&temp_matrix, &orient.fvec, &desired_upvec, NULL);
+
+        int16_t delta_ang = c_oracle_vm_vec_delta_ang(
+            &orient.uvec, &temp_matrix.uvec, &orient.fvec);
+
+        delta_ang += (int16_t)turnroll;
+
+        if (abs(delta_ang) > DAMP_ANG_VAL) {
+            int32_t roll_ang = c_oracle_fixmul(frame_time, ROLL_RATE);
+
+            if (abs(delta_ang) < roll_ang) roll_ang = delta_ang;
+            else if (delta_ang < 0) roll_ang = -roll_ang;
+
+            c_oracle_ang3 tangles;
+            tangles.p = 0; tangles.h = 0; tangles.b = (int16_t)roll_ang;
+            c_oracle_mat3 rotmat;
+            c_oracle_vm_angles_2_matrix(&rotmat, &tangles);
+
+            c_oracle_mat3 new_pm;
+            c_oracle_vm_matrix_x_matrix(&new_pm, &orient, &rotmat);
+
+            out_buf[0] = 1;  /* tag = orient changed */
+            out_buf[1] = new_pm.rvec.x; out_buf[2] = new_pm.rvec.y; out_buf[3] = new_pm.rvec.z;
+            out_buf[4] = new_pm.uvec.x; out_buf[5] = new_pm.uvec.y; out_buf[6] = new_pm.uvec.z;
+            out_buf[7] = new_pm.fvec.x; out_buf[8] = new_pm.fvec.y; out_buf[9] = new_pm.fvec.z;
+            /* floor_levelling stays the same */
+        } else {
+            /* Delta is small: stop levelling */
+            out_buf[10] = 0;
+        }
+    }
+}

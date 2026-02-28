@@ -95,6 +95,58 @@ void check_and_fix_matrix(vms_matrix *m)
 
 void do_physics_align_object( object * obj )
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] do_physics_align_object (D2) using cd_ox_do_physics_align_object.\n");
+		ox_bridge_logged = 1;
+	}
+	int32_t packed[54];
+	segment* seg = &Segments[obj->segnum];
+	for (int i = 0; i < 6; i++) {
+		#ifdef COMPACT_SEGS
+			vms_vector _n0;
+			get_side_normal(seg, i, 0, &_n0);
+			packed[i*3]     = _n0.x;
+			packed[i*3 + 1] = _n0.y;
+			packed[i*3 + 2] = _n0.z;
+		#else
+			packed[i*3]     = seg->sides[i].normals[0].x;
+			packed[i*3 + 1] = seg->sides[i].normals[0].y;
+			packed[i*3 + 2] = seg->sides[i].normals[0].z;
+		#endif
+	}
+	for (int i = 0; i < 6; i++) {
+		#ifdef COMPACT_SEGS
+			vms_vector _n1;
+			get_side_normal(seg, i, 1, &_n1);
+			packed[18 + i*3]     = _n1.x;
+			packed[18 + i*3 + 1] = _n1.y;
+			packed[18 + i*3 + 2] = _n1.z;
+		#else
+			packed[18 + i*3]     = seg->sides[i].normals[1].x;
+			packed[18 + i*3 + 1] = seg->sides[i].normals[1].y;
+			packed[18 + i*3 + 2] = seg->sides[i].normals[1].z;
+		#endif
+	}
+	for (int i = 0; i < 6; i++)
+		packed[36 + i] = get_num_faces(&seg->sides[i]);
+	packed[42] = obj->orient.rvec.x; packed[43] = obj->orient.rvec.y; packed[44] = obj->orient.rvec.z;
+	packed[45] = obj->orient.uvec.x; packed[46] = obj->orient.uvec.y; packed[47] = obj->orient.uvec.z;
+	packed[48] = obj->orient.fvec.x; packed[49] = obj->orient.fvec.y; packed[50] = obj->orient.fvec.z;
+	packed[51] = obj->mtype.phys_info.turnroll;
+	packed[52] = floor_levelling ? 1 : 0;
+	packed[53] = FrameTime;
+	int32_t out_buf[11];
+	cd_ox_do_physics_align_object(packed, 54, out_buf);
+	if (out_buf[0]) {
+		obj->orient.rvec.x = out_buf[1]; obj->orient.rvec.y = out_buf[2]; obj->orient.rvec.z = out_buf[3];
+		obj->orient.uvec.x = out_buf[4]; obj->orient.uvec.y = out_buf[5]; obj->orient.uvec.z = out_buf[6];
+		obj->orient.fvec.x = out_buf[7]; obj->orient.fvec.y = out_buf[8]; obj->orient.fvec.z = out_buf[9];
+	}
+	floor_levelling = out_buf[10];
+#else
 	vms_vector desired_upvec;
 	fixang delta_ang,roll_ang;
 	//vms_vector forvec = {0,0,f1_0};
@@ -112,7 +164,7 @@ void do_physics_align_object( object * obj )
 			vms_vector _tv1;
 			get_side_normal( &Segments[obj->segnum], i, 0, &_tv1 );
 			d = vm_vec_dot(&_tv1,&obj->orient.uvec);
-		#else					
+		#else
 			d = vm_vec_dot(&Segments[obj->segnum].sides[i].normals[0],&obj->orient.uvec);
 		#endif
 
@@ -123,7 +175,7 @@ void do_physics_align_object( object * obj )
 
 		// old way: used floor's normal as upvec
 		#ifdef COMPACT_SEGS
-			get_side_normal(&Segments[obj->segnum], 3, 0, &desired_upvec );			
+			get_side_normal(&Segments[obj->segnum], 3, 0, &desired_upvec );
 		#else
 			desired_upvec = Segments[obj->segnum].sides[3].normals[0];
 		#endif
@@ -133,7 +185,7 @@ void do_physics_align_object( object * obj )
 		if (get_num_faces(&Segments[obj->segnum].sides[best_side])==2) {
 			#ifdef COMPACT_SEGS
 				vms_vector normals[2];
-				get_side_normals(&Segments[obj->segnum], best_side, &normals[0], &normals[1] );			
+				get_side_normals(&Segments[obj->segnum], best_side, &normals[0], &normals[1] );
 
 				desired_upvec.x = (normals[0].x + normals[1].x) / 2;
 				desired_upvec.y = (normals[0].y + normals[1].y) / 2;
@@ -145,13 +197,13 @@ void do_physics_align_object( object * obj )
 				desired_upvec.x = (s->normals[0].x + s->normals[1].x) / 2;
 				desired_upvec.y = (s->normals[0].y + s->normals[1].y) / 2;
 				desired_upvec.z = (s->normals[0].z + s->normals[1].z) / 2;
-		
+
 				vm_vec_normalize(&desired_upvec);
 			#endif
 		}
 		else
 			#ifdef COMPACT_SEGS
-				get_side_normal(&Segments[obj->segnum], best_side, 0, &desired_upvec );			
+				get_side_normal(&Segments[obj->segnum], best_side, 0, &desired_upvec );
 			#else
 				desired_upvec = Segments[obj->segnum].sides[best_side].normals[0];
 			#endif
@@ -159,7 +211,7 @@ void do_physics_align_object( object * obj )
 	if (labs(vm_vec_dot(&desired_upvec,&obj->orient.fvec)) < f1_0/2) {
 		fixang save_delta_ang;
 		vms_angvec tangles;
-		
+
 		vm_vector_2_matrix(&temp_matrix,&obj->orient.fvec,&desired_upvec,NULL);
 
 		save_delta_ang = delta_ang = vm_vec_delta_ang(&obj->orient.uvec,&temp_matrix.uvec,&obj->orient.fvec);
@@ -182,6 +234,7 @@ void do_physics_align_object( object * obj )
 		}
 		else floor_levelling=0;
 	}
+#endif
 
 }
 

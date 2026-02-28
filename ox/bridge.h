@@ -489,6 +489,14 @@ void cd_ox_homing_missile_turn_towards_velocity(
     int32_t frame_time,
     int32_t* out_orient);
 
+/* do_physics_align_object: align object orientation to segment floor.
+   packed: 54-int array (side normals, num_faces, orient, turnroll, floor_levelling, FrameTime)
+   out_buf: 11-int array [tag, rvec(3), uvec(3), fvec(3), floor_levelling]
+   tag=0: orient unchanged, tag=1: orient modified */
+void cd_ox_do_physics_align_object(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 #ifdef __cplusplus
 }
 #endif

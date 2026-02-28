@@ -6837,3 +6837,157 @@ let%expect_test "randomized homing_missile_turn_towards_velocity parity C vs Ox"
   Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
   if !mismatches <> 0 then failwithf "homing_missile_turn_towards_velocity parity failed" ();
   [%expect {| homing_missile_turn_towards_velocity random total=5000 mismatches=0 |}]
+
+(* ---------- do_physics_align_object ---------- *)
+
+external c_do_physics_align_object
+  : int array -> int array
+  = "caml_c_do_physics_align_object"
+
+let make_align_packed
+    ~side_normals0 ~side_normals1 ~num_faces
+    ~orient ~turnroll ~floor_levelling ~frame_time =
+  let packed = Array.create ~len:54 0 in
+  (* Side normals[0]: indices 0..17 *)
+  for i = 0 to 5 do
+    let (x, y, z) = side_normals0.(i) in
+    let base = i * 3 in
+    packed.(base) <- x; packed.(base + 1) <- y; packed.(base + 2) <- z
+  done;
+  (* Side normals[1]: indices 18..35 *)
+  for i = 0 to 5 do
+    let (x, y, z) = side_normals1.(i) in
+    let base = 18 + i * 3 in
+    packed.(base) <- x; packed.(base + 1) <- y; packed.(base + 2) <- z
+  done;
+  (* num_faces: indices 36..41 *)
+  for i = 0 to 5 do packed.(36 + i) <- num_faces.(i) done;
+  (* orient: indices 42..50 *)
+  let ((rx, ry, rz), (ux, uy, uz), (fx, fy, fz)) = orient in
+  packed.(42) <- rx; packed.(43) <- ry; packed.(44) <- rz;
+  packed.(45) <- ux; packed.(46) <- uy; packed.(47) <- uz;
+  packed.(48) <- fx; packed.(49) <- fy; packed.(50) <- fz;
+  packed.(51) <- turnroll;
+  packed.(52) <- (if floor_levelling then 1 else 0);
+  packed.(53) <- frame_time;
+  packed
+
+let%expect_test "do_physics_align_object: identity orient, up normal on side 3" =
+  let f1_0 = 0x10000 in
+  (* All sides have normal pointing up (0, f1_0, 0) *)
+  let up = (0, f1_0, 0) in
+  let side_normals0 = Array.create ~len:6 up in
+  let side_normals1 = Array.create ~len:6 up in
+  let num_faces = Array.create ~len:6 1 in
+  let orient = ((f1_0, 0, 0), (0, f1_0, 0), (0, 0, f1_0)) in
+  let packed = make_align_packed ~side_normals0 ~side_normals1 ~num_faces
+      ~orient ~turnroll:0 ~floor_levelling:false ~frame_time:(f1_0 / 30) in
+  let c_result = c_do_physics_align_object packed in
+  let (oc_changed, oc_orient, oc_fl) =
+    Ox_physics.do_physics_align_object packed in
+  let oc_tag = if oc_changed then 1 else 0 in
+  let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) = oc_orient in
+  printf "C:  tag=%d orient=(%d,%d,%d,%d,%d,%d,%d,%d,%d) fl=%d\n"
+    c_result.(0) c_result.(1) c_result.(2) c_result.(3) c_result.(4) c_result.(5)
+    c_result.(6) c_result.(7) c_result.(8) c_result.(9) c_result.(10);
+  printf "Ox: tag=%d orient=(%d,%d,%d,%d,%d,%d,%d,%d,%d) fl=%d\n"
+    oc_tag orx ory orz oux ouy ouz ofx ofy ofz (if oc_fl then 1 else 0);
+  printf "match=%b\n"
+    (c_result.(0) = oc_tag
+     && c_result.(1) = orx && c_result.(2) = ory && c_result.(3) = orz
+     && c_result.(4) = oux && c_result.(5) = ouy && c_result.(6) = ouz
+     && c_result.(7) = ofx && c_result.(8) = ofy && c_result.(9) = ofz
+     && c_result.(10) = (if oc_fl then 1 else 0));
+  [%expect {|
+    C:  tag=0 orient=(65536,0,0,0,65536,0,0,0,65536) fl=0
+    Ox: tag=0 orient=(65536,0,0,0,65536,0,0,0,65536) fl=0
+    match=true |}]
+
+let%expect_test "do_physics_align_object: tilted orient needs alignment" =
+  let f1_0 = 0x10000 in
+  (* Side 3 (floor) has normal pointing up *)
+  let up = (0, f1_0, 0) in
+  let side_normals0 = Array.create ~len:6 up in
+  let side_normals1 = Array.create ~len:6 up in
+  let num_faces = Array.create ~len:6 1 in
+  (* Object is tilted: uvec is not aligned with up *)
+  let orient = ((f1_0, 0, 0), (0, 60000, 25000), (0, -25000, 60000)) in
+  let packed = make_align_packed ~side_normals0 ~side_normals1 ~num_faces
+      ~orient ~turnroll:0 ~floor_levelling:false ~frame_time:(f1_0 / 30) in
+  let c_result = c_do_physics_align_object packed in
+  let (oc_changed, oc_orient, oc_fl) =
+    Ox_physics.do_physics_align_object packed in
+  let oc_tag = if oc_changed then 1 else 0 in
+  let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) = oc_orient in
+  printf "C:  tag=%d fl=%d\n" c_result.(0) c_result.(10);
+  printf "Ox: tag=%d fl=%d\n" oc_tag (if oc_fl then 1 else 0);
+  printf "match=%b\n"
+    (c_result.(0) = oc_tag
+     && c_result.(1) = orx && c_result.(2) = ory && c_result.(3) = orz
+     && c_result.(4) = oux && c_result.(5) = ouy && c_result.(6) = ouz
+     && c_result.(7) = ofx && c_result.(8) = ofy && c_result.(9) = ofz
+     && c_result.(10) = (if oc_fl then 1 else 0));
+  [%expect {|
+    C:  tag=0 fl=0
+    Ox: tag=0 fl=0
+    match=true |}]
+
+let%expect_test "randomized do_physics_align_object parity C vs Ox" =
+  let f1_0 = 0x10000 in
+  let state = Random.State.make [| 77777 |] in
+  let gen () = Random.State.int state 0x20000 - 0x10000 in
+  let total = ref 0 in
+  let mismatches = ref 0 in
+  let first_mismatch = ref None in
+  for _ = 1 to 5000 do
+    (* Generate random but plausible normals (unit-ish vectors) *)
+    let rand_normal () =
+      let x = gen () in
+      let y = gen () in
+      let z = gen () in
+      let mag = Ox_math.vm_vec_mag_quick (x, y, z) in
+      if mag > 0 then
+        let s = Ox_math.fixdiv f1_0 mag in
+        (Ox_math.fixmul x s, Ox_math.fixmul y s, Ox_math.fixmul z s)
+      else (0, f1_0, 0)
+    in
+    let side_normals0 = Array.init 6 ~f:(fun _ -> rand_normal ()) in
+    let side_normals1 = Array.init 6 ~f:(fun _ -> rand_normal ()) in
+    let num_faces = Array.init 6 ~f:(fun _ ->
+      if Random.State.int state 32768 > 16384 then 2 else 1) in
+    (* Generate a plausible orientation matrix *)
+    let fvec = rand_normal () in
+    let orient = Ox_math.vm_vector_2_matrix fvec None None in
+    let turnroll = Random.State.int state 0x8000 - 0x4000 in
+    let floor_levelling = Random.State.int state 32768 > 24000 in
+    let frame_time = 500 + Random.State.int state 3000 in
+    let packed = make_align_packed ~side_normals0 ~side_normals1 ~num_faces
+        ~orient ~turnroll ~floor_levelling ~frame_time in
+    let c_result = c_do_physics_align_object packed in
+    let (oc_changed, oc_orient, oc_fl) =
+      Ox_physics.do_physics_align_object packed in
+    let oc_tag = if oc_changed then 1 else 0 in
+    let ((orx, ory, orz), (oux, ouy, ouz), (ofx, ofy, ofz)) = oc_orient in
+    incr total;
+    let ok =
+      c_result.(0) = oc_tag
+      && c_result.(1) = orx && c_result.(2) = ory && c_result.(3) = orz
+      && c_result.(4) = oux && c_result.(5) = ouy && c_result.(6) = ouz
+      && c_result.(7) = ofx && c_result.(8) = ofy && c_result.(9) = ofz
+      && c_result.(10) = (if oc_fl then 1 else 0)
+    in
+    if not ok then begin
+      incr mismatches;
+      if Option.is_none !first_mismatch then
+        first_mismatch := Some (sprintf
+          "tag C=%d Ox=%d fl C=%d Ox=%d orient C=(%d,%d,%d,%d,%d,%d,%d,%d,%d) Ox=(%d,%d,%d,%d,%d,%d,%d,%d,%d)"
+          c_result.(0) oc_tag c_result.(10) (if oc_fl then 1 else 0)
+          c_result.(1) c_result.(2) c_result.(3) c_result.(4) c_result.(5)
+          c_result.(6) c_result.(7) c_result.(8) c_result.(9)
+          orx ory orz oux ouy ouz ofx ofy ofz)
+    end
+  done;
+  printf "do_physics_align_object random total=%d mismatches=%d\n" !total !mismatches;
+  Option.iter !first_mismatch ~f:(fun s -> printf "first_mismatch %s\n" s);
+  if !mismatches <> 0 then failwithf "do_physics_align_object parity failed" ();
+  [%expect {| do_physics_align_object random total=5000 mismatches=0 |}]
