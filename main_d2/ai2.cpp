@@ -2031,6 +2031,31 @@ int ai_door_is_openable(object *objp, segment *segp, int sidenum)
 //	Return side of openable door in segment, if any.  If none, return -1.
 int openable_doors_in_segment(int segnum)
 {
+#ifdef USE_OX_BRIDGE
+	if ((segnum < 0) || (segnum > Highest_segment_index))
+		return -1;
+
+	int32_t packed[36]; // 6 sides × 6 fields
+	for (int i = 0; i < MAX_SIDES_PER_SEGMENT; i++) {
+		int base = i * 6;
+		int wn = Segments[segnum].sides[i].wall_num;
+		packed[base] = wn;
+		if (wn != -1) {
+			packed[base + 1] = Walls[wn].type;
+			packed[base + 2] = Walls[wn].keys;
+			packed[base + 3] = Walls[wn].state;
+			packed[base + 4] = Walls[wn].flags;
+			packed[base + 5] = (Walls[wn].clip_num >= 0) ? WallAnims[Walls[wn].clip_num].flags : 0;
+		} else {
+			packed[base + 1] = 0;
+			packed[base + 2] = 0;
+			packed[base + 3] = 0;
+			packed[base + 4] = 0;
+			packed[base + 5] = 0;
+		}
+	}
+	return cd_ox_openable_doors_in_segment_d2(packed, 36);
+#else
 	int	i;
 
 	if ((segnum < 0) || (segnum > Highest_segment_index))
@@ -2045,6 +2070,7 @@ int openable_doors_in_segment(int segnum)
 	}
 
 	return -1;
+#endif
 
 }
 

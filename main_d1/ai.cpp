@@ -1953,6 +1953,27 @@ int ai_door_is_openable(object* objp, segment* segp, int sidenum)
 //	Return side of openable door in segment, if any.  If none, return -1.
 int openable_doors_in_segment(object* objp)
 {
+#ifdef USE_OX_BRIDGE
+	int segnum = objp->segnum;
+	int32_t packed[30]; // 6 sides × 5 fields
+	for (int i = 0; i < MAX_SIDES_PER_SEGMENT; i++) {
+		int base = i * 5;
+		int wn = Segments[segnum].sides[i].wall_num;
+		packed[base] = wn;
+		if (wn != -1) {
+			packed[base + 1] = Walls[wn].type;
+			packed[base + 2] = Walls[wn].keys;
+			packed[base + 3] = Walls[wn].state;
+			packed[base + 4] = Walls[wn].flags;
+		} else {
+			packed[base + 1] = 0;
+			packed[base + 2] = 0;
+			packed[base + 3] = 0;
+			packed[base + 4] = 0;
+		}
+	}
+	return cd_ox_openable_doors_in_segment_d1(packed, 30);
+#else
 	int	i;
 	int	segnum = objp->segnum;
 
@@ -1965,6 +1986,7 @@ int openable_doors_in_segment(object* objp)
 	}
 
 	return -1;
+#endif
 
 }
 

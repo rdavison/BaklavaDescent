@@ -297,7 +297,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ### Unported — Awareness & Environment
 - [x] ai_door_is_openable — door check (D1 + D2)
-- [ ] openable_doors_in_segment — scans for usable doors
+- [x] openable_doors_in_segment — scans for usable doors
 - [ ] move_object_to_legal_spot — relocates to valid segment
 - [ ] move_towards_segment_center — movement toward center
 - [ ] add_awareness_event, create_awareness_event — awareness events

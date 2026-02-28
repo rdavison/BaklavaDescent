@@ -1238,3 +1238,20 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `dune fmt` — clean.
   - `dune runtest ox/tests` — all tests pass.
   - `cmake --build build-ox -j8` — both D1 and D2 build clean.
+
+### §35 — Port openable_doors_in_segment (D1 + D2)
+
+- **Functions:** `openable_doors_in_segment` — scans 6 sides of a segment for an unlocked, keyless, closed door. Returns side index (0-5) or -1. D1: 5 fields/side (wall_num, type, keys, state, flags). D2: adds WCF_HIDDEN check via wallanim_flags (6 fields/side).
+
+- **Approach:** Added to existing `ox_ai.ml` and `ai_bridge.ml`. Packed array approach: D1 packs 30 ints (6×5), D2 packs 36 ints (6×6). C callsite extracts wall data from `Segments[segnum].sides[]` and `Walls[]`, passes packed array to OCaml via `caml_callback`.
+
+- **D2 extra:** Bounds-checks `segnum` at C callsite before packing. Extracts `WallAnims[Walls[wn].clip_num].flags` for hidden door check (guards against `clip_num < 0`).
+
+- **Files modified:** `ox/ox_ai.ml`, `ox/ai_bridge.ml`, `ox/bridge.c`, `ox/bridge.h`, `main_d1/ai.cpp`, `main_d2/ai2.cpp`, `ox/tests/parity_expect.ml`, `CHECKLIST.md`.
+
+- **Parity tests:** 10 expect tests — 5 for D1 (no walls, openable on side 2, locked rejected, keyed rejected, first openable wins), 5 for D2 (no walls, openable on side 4, hidden rejected, locked rejected, skip hidden find next).
+
+- **Verification:**
+  - `dune fmt` — clean.
+  - `dune runtest ox/tests` — all tests pass.
+  - `cmake --build build-ox -j8` — both D1 and D2 build clean.

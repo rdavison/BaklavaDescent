@@ -100,6 +100,16 @@ let cd_ai_door_is_openable_d2
     ~ailp_mode
 ;;
 
+(* openable_doors_in_segment D1: packed 30-int array → int *)
+let cd_openable_doors_in_segment_d1 (packed : int array) =
+  Ox_ai.openable_doors_in_segment_d1 ~sides:packed
+;;
+
+(* openable_doors_in_segment D2: packed 36-int array → int *)
+let cd_openable_doors_in_segment_d2 (packed : int array) =
+  Ox_ai.openable_doors_in_segment_d2 ~sides:packed
+;;
+
 let () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
@@ -107,5 +117,7 @@ let () =
   Callback.register "cd_ai_behavior_to_mode_d2" cd_ai_behavior_to_mode_d2;
   Callback.register "cd_ai_turn_randomly" cd_ai_turn_randomly;
   Callback.register "cd_ai_door_is_openable_d1" cd_ai_door_is_openable_d1;
-  Callback.register "cd_ai_door_is_openable_d2" cd_ai_door_is_openable_d2
+  Callback.register "cd_ai_door_is_openable_d2" cd_ai_door_is_openable_d2;
+  Callback.register "cd_openable_doors_in_segment_d1" cd_openable_doors_in_segment_d1;
+  Callback.register "cd_openable_doors_in_segment_d2" cd_openable_doors_in_segment_d2
 ;;

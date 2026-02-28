@@ -742,6 +742,12 @@ int cd_ox_ai_door_is_openable_d2(
     int objp_is_null, int is_companion,
     int robot_id, int ai_behavior, int player_flags, int ailp_mode);
 
+/* openable_doors_in_segment: scan sides for openable doors.
+   D1: packed is 30 ints (6 sides × 5 fields), D2: 36 ints (6 sides × 6 fields).
+   Returns side index (0-5) or -1. */
+int cd_ox_openable_doors_in_segment_d1(const int32_t* packed, int packed_len);
+int cd_ox_openable_doors_in_segment_d2(const int32_t* packed, int packed_len);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

@@ -11363,3 +11363,190 @@ let%expect_test "ai_door_is_openable_d2 - snipe robot with player key" =
   printf "snipe gold key: %d\n" r;
   [%expect {| snipe gold key: 8 |}]
 ;;
+
+(* --- openable_doors_in_segment D1 parity -------------------------------- *)
+
+(* Helper: make D1 packed array (6 sides × 5 fields = 30 ints).
+   Each side: wall_num, wall_type, wall_keys, wall_state, wall_flags *)
+let mk_d1_sides sides =
+  let a = Array.create ~len:30 0 in
+  List.iteri sides ~f:(fun i (wn, wt, wk, ws, wf) ->
+    let base = i * 5 in
+    a.(base) <- wn;
+    a.(base + 1) <- wt;
+    a.(base + 2) <- wk;
+    a.(base + 3) <- ws;
+    a.(base + 4) <- wf);
+  a
+;;
+
+let%expect_test "openable_doors_d1 - no walls" =
+  let sides =
+    mk_d1_sides
+      [ -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d1 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d1 - openable door on side 2" =
+  (* WALL_DOOR=2, KEY_NONE=1, WALL_DOOR_CLOSED=0, no WALL_DOOR_LOCKED *)
+  let sides =
+    mk_d1_sides
+      [ -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; 5, 2, 1, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d1 ~sides);
+  [%expect {| 2 |}]
+;;
+
+let%expect_test "openable_doors_d1 - locked door rejected" =
+  (* WALL_DOOR_LOCKED = 8 *)
+  let sides =
+    mk_d1_sides
+      [ 3, 2, 1, 0, 8
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d1 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d1 - keyed door rejected" =
+  (* keys != KEY_NONE(1) *)
+  let sides =
+    mk_d1_sides
+      [ -1, 0, 0, 0, 0
+      ; 7, 2, 2, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d1 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d1 - first openable wins" =
+  let sides =
+    mk_d1_sides
+      [ 1, 2, 1, 0, 8 (* locked *)
+      ; 2, 2, 1, 0, 0 (* openable *)
+      ; 3, 2, 1, 0, 0 (* also openable *)
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d1 ~sides);
+  [%expect {| 1 |}]
+;;
+
+(* --- openable_doors_in_segment D2 parity -------------------------------- *)
+
+(* Helper: make D2 packed array (6 sides × 6 fields = 36 ints).
+   Each side: wall_num, wall_type, wall_keys, wall_state, wall_flags, wallanim_flags *)
+let mk_d2_sides sides =
+  let a = Array.create ~len:36 0 in
+  List.iteri sides ~f:(fun i (wn, wt, wk, ws, wf, waf) ->
+    let base = i * 6 in
+    a.(base) <- wn;
+    a.(base + 1) <- wt;
+    a.(base + 2) <- wk;
+    a.(base + 3) <- ws;
+    a.(base + 4) <- wf;
+    a.(base + 5) <- waf);
+  a
+;;
+
+let%expect_test "openable_doors_d2 - no walls" =
+  let sides =
+    mk_d2_sides
+      [ -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d2 - openable door on side 4" =
+  let sides =
+    mk_d2_sides
+      [ -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; 10, 2, 1, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
+  [%expect {| 4 |}]
+;;
+
+let%expect_test "openable_doors_d2 - hidden door rejected" =
+  (* WCF_HIDDEN = 8 *)
+  let sides =
+    mk_d2_sides
+      [ 5, 2, 1, 0, 0, 8
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d2 - locked door rejected" =
+  let sides =
+    mk_d2_sides
+      [ -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; 8, 2, 1, 0, 8, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
+  [%expect {| -1 |}]
+;;
+
+let%expect_test "openable_doors_d2 - skip hidden, find next" =
+  let sides =
+    mk_d2_sides
+      [ 1, 2, 1, 0, 0, 8 (* hidden *)
+      ; -1, 0, 0, 0, 0, 0
+      ; 3, 2, 1, 0, 0, 0 (* openable *)
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ; -1, 0, 0, 0, 0, 0
+      ]
+  in
+  printf "%d\n" (Ox_ai.openable_doors_in_segment_d2 ~sides);
+  [%expect {| 2 |}]
+;;

@@ -132,6 +132,8 @@ static const value* g_ai_behavior_to_mode_d2 = NULL;
 static const value* g_ai_turn_randomly = NULL;
 static const value* g_ai_door_is_openable_d1 = NULL;
 static const value* g_ai_door_is_openable_d2 = NULL;
+static const value* g_openable_doors_in_segment_d1 = NULL;
+static const value* g_openable_doors_in_segment_d2 = NULL;
 
 /* Clutter effect function pointers */
 static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
@@ -277,6 +279,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_ai_turn_randomly
           && g_ai_door_is_openable_d1
           && g_ai_door_is_openable_d2
+          && g_openable_doors_in_segment_d1
+          && g_openable_doors_in_segment_d2
           && g_apply_damage_to_clutter
           && g_apply_damage_to_controlcen
           && g_apply_damage_to_player_d1
@@ -416,6 +420,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_ai_turn_randomly = caml_named_value("cd_ai_turn_randomly");
     g_ai_door_is_openable_d1 = caml_named_value("cd_ai_door_is_openable_d1");
     g_ai_door_is_openable_d2 = caml_named_value("cd_ai_door_is_openable_d2");
+    g_openable_doors_in_segment_d1 = caml_named_value("cd_openable_doors_in_segment_d1");
+    g_openable_doors_in_segment_d2 = caml_named_value("cd_openable_doors_in_segment_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
     g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
     g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
@@ -537,6 +543,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_ai_turn_randomly
         || !g_ai_door_is_openable_d1
         || !g_ai_door_is_openable_d2
+        || !g_openable_doors_in_segment_d1
+        || !g_openable_doors_in_segment_d2
         || !g_apply_damage_to_clutter
         || !g_apply_damage_to_controlcen
         || !g_apply_damage_to_player_d1
@@ -3051,4 +3059,28 @@ int cd_ox_ai_door_is_openable_d2(
         Val_long(ailp_mode),
     };
     return Int_val(caml_callbackN(*g_ai_door_is_openable_d2, 16, args));
+}
+
+int cd_ox_openable_doors_in_segment_d1(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_openable_doors_in_segment_d1");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_openable_doors_in_segment_d1, arr));
+    CAMLreturnT(int, result);
+}
+
+int cd_ox_openable_doors_in_segment_d2(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_openable_doors_in_segment_d2");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    int result = Int_val(caml_callback(*g_openable_doors_in_segment_d2, arr));
+    CAMLreturnT(int, result);
 }

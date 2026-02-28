@@ -267,3 +267,67 @@ let ai_door_is_openable_d2
     else 0
   else 0
 ;;
+
+(* ── openable_doors_in_segment ──────────────────────────── *)
+
+(* D1: openable_doors_in_segment
+   Packed: 6 sides × 4 fields = 24 ints
+   Fields per side: wall_num, wall_type, wall_keys, wall_state, wall_flags
+   Actually 5 fields × 6 = 30. But we can pack as:
+   [wall_num0, type0, keys0, state0, flags0, wall_num1, type1, ...] = 30 ints
+   Returns: side index (0-5) or -1 *)
+let openable_doors_in_segment_d1 ~(sides : int array) =
+  let rec check i =
+    if i >= 6
+    then -1
+    else (
+      let base = i * 5 in
+      let wn = sides.(base) in
+      if wn <> -1
+      then (
+        let wt = sides.(base + 1) in
+        let wk = sides.(base + 2) in
+        let ws = sides.(base + 3) in
+        let wf = sides.(base + 4) in
+        if
+          wt = wall_door
+          && wk = key_none
+          && ws = wall_door_closed
+          && wf land wall_door_locked = 0
+        then i
+        else check (i + 1))
+      else check (i + 1))
+  in
+  check 0
+;;
+
+(* D2: openable_doors_in_segment
+   Same as D1 but adds WCF_HIDDEN check on wall animation.
+   Packed: 6 sides × 6 fields = 36 ints
+   Fields per side: wall_num, wall_type, wall_keys, wall_state, wall_flags, wallanim_flags *)
+let openable_doors_in_segment_d2 ~(sides : int array) =
+  let rec check i =
+    if i >= 6
+    then -1
+    else (
+      let base = i * 6 in
+      let wn = sides.(base) in
+      if wn <> -1
+      then (
+        let wt = sides.(base + 1) in
+        let wk = sides.(base + 2) in
+        let ws = sides.(base + 3) in
+        let wf = sides.(base + 4) in
+        let waf = sides.(base + 5) in
+        if
+          wt = wall_door
+          && wk = key_none
+          && ws = wall_door_closed
+          && wf land wall_door_locked = 0
+          && waf land wcf_hidden = 0
+        then i
+        else check (i + 1))
+      else check (i + 1))
+  in
+  check 0
+;;
