@@ -549,6 +549,12 @@ void cd_ox_do_physics_align_object(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* ai_frame_animation: interpolate robot joint angles toward goal.
+   packed[2+9*N] input, out_buf[3*N] output: updated angles per joint */
+void cd_ox_ai_frame_animation(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf, int out_len);
+
 /* ai_move_relative_to_player: decide and apply AI movement relative to player.
    packed[56] input, out_buf[6] output: [vx,vy,vz, ai_evaded, danger_laser_num, prand_state] */
 void cd_ox_ai_move_relative_to_player(

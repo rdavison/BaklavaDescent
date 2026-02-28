@@ -339,6 +339,9 @@ let cd_homing_missile_turn_towards_velocity nvx nvy nvz fx fy fz frame_time =
   nrx, nry, nrz, nux, nuy, nuz, nfx, nfy, nfz
 ;;
 
+(* ai_frame_animation: packed int array (2 + 9*N) → flat int array (3*N) *)
+let cd_ai_frame_animation (packed : int array) = Ox_physics.ai_frame_animation packed
+
 (* ai_move_relative_to_player: packed int array (56) → flat int array (6) *)
 let cd_ai_move_relative_to_player (packed : int array) =
   Ox_physics.ai_move_relative_to_player packed
@@ -391,6 +394,7 @@ let () =
     "cd_homing_missile_turn_towards_velocity"
     cd_homing_missile_turn_towards_velocity;
   Callback.register "cd_do_physics_align_object" cd_do_physics_align_object;
+  Callback.register "cd_ai_frame_animation" cd_ai_frame_animation;
   Callback.register "cd_ai_move_relative_to_player" cd_ai_move_relative_to_player;
   Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel
 ;;

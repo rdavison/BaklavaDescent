@@ -1144,6 +1144,43 @@ int do_silly_animation(object* objp)
 //	Delta orientation of object is at:		ai_info.delta_angles
 void ai_frame_animation(object* objp)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_logged = 0;
+	if (!ox_logged) { fprintf(stderr, "[OX] ai_frame_animation (D1)\n"); ox_logged = 1; }
+	int objnum = objp - Objects;
+	int num_joints = Polygon_models[objp->rtype.pobj_info.model_num].n_models;
+	int n = num_joints - 1;  // joints 1..num_joints-1
+	if (n <= 0) return;
+	int packed_len = 2 + n * 9;
+	int32_t packed[2 + 9 * 9];  // max 9 joints (MAX_SUBMODELS-1)
+	packed[0] = num_joints;
+	packed[1] = FrameTime;
+	for (int i = 0; i < n; i++) {
+		int joint = i + 1;
+		vms_angvec* curangp = &objp->rtype.pobj_info.anim_angles[joint];
+		vms_angvec* goalangp = &Ai_local_info[objnum].goal_angles[joint];
+		vms_angvec* deltaangp = &Ai_local_info[objnum].delta_angles[joint];
+		int base = 2 + i * 9;
+		packed[base]     = curangp->p;
+		packed[base + 1] = curangp->b;
+		packed[base + 2] = curangp->h;
+		packed[base + 3] = goalangp->p;
+		packed[base + 4] = goalangp->b;
+		packed[base + 5] = goalangp->h;
+		packed[base + 6] = deltaangp->p;
+		packed[base + 7] = deltaangp->b;
+		packed[base + 8] = deltaangp->h;
+	}
+	int out_len = n * 3;
+	int32_t out[9 * 3];
+	cd_ox_ai_frame_animation(packed, packed_len, out, out_len);
+	for (int i = 0; i < n; i++) {
+		int joint = i + 1;
+		objp->rtype.pobj_info.anim_angles[joint].p = (fixang)out[i * 3];
+		objp->rtype.pobj_info.anim_angles[joint].b = (fixang)out[i * 3 + 1];
+		objp->rtype.pobj_info.anim_angles[joint].h = (fixang)out[i * 3 + 2];
+	}
+#else
 	int	objnum = objp - Objects;
 	int	joint;
 	int	num_joints;
@@ -1202,7 +1239,7 @@ void ai_frame_animation(object* objp)
 		}
 
 	}
-
+#endif
 }
 
 // ----------------------------------------------------------------------------------

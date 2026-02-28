@@ -1537,3 +1537,20 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `dune runtest ox/tests` passes, `cmake --build build-ox -j8` clean (D1+D2). Runtime tested: D1 launches and plays correctly with §46 bridge active.
+
+### §47 — Port ai_frame_animation to OxCaml (D1 + D2)
+
+- **What:** `ai_frame_animation` — interpolates robot joint angles (pitch, bank, heading) toward goal angles per frame. Identical logic in D1 and D2. ~62 lines, called per animated robot per frame.
+
+- **Design:** Variable-length packed array (2 + 9*N ints in, 3*N ints out, where N = num_joints - 1). Per joint: reads current, goal, and delta angles; computes scaled delta via fixmul, applies with wraparound handling (fixang 16-bit wrapping at ±32767), snaps to goal when overshoot detected. DELTA_ANG_SCALE = 16.
+
+- **Files modified:**
+  - `ox/ox_physics.ml` — `ai_frame_animation` (~55 lines)
+  - `ox/physics_bridge.ml` — `cd_ai_frame_animation` bridge + `Callback.register`
+  - `ox/bridge.c` — `g_ai_frame_animation` static pointer, init/ready, C wrapper (variable-length output)
+  - `ox/bridge.h` — `cd_ox_ai_frame_animation` declaration
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` around `ai_frame_animation`
+  - `main_d2/ai2.cpp` — same
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2). Awaiting runtime test.

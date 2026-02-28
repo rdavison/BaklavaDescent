@@ -272,7 +272,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [ ] maybe_ai_do_actual_firing_stuff — conditional firing
 
 ### Unported — Robot Animation
-- [ ] ai_frame_animation — robot model animation
+- [x] ai_frame_animation — robot model animation (D1+D2, joint angle interpolation)
 - [ ] do_silly_animation — special animation (D1)
 - [x] robot_get_anim_state — animation state retrieval
 - [x] set_robot_state — animation state setting

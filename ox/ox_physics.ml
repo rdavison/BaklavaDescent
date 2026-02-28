@@ -831,6 +831,72 @@ let ai_move_relative_to_player (packed : int array) =
   result
 ;;
 
+(* ai_frame_animation: interpolate robot joint angles toward goal angles.
+   C original: main_d1/ai.cpp + main_d2/ai2.cpp ai_frame_animation
+   Identical in D1 and D2. DELTA_ANG_SCALE = 16.
+
+   Packed input array (2 + 9*N ints, where N = num_joints - 1):
+     [0]   num_joints (from Polygon_models[model_num].n_models)
+     [1]   FrameTime
+     [2 + i*9 .. 2 + i*9 + 8] per joint i (0-indexed, representing joint i+1):
+       cur_p, cur_b, cur_h, goal_p, goal_b, goal_h, delta_p, delta_b, delta_h
+
+   Returns array (3*N ints):
+     per joint i: new_cur_p, new_cur_b, new_cur_h *)
+let ai_frame_animation (packed : int array) =
+  let num_joints = packed.(0) in
+  let frame_time = packed.(1) in
+  let delta_ang_scale = 16 in
+  let n = num_joints - 1 in
+  let result = Array.create ~len:(n * 3) 0 in
+  for i = 0 to n - 1 do
+    let base = 2 + (i * 9) in
+    let cur_p = ref packed.(base) in
+    let cur_b = ref packed.(base + 1) in
+    let cur_h = ref packed.(base + 2) in
+    let goal_p = packed.(base + 3) in
+    let goal_b = packed.(base + 4) in
+    let goal_h = packed.(base + 5) in
+    let delta_p = packed.(base + 6) in
+    let delta_b = packed.(base + 7) in
+    let delta_h = packed.(base + 8) in
+    (* Interpolate pitch *)
+    let dtg = goal_p - !cur_p in
+    let dtg =
+      if dtg > 32767 then dtg - 65536 else if dtg < -32767 then 65536 + dtg else dtg
+    in
+    if dtg <> 0
+    then (
+      let sda = Ox_math.fixmul ~a:delta_p ~b:frame_time * delta_ang_scale in
+      cur_p := !cur_p + sda;
+      if Int.abs dtg < Int.abs sda then cur_p := goal_p);
+    (* Interpolate bank *)
+    let dtg = goal_b - !cur_b in
+    let dtg =
+      if dtg > 32767 then dtg - 65536 else if dtg < -32767 then 65536 + dtg else dtg
+    in
+    if dtg <> 0
+    then (
+      let sda = Ox_math.fixmul ~a:delta_b ~b:frame_time * delta_ang_scale in
+      cur_b := !cur_b + sda;
+      if Int.abs dtg < Int.abs sda then cur_b := goal_b);
+    (* Interpolate heading *)
+    let dtg = goal_h - !cur_h in
+    let dtg =
+      if dtg > 32767 then dtg - 65536 else if dtg < -32767 then 65536 + dtg else dtg
+    in
+    if dtg <> 0
+    then (
+      let sda = Ox_math.fixmul ~a:delta_h ~b:frame_time * delta_ang_scale in
+      cur_h := !cur_h + sda;
+      if Int.abs dtg < Int.abs sda then cur_h := goal_h);
+    result.(i * 3) <- !cur_p;
+    result.((i * 3) + 1) <- !cur_b;
+    result.((i * 3) + 2) <- !cur_h
+  done;
+  result
+;;
+
 (* ai_path_set_orient_and_vel: compute velocity and orientation for path-following robots.
    C original: main_d1/aipath.cpp + main_d2/aipath.cpp ai_path_set_orient_and_vel
 
