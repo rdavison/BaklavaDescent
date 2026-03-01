@@ -53,6 +53,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "controls.h"
 #include "kconfig.h"
 #include "misc/rand.h"
+#include "ox/bridge.h"
 
 #ifdef EDITOR
 #include "editor\editor.h"
@@ -303,8 +304,400 @@ int	Ai_last_missile_camera;
 int	Robots_kill_robots_cheat = 0;
 
 // --------------------------------------------------------------------------------------------------------------------
+extern void ai_fire_laser_at_player(object *obj, vms_vector *fire_point, int gun_num, vms_vector *believed_player_pos);
+
 void do_ai_frame(object* obj)
 {
+#ifdef USE_OX_BRIDGE
+	{
+	int objnum = obj - Objects;
+	ai_static* aip = &obj->ctype.ai_info;
+	ai_local* ailp = &Ai_local_info[objnum];
+
+	// One-time registration of effect callbacks
+	static object* af_obj = nullptr;
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_ai_frame_effects(
+				// multiplayer_awareness
+				[](int agitation) -> int {
+					return ai_multiplayer_awareness(af_obj, agitation);
+				},
+				// robot_hit_attack
+				[]() {
+					do_ai_robot_hit_attack(af_obj, ConsoleObject, &af_obj->pos);
+				},
+				// fire_laser (D2: 4 args)
+				[](int gpx, int gpy, int gpz, int gun_num,
+				   int fpx, int fpy, int fpz) {
+					vms_vector gp = {gpx, gpy, gpz};
+					vms_vector fp = {fpx, fpy, fpz};
+					ai_fire_laser_at_player(af_obj, &gp, gun_num, &fp);
+				},
+				// calc_gun_point
+				[](int gun_num, int32_t* gx, int32_t* gy, int32_t* gz) {
+					vms_vector gp;
+					calc_gun_point(&gp, af_obj, gun_num);
+					*gx = gp.x; *gy = gp.y; *gz = gp.z;
+				},
+				// create_path_to_player
+				[](int max_length, int safety_flag) {
+					create_path_to_player(af_obj, max_length, safety_flag);
+				},
+				// create_path_to_station
+				[](int max_time) {
+					create_path_to_station(af_obj, max_time);
+				},
+				// create_n_segment_path
+				[](int length, int avoid_seg) {
+					create_n_segment_path(af_obj, length, avoid_seg);
+				},
+				// create_n_segment_path_to_door (D2: noop, D1 only)
+				[](int length, int avoid_seg) {},
+				// attempt_to_resume_path
+				[]() {
+					attempt_to_resume_path(af_obj);
+				},
+				// ai_follow_path (D2: 4 args on C side)
+				[](int vis, int prev_vis, int vtpx, int vtpy, int vtpz) {
+					vms_vector vtp = {vtpx, vtpy, vtpz};
+					ai_follow_path(af_obj, vis, prev_vis, &vtp);
+				},
+				// move_towards_segment_center
+				[]() {
+					move_towards_segment_center(af_obj);
+				},
+				// compute_vis_and_vec
+				[](int gpx, int gpy, int gpz,
+				   int32_t* pv, int32_t* vtpx, int32_t* vtpy, int32_t* vtpz,
+				   int32_t* sound_flag) {
+					vms_vector vis_pos = {gpx, gpy, gpz};
+					vms_vector vec_to_player;
+					int player_visibility;
+					int vis_computed = 0;
+					robot_info* robptr = &Robot_info[af_obj->id];
+					ai_local* ailp = &Ai_local_info[af_obj - Objects];
+					compute_vis_and_vec(af_obj, &vis_pos, ailp, &vec_to_player,
+						&player_visibility, robptr, &vis_computed);
+					*pv = player_visibility;
+					*vtpx = vec_to_player.x;
+					*vtpy = vec_to_player.y;
+					*vtpz = vec_to_player.z;
+					*sound_flag = vis_computed;
+				},
+				// multi_send_robot_position
+				[](int flag) {
+#ifdef NETWORK
+					multi_send_robot_position(af_obj - Objects, flag);
+#endif
+				},
+				// do_boss_stuff (D2: 2 args)
+				[](int pv) {
+					do_boss_stuff(af_obj, pv);
+				},
+				// p_rand
+				[]() -> int { return P_Rand(); },
+				// make_random_vector
+				[](int32_t* rx, int32_t* ry, int32_t* rz) {
+					vms_vector v;
+					make_random_vector(&v);
+					*rx = v.x; *ry = v.y; *rz = v.z;
+				},
+				// object_to_object_visibility
+				[]() -> int {
+					return object_to_object_visibility(af_obj, ConsoleObject, FQ_TRANSWALL);
+				},
+				// do_snipe_frame
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {
+					vms_vector vtp = {vtpx, vtpy, vtpz};
+					do_snipe_frame(af_obj, dist, vis, &vtp);
+				},
+				// do_escort_frame
+				[](int dist, int vis) {
+					do_escort_frame(af_obj, dist, vis);
+				},
+				// do_thief_frame
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {
+					vms_vector vtp = {vtpx, vtpy, vtpz};
+					do_thief_frame(af_obj, dist, vis, &vtp);
+				},
+				// do_any_robot_dying_frame
+				[]() -> int {
+					return do_any_robot_dying_frame(af_obj);
+				},
+				// make_nearby_robot_snipe
+				[]() {
+					make_nearby_robot_snipe();
+				},
+				// move_away_from_player
+				[]() {
+					vms_vector vec_to_player;
+					vm_vec_sub(&vec_to_player, &Believed_player_pos, &af_obj->pos);
+					move_away_from_player(af_obj, &vec_to_player, 0);
+				},
+				// laser_create_new_easy
+				[](int fvx, int fvy, int fvz, int fpx, int fpy, int fpz,
+				   int objnum, int weapon_id) {
+					vms_vector fv = {fvx, fvy, fvz};
+					vms_vector fp = {fpx, fpy, fpz};
+					Laser_create_new_easy(&fv, &fp, objnum, weapon_id, 1);
+				}
+			);
+		}
+	}
+	af_obj = obj;
+
+	// Pack ai_state array (43 ints)
+	int32_t ai_state[43];
+	ai_state[0]  = aip->SKIP_AI_COUNT;
+	ai_state[1]  = aip->GOAL_STATE;
+	ai_state[2]  = aip->CURRENT_STATE;
+	ai_state[3]  = aip->CLOAKED;
+	ai_state[4]  = aip->CURRENT_GUN;
+	ai_state[5]  = aip->cur_path_index;
+	ai_state[6]  = aip->behavior;
+	ai_state[7]  = aip->hide_index;
+	ai_state[8]  = aip->path_length;
+	ai_state[9]  = aip->SUB_FLAGS;
+	ai_state[10] = aip->danger_laser_num;
+	ai_state[11] = aip->danger_laser_signature;
+	ai_state[12] = aip->GOALSIDE;
+	ai_state[13] = aip->hide_segment;
+	ai_state[14] = ailp->next_fire;
+	ai_state[15] = ailp->next_fire2;
+	ai_state[16] = ailp->player_awareness_type;
+	ai_state[17] = ailp->player_awareness_time;
+	ai_state[18] = ailp->mode;
+	ai_state[19] = ailp->time_since_processed;
+	ai_state[20] = ailp->consecutive_retries;
+	ai_state[21] = ailp->retry_count;
+	for (int i = 0; i < 8; i++)
+		ai_state[22 + i] = ailp->goal_state[i];
+	ai_state[30] = ailp->time_player_seen;
+	ai_state[31] = ailp->goal_segment;
+	ai_state[32] = ailp->rapidfire_count;
+	for (int i = 0; i < 8; i++)
+		ai_state[33 + i] = ailp->achieved_state[i];
+	ai_state[41] = ailp->previous_visibility;
+	ai_state[42] = ailp->next_action_time;
+
+	// Pack robot info (29 ints)
+	robot_info* robptr = &Robot_info[obj->id];
+	int32_t rinfo[29];
+	rinfo[0]  = robptr->attack_type;
+	rinfo[1]  = robptr->weapon_type;
+	rinfo[2]  = robptr->weapon_type2;
+	rinfo[3]  = robptr->n_guns;
+	rinfo[4]  = robptr->boss_flag;
+	rinfo[5]  = robptr->companion;
+	rinfo[6]  = robptr->thief;
+	rinfo[7]  = robptr->kamikaze;
+	rinfo[8]  = robptr->field_of_view[Difficulty_level];
+	rinfo[9]  = robptr->max_speed[Difficulty_level];
+	rinfo[10] = robptr->firing_wait[Difficulty_level];
+	rinfo[11] = robptr->firing_wait2[Difficulty_level];
+	rinfo[12] = robptr->see_sound;
+	rinfo[13] = robptr->attack_sound;
+	rinfo[14] = robptr->cloak_type;
+	rinfo[15] = robptr->energy_drain;
+	rinfo[16] = robptr->aim;
+	rinfo[17] = (robptr->weapon_type >= 0) ? Weapon_info[robptr->weapon_type].homing_flag : 0;
+	rinfo[18] = (robptr->weapon_type2 >= 0) ? Weapon_info[robptr->weapon_type2].homing_flag : 0;
+	for (int i = 0; i < 5; i++)
+		rinfo[19 + i] = robptr->circle_distance[i];
+	for (int i = 0; i < 5; i++)
+		rinfo[24 + i] = robptr->turn_time[i];
+
+	// Pack orient (9 ints)
+	int32_t orient[9] = {
+		obj->orient.rvec.x, obj->orient.rvec.y, obj->orient.rvec.z,
+		obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
+		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
+	};
+
+	// Pack gun_point (3 ints)
+	vms_vector gun_point_vec;
+	calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
+	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
+
+	// Pack cloak_last_pos (3 ints)
+	int cloak_idx = objnum % MAX_AI_CLOAK_INFO;
+	int32_t cloak_last_pos[3] = {
+		Ai_cloak_info[cloak_idx].last_position.x,
+		Ai_cloak_info[cloak_idx].last_position.y,
+		Ai_cloak_info[cloak_idx].last_position.z
+	};
+
+	// Multiplayer believed_pos sync (stays on C side)
+	if (Game_mode & GM_MULTI)
+		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
+
+	int32_t result[47]; // 43 + 4 D2 extras
+	cd_ox_do_ai_frame_d2(
+		ai_state, 43,
+		rinfo, 29,
+		FrameTime, FrameCount, GameTime,
+		Game_mode, Difficulty_level,
+		Overall_agitation, Player_is_dead, Player_exploded,
+		Players[Player_num].flags,
+		obj->pos.x, obj->pos.y, obj->pos.z,
+		obj->segnum, obj->size, obj->id, objnum,
+		ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z, ConsoleObject->size,
+		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, Believed_player_seg,
+		orient, gun_point, Segment2s[obj->segnum].special,
+		cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
+		1 /* animation_enabled */, Current_level_num, 0 /* last_missile_camera */,
+		Robots_kill_robots_cheat, (robptr->boss_flag) ? aip->dying_start_time : 0,
+		obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
+		Dist_to_last_fired_upon_player_pos, F1_0 * 48,
+		result);
+
+	// Write back AI state
+	aip->SKIP_AI_COUNT = result[0];
+	aip->GOAL_STATE = result[1];
+	aip->CURRENT_STATE = result[2];
+	aip->CLOAKED = result[3];
+	aip->CURRENT_GUN = result[4];
+	aip->cur_path_index = result[5];
+	aip->behavior = result[6];
+	aip->hide_index = result[7];
+	aip->path_length = result[8];
+	aip->SUB_FLAGS = result[9];
+	aip->GOALSIDE = result[12];
+	ailp->next_fire = result[14];
+	ailp->next_fire2 = result[15];
+	ailp->player_awareness_type = result[16];
+	ailp->player_awareness_time = result[17];
+	ailp->mode = result[18];
+	ailp->time_since_processed = result[19];
+	ailp->consecutive_retries = result[20];
+	ailp->retry_count = result[21];
+	for (int i = 0; i < 8; i++)
+		ailp->goal_state[i] = result[22 + i];
+	ailp->time_player_seen = result[30];
+	ailp->goal_segment = result[31];
+	ailp->rapidfire_count = result[32];
+	for (int i = 0; i < 8; i++)
+		ailp->achieved_state[i] = result[33 + i];
+	// NOTE: previous_visibility is NOT written back from OCaml.
+	// C's compute_vis_and_vec updates ailp->previous_visibility directly.
+	ailp->next_action_time = result[42];
+	// D2 extras
+	obj->mtype.phys_info.flags = result[43];
+	obj->mtype.phys_info.rotthrust.x = result[44];
+	obj->mtype.phys_info.rotthrust.y = result[45];
+	obj->mtype.phys_info.rotthrust.z = result[46];
+
+	// Movement calls that OCaml defers to C side
+	{
+		robot_info* robptr = &Robot_info[obj->id];
+		vms_vector vec_to_player;
+		vm_vec_sub(&vec_to_player, &Believed_player_pos, &obj->pos);
+		fix dist_to_player = vm_vec_normalize_quick(&vec_to_player);
+		int player_visibility = ailp->previous_visibility;
+
+		if (ailp->mode == AIM_CHASE_OBJECT) {
+			if (aip->CURRENT_STATE != AIS_REST && aip->GOAL_STATE != AIS_REST) {
+				fix circle_distance = robptr->circle_distance[Difficulty_level] + ConsoleObject->size;
+				if (robptr->attack_type != 1)
+					circle_distance += (objnum & 0xf) * F1_0 / 2;
+				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0, player_visibility);
+
+				int obj_ref = objnum ^ FrameCount;
+				if ((obj_ref & 1) && (aip->GOAL_STATE == AIS_SRCH || aip->GOAL_STATE == AIS_LOCK)) {
+					if (player_visibility)
+						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				}
+			}
+			do_firing_stuff(obj, player_visibility, &vec_to_player);
+		} else if (ailp->mode == AIM_STILL) {
+			if ((player_visibility == 2) || (ailp->previous_visibility == 2)) {
+				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+			}
+			do_firing_stuff(obj, player_visibility, &vec_to_player);
+			if (player_visibility == 2) {
+				if (robptr->attack_type == 1) {
+					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
+				} else {
+					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 1, player_visibility);
+				}
+			}
+		} else if (ailp->mode == AIM_BEHIND) {
+			if (player_visibility == 2) {
+				vms_vector goal_point, goal_vector, vec_to_goal, rand_vec;
+				fix dot = vm_vec_dot(&ConsoleObject->orient.fvec, &vec_to_player);
+				if (dot > 0) {
+					goal_vector = ConsoleObject->orient.fvec;
+					vm_vec_negate(&goal_vector);
+				} else {
+					dot = vm_vec_dot(&ConsoleObject->orient.rvec, &vec_to_player);
+					goal_vector = ConsoleObject->orient.rvec;
+					if (dot > 0)
+						vm_vec_negate(&goal_vector);
+				}
+				vm_vec_scale(&goal_vector, 2 * (ConsoleObject->size + obj->size + (((objnum * 4 + FrameCount) & 63) << 12)));
+				vm_vec_add(&goal_point, &ConsoleObject->pos, &goal_vector);
+				make_random_vector(&rand_vec);
+				vm_vec_scale_add2(&goal_point, &rand_vec, F1_0 * 8);
+				vm_vec_sub(&vec_to_goal, &goal_point, &obj->pos);
+				vm_vec_normalize_quick(&vec_to_goal);
+				move_towards_vector(obj, &vec_to_goal, 0);
+				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, do_silly_animation(obj), aip->CURRENT_GUN);
+			}
+		} else if (ailp->mode == AIM_OPEN_DOOR) {
+			vms_vector center_point, goal_vector;
+			compute_center_point_on_side(&center_point, &Segments[obj->segnum], aip->GOALSIDE);
+			vm_vec_sub(&goal_vector, &center_point, &obj->pos);
+			vm_vec_normalize_quick(&goal_vector);
+			ai_turn_towards_vector(&goal_vector, obj, robptr->turn_time[Difficulty_level]);
+			move_towards_vector(obj, &goal_vector, 0);
+		} else if (ailp->mode == AIM_SNIPE_ATTACK || ailp->mode == AIM_SNIPE_FIRE ||
+		           ailp->mode == AIM_SNIPE_RETREAT_BACKWARDS) {
+			ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, do_silly_animation(obj), aip->CURRENT_GUN);
+			if (robptr->thief)
+				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
+		} else if (ailp->mode == AIM_FOLLOW_PATH) {
+			if (aip->behavior != AIB_RUN_FROM)
+				do_firing_stuff(obj, player_visibility, &vec_to_player);
+		}
+
+		// Secondary state machine: turning based on CURRENT_STATE
+		// OCaml handles state transitions but defers turning to C side
+		// D2 only turns towards player when player_visibility == 2 (no ai_turn_randomly)
+		if (aip->GOAL_STATE != AIS_FLIN && obj->id != ROBOT_BRAIN) {
+			switch (aip->CURRENT_STATE) {
+			case AIS_SRCH:
+				if (player_visibility == 2)
+					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				break;
+			case AIS_LOCK:
+				if (player_visibility == 2)
+					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				break;
+			case AIS_FIRE:
+				if (player_visibility == 2)
+					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				break;
+			case AIS_RECO:
+				if (!((objnum ^ FrameCount) & 3)) {
+					if (player_visibility == 2)
+						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
+				}
+				break;
+			}
+		}
+	}
+
+	// Animation (done on C side after OCaml state update)
+	if (do_silly_animation(obj))
+		ai_frame_animation(obj);
+
+	return;
+	}
+#endif
 	int			objnum = obj - Objects;
 	ai_static* aip = &obj->ctype.ai_info;
 	ai_local* ailp = &Ai_local_info[objnum];

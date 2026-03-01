@@ -1055,7 +1055,7 @@ void cd_ox_do_ai_frame_d2(
     const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
     int animation_enabled, int32_t current_level_num, int32_t last_missile_camera,
     int robots_kill_robots_cheat, int32_t boss_dying_start_time,
-    int32_t phys_flags_in, int32_t rotthrust_in,
+    int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t* result);
 

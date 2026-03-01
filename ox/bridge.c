@@ -4124,14 +4124,14 @@ void cd_ox_do_ai_frame_d2(
     const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
     int animation_enabled, int32_t current_level_num, int32_t last_missile_camera,
     int robots_kill_robots_cheat, int32_t boss_dying_start_time,
-    int32_t phys_flags_in, int32_t rotthrust_in,
+    int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_ai_frame_d2");
     CAMLparam0();
     CAMLlocal4(v_ai_state, v_rinfo, v_orient, v_result);
-    CAMLlocal2(v_gun_point, v_cloak_pos);
+    CAMLlocal3(v_gun_point, v_cloak_pos, v_rotthrust);
 
     v_ai_state = caml_alloc(ai_state_len, 0);
     for (int i = 0; i < ai_state_len; i++)
@@ -4155,6 +4155,11 @@ void cd_ox_do_ai_frame_d2(
     Store_field(v_cloak_pos, 1, Val_long(cloak_last_pos ? cloak_last_pos[1] : 0));
     Store_field(v_cloak_pos, 2, Val_long(cloak_last_pos ? cloak_last_pos[2] : 0));
 
+    v_rotthrust = caml_alloc(3, 0);
+    Store_field(v_rotthrust, 0, Val_long(rotthrust_in[0]));
+    Store_field(v_rotthrust, 1, Val_long(rotthrust_in[1]));
+    Store_field(v_rotthrust, 2, Val_long(rotthrust_in[2]));
+
     value args[41] = {
         v_ai_state, v_rinfo,
         Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
@@ -4170,7 +4175,7 @@ void cd_ox_do_ai_frame_d2(
         Val_long(cloak_last_time), Val_long(ai_evaded_in),
         Val_long(animation_enabled), Val_long(current_level_num), Val_long(last_missile_camera),
         Val_long(robots_kill_robots_cheat), Val_long(boss_dying_start_time),
-        Val_long(phys_flags_in), Val_long(rotthrust_in),
+        Val_long(phys_flags_in), v_rotthrust,
         Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold)
     };
     v_result = caml_callbackN(*g_do_ai_frame_d2, 41, args);
