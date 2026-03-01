@@ -31,6 +31,8 @@ ocamlfind ocamlopt \
   "$OX_DIR/robot_bridge.ml" \
   "$OX_DIR/ox_lighting.ml" \
   "$OX_DIR/lighting_bridge.ml" \
+  "$OX_DIR/ox_weapon.ml" \
+  "$OX_DIR/weapon_bridge.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG

@@ -1699,3 +1699,5 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2).
+
+- **Bugfix (post-commit):** Runtime crash in `cd_ox_player_has_weapon_d1` — NULL dereference because `Weapon_bridge` module wasn't initialized (`Callback.register` never executed). Root cause: `math_bridge.ml` didn't reference the module, and `scripts/ox/build_bridge.sh` (uses `ocamlfind ocamlopt`, not dune) was missing `ox_weapon.ml` and `weapon_bridge.ml`. Fix: (1) added `g_player_has_weapon_d1/d2` to `cd_ox_require_ready` in bridge.c, (2) forced `Weapon_bridge` init in math_bridge.ml, (3) added missing files to build_bridge.sh.

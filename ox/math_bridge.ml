@@ -438,5 +438,11 @@ let () =
      : int -> int -> int -> int -> int -> int -> int);
   ignore
     (Lighting_bridge.cd_compute_headlight_light_d2
-     : int -> int -> int -> int -> int -> int -> int -> int -> int)
+     : int -> int -> int -> int -> int -> int -> int -> int -> int);
+  (* Force weapon bridge module initialization so its callbacks are registered. *)
+  ignore
+    (Weapon_bridge.cd_player_has_weapon_d1 : int -> int -> int -> int -> int -> int);
+  ignore
+    (Weapon_bridge.cd_player_has_weapon_d2
+     : int -> int -> int -> int -> int -> int -> int -> int -> int -> int)
 ;;

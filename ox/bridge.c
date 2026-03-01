@@ -329,7 +329,9 @@ static void cd_ox_require_ready(const char* fn)
           && g_set_robot_state
           && g_robot_set_angles
           && g_object_intersects_wall
-          && g_find_point_seg))
+          && g_find_point_seg
+          && g_player_has_weapon_d1
+          && g_player_has_weapon_d2))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
