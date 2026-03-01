@@ -534,6 +534,12 @@ void do_ai_frame(object* obj)
 	if (Game_mode & GM_MULTI)
 		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
 
+	// Snapshot C state before OCaml call, so we can detect effect modifications
+	ai_static aip_before = *aip;
+	ai_local ailp_before = *ailp;
+	int32_t phys_flags_before = obj->mtype.phys_info.flags;
+	vms_vector rotthrust_before = obj->mtype.phys_info.rotthrust;
+
 	int32_t result[47]; // 43 + 4 D2 extras
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
@@ -554,41 +560,57 @@ void do_ai_frame(object* obj)
 		Dist_to_last_fired_upon_player_pos, F1_0 * 48,
 		result);
 
-	// Write back AI state
-	aip->SKIP_AI_COUNT = result[0];
-	aip->GOAL_STATE = result[1];
-	aip->CURRENT_STATE = result[2];
-	aip->CLOAKED = result[3];
-	aip->CURRENT_GUN = result[4];
-	aip->cur_path_index = result[5];
-	aip->behavior = result[6];
-	aip->hide_index = result[7];
-	aip->path_length = result[8];
-	aip->SUB_FLAGS = result[9];
-	aip->GOALSIDE = result[12];
-	ailp->next_fire = result[14];
-	ailp->next_fire2 = result[15];
-	ailp->player_awareness_type = result[16];
-	ailp->player_awareness_time = result[17];
-	ailp->mode = result[18];
-	ailp->time_since_processed = result[19];
-	ailp->consecutive_retries = result[20];
-	ailp->retry_count = result[21];
+	// Write back AI state using "effect-wins" policy:
+	// If a C effect modified a field during the OCaml call (current != snapshot),
+	// keep the C effect's value. Otherwise, use OCaml's result.
+#define WRITEBACK_AIP(field, idx) \
+	if (aip->field == aip_before.field) aip->field = result[idx]
+#define WRITEBACK_AILP(field, idx) \
+	if (ailp->field == ailp_before.field) ailp->field = result[idx]
+
+	WRITEBACK_AIP(SKIP_AI_COUNT, 0);
+	WRITEBACK_AIP(GOAL_STATE, 1);
+	WRITEBACK_AIP(CURRENT_STATE, 2);
+	WRITEBACK_AIP(CLOAKED, 3);
+	WRITEBACK_AIP(CURRENT_GUN, 4);
+	WRITEBACK_AIP(cur_path_index, 5);
+	WRITEBACK_AIP(behavior, 6);
+	WRITEBACK_AIP(hide_index, 7);
+	WRITEBACK_AIP(path_length, 8);
+	WRITEBACK_AIP(SUB_FLAGS, 9);
+	WRITEBACK_AIP(GOALSIDE, 12);
+	WRITEBACK_AILP(next_fire, 14);
+	WRITEBACK_AILP(next_fire2, 15);
+	WRITEBACK_AILP(player_awareness_type, 16);
+	WRITEBACK_AILP(player_awareness_time, 17);
+	WRITEBACK_AILP(mode, 18);
+	WRITEBACK_AILP(time_since_processed, 19);
+	WRITEBACK_AILP(consecutive_retries, 20);
+	WRITEBACK_AILP(retry_count, 21);
 	for (int i = 0; i < 8; i++)
-		ailp->goal_state[i] = result[22 + i];
-	ailp->time_player_seen = result[30];
-	ailp->goal_segment = result[31];
-	ailp->rapidfire_count = result[32];
+		if (ailp->goal_state[i] == ailp_before.goal_state[i])
+			ailp->goal_state[i] = result[22 + i];
+	WRITEBACK_AILP(time_player_seen, 30);
+	WRITEBACK_AILP(goal_segment, 31);
+	WRITEBACK_AILP(rapidfire_count, 32);
 	for (int i = 0; i < 8; i++)
-		ailp->achieved_state[i] = result[33 + i];
+		if (ailp->achieved_state[i] == ailp_before.achieved_state[i])
+			ailp->achieved_state[i] = result[33 + i];
 	// NOTE: previous_visibility is NOT written back from OCaml.
 	// C's compute_vis_and_vec updates ailp->previous_visibility directly.
-	ailp->next_action_time = result[42];
+	WRITEBACK_AILP(next_action_time, 42);
 	// D2 extras
-	obj->mtype.phys_info.flags = result[43];
-	obj->mtype.phys_info.rotthrust.x = result[44];
-	obj->mtype.phys_info.rotthrust.y = result[45];
-	obj->mtype.phys_info.rotthrust.z = result[46];
+	if (obj->mtype.phys_info.flags == phys_flags_before)
+		obj->mtype.phys_info.flags = result[43];
+	if (obj->mtype.phys_info.rotthrust.x == rotthrust_before.x)
+		obj->mtype.phys_info.rotthrust.x = result[44];
+	if (obj->mtype.phys_info.rotthrust.y == rotthrust_before.y)
+		obj->mtype.phys_info.rotthrust.y = result[45];
+	if (obj->mtype.phys_info.rotthrust.z == rotthrust_before.z)
+		obj->mtype.phys_info.rotthrust.z = result[46];
+
+#undef WRITEBACK_AIP
+#undef WRITEBACK_AILP
 
 	// Movement calls that OCaml defers to C side
 	{
