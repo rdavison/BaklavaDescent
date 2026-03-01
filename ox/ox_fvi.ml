@@ -938,10 +938,10 @@ let rec fvi_sub
               in
               let passable =
                 is_flyable
-                || (is_trans
-                    && (flags land fq_transwall <> 0
-                        || flags land fq_transpoint <> 0
-                           (* check_trans_wall approximation: treat as passable *)))
+                || (is_trans && flags land fq_transwall <> 0)
+                (* FQ_TRANSPOINT requires check_trans_wall pixel check which we
+                   can't do from OCaml, so treat transparent walls as solid for
+                   weapons. This is conservative but correct for doors. *)
               in
               if passable
               then (

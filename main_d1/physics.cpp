@@ -762,22 +762,26 @@ void do_physics_sim(object* obj)
 		switch (fate) 
 		{
 
-		case HIT_WALL: 
+		case HIT_WALL:
 		{
 			vms_vector moved_v;
 			//@@fix total_d,moved_d;
 			fix hit_speed, wall_part;
 
-			// Find hit speed	
+			// Find hit speed
 
 			vm_vec_sub(&moved_v, &obj->pos, &save_pos);
 
 			wall_part = vm_vec_dot(&moved_v, &hit_info.hit_wallnorm);
 
 			if (wall_part != 0 && moved_time > 0 && (hit_speed = -fixdiv(wall_part, moved_time)) > 0)
+			{
 				collide_object_with_wall(obj, hit_speed, WallHitSeg, WallHitSide, &hit_info.hit_pnt);
+			}
 			else
+			{
 				scrape_object_on_wall(obj, WallHitSeg, WallHitSide, &hit_info.hit_pnt);
+			}
 
 			Assert(WallHitSeg > -1);
 			Assert(WallHitSide > -1);

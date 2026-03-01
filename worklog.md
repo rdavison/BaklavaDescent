@@ -1646,3 +1646,17 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CHECKLIST.md` — marked done
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2), `dune runtest ox/tests` pass. Runtime tested: D1 launches and plays correctly with §52 bridge active.
+
+### §53 — Fix FVI passability bug: weapons passing through doors
+
+- **What:** Weapons (lasers, missiles) were passing straight through closed doors instead of hitting them and triggering door opening. This prevented players from accessing rooms with hostages.
+
+- **Root cause:** The OCaml FVI passability check in `fvi_sub` treated `FQ_TRANSPOINT` (weapon flag) identically to `FQ_TRANSWALL`, letting weapons pass through any wall with `WID_TRANSPARENT_WALL` (wid=6). Door textures have some transparent pixels, so `check_transparency()` returns true and `WALL_IS_DOORWAY` returns `WID_TRANSPARENT_WALL` even for closed doors. The C code calls `check_trans_wall()` which does a per-pixel UV lookup at the hit point — the opaque door surface blocks the weapon. The OCaml approximation skipped this pixel check entirely.
+
+- **Fix:** Removed `FQ_TRANSPOINT` from the passability shortcut in `ox_fvi.ml`. Weapons now treat `WID_TRANSPARENT_WALL` walls as solid (conservative but correct). The only behavioral difference is weapons won't pass through grated/windowed transparent walls, but this avoids needing texture bitmap access from OCaml.
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — removed `fq_transpoint` from passability check (~1 line)
+  - `main_d1/physics.cpp` — cleanup of debug logging added during investigation
+
+- **Verification:** `cmake --build build-ox -j8` clean. Runtime tested: D1 launches, lasers hit doors and open them correctly.
