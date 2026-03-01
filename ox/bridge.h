@@ -895,6 +895,57 @@ void cd_ox_robot_set_angles(
     const int32_t* packed, int packed_len,
     int32_t* out_buf, int* out_len);
 
+/* -- Control center frame (do_controlcen_frame) ----------------------- */
+/* Effect callback typedefs for control center frame AI */
+typedef int  (*cd_effect_cc_player_is_visible_fn)(int px, int py, int pz, int seg,
+                                                   int vx, int vy, int vz);
+typedef void (*cd_effect_cc_fire_weapon_fn)(int dx, int dy, int dz,
+                                             int px, int py, int pz,
+                                             int parent_id, int make_sound);
+typedef void (*cd_effect_cc_send_controlcen_fire_fn)(int dx, int dy, int dz,
+                                                      int gun_num, int obj_id);
+typedef void (*cd_effect_cc_make_random_vector_fn)(int32_t* rx, int32_t* ry, int32_t* rz);
+typedef int  (*cd_effect_cc_p_rand_fn)(void);
+
+void cd_ox_register_controlcen_frame_effects(
+    cd_effect_cc_player_is_visible_fn player_is_visible,
+    cd_effect_cc_fire_weapon_fn fire_weapon,
+    cd_effect_cc_send_controlcen_fire_fn send_controlcen_fire,
+    cd_effect_cc_make_random_vector_fn make_random_vector,
+    cd_effect_cc_p_rand_fn p_rand);
+
+/* D1: do_controlcen_frame.
+   gun_pos_flat/gun_dir_flat are n_guns*3 int arrays.
+   result[3] receives: [cc_been_hit, cc_player_seen, cc_next_fire_time] */
+void cd_ox_do_controlcen_frame_d1(
+    int32_t cc_been_hit, int32_t cc_player_seen, int32_t cc_next_fire_time,
+    int n_guns, const int32_t* gun_pos_flat, const int32_t* gun_dir_flat,
+    int32_t frame_count, int32_t frame_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t player_flags, int player_is_dead,
+    int32_t game_time, int32_t player_time_of_death,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
+    int32_t console_x, int32_t console_y, int32_t console_z,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z,
+    int has_children, int obj_id,
+    int32_t* result);
+
+/* D2: do_controlcen_frame.
+   result[4] receives: [cc_been_hit, cc_player_seen, cc_next_fire_time, last_time_cc_vis_check] */
+void cd_ox_do_controlcen_frame_d2(
+    int32_t cc_been_hit, int32_t cc_player_seen, int32_t cc_next_fire_time,
+    int n_guns, const int32_t* gun_pos_flat, const int32_t* gun_dir_flat,
+    int32_t frame_count, int32_t frame_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t player_flags, int player_is_dead,
+    int32_t game_time, int32_t player_time_of_death,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
+    int32_t console_x, int32_t console_y, int32_t console_z,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z,
+    int has_children, int obj_id,
+    int32_t current_level_num, int32_t last_time_cc_vis_check,
+    int32_t* result);
+
 /* -- Weapon decision logic -------------------------------------------- */
 /* player_has_weapon: check if player has weapon+energy+ammo.
    Returns bitmask: HAS_WEAPON_FLAG=1, HAS_ENERGY_FLAG=2, HAS_AMMO_FLAG=4. */
@@ -906,6 +957,194 @@ int cd_ox_player_has_weapon_d2(
     int32_t ammo_usage, int32_t energy_usage,
     int is_gauss, int32_t vulcan_ammo,
     int is_omega, int32_t omega_charge);
+
+/* -- AI frame logic --------------------------------------------------- */
+
+/* Effect function pointer types for do_ai_frame */
+typedef int  (*cd_effect_af_multiplayer_awareness_fn)(int agitation);
+typedef void (*cd_effect_af_robot_hit_attack_fn)(void);
+typedef void (*cd_effect_af_fire_laser_fn)(int gpx, int gpy, int gpz,
+                                            int gun_num,
+                                            int fpx, int fpy, int fpz);
+typedef void (*cd_effect_af_calc_gun_point_fn)(int gun_num,
+                                                int32_t* gx, int32_t* gy, int32_t* gz);
+typedef void (*cd_effect_af_create_path_to_player_fn)(int max_length, int safety_flag);
+typedef void (*cd_effect_af_create_path_to_station_fn)(int max_time);
+typedef void (*cd_effect_af_create_n_segment_path_fn)(int length, int avoid_seg);
+typedef void (*cd_effect_af_create_n_segment_path_to_door_fn)(int length, int avoid_seg);
+typedef void (*cd_effect_af_attempt_to_resume_path_fn)(void);
+typedef void (*cd_effect_af_ai_follow_path_fn)(int vis, int prev_vis,
+                                                int vtpx, int vtpy, int vtpz);
+typedef void (*cd_effect_af_move_towards_segment_center_fn)(void);
+typedef void (*cd_effect_af_compute_vis_and_vec_fn)(int gpx, int gpy, int gpz,
+                                                     int32_t* pv, int32_t* vtpx,
+                                                     int32_t* vtpy, int32_t* vtpz,
+                                                     int32_t* sound_flag);
+typedef void (*cd_effect_af_multi_send_robot_position_fn)(int flag);
+typedef void (*cd_effect_af_do_boss_stuff_fn)(int pv);
+typedef int  (*cd_effect_af_p_rand_fn)(void);
+typedef void (*cd_effect_af_make_random_vector_fn)(int32_t* rx, int32_t* ry, int32_t* rz);
+typedef int  (*cd_effect_af_object_to_object_visibility_fn)(void);
+typedef void (*cd_effect_af_do_snipe_frame_fn)(int dist, int vis,
+                                                int vtpx, int vtpy, int vtpz);
+typedef void (*cd_effect_af_do_escort_frame_fn)(int dist, int vis);
+typedef void (*cd_effect_af_do_thief_frame_fn)(int dist, int vis,
+                                                int vtpx, int vtpy, int vtpz);
+typedef int  (*cd_effect_af_do_any_robot_dying_frame_fn)(void);
+typedef void (*cd_effect_af_make_nearby_robot_snipe_fn)(void);
+typedef void (*cd_effect_af_move_away_from_player_fn)(void);
+typedef void (*cd_effect_af_laser_create_new_easy_fn)(int fvx, int fvy, int fvz,
+                                                       int fpx, int fpy, int fpz,
+                                                       int objnum, int weapon_id);
+
+void cd_ox_register_ai_frame_effects(
+    cd_effect_af_multiplayer_awareness_fn multiplayer_awareness,
+    cd_effect_af_robot_hit_attack_fn robot_hit_attack,
+    cd_effect_af_fire_laser_fn fire_laser,
+    cd_effect_af_calc_gun_point_fn calc_gun_point,
+    cd_effect_af_create_path_to_player_fn create_path_to_player,
+    cd_effect_af_create_path_to_station_fn create_path_to_station,
+    cd_effect_af_create_n_segment_path_fn create_n_segment_path,
+    cd_effect_af_create_n_segment_path_to_door_fn create_n_segment_path_to_door,
+    cd_effect_af_attempt_to_resume_path_fn attempt_to_resume_path,
+    cd_effect_af_ai_follow_path_fn ai_follow_path,
+    cd_effect_af_move_towards_segment_center_fn move_towards_segment_center,
+    cd_effect_af_compute_vis_and_vec_fn compute_vis_and_vec,
+    cd_effect_af_multi_send_robot_position_fn multi_send_robot_position,
+    cd_effect_af_do_boss_stuff_fn do_boss_stuff,
+    cd_effect_af_p_rand_fn p_rand,
+    cd_effect_af_make_random_vector_fn make_random_vector,
+    cd_effect_af_object_to_object_visibility_fn object_to_object_visibility,
+    cd_effect_af_do_snipe_frame_fn do_snipe_frame,
+    cd_effect_af_do_escort_frame_fn do_escort_frame,
+    cd_effect_af_do_thief_frame_fn do_thief_frame,
+    cd_effect_af_do_any_robot_dying_frame_fn do_any_robot_dying_frame,
+    cd_effect_af_make_nearby_robot_snipe_fn make_nearby_robot_snipe,
+    cd_effect_af_move_away_from_player_fn move_away_from_player,
+    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy);
+
+/* D1: do_ai_frame.
+   ai_state is packed array (~43 ints), rinfo is packed array (~29 ints).
+   result receives updated ai_state. */
+void cd_ox_do_ai_frame_d1(
+    const int32_t* ai_state, int ai_state_len,
+    const int32_t* rinfo, int rinfo_len,
+    int32_t frame_time, int32_t frame_count, int32_t game_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t overall_agitation, int player_is_dead, int player_exploded,
+    int32_t player_flags,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_size, int32_t obj_id, int objnum,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_size,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
+    const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
+    const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int32_t* result);
+
+/* D2: do_ai_frame.
+   Same as D1 plus extra D2 parameters. */
+void cd_ox_do_ai_frame_d2(
+    const int32_t* ai_state, int ai_state_len,
+    const int32_t* rinfo, int rinfo_len,
+    int32_t frame_time, int32_t frame_count, int32_t game_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t overall_agitation, int player_is_dead, int player_exploded,
+    int32_t player_flags,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_size, int32_t obj_id, int objnum,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_size,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
+    const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
+    const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int animation_enabled, int32_t current_level_num, int32_t last_missile_camera,
+    int robots_kill_robots_cheat, int32_t boss_dying_start_time,
+    int32_t phys_flags_in, int32_t rotthrust_in,
+    int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
+    int32_t* result);
+
+/* -- Physics sim logic ------------------------------------------------ */
+
+/* Effect function pointer types for do_physics_sim */
+typedef void (*cd_effect_ps_find_vector_intersection_fn)(
+    const int32_t* query, int query_len, int32_t* result, int* result_len);
+typedef int  (*cd_effect_ps_collide_object_with_wall_fn)(
+    int hit_speed, int wall_seg, int wall_side,
+    int hit_px, int hit_py, int hit_pz, int obj_flags);
+typedef int  (*cd_effect_ps_scrape_object_on_wall_fn)(
+    int wall_seg, int wall_side, int hit_px, int hit_py, int hit_pz);
+typedef void (*cd_effect_ps_collide_two_objects_fn)(
+    int hit_objnum, int pos_hit_x, int pos_hit_y, int pos_hit_z,
+    int32_t* obj_flags_out, int32_t* new_vx, int32_t* new_vy, int32_t* new_vz);
+typedef void (*cd_effect_ps_obj_relink_fn)(int objnum, int new_seg);
+typedef int  (*cd_effect_ps_find_object_seg_fn)(int objnum);
+typedef void (*cd_effect_ps_update_object_seg_fn)(int objnum);
+typedef int  (*cd_effect_ps_find_point_seg_fn)(int px, int py, int pz, int seg);
+typedef int  (*cd_effect_ps_get_seg_masks_fn)(int px, int py, int pz, int seg);
+typedef void (*cd_effect_ps_compute_segment_center_fn)(int seg,
+                                                        int32_t* cx, int32_t* cy, int32_t* cz);
+typedef void (*cd_effect_ps_add_stuck_object_fn)(int wall_seg, int wall_side);
+typedef int  (*cd_effect_ps_find_connect_side_fn)(int seg1, int seg2);
+typedef int  (*cd_effect_ps_wall_is_doorway_fn)(int seg, int side);
+typedef void (*cd_effect_ps_create_abs_vertex_lists_and_dist_fn)(
+    int seg, int side, int spx, int spy, int spz,
+    int32_t* dist, int32_t* nx, int32_t* ny, int32_t* nz);
+typedef int  (*cd_effect_ps_tmap_is_force_field_fn)(int seg, int side);
+typedef void (*cd_effect_ps_vm_vector_2_matrix_orient_fn)(
+    int vx, int vy, int vz, int ux, int uy, int uz,
+    int32_t* out);
+
+void cd_ox_register_physics_sim_effects(
+    cd_effect_ps_find_vector_intersection_fn find_vector_intersection,
+    cd_effect_ps_collide_object_with_wall_fn collide_object_with_wall,
+    cd_effect_ps_scrape_object_on_wall_fn scrape_object_on_wall,
+    cd_effect_ps_collide_two_objects_fn collide_two_objects,
+    cd_effect_ps_obj_relink_fn obj_relink,
+    cd_effect_ps_find_object_seg_fn find_object_seg,
+    cd_effect_ps_update_object_seg_fn update_object_seg,
+    cd_effect_ps_find_point_seg_fn find_point_seg,
+    cd_effect_ps_get_seg_masks_fn get_seg_masks,
+    cd_effect_ps_compute_segment_center_fn compute_segment_center,
+    cd_effect_ps_add_stuck_object_fn add_stuck_object,
+    cd_effect_ps_find_connect_side_fn find_connect_side,
+    cd_effect_ps_wall_is_doorway_fn wall_is_doorway,
+    cd_effect_ps_create_abs_vertex_lists_and_dist_fn create_abs_vertex_lists_and_dist,
+    cd_effect_ps_tmap_is_force_field_fn tmap_is_force_field,
+    cd_effect_ps_vm_vector_2_matrix_orient_fn vm_vector_2_matrix_orient);
+
+/* D1: do_physics_sim.
+   result[25] receives: [pos xyz, vel xyz, orient 9, segnum, obj_flags,
+   phys_flags, turnroll, rotvel xyz, retry_count, n_phys_segs, needs_levelling] */
+void cd_ox_do_physics_sim_d1(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t vel_x, int32_t vel_y, int32_t vel_z,
+    int32_t thrust_x, int32_t thrust_y, int32_t thrust_z,
+    const int32_t* orient,
+    int32_t rotvel_x, int32_t rotvel_y, int32_t rotvel_z,
+    int32_t rotthrust_x, int32_t rotthrust_y, int32_t rotthrust_z,
+    int32_t size, int32_t mass, int32_t drag,
+    int32_t phys_flags, int32_t obj_flags, int obj_type, int obj_id,
+    int32_t obj_segnum, int objnum, int32_t turnroll,
+    int32_t last_pos_x, int32_t last_pos_y, int32_t last_pos_z,
+    int32_t frame_time, int32_t physics_cheat_flag,
+    int32_t* result);
+
+/* D2: do_physics_sim.
+   Same as D1 plus D2 extras. */
+void cd_ox_do_physics_sim_d2(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t vel_x, int32_t vel_y, int32_t vel_z,
+    int32_t thrust_x, int32_t thrust_y, int32_t thrust_z,
+    const int32_t* orient,
+    int32_t rotvel_x, int32_t rotvel_y, int32_t rotvel_z,
+    int32_t rotthrust_x, int32_t rotthrust_y, int32_t rotthrust_z,
+    int32_t size, int32_t mass, int32_t drag,
+    int32_t phys_flags, int32_t obj_flags, int obj_type, int obj_id,
+    int32_t obj_segnum, int objnum, int32_t turnroll,
+    int32_t last_pos_x, int32_t last_pos_y, int32_t last_pos_z,
+    int32_t orient_uvec_x, int32_t orient_uvec_y, int32_t orient_uvec_z,
+    int32_t seg_special,
+    int32_t frame_time, int32_t physics_cheat_flag,
+    int32_t* result);
 
 #ifdef __cplusplus
 }

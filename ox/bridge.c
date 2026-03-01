@@ -162,6 +162,63 @@ static cd_effect_sound_controlcen_destroyed_fn g_effect_sound_controlcen_destroy
 static cd_effect_explode_object_delay_controlcen_fn g_effect_explode_object_delay_controlcen = NULL;
 static const value* g_apply_damage_to_controlcen = NULL;
 
+/* Controlcen frame effect function pointers */
+static cd_effect_cc_player_is_visible_fn g_effect_cc_player_is_visible = NULL;
+static cd_effect_cc_fire_weapon_fn g_effect_cc_fire_weapon = NULL;
+static cd_effect_cc_send_controlcen_fire_fn g_effect_cc_send_controlcen_fire = NULL;
+static cd_effect_cc_make_random_vector_fn g_effect_cc_make_random_vector = NULL;
+static cd_effect_cc_p_rand_fn g_effect_cc_p_rand = NULL;
+static const value* g_do_controlcen_frame_d1 = NULL;
+static const value* g_do_controlcen_frame_d2 = NULL;
+
+/* AI frame effect function pointers */
+static cd_effect_af_multiplayer_awareness_fn g_effect_af_multiplayer_awareness = NULL;
+static cd_effect_af_robot_hit_attack_fn g_effect_af_robot_hit_attack = NULL;
+static cd_effect_af_fire_laser_fn g_effect_af_fire_laser = NULL;
+static cd_effect_af_calc_gun_point_fn g_effect_af_calc_gun_point = NULL;
+static cd_effect_af_create_path_to_player_fn g_effect_af_create_path_to_player = NULL;
+static cd_effect_af_create_path_to_station_fn g_effect_af_create_path_to_station = NULL;
+static cd_effect_af_create_n_segment_path_fn g_effect_af_create_n_segment_path = NULL;
+static cd_effect_af_create_n_segment_path_to_door_fn g_effect_af_create_n_segment_path_to_door = NULL;
+static cd_effect_af_attempt_to_resume_path_fn g_effect_af_attempt_to_resume_path = NULL;
+static cd_effect_af_ai_follow_path_fn g_effect_af_ai_follow_path = NULL;
+static cd_effect_af_move_towards_segment_center_fn g_effect_af_move_towards_segment_center = NULL;
+static cd_effect_af_compute_vis_and_vec_fn g_effect_af_compute_vis_and_vec = NULL;
+static cd_effect_af_multi_send_robot_position_fn g_effect_af_multi_send_robot_position = NULL;
+static cd_effect_af_do_boss_stuff_fn g_effect_af_do_boss_stuff = NULL;
+static cd_effect_af_p_rand_fn g_effect_af_p_rand = NULL;
+static cd_effect_af_make_random_vector_fn g_effect_af_make_random_vector = NULL;
+static cd_effect_af_object_to_object_visibility_fn g_effect_af_object_to_object_visibility = NULL;
+static cd_effect_af_do_snipe_frame_fn g_effect_af_do_snipe_frame = NULL;
+static cd_effect_af_do_escort_frame_fn g_effect_af_do_escort_frame = NULL;
+static cd_effect_af_do_thief_frame_fn g_effect_af_do_thief_frame = NULL;
+static cd_effect_af_do_any_robot_dying_frame_fn g_effect_af_do_any_robot_dying_frame = NULL;
+static cd_effect_af_make_nearby_robot_snipe_fn g_effect_af_make_nearby_robot_snipe = NULL;
+static cd_effect_af_move_away_from_player_fn g_effect_af_move_away_from_player_af = NULL;
+static cd_effect_af_laser_create_new_easy_fn g_effect_af_laser_create_new_easy = NULL;
+static const value* g_do_ai_frame_d1 = NULL;
+static const value* g_do_ai_frame_d2 = NULL;
+
+/* Physics sim effect function pointers */
+static cd_effect_ps_find_vector_intersection_fn g_effect_ps_find_vector_intersection = NULL;
+static cd_effect_ps_collide_object_with_wall_fn g_effect_ps_collide_object_with_wall = NULL;
+static cd_effect_ps_scrape_object_on_wall_fn g_effect_ps_scrape_object_on_wall = NULL;
+static cd_effect_ps_collide_two_objects_fn g_effect_ps_collide_two_objects = NULL;
+static cd_effect_ps_obj_relink_fn g_effect_ps_obj_relink = NULL;
+static cd_effect_ps_find_object_seg_fn g_effect_ps_find_object_seg = NULL;
+static cd_effect_ps_update_object_seg_fn g_effect_ps_update_object_seg = NULL;
+static cd_effect_ps_find_point_seg_fn g_effect_ps_find_point_seg = NULL;
+static cd_effect_ps_get_seg_masks_fn g_effect_ps_get_seg_masks = NULL;
+static cd_effect_ps_compute_segment_center_fn g_effect_ps_compute_segment_center = NULL;
+static cd_effect_ps_add_stuck_object_fn g_effect_ps_add_stuck_object = NULL;
+static cd_effect_ps_find_connect_side_fn g_effect_ps_find_connect_side = NULL;
+static cd_effect_ps_wall_is_doorway_fn g_effect_ps_wall_is_doorway = NULL;
+static cd_effect_ps_create_abs_vertex_lists_and_dist_fn g_effect_ps_create_abs_vertex_lists_and_dist = NULL;
+static cd_effect_ps_tmap_is_force_field_fn g_effect_ps_tmap_is_force_field = NULL;
+static cd_effect_ps_vm_vector_2_matrix_orient_fn g_effect_ps_vm_vector_2_matrix_orient = NULL;
+static const value* g_do_physics_sim_d1 = NULL;
+static const value* g_do_physics_sim_d2 = NULL;
+
 /* Player damage D1 effect function pointers */
 static cd_effect_palette_flash_fn g_effect_palette_flash_d1 = NULL;
 static cd_effect_set_player_dead_fn g_effect_set_player_dead_d1 = NULL;
@@ -331,7 +388,13 @@ static void cd_ox_require_ready(const char* fn)
           && g_object_intersects_wall
           && g_find_point_seg
           && g_player_has_weapon_d1
-          && g_player_has_weapon_d2))
+          && g_player_has_weapon_d2
+          && g_do_controlcen_frame_d1
+          && g_do_controlcen_frame_d2
+          && g_do_ai_frame_d1
+          && g_do_ai_frame_d2
+          && g_do_physics_sim_d1
+          && g_do_physics_sim_d2))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -462,6 +525,12 @@ int cd_ox_init_runtime(const char* executable_path)
     g_do_homing_weapon_frame = caml_named_value("cd_do_homing_weapon_frame");
     g_player_has_weapon_d1 = caml_named_value("cd_player_has_weapon_d1");
     g_player_has_weapon_d2 = caml_named_value("cd_player_has_weapon_d2");
+    g_do_controlcen_frame_d1 = caml_named_value("cd_do_controlcen_frame_d1");
+    g_do_controlcen_frame_d2 = caml_named_value("cd_do_controlcen_frame_d2");
+    g_do_ai_frame_d1 = caml_named_value("cd_do_ai_frame_d1");
+    g_do_ai_frame_d2 = caml_named_value("cd_do_ai_frame_d2");
+    g_do_physics_sim_d1 = caml_named_value("cd_do_physics_sim_d1");
+    g_do_physics_sim_d2 = caml_named_value("cd_do_physics_sim_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
     g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
     g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
@@ -631,7 +700,13 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_homing_object
         || !g_track_track_goal
         || !g_player_is_visible_from_object
-        || !g_compute_vis_and_vec)
+        || !g_compute_vis_and_vec
+        || !g_do_controlcen_frame_d1
+        || !g_do_controlcen_frame_d2
+        || !g_do_ai_frame_d1
+        || !g_do_ai_frame_d2
+        || !g_do_physics_sim_d1
+        || !g_do_physics_sim_d2)
     {
         return 1;
     }
@@ -767,7 +842,13 @@ int cd_ox_is_ready(void)
            && g_find_homing_object
            && g_track_track_goal
            && g_player_is_visible_from_object
-           && g_compute_vis_and_vec;
+           && g_compute_vis_and_vec
+           && g_do_controlcen_frame_d1
+           && g_do_controlcen_frame_d2
+           && g_do_ai_frame_d1
+           && g_do_ai_frame_d2
+           && g_do_physics_sim_d1
+           && g_do_physics_sim_d2;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3476,4 +3557,1017 @@ int cd_ox_player_has_weapon_d2(
         Val_int(is_omega), Val_int(omega_charge)
     };
     return Int_val(caml_callbackN(*g_player_has_weapon_d2, 9, args));
+}
+
+/* -- Control center frame effects + entry points ---------------------- */
+
+void cd_ox_register_controlcen_frame_effects(
+    cd_effect_cc_player_is_visible_fn player_is_visible,
+    cd_effect_cc_fire_weapon_fn fire_weapon,
+    cd_effect_cc_send_controlcen_fire_fn send_controlcen_fire,
+    cd_effect_cc_make_random_vector_fn make_random_vector,
+    cd_effect_cc_p_rand_fn p_rand)
+{
+    g_effect_cc_player_is_visible = player_is_visible;
+    g_effect_cc_fire_weapon = fire_weapon;
+    g_effect_cc_send_controlcen_fire = send_controlcen_fire;
+    g_effect_cc_make_random_vector = make_random_vector;
+    g_effect_cc_p_rand = p_rand;
+}
+
+/* player_is_visible: 7 args -> int (native code path) */
+CAMLprim value cd_ox_effect_cc_player_is_visible(
+    value v_px, value v_py, value v_pz, value v_seg,
+    value v_vx, value v_vy, value v_vz)
+{
+    int result = 0;
+    if (g_effect_cc_player_is_visible)
+        result = g_effect_cc_player_is_visible(
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz), Int_val(v_seg),
+            Int_val(v_vx), Int_val(v_vy), Int_val(v_vz));
+    return Val_int(result);
+}
+
+/* player_is_visible: bytecode wrapper */
+CAMLprim value cd_ox_effect_cc_player_is_visible_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_cc_player_is_visible(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+/* fire_weapon: 8 args -> unit (native code path) */
+CAMLprim value cd_ox_effect_cc_fire_weapon(
+    value v_dx, value v_dy, value v_dz,
+    value v_px, value v_py, value v_pz,
+    value v_parent_id, value v_make_sound)
+{
+    if (g_effect_cc_fire_weapon)
+        g_effect_cc_fire_weapon(
+            Int_val(v_dx), Int_val(v_dy), Int_val(v_dz),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz),
+            Int_val(v_parent_id), Int_val(v_make_sound));
+    return Val_unit;
+}
+
+/* fire_weapon: bytecode wrapper */
+CAMLprim value cd_ox_effect_cc_fire_weapon_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_cc_fire_weapon(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+}
+
+/* send_controlcen_fire: 5 args -> unit */
+CAMLprim value cd_ox_effect_cc_send_controlcen_fire(
+    value v_dx, value v_dy, value v_dz, value v_gun_num, value v_obj_id)
+{
+    if (g_effect_cc_send_controlcen_fire)
+        g_effect_cc_send_controlcen_fire(
+            Int_val(v_dx), Int_val(v_dy), Int_val(v_dz),
+            Int_val(v_gun_num), Int_val(v_obj_id));
+    return Val_unit;
+}
+
+/* make_random_vector: unit -> (int * int * int) */
+CAMLprim value cd_ox_effect_cc_make_random_vector(value unit)
+{
+    (void)unit;
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t rx = 0, ry = 0, rz = 0;
+    if (g_effect_cc_make_random_vector)
+        g_effect_cc_make_random_vector(&rx, &ry, &rz);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, Val_long(rx));
+    Store_field(result, 1, Val_long(ry));
+    Store_field(result, 2, Val_long(rz));
+    CAMLreturn(result);
+}
+
+/* p_rand: unit -> int */
+CAMLprim value cd_ox_effect_cc_p_rand(value unit)
+{
+    (void)unit;
+    int result = 0;
+    if (g_effect_cc_p_rand)
+        result = g_effect_cc_p_rand();
+    return Val_int(result);
+}
+
+/* D1 entry point */
+void cd_ox_do_controlcen_frame_d1(
+    int32_t cc_been_hit, int32_t cc_player_seen, int32_t cc_next_fire_time,
+    int n_guns, const int32_t* gun_pos_flat, const int32_t* gun_dir_flat,
+    int32_t frame_count, int32_t frame_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t player_flags, int player_is_dead,
+    int32_t game_time, int32_t player_time_of_death,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
+    int32_t console_x, int32_t console_y, int32_t console_z,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z,
+    int has_children, int obj_id,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_controlcen_frame_d1");
+    CAMLparam0();
+    CAMLlocal3(v_gp, v_gd, v_result);
+
+    /* Build gun_pos_flat OCaml array */
+    int gun_arr_len = n_guns * 3;
+    if (gun_arr_len > 0) {
+        v_gp = caml_alloc(gun_arr_len, 0);
+        for (int i = 0; i < gun_arr_len; i++)
+            Store_field(v_gp, i, Val_long(gun_pos_flat[i]));
+        v_gd = caml_alloc(gun_arr_len, 0);
+        for (int i = 0; i < gun_arr_len; i++)
+            Store_field(v_gd, i, Val_long(gun_dir_flat[i]));
+    } else {
+        v_gp = Atom(0);
+        v_gd = Atom(0);
+    }
+
+    value args[26] = {
+        Val_long(cc_been_hit), Val_long(cc_player_seen), Val_long(cc_next_fire_time),
+        Val_long(n_guns), v_gp, v_gd,
+        Val_long(frame_count), Val_long(frame_time),
+        Val_long(game_mode), Val_long(difficulty_level),
+        Val_long(player_flags), Val_long(player_is_dead),
+        Val_long(game_time), Val_long(player_time_of_death),
+        Val_long(obj_x), Val_long(obj_y), Val_long(obj_z), Val_long(obj_segnum),
+        Val_long(console_x), Val_long(console_y), Val_long(console_z),
+        Val_long(believed_x), Val_long(believed_y), Val_long(believed_z),
+        Val_long(has_children), Val_long(obj_id)
+    };
+    v_result = caml_callbackN(*g_do_controlcen_frame_d1, 26, args);
+
+    result[0] = Int_val(Field(v_result, 0));
+    result[1] = Int_val(Field(v_result, 1));
+    result[2] = Int_val(Field(v_result, 2));
+    CAMLreturn0;
+}
+
+/* D2 entry point */
+void cd_ox_do_controlcen_frame_d2(
+    int32_t cc_been_hit, int32_t cc_player_seen, int32_t cc_next_fire_time,
+    int n_guns, const int32_t* gun_pos_flat, const int32_t* gun_dir_flat,
+    int32_t frame_count, int32_t frame_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t player_flags, int player_is_dead,
+    int32_t game_time, int32_t player_time_of_death,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
+    int32_t console_x, int32_t console_y, int32_t console_z,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z,
+    int has_children, int obj_id,
+    int32_t current_level_num, int32_t last_time_cc_vis_check,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_controlcen_frame_d2");
+    CAMLparam0();
+    CAMLlocal3(v_gp, v_gd, v_result);
+
+    /* Build gun_pos_flat OCaml array */
+    int gun_arr_len = n_guns * 3;
+    if (gun_arr_len > 0) {
+        v_gp = caml_alloc(gun_arr_len, 0);
+        for (int i = 0; i < gun_arr_len; i++)
+            Store_field(v_gp, i, Val_long(gun_pos_flat[i]));
+        v_gd = caml_alloc(gun_arr_len, 0);
+        for (int i = 0; i < gun_arr_len; i++)
+            Store_field(v_gd, i, Val_long(gun_dir_flat[i]));
+    } else {
+        v_gp = Atom(0);
+        v_gd = Atom(0);
+    }
+
+    value args[28] = {
+        Val_long(cc_been_hit), Val_long(cc_player_seen), Val_long(cc_next_fire_time),
+        Val_long(n_guns), v_gp, v_gd,
+        Val_long(frame_count), Val_long(frame_time),
+        Val_long(game_mode), Val_long(difficulty_level),
+        Val_long(player_flags), Val_long(player_is_dead),
+        Val_long(game_time), Val_long(player_time_of_death),
+        Val_long(obj_x), Val_long(obj_y), Val_long(obj_z), Val_long(obj_segnum),
+        Val_long(console_x), Val_long(console_y), Val_long(console_z),
+        Val_long(believed_x), Val_long(believed_y), Val_long(believed_z),
+        Val_long(has_children), Val_long(obj_id),
+        Val_long(current_level_num), Val_long(last_time_cc_vis_check)
+    };
+    v_result = caml_callbackN(*g_do_controlcen_frame_d2, 28, args);
+
+    result[0] = Int_val(Field(v_result, 0));
+    result[1] = Int_val(Field(v_result, 1));
+    result[2] = Int_val(Field(v_result, 2));
+    result[3] = Int_val(Field(v_result, 3));
+    CAMLreturn0;
+}
+
+/* ====================================================================== */
+/* AI Frame effects                                                       */
+/* ====================================================================== */
+
+void cd_ox_register_ai_frame_effects(
+    cd_effect_af_multiplayer_awareness_fn multiplayer_awareness,
+    cd_effect_af_robot_hit_attack_fn robot_hit_attack,
+    cd_effect_af_fire_laser_fn fire_laser,
+    cd_effect_af_calc_gun_point_fn calc_gun_point,
+    cd_effect_af_create_path_to_player_fn create_path_to_player,
+    cd_effect_af_create_path_to_station_fn create_path_to_station,
+    cd_effect_af_create_n_segment_path_fn create_n_segment_path,
+    cd_effect_af_create_n_segment_path_to_door_fn create_n_segment_path_to_door,
+    cd_effect_af_attempt_to_resume_path_fn attempt_to_resume_path,
+    cd_effect_af_ai_follow_path_fn ai_follow_path,
+    cd_effect_af_move_towards_segment_center_fn move_towards_segment_center,
+    cd_effect_af_compute_vis_and_vec_fn compute_vis_and_vec,
+    cd_effect_af_multi_send_robot_position_fn multi_send_robot_position,
+    cd_effect_af_do_boss_stuff_fn do_boss_stuff,
+    cd_effect_af_p_rand_fn p_rand,
+    cd_effect_af_make_random_vector_fn make_random_vector,
+    cd_effect_af_object_to_object_visibility_fn object_to_object_visibility,
+    cd_effect_af_do_snipe_frame_fn do_snipe_frame,
+    cd_effect_af_do_escort_frame_fn do_escort_frame,
+    cd_effect_af_do_thief_frame_fn do_thief_frame,
+    cd_effect_af_do_any_robot_dying_frame_fn do_any_robot_dying_frame,
+    cd_effect_af_make_nearby_robot_snipe_fn make_nearby_robot_snipe,
+    cd_effect_af_move_away_from_player_fn move_away_from_player,
+    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy)
+{
+    g_effect_af_multiplayer_awareness = multiplayer_awareness;
+    g_effect_af_robot_hit_attack = robot_hit_attack;
+    g_effect_af_fire_laser = fire_laser;
+    g_effect_af_calc_gun_point = calc_gun_point;
+    g_effect_af_create_path_to_player = create_path_to_player;
+    g_effect_af_create_path_to_station = create_path_to_station;
+    g_effect_af_create_n_segment_path = create_n_segment_path;
+    g_effect_af_create_n_segment_path_to_door = create_n_segment_path_to_door;
+    g_effect_af_attempt_to_resume_path = attempt_to_resume_path;
+    g_effect_af_ai_follow_path = ai_follow_path;
+    g_effect_af_move_towards_segment_center = move_towards_segment_center;
+    g_effect_af_compute_vis_and_vec = compute_vis_and_vec;
+    g_effect_af_multi_send_robot_position = multi_send_robot_position;
+    g_effect_af_do_boss_stuff = do_boss_stuff;
+    g_effect_af_p_rand = p_rand;
+    g_effect_af_make_random_vector = make_random_vector;
+    g_effect_af_object_to_object_visibility = object_to_object_visibility;
+    g_effect_af_do_snipe_frame = do_snipe_frame;
+    g_effect_af_do_escort_frame = do_escort_frame;
+    g_effect_af_do_thief_frame = do_thief_frame;
+    g_effect_af_do_any_robot_dying_frame = do_any_robot_dying_frame;
+    g_effect_af_make_nearby_robot_snipe = make_nearby_robot_snipe;
+    g_effect_af_move_away_from_player_af = move_away_from_player;
+    g_effect_af_laser_create_new_easy = laser_create_new_easy;
+}
+
+CAMLprim value cd_ox_effect_af_multiplayer_awareness(value v_agitation)
+{
+    int result = 0;
+    if (g_effect_af_multiplayer_awareness)
+        result = g_effect_af_multiplayer_awareness(Int_val(v_agitation));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_af_robot_hit_attack(value unit)
+{
+    (void)unit;
+    if (g_effect_af_robot_hit_attack)
+        g_effect_af_robot_hit_attack();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_fire_laser(
+    value v_gpx, value v_gpy, value v_gpz,
+    value v_gun_num,
+    value v_fpx, value v_fpy, value v_fpz)
+{
+    if (g_effect_af_fire_laser)
+        g_effect_af_fire_laser(
+            Int_val(v_gpx), Int_val(v_gpy), Int_val(v_gpz),
+            Int_val(v_gun_num),
+            Int_val(v_fpx), Int_val(v_fpy), Int_val(v_fpz));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_fire_laser_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_af_fire_laser(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+CAMLprim value cd_ox_effect_af_calc_gun_point(value v_gun_num)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t gx = 0, gy = 0, gz = 0;
+    if (g_effect_af_calc_gun_point)
+        g_effect_af_calc_gun_point(Int_val(v_gun_num), &gx, &gy, &gz);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, Val_long(gx));
+    Store_field(result, 1, Val_long(gy));
+    Store_field(result, 2, Val_long(gz));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_af_create_path_to_player(value v_max_length, value v_safety_flag)
+{
+    if (g_effect_af_create_path_to_player)
+        g_effect_af_create_path_to_player(Int_val(v_max_length), Int_val(v_safety_flag));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_create_path_to_station(value v_max_time)
+{
+    if (g_effect_af_create_path_to_station)
+        g_effect_af_create_path_to_station(Int_val(v_max_time));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_create_n_segment_path(value v_length, value v_avoid_seg)
+{
+    if (g_effect_af_create_n_segment_path)
+        g_effect_af_create_n_segment_path(Int_val(v_length), Int_val(v_avoid_seg));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_create_n_segment_path_to_door(value v_length, value v_avoid_seg)
+{
+    if (g_effect_af_create_n_segment_path_to_door)
+        g_effect_af_create_n_segment_path_to_door(Int_val(v_length), Int_val(v_avoid_seg));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_attempt_to_resume_path(value unit)
+{
+    (void)unit;
+    if (g_effect_af_attempt_to_resume_path)
+        g_effect_af_attempt_to_resume_path();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_ai_follow_path(
+    value v_vis, value v_prev_vis,
+    value v_vtpx, value v_vtpy, value v_vtpz)
+{
+    if (g_effect_af_ai_follow_path)
+        g_effect_af_ai_follow_path(
+            Int_val(v_vis), Int_val(v_prev_vis),
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_move_towards_segment_center(value unit)
+{
+    (void)unit;
+    if (g_effect_af_move_towards_segment_center)
+        g_effect_af_move_towards_segment_center();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_compute_vis_and_vec(
+    value v_gpx, value v_gpy, value v_gpz)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t pv = 0, vtpx = 0, vtpy = 0, vtpz = 0, sound_flag = 0;
+    if (g_effect_af_compute_vis_and_vec)
+        g_effect_af_compute_vis_and_vec(
+            Int_val(v_gpx), Int_val(v_gpy), Int_val(v_gpz),
+            &pv, &vtpx, &vtpy, &vtpz, &sound_flag);
+    result = caml_alloc_tuple(5);
+    Store_field(result, 0, Val_long(pv));
+    Store_field(result, 1, Val_long(vtpx));
+    Store_field(result, 2, Val_long(vtpy));
+    Store_field(result, 3, Val_long(vtpz));
+    Store_field(result, 4, Val_long(sound_flag));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_af_multi_send_robot_position(value v_flag)
+{
+    if (g_effect_af_multi_send_robot_position)
+        g_effect_af_multi_send_robot_position(Int_val(v_flag));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_boss_stuff(value v_pv)
+{
+    if (g_effect_af_do_boss_stuff)
+        g_effect_af_do_boss_stuff(Int_val(v_pv));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_p_rand(value unit)
+{
+    (void)unit;
+    int result = 0;
+    if (g_effect_af_p_rand)
+        result = g_effect_af_p_rand();
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_af_make_random_vector(value unit)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    (void)unit;
+    int32_t rx = 0, ry = 0, rz = 0;
+    if (g_effect_af_make_random_vector)
+        g_effect_af_make_random_vector(&rx, &ry, &rz);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, Val_long(rx));
+    Store_field(result, 1, Val_long(ry));
+    Store_field(result, 2, Val_long(rz));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_af_object_to_object_visibility(value unit)
+{
+    (void)unit;
+    int result = 0;
+    if (g_effect_af_object_to_object_visibility)
+        result = g_effect_af_object_to_object_visibility();
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_af_do_snipe_frame(
+    value v_dist, value v_vis,
+    value v_vtpx, value v_vtpy, value v_vtpz)
+{
+    if (g_effect_af_do_snipe_frame)
+        g_effect_af_do_snipe_frame(
+            Int_val(v_dist), Int_val(v_vis),
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_escort_frame(value v_dist, value v_vis)
+{
+    if (g_effect_af_do_escort_frame)
+        g_effect_af_do_escort_frame(Int_val(v_dist), Int_val(v_vis));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_thief_frame(
+    value v_dist, value v_vis,
+    value v_vtpx, value v_vtpy, value v_vtpz)
+{
+    if (g_effect_af_do_thief_frame)
+        g_effect_af_do_thief_frame(
+            Int_val(v_dist), Int_val(v_vis),
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_any_robot_dying_frame(value unit)
+{
+    (void)unit;
+    int result = 0;
+    if (g_effect_af_do_any_robot_dying_frame)
+        result = g_effect_af_do_any_robot_dying_frame();
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_af_make_nearby_robot_snipe(value unit)
+{
+    (void)unit;
+    if (g_effect_af_make_nearby_robot_snipe)
+        g_effect_af_make_nearby_robot_snipe();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_move_away_from_player(value unit)
+{
+    (void)unit;
+    if (g_effect_af_move_away_from_player_af)
+        g_effect_af_move_away_from_player_af();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_laser_create_new_easy(
+    value v_fvx, value v_fvy, value v_fvz,
+    value v_fpx, value v_fpy, value v_fpz,
+    value v_objnum, value v_weapon_id)
+{
+    if (g_effect_af_laser_create_new_easy)
+        g_effect_af_laser_create_new_easy(
+            Int_val(v_fvx), Int_val(v_fvy), Int_val(v_fvz),
+            Int_val(v_fpx), Int_val(v_fpy), Int_val(v_fpz),
+            Int_val(v_objnum), Int_val(v_weapon_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_laser_create_new_easy_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_af_laser_create_new_easy(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+}
+
+/* AI frame entry points */
+void cd_ox_do_ai_frame_d1(
+    const int32_t* ai_state, int ai_state_len,
+    const int32_t* rinfo, int rinfo_len,
+    int32_t frame_time, int32_t frame_count, int32_t game_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t overall_agitation, int player_is_dead, int player_exploded,
+    int32_t player_flags,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_size, int32_t obj_id, int objnum,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_size,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
+    const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
+    const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_ai_frame_d1");
+    CAMLparam0();
+    CAMLlocal4(v_ai_state, v_rinfo, v_orient, v_result);
+    CAMLlocal2(v_gun_point, v_cloak_pos);
+
+    /* Pack ai_state OCaml array */
+    v_ai_state = caml_alloc(ai_state_len, 0);
+    for (int i = 0; i < ai_state_len; i++)
+        Store_field(v_ai_state, i, Val_long(ai_state[i]));
+
+    /* Pack rinfo OCaml array */
+    v_rinfo = caml_alloc(rinfo_len, 0);
+    for (int i = 0; i < rinfo_len; i++)
+        Store_field(v_rinfo, i, Val_long(rinfo[i]));
+
+    /* Pack orient as 9-element OCaml array */
+    v_orient = caml_alloc(9, 0);
+    for (int i = 0; i < 9; i++)
+        Store_field(v_orient, i, Val_long(orient[i]));
+
+    /* Pack gun_point_in as 3-element OCaml array */
+    v_gun_point = caml_alloc(3, 0);
+    Store_field(v_gun_point, 0, Val_long(gun_point_in ? gun_point_in[0] : 0));
+    Store_field(v_gun_point, 1, Val_long(gun_point_in ? gun_point_in[1] : 0));
+    Store_field(v_gun_point, 2, Val_long(gun_point_in ? gun_point_in[2] : 0));
+
+    /* Pack cloak_last_pos as 3-element OCaml array */
+    v_cloak_pos = caml_alloc(3, 0);
+    Store_field(v_cloak_pos, 0, Val_long(cloak_last_pos ? cloak_last_pos[0] : 0));
+    Store_field(v_cloak_pos, 1, Val_long(cloak_last_pos ? cloak_last_pos[1] : 0));
+    Store_field(v_cloak_pos, 2, Val_long(cloak_last_pos ? cloak_last_pos[2] : 0));
+
+    value args[32] = {
+        v_ai_state, v_rinfo,
+        Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
+        Val_long(game_mode), Val_long(difficulty_level),
+        Val_long(overall_agitation), Val_long(player_is_dead), Val_long(player_exploded),
+        Val_long(player_flags),
+        Val_long(obj_x), Val_long(obj_y), Val_long(obj_z),
+        Val_long(obj_segnum), Val_long(obj_size), Val_long(obj_id), Val_long(objnum),
+        Val_long(console_x), Val_long(console_y), Val_long(console_z), Val_long(console_size),
+        Val_long(believed_x), Val_long(believed_y), Val_long(believed_z), Val_long(believed_seg),
+        v_orient, v_gun_point, Val_long(seg_special),
+        v_cloak_pos,
+        Val_long(cloak_last_time), Val_long(ai_evaded_in)
+    };
+    v_result = caml_callbackN(*g_do_ai_frame_d1, 32, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_do_ai_frame_d2(
+    const int32_t* ai_state, int ai_state_len,
+    const int32_t* rinfo, int rinfo_len,
+    int32_t frame_time, int32_t frame_count, int32_t game_time,
+    int32_t game_mode, int32_t difficulty_level,
+    int32_t overall_agitation, int player_is_dead, int player_exploded,
+    int32_t player_flags,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_size, int32_t obj_id, int objnum,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_size,
+    int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
+    const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
+    const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int animation_enabled, int32_t current_level_num, int32_t last_missile_camera,
+    int robots_kill_robots_cheat, int32_t boss_dying_start_time,
+    int32_t phys_flags_in, int32_t rotthrust_in,
+    int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_ai_frame_d2");
+    CAMLparam0();
+    CAMLlocal4(v_ai_state, v_rinfo, v_orient, v_result);
+    CAMLlocal2(v_gun_point, v_cloak_pos);
+
+    v_ai_state = caml_alloc(ai_state_len, 0);
+    for (int i = 0; i < ai_state_len; i++)
+        Store_field(v_ai_state, i, Val_long(ai_state[i]));
+
+    v_rinfo = caml_alloc(rinfo_len, 0);
+    for (int i = 0; i < rinfo_len; i++)
+        Store_field(v_rinfo, i, Val_long(rinfo[i]));
+
+    v_orient = caml_alloc(9, 0);
+    for (int i = 0; i < 9; i++)
+        Store_field(v_orient, i, Val_long(orient[i]));
+
+    v_gun_point = caml_alloc(3, 0);
+    Store_field(v_gun_point, 0, Val_long(gun_point_in ? gun_point_in[0] : 0));
+    Store_field(v_gun_point, 1, Val_long(gun_point_in ? gun_point_in[1] : 0));
+    Store_field(v_gun_point, 2, Val_long(gun_point_in ? gun_point_in[2] : 0));
+
+    v_cloak_pos = caml_alloc(3, 0);
+    Store_field(v_cloak_pos, 0, Val_long(cloak_last_pos ? cloak_last_pos[0] : 0));
+    Store_field(v_cloak_pos, 1, Val_long(cloak_last_pos ? cloak_last_pos[1] : 0));
+    Store_field(v_cloak_pos, 2, Val_long(cloak_last_pos ? cloak_last_pos[2] : 0));
+
+    value args[41] = {
+        v_ai_state, v_rinfo,
+        Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
+        Val_long(game_mode), Val_long(difficulty_level),
+        Val_long(overall_agitation), Val_long(player_is_dead), Val_long(player_exploded),
+        Val_long(player_flags),
+        Val_long(obj_x), Val_long(obj_y), Val_long(obj_z),
+        Val_long(obj_segnum), Val_long(obj_size), Val_long(obj_id), Val_long(objnum),
+        Val_long(console_x), Val_long(console_y), Val_long(console_z), Val_long(console_size),
+        Val_long(believed_x), Val_long(believed_y), Val_long(believed_z), Val_long(believed_seg),
+        v_orient, v_gun_point, Val_long(seg_special),
+        v_cloak_pos,
+        Val_long(cloak_last_time), Val_long(ai_evaded_in),
+        Val_long(animation_enabled), Val_long(current_level_num), Val_long(last_missile_camera),
+        Val_long(robots_kill_robots_cheat), Val_long(boss_dying_start_time),
+        Val_long(phys_flags_in), Val_long(rotthrust_in),
+        Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold)
+    };
+    v_result = caml_callbackN(*g_do_ai_frame_d2, 41, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* ====================================================================== */
+/* Physics sim effects                                                    */
+/* ====================================================================== */
+
+void cd_ox_register_physics_sim_effects(
+    cd_effect_ps_find_vector_intersection_fn find_vector_intersection,
+    cd_effect_ps_collide_object_with_wall_fn collide_object_with_wall,
+    cd_effect_ps_scrape_object_on_wall_fn scrape_object_on_wall,
+    cd_effect_ps_collide_two_objects_fn collide_two_objects,
+    cd_effect_ps_obj_relink_fn obj_relink,
+    cd_effect_ps_find_object_seg_fn find_object_seg,
+    cd_effect_ps_update_object_seg_fn update_object_seg,
+    cd_effect_ps_find_point_seg_fn find_point_seg,
+    cd_effect_ps_get_seg_masks_fn get_seg_masks,
+    cd_effect_ps_compute_segment_center_fn compute_segment_center,
+    cd_effect_ps_add_stuck_object_fn add_stuck_object,
+    cd_effect_ps_find_connect_side_fn find_connect_side,
+    cd_effect_ps_wall_is_doorway_fn wall_is_doorway,
+    cd_effect_ps_create_abs_vertex_lists_and_dist_fn create_abs_vertex_lists_and_dist,
+    cd_effect_ps_tmap_is_force_field_fn tmap_is_force_field,
+    cd_effect_ps_vm_vector_2_matrix_orient_fn vm_vector_2_matrix_orient)
+{
+    g_effect_ps_find_vector_intersection = find_vector_intersection;
+    g_effect_ps_collide_object_with_wall = collide_object_with_wall;
+    g_effect_ps_scrape_object_on_wall = scrape_object_on_wall;
+    g_effect_ps_collide_two_objects = collide_two_objects;
+    g_effect_ps_obj_relink = obj_relink;
+    g_effect_ps_find_object_seg = find_object_seg;
+    g_effect_ps_update_object_seg = update_object_seg;
+    g_effect_ps_find_point_seg = find_point_seg;
+    g_effect_ps_get_seg_masks = get_seg_masks;
+    g_effect_ps_compute_segment_center = compute_segment_center;
+    g_effect_ps_add_stuck_object = add_stuck_object;
+    g_effect_ps_find_connect_side = find_connect_side;
+    g_effect_ps_wall_is_doorway = wall_is_doorway;
+    g_effect_ps_create_abs_vertex_lists_and_dist = create_abs_vertex_lists_and_dist;
+    g_effect_ps_tmap_is_force_field = tmap_is_force_field;
+    g_effect_ps_vm_vector_2_matrix_orient = vm_vector_2_matrix_orient;
+}
+
+CAMLprim value cd_ox_effect_ps_find_vector_intersection(value v_packed)
+{
+    CAMLparam1(v_packed);
+    CAMLlocal1(v_result);
+    int query_len = Wosize_val(v_packed);
+    int32_t query[256];
+    for (int i = 0; i < query_len && i < 256; i++)
+        query[i] = Int_val(Field(v_packed, i));
+
+    int32_t result_buf[256];
+    int result_len = 0;
+    if (g_effect_ps_find_vector_intersection)
+        g_effect_ps_find_vector_intersection(query, query_len, result_buf, &result_len);
+
+    v_result = caml_alloc(result_len, 0);
+    for (int i = 0; i < result_len; i++)
+        Store_field(v_result, i, Val_long(result_buf[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_ps_collide_object_with_wall(
+    value v_speed, value v_seg, value v_side,
+    value v_hx, value v_hy, value v_hz, value v_flags)
+{
+    int result = Int_val(v_flags);
+    if (g_effect_ps_collide_object_with_wall)
+        result = g_effect_ps_collide_object_with_wall(
+            Int_val(v_speed), Int_val(v_seg), Int_val(v_side),
+            Int_val(v_hx), Int_val(v_hy), Int_val(v_hz), Int_val(v_flags));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_collide_object_with_wall_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_collide_object_with_wall(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+CAMLprim value cd_ox_effect_ps_scrape_object_on_wall(
+    value v_seg, value v_side,
+    value v_hx, value v_hy, value v_hz)
+{
+    int result = 0;
+    if (g_effect_ps_scrape_object_on_wall)
+        result = g_effect_ps_scrape_object_on_wall(
+            Int_val(v_seg), Int_val(v_side),
+            Int_val(v_hx), Int_val(v_hy), Int_val(v_hz));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_scrape_object_on_wall_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_scrape_object_on_wall(
+        argv[0], argv[1], argv[2], argv[3], argv[4]);
+}
+
+CAMLprim value cd_ox_effect_ps_collide_two_objects(
+    value v_objnum, value v_hx, value v_hy, value v_hz)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t flags_out = 0, vx = 0, vy = 0, vz = 0;
+    if (g_effect_ps_collide_two_objects)
+        g_effect_ps_collide_two_objects(
+            Int_val(v_objnum), Int_val(v_hx), Int_val(v_hy), Int_val(v_hz),
+            &flags_out, &vx, &vy, &vz);
+    result = caml_alloc_tuple(4);
+    Store_field(result, 0, Val_long(flags_out));
+    Store_field(result, 1, Val_long(vx));
+    Store_field(result, 2, Val_long(vy));
+    Store_field(result, 3, Val_long(vz));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_ps_obj_relink(value v_objnum, value v_seg)
+{
+    if (g_effect_ps_obj_relink)
+        g_effect_ps_obj_relink(Int_val(v_objnum), Int_val(v_seg));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_find_object_seg(value v_objnum)
+{
+    int result = -1;
+    if (g_effect_ps_find_object_seg)
+        result = g_effect_ps_find_object_seg(Int_val(v_objnum));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_update_object_seg(value v_objnum)
+{
+    if (g_effect_ps_update_object_seg)
+        g_effect_ps_update_object_seg(Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_find_point_seg(
+    value v_px, value v_py, value v_pz, value v_seg)
+{
+    int result = -1;
+    if (g_effect_ps_find_point_seg)
+        result = g_effect_ps_find_point_seg(
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz), Int_val(v_seg));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_get_seg_masks(
+    value v_px, value v_py, value v_pz, value v_seg)
+{
+    int result = 0;
+    if (g_effect_ps_get_seg_masks)
+        result = g_effect_ps_get_seg_masks(
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz), Int_val(v_seg));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_compute_segment_center(value v_seg)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t cx = 0, cy = 0, cz = 0;
+    if (g_effect_ps_compute_segment_center)
+        g_effect_ps_compute_segment_center(Int_val(v_seg), &cx, &cy, &cz);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, Val_long(cx));
+    Store_field(result, 1, Val_long(cy));
+    Store_field(result, 2, Val_long(cz));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_ps_add_stuck_object(value v_seg, value v_side)
+{
+    if (g_effect_ps_add_stuck_object)
+        g_effect_ps_add_stuck_object(Int_val(v_seg), Int_val(v_side));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_find_connect_side(value v_seg1, value v_seg2)
+{
+    int result = -1;
+    if (g_effect_ps_find_connect_side)
+        result = g_effect_ps_find_connect_side(Int_val(v_seg1), Int_val(v_seg2));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_wall_is_doorway(value v_seg, value v_side)
+{
+    int result = 0;
+    if (g_effect_ps_wall_is_doorway)
+        result = g_effect_ps_wall_is_doorway(Int_val(v_seg), Int_val(v_side));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_create_abs_vertex_lists_and_dist(
+    value v_seg, value v_side, value v_spx, value v_spy, value v_spz)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t dist = 0, nx = 0, ny = 0, nz = 0;
+    if (g_effect_ps_create_abs_vertex_lists_and_dist)
+        g_effect_ps_create_abs_vertex_lists_and_dist(
+            Int_val(v_seg), Int_val(v_side),
+            Int_val(v_spx), Int_val(v_spy), Int_val(v_spz),
+            &dist, &nx, &ny, &nz);
+    result = caml_alloc_tuple(4);
+    Store_field(result, 0, Val_long(dist));
+    Store_field(result, 1, Val_long(nx));
+    Store_field(result, 2, Val_long(ny));
+    Store_field(result, 3, Val_long(nz));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_ps_tmap_is_force_field(value v_seg, value v_side)
+{
+    int result = 0;
+    if (g_effect_ps_tmap_is_force_field)
+        result = g_effect_ps_tmap_is_force_field(Int_val(v_seg), Int_val(v_side));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_ps_vm_vector_2_matrix_orient(
+    value v_vx, value v_vy, value v_vz,
+    value v_ux, value v_uy, value v_uz)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t out[9] = {0};
+    if (g_effect_ps_vm_vector_2_matrix_orient)
+        g_effect_ps_vm_vector_2_matrix_orient(
+            Int_val(v_vx), Int_val(v_vy), Int_val(v_vz),
+            Int_val(v_ux), Int_val(v_uy), Int_val(v_uz),
+            out);
+    result = caml_alloc_tuple(9);
+    for (int i = 0; i < 9; i++)
+        Store_field(result, i, Val_long(out[i]));
+    CAMLreturn(result);
+}
+
+CAMLprim value cd_ox_effect_ps_vm_vector_2_matrix_orient_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_vm_vector_2_matrix_orient(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+/* Physics sim entry points */
+void cd_ox_do_physics_sim_d1(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t vel_x, int32_t vel_y, int32_t vel_z,
+    int32_t thrust_x, int32_t thrust_y, int32_t thrust_z,
+    const int32_t* orient,
+    int32_t rotvel_x, int32_t rotvel_y, int32_t rotvel_z,
+    int32_t rotthrust_x, int32_t rotthrust_y, int32_t rotthrust_z,
+    int32_t size, int32_t mass, int32_t drag,
+    int32_t phys_flags, int32_t obj_flags, int obj_type, int obj_id,
+    int32_t obj_segnum, int objnum, int32_t turnroll,
+    int32_t last_pos_x, int32_t last_pos_y, int32_t last_pos_z,
+    int32_t frame_time, int32_t physics_cheat_flag,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_physics_sim_d1");
+    CAMLparam0();
+    CAMLlocal2(v_orient, v_result);
+
+    /* Pack orient as OCaml tuple of 3 tuples: ((rx,ry,rz),(ux,uy,uz),(fx,fy,fz)) */
+    CAMLlocal3(v_rvec, v_uvec, v_fvec);
+    v_rvec = caml_alloc_tuple(3);
+    Store_field(v_rvec, 0, Val_long(orient[0]));
+    Store_field(v_rvec, 1, Val_long(orient[1]));
+    Store_field(v_rvec, 2, Val_long(orient[2]));
+    v_uvec = caml_alloc_tuple(3);
+    Store_field(v_uvec, 0, Val_long(orient[3]));
+    Store_field(v_uvec, 1, Val_long(orient[4]));
+    Store_field(v_uvec, 2, Val_long(orient[5]));
+    v_fvec = caml_alloc_tuple(3);
+    Store_field(v_fvec, 0, Val_long(orient[6]));
+    Store_field(v_fvec, 1, Val_long(orient[7]));
+    Store_field(v_fvec, 2, Val_long(orient[8]));
+    v_orient = caml_alloc_tuple(3);
+    Store_field(v_orient, 0, v_rvec);
+    Store_field(v_orient, 1, v_uvec);
+    Store_field(v_orient, 2, v_fvec);
+
+    value args[31] = {
+        Val_long(pos_x), Val_long(pos_y), Val_long(pos_z),
+        Val_long(vel_x), Val_long(vel_y), Val_long(vel_z),
+        Val_long(thrust_x), Val_long(thrust_y), Val_long(thrust_z),
+        v_orient,
+        Val_long(rotvel_x), Val_long(rotvel_y), Val_long(rotvel_z),
+        Val_long(rotthrust_x), Val_long(rotthrust_y), Val_long(rotthrust_z),
+        Val_long(size), Val_long(mass), Val_long(drag),
+        Val_long(phys_flags), Val_long(obj_flags), Val_long(obj_type), Val_long(obj_id),
+        Val_long(obj_segnum), Val_long(objnum), Val_long(turnroll),
+        Val_long(last_pos_x), Val_long(last_pos_y), Val_long(last_pos_z),
+        Val_long(frame_time), Val_long(physics_cheat_flag)
+    };
+    v_result = caml_callbackN(*g_do_physics_sim_d1, 31, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_do_physics_sim_d2(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t vel_x, int32_t vel_y, int32_t vel_z,
+    int32_t thrust_x, int32_t thrust_y, int32_t thrust_z,
+    const int32_t* orient,
+    int32_t rotvel_x, int32_t rotvel_y, int32_t rotvel_z,
+    int32_t rotthrust_x, int32_t rotthrust_y, int32_t rotthrust_z,
+    int32_t size, int32_t mass, int32_t drag,
+    int32_t phys_flags, int32_t obj_flags, int obj_type, int obj_id,
+    int32_t obj_segnum, int objnum, int32_t turnroll,
+    int32_t last_pos_x, int32_t last_pos_y, int32_t last_pos_z,
+    int32_t orient_uvec_x, int32_t orient_uvec_y, int32_t orient_uvec_z,
+    int32_t seg_special,
+    int32_t frame_time, int32_t physics_cheat_flag,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_do_physics_sim_d2");
+    CAMLparam0();
+    CAMLlocal2(v_orient, v_result);
+
+    CAMLlocal3(v_rvec, v_uvec, v_fvec);
+    v_rvec = caml_alloc_tuple(3);
+    Store_field(v_rvec, 0, Val_long(orient[0]));
+    Store_field(v_rvec, 1, Val_long(orient[1]));
+    Store_field(v_rvec, 2, Val_long(orient[2]));
+    v_uvec = caml_alloc_tuple(3);
+    Store_field(v_uvec, 0, Val_long(orient[3]));
+    Store_field(v_uvec, 1, Val_long(orient[4]));
+    Store_field(v_uvec, 2, Val_long(orient[5]));
+    v_fvec = caml_alloc_tuple(3);
+    Store_field(v_fvec, 0, Val_long(orient[6]));
+    Store_field(v_fvec, 1, Val_long(orient[7]));
+    Store_field(v_fvec, 2, Val_long(orient[8]));
+    v_orient = caml_alloc_tuple(3);
+    Store_field(v_orient, 0, v_rvec);
+    Store_field(v_orient, 1, v_uvec);
+    Store_field(v_orient, 2, v_fvec);
+
+    value args[35] = {
+        Val_long(pos_x), Val_long(pos_y), Val_long(pos_z),
+        Val_long(vel_x), Val_long(vel_y), Val_long(vel_z),
+        Val_long(thrust_x), Val_long(thrust_y), Val_long(thrust_z),
+        v_orient,
+        Val_long(rotvel_x), Val_long(rotvel_y), Val_long(rotvel_z),
+        Val_long(rotthrust_x), Val_long(rotthrust_y), Val_long(rotthrust_z),
+        Val_long(size), Val_long(mass), Val_long(drag),
+        Val_long(phys_flags), Val_long(obj_flags), Val_long(obj_type), Val_long(obj_id),
+        Val_long(obj_segnum), Val_long(objnum), Val_long(turnroll),
+        Val_long(last_pos_x), Val_long(last_pos_y), Val_long(last_pos_z),
+        Val_long(orient_uvec_x), Val_long(orient_uvec_y), Val_long(orient_uvec_z),
+        Val_long(seg_special),
+        Val_long(frame_time), Val_long(physics_cheat_flag)
+    };
+    v_result = caml_callbackN(*g_do_physics_sim_d2, 35, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
 }

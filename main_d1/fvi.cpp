@@ -17,6 +17,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #ifdef USE_OX_BRIDGE
 #include "ox/bridge.h"
+extern bool g_ox_nested_ocaml_guard;
 #endif
 
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)
@@ -280,36 +281,40 @@ int check_sphere_to_face(vms_vector* pnt, segment* sp, side* s, int facenum, int
 int check_line_to_face(vms_vector* newp, vms_vector* p0, vms_vector* p1, segment* seg, int side, int facenum, int nv, fix rad)
 {
 #ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
+	if (!g_ox_nested_ocaml_guard)
 	{
-		fprintf(stderr, "[OX] check_line_to_face using cd_ox_check_line_to_face.\n");
-		ox_bridge_logged = 1;
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] check_line_to_face using cd_ox_check_line_to_face.\n");
+			ox_bridge_logged = 1;
+		}
+		int32_t packed[46];
+		packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
+		packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
+		packed[6] = seg->sides[side].normals[facenum].x;
+		packed[7] = seg->sides[side].normals[facenum].y;
+		packed[8] = seg->sides[side].normals[facenum].z;
+		packed[9] = rad;
+		packed[10] = facenum;
+		packed[11] = nv;
+		packed[12] = seg->sides[side].type;
+		packed[13] = side;
+		for (int i = 0; i < 8; i++)
+			packed[14 + i] = seg->verts[i];
+		for (int i = 0; i < 8; i++)
+		{
+			packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+			packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+			packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+		}
+		int32_t hit_type, npx, npy, npz;
+		cd_ox_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
+		newp->x = npx; newp->y = npy; newp->z = npz;
+		return hit_type;
 	}
-	int32_t packed[46];
-	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
-	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
-	packed[6] = seg->sides[side].normals[facenum].x;
-	packed[7] = seg->sides[side].normals[facenum].y;
-	packed[8] = seg->sides[side].normals[facenum].z;
-	packed[9] = rad;
-	packed[10] = facenum;
-	packed[11] = nv;
-	packed[12] = seg->sides[side].type;
-	packed[13] = side;
-	for (int i = 0; i < 8; i++)
-		packed[14 + i] = seg->verts[i];
-	for (int i = 0; i < 8; i++)
+#endif
 	{
-		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-	}
-	int32_t hit_type, npx, npy, npz;
-	cd_ox_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
-	newp->x = npx; newp->y = npy; newp->z = npz;
-	return hit_type;
-#else
 	vms_vector checkp;
 	int pli;
 	struct side* s = &seg->sides[side];
@@ -349,7 +354,7 @@ int check_line_to_face(vms_vector* newp, vms_vector* p0, vms_vector* p1, segment
 		vm_vec_scale_add2(&checkp, &norm, -rad);
 
 	return check_sphere_to_face(&checkp, seg, s, facenum, nv, rad, vertex_list);
-#endif
+	}
 }
 
 //returns the value of a determinant
@@ -406,36 +411,40 @@ int disable_new_fvi_stuff = 0;
 int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * p1, segment * seg, int side, int facenum, int nv, fix rad)
 {
 #ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
+	if (!g_ox_nested_ocaml_guard)
 	{
-		fprintf(stderr, "[OX] special_check_line_to_face using cd_ox_special_check_line_to_face.\n");
-		ox_bridge_logged = 1;
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] special_check_line_to_face using cd_ox_special_check_line_to_face.\n");
+			ox_bridge_logged = 1;
+		}
+		int32_t packed[46];
+		packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
+		packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
+		packed[6] = seg->sides[side].normals[facenum].x;
+		packed[7] = seg->sides[side].normals[facenum].y;
+		packed[8] = seg->sides[side].normals[facenum].z;
+		packed[9] = rad;
+		packed[10] = facenum;
+		packed[11] = nv;
+		packed[12] = seg->sides[side].type;
+		packed[13] = side;
+		for (int i = 0; i < 8; i++)
+			packed[14 + i] = seg->verts[i];
+		for (int i = 0; i < 8; i++)
+		{
+			packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+			packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+			packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+		}
+		int32_t hit_type, npx, npy, npz;
+		cd_ox_special_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
+		newp->x = npx; newp->y = npy; newp->z = npz;
+		return hit_type;
 	}
-	int32_t packed[46];
-	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
-	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
-	packed[6] = seg->sides[side].normals[facenum].x;
-	packed[7] = seg->sides[side].normals[facenum].y;
-	packed[8] = seg->sides[side].normals[facenum].z;
-	packed[9] = rad;
-	packed[10] = facenum;
-	packed[11] = nv;
-	packed[12] = seg->sides[side].type;
-	packed[13] = side;
-	for (int i = 0; i < 8; i++)
-		packed[14 + i] = seg->verts[i];
-	for (int i = 0; i < 8; i++)
+#endif
 	{
-		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-	}
-	int32_t hit_type, npx, npy, npz;
-	cd_ox_special_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
-	newp->x = npx; newp->y = npy; newp->z = npz;
-	return hit_type;
-#else
 	vms_vector move_vec;
 	fix edge_t, move_t, edge_t2, move_t2, closest_dist;
 	fix edge_len, move_len;
@@ -520,7 +529,7 @@ int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * 
 	}
 	else
 		return IT_NONE;			//no hit
-#endif
+	}
 }
 
 //maybe this routine should just return the distance and let the caller
@@ -532,21 +541,25 @@ int special_check_line_to_face(vms_vector * newp, vms_vector * p0, vms_vector * 
 int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, vms_vector* sphere_pos, fix sphere_rad)
 {
 #ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
+	if (!g_ox_nested_ocaml_guard)
 	{
-		fprintf(stderr, "[OX] check_vector_to_sphere_1 using cd_ox_check_vector_to_sphere_1.\n");
-		ox_bridge_logged = 1;
+		static int ox_bridge_logged = 0;
+		if (!ox_bridge_logged)
+		{
+			fprintf(stderr, "[OX] check_vector_to_sphere_1 using cd_ox_check_vector_to_sphere_1.\n");
+			ox_bridge_logged = 1;
+		}
+		int32_t ix, iy, iz;
+		int32_t dist = cd_ox_check_vector_to_sphere_1(
+			p0->x, p0->y, p0->z,
+			p1->x, p1->y, p1->z,
+			sphere_pos->x, sphere_pos->y, sphere_pos->z,
+			sphere_rad, &ix, &iy, &iz);
+		intp->x = ix; intp->y = iy; intp->z = iz;
+		return dist;
 	}
-	int32_t ix, iy, iz;
-	int32_t dist = cd_ox_check_vector_to_sphere_1(
-		p0->x, p0->y, p0->z,
-		p1->x, p1->y, p1->z,
-		sphere_pos->x, sphere_pos->y, sphere_pos->z,
-		sphere_rad, &ix, &iy, &iz);
-	intp->x = ix; intp->y = iy; intp->z = iz;
-	return dist;
-#else
+#endif
+	{
 	vms_vector d, dn, w, closest_point;
 	fix mag_d, dist, w_dist, int_dist;
 
@@ -608,7 +621,7 @@ int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, v
 	}
 	else
 		return 0;
-#endif
+	}
 }
 
 //determine if a vector intersects with an object
@@ -616,18 +629,22 @@ int check_vector_to_sphere_1(vms_vector* intp, vms_vector* p0, vms_vector* p1, v
 fix check_vector_to_object(vms_vector* intp, vms_vector* p0, vms_vector* p1, fix rad, object* obj, object* otherobj)
 {
 #ifdef USE_OX_BRIDGE
-	return cd_ox_check_vector_to_object(
-		p0->x, p0->y, p0->z,
-		p1->x, p1->y, p1->z,
-		rad,
-		obj->pos.x, obj->pos.y, obj->pos.z,
-		obj->size, obj->type,
-		(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0,
-		otherobj->type,
-		(Game_mode & GM_MULTI_COOP) ? 1 : 0,
-		otherobj->ctype.laser_info.parent_type,
-		&intp->x, &intp->y, &intp->z);
-#else
+	if (!g_ox_nested_ocaml_guard)
+	{
+		return cd_ox_check_vector_to_object(
+			p0->x, p0->y, p0->z,
+			p1->x, p1->y, p1->z,
+			rad,
+			obj->pos.x, obj->pos.y, obj->pos.z,
+			obj->size, obj->type,
+			(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0,
+			otherobj->type,
+			(Game_mode & GM_MULTI_COOP) ? 1 : 0,
+			otherobj->ctype.laser_info.parent_type,
+			&intp->x, &intp->y, &intp->z);
+	}
+#endif
+	{
 	fix size = obj->size;
 
 	if (obj->type == OBJ_ROBOT && Robot_info[obj->id].attack_type)
@@ -640,7 +657,7 @@ fix check_vector_to_object(vms_vector* intp, vms_vector* p0, vms_vector* p1, fix
 		size = size / 2;
 
 	return check_vector_to_sphere_1(intp, p0, p1, &obj->pos, size + rad);
-#endif
+	}
 }
 
 
@@ -679,6 +696,7 @@ int check_trans_wall(vms_vector* pnt, segment* seg, int sidenum, int facenum);
 int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 {
 #ifdef USE_OX_BRIDGE
+	if (!g_ox_nested_ocaml_guard)
 	{
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
@@ -838,7 +856,8 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 
 		return hit_data->hit_type;
 	}
-#else
+#endif
+	{
 	int hit_type, hit_seg, hit_seg2;
 	vms_vector hit_pnt;
 	int i;
@@ -961,7 +980,7 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 //		Int3();
 
 	return hit_type;
-#endif
+	}
 }
 
 //--unused-- fix check_dist(vms_vector *v0,vms_vector *v1)
@@ -1486,63 +1505,67 @@ int sphere_intersects_wall(vms_vector* pnt, int segnum, fix rad)
 int object_intersects_wall(object* objp)
 {
 #ifdef USE_OX_BRIDGE
-	int n_segments = Highest_segment_index + 1;
-	int packed_len = 6 + n_segments * 80;
-	int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
-	if (!packed) return 0;
-
-	// Header
-	packed[0] = objp->pos.x;
-	packed[1] = objp->pos.y;
-	packed[2] = objp->pos.z;
-	packed[3] = objp->size;
-	packed[4] = objp->segnum;
-	packed[5] = n_segments;
-
-	// Per-segment data (80 ints each)
-	for (int s = 0; s < n_segments; s++)
+	if (!g_ox_nested_ocaml_guard)
 	{
-		segment* seg = &Segments[s];
-		int base = 6 + s * 80;
+		int n_segments = Highest_segment_index + 1;
+		int packed_len = 6 + n_segments * 80;
+		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
+		if (!packed) return 0;
 
-		// children[0..5]
-		for (int i = 0; i < 6; i++)
-			packed[base + i] = seg->children[i];
+		// Header
+		packed[0] = objp->pos.x;
+		packed[1] = objp->pos.y;
+		packed[2] = objp->pos.z;
+		packed[3] = objp->size;
+		packed[4] = objp->segnum;
+		packed[5] = n_segments;
 
-		// side_types[0..5]
-		for (int i = 0; i < 6; i++)
-			packed[base + 6 + i] = seg->sides[i].type;
-
-		// seg_verts[0..7]
-		for (int i = 0; i < 8; i++)
-			packed[base + 12 + i] = seg->verts[i];
-
-		// normals: side 0..5, normals[0].xyz then normals[1].xyz = 36 ints
-		for (int i = 0; i < 6; i++)
+		// Per-segment data (80 ints each)
+		for (int s = 0; s < n_segments; s++)
 		{
-			packed[base + 20 + i * 6 + 0] = seg->sides[i].normals[0].x;
-			packed[base + 20 + i * 6 + 1] = seg->sides[i].normals[0].y;
-			packed[base + 20 + i * 6 + 2] = seg->sides[i].normals[0].z;
-			packed[base + 20 + i * 6 + 3] = seg->sides[i].normals[1].x;
-			packed[base + 20 + i * 6 + 4] = seg->sides[i].normals[1].y;
-			packed[base + 20 + i * 6 + 5] = seg->sides[i].normals[1].z;
+			segment* seg = &Segments[s];
+			int base = 6 + s * 80;
+
+			// children[0..5]
+			for (int i = 0; i < 6; i++)
+				packed[base + i] = seg->children[i];
+
+			// side_types[0..5]
+			for (int i = 0; i < 6; i++)
+				packed[base + 6 + i] = seg->sides[i].type;
+
+			// seg_verts[0..7]
+			for (int i = 0; i < 8; i++)
+				packed[base + 12 + i] = seg->verts[i];
+
+			// normals: side 0..5, normals[0].xyz then normals[1].xyz = 36 ints
+			for (int i = 0; i < 6; i++)
+			{
+				packed[base + 20 + i * 6 + 0] = seg->sides[i].normals[0].x;
+				packed[base + 20 + i * 6 + 1] = seg->sides[i].normals[0].y;
+				packed[base + 20 + i * 6 + 2] = seg->sides[i].normals[0].z;
+				packed[base + 20 + i * 6 + 3] = seg->sides[i].normals[1].x;
+				packed[base + 20 + i * 6 + 4] = seg->sides[i].normals[1].y;
+				packed[base + 20 + i * 6 + 5] = seg->sides[i].normals[1].z;
+			}
+
+			// vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz = 24 ints
+			for (int i = 0; i < 8; i++)
+			{
+				packed[base + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+				packed[base + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+				packed[base + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+			}
 		}
 
-		// vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz = 24 ints
-		for (int i = 0; i < 8; i++)
-		{
-			packed[base + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-			packed[base + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-			packed[base + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-		}
+		int result = cd_ox_object_intersects_wall(packed, packed_len);
+		free(packed);
+		return result;
 	}
-
-	int result = cd_ox_object_intersects_wall(packed, packed_len);
-	free(packed);
-	return result;
-#else
+#endif
+	{
 	n_segs_visited = 0;
 
 	return sphere_intersects_wall(&objp->pos, objp->segnum, objp->size);
-#endif
+	}
 }

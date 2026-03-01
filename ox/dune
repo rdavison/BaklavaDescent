@@ -147,6 +147,51 @@
  (flags
   (:standard -open Core)))
 
+(library
+ (name ox_controlcen)
+ (libraries core ox_math ox_collide)
+ (modules ox_controlcen)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name bridge_controlcen)
+ (libraries core ox_controlcen)
+ (modules controlcen_bridge)
+ (wrapped false)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name ox_ai_frame)
+ (libraries core ox_math ox_physics ox_ai ox_collide)
+ (modules ox_ai_frame)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name bridge_ai_frame)
+ (libraries core ox_ai_frame)
+ (modules ai_frame_bridge)
+ (wrapped false)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name ox_physics_sim)
+ (libraries core ox_math ox_physics)
+ (modules ox_physics_sim)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name bridge_physics_sim)
+ (libraries core ox_physics_sim)
+ (modules physics_sim_bridge)
+ (wrapped false)
+ (flags
+  (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
@@ -171,6 +216,12 @@
   ox_lighting
   bridge_lighting
   ox_weapon
-  bridge_weapon)
+  bridge_weapon
+  ox_controlcen
+  bridge_controlcen
+  ox_ai_frame
+  bridge_ai_frame
+  ox_physics_sim
+  bridge_physics_sim)
  (flags
   (:standard -open Core)))

@@ -178,6 +178,97 @@ void do_controlcen_destroyed_stuff(object* objp)
 //do whatever this thing does in a frame
 void do_controlcen_frame(object* obj)
 {
+#ifdef USE_OX_BRIDGE
+	//	If a boss level, then Control_center_present will be 0.
+	if (!Control_center_present)
+		return;
+
+	if (!Robot_firing_enabled)
+		return;
+
+	// Multiplayer believed_pos sync (stays on C side)
+	if (Game_mode & GM_MULTI)
+		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
+
+	// Precompute has_children
+	int has_children = 0;
+	segment *segp = &Segments[obj->segnum];
+	for (int i = 0; i < MAX_SIDES_PER_SEGMENT; i++)
+		if (segp->children[i] != -1) { has_children = 1; break; }
+
+	// One-time registration of effect callbacks
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_controlcen_frame_effects(
+				[](int px, int py, int pz, int seg, int vx, int vy, int vz) -> int {
+					extern bool g_ox_nested_ocaml_guard;
+					vms_vector objpos = {px, py, pz};
+					vms_vector vec = {vx, vy, vz};
+					// Build a temporary object-like struct for the call
+					object tmpobj = *(&Objects[0]); // dummy init
+					tmpobj.pos = objpos;
+					tmpobj.segnum = seg;
+					// Guard: we're inside OCaml controlcen effects, prevent nested OCaml calls
+					g_ox_nested_ocaml_guard = true;
+					int result = player_is_visible_from_object(&tmpobj, &objpos, 0, &vec);
+					g_ox_nested_ocaml_guard = false;
+					return result;
+				},
+				[](int dx, int dy, int dz, int px, int py, int pz, int parent_id, int make_sound) {
+					vms_vector dir = {dx, dy, dz};
+					vms_vector pos = {px, py, pz};
+					Laser_create_new_easy(&dir, &pos, parent_id, CONTROLCEN_WEAPON_NUM, make_sound);
+				},
+				[](int dx, int dy, int dz, int gun_num, int obj_id) {
+					vms_vector dir = {dx, dy, dz};
+#ifdef NETWORK
+					multi_send_controlcen_fire(&dir, gun_num, obj_id);
+#else
+					(void)gun_num; (void)obj_id;
+#endif
+				},
+				[](int32_t* rx, int32_t* ry, int32_t* rz) {
+					vms_vector v;
+					make_random_vector(&v);
+					*rx = v.x; *ry = v.y; *rz = v.z;
+				},
+				[]() -> int { return P_Rand(); });
+		}
+	}
+
+	// Pack gun arrays (n_guns * 3 each)
+	int32_t gun_pos_flat[MAX_CONTROLCEN_GUNS * 3];
+	int32_t gun_dir_flat[MAX_CONTROLCEN_GUNS * 3];
+	for (int i = 0; i < N_controlcen_guns; i++) {
+		gun_pos_flat[i*3]   = Gun_pos[i].x;
+		gun_pos_flat[i*3+1] = Gun_pos[i].y;
+		gun_pos_flat[i*3+2] = Gun_pos[i].z;
+		gun_dir_flat[i*3]   = Gun_dir[i].x;
+		gun_dir_flat[i*3+1] = Gun_dir[i].y;
+		gun_dir_flat[i*3+2] = Gun_dir[i].z;
+	}
+
+	int32_t result[3];
+	cd_ox_do_controlcen_frame_d1(
+		Control_center_been_hit, Control_center_player_been_seen,
+		Control_center_next_fire_time,
+		N_controlcen_guns, gun_pos_flat, gun_dir_flat,
+		FrameCount, FrameTime,
+		Game_mode, Difficulty_level,
+		Players[Player_num].flags, Player_is_dead,
+		GameTime, Player_time_of_death,
+		obj->pos.x, obj->pos.y, obj->pos.z, obj->segnum,
+		ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
+		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z,
+		has_children, (int)(obj - Objects),
+		result);
+
+	Control_center_been_hit = result[0];
+	Control_center_player_been_seen = result[1];
+	Control_center_next_fire_time = result[2];
+#else
 	int			best_gun_num;
 
 	//	If a boss level, then Control_center_present will be 0.
@@ -207,7 +298,7 @@ void do_controlcen_frame(object* obj)
 			// the value of Believed_player_position that was set by the last
 			// person to go through ai_do_frame.  But since a no-robots game
 			// never goes through ai_do_frame, I'm making it so the control
-			// center can spot cloaked dudes.  
+			// center can spot cloaked dudes.
 
 			if (Game_mode & GM_MULTI)
 				Believed_player_pos = Objects[Players[Player_num].objnum].pos;
@@ -232,7 +323,7 @@ void do_controlcen_frame(object* obj)
 		return;
 	}
 
-	if ((Control_center_next_fire_time < 0) && !(Player_is_dead && (GameTime > Player_time_of_death + F1_0 * 2))) 
+	if ((Control_center_next_fire_time < 0) && !(Player_is_dead && (GameTime > Player_time_of_death + F1_0 * 2)))
 	{
 		if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED)
 			best_gun_num = calc_best_gun(N_controlcen_guns, Gun_pos, Gun_dir, &Believed_player_pos);
@@ -244,12 +335,12 @@ void do_controlcen_frame(object* obj)
 			fix			dist_to_player;
 			fix			delta_fire_time;
 
-			if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) 
+			if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED)
 			{
 				vm_vec_sub(&vec_to_goal, &Believed_player_pos, &Gun_pos[best_gun_num]);
 				dist_to_player = vm_vec_normalize_quick(&vec_to_goal);
 			}
-			else 
+			else
 			{
 				vm_vec_sub(&vec_to_goal, &ConsoleObject->pos, &Gun_pos[best_gun_num]);
 				dist_to_player = vm_vec_normalize_quick(&vec_to_goal);
@@ -269,7 +360,7 @@ void do_controlcen_frame(object* obj)
 			Laser_create_new_easy(&vec_to_goal, &Gun_pos[best_gun_num], obj - Objects, CONTROLCEN_WEAPON_NUM, 1);
 
 			//	1/4 of time, fire another thing, not directly at player, so it might hit him if he's constantly moving.
-			if (P_Rand() < 32767 / 4) 
+			if (P_Rand() < 32767 / 4)
 			{
 				vms_vector	randvec;
 
@@ -293,7 +384,7 @@ void do_controlcen_frame(object* obj)
 	}
 	else
 		Control_center_next_fire_time -= FrameTime;
-
+#endif
 }
 
 //	-----------------------------------------------------------------------------

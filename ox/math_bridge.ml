@@ -440,9 +440,75 @@ let () =
     (Lighting_bridge.cd_compute_headlight_light_d2
      : int -> int -> int -> int -> int -> int -> int -> int -> int);
   (* Force weapon bridge module initialization so its callbacks are registered. *)
-  ignore
-    (Weapon_bridge.cd_player_has_weapon_d1 : int -> int -> int -> int -> int -> int);
+  ignore (Weapon_bridge.cd_player_has_weapon_d1 : int -> int -> int -> int -> int -> int);
   ignore
     (Weapon_bridge.cd_player_has_weapon_d2
-     : int -> int -> int -> int -> int -> int -> int -> int -> int -> int)
+     : int -> int -> int -> int -> int -> int -> int -> int -> int -> int);
+  (* Force controlcen bridge module initialization so its callbacks are registered. *)
+  ignore
+    (Controlcen_bridge.cd_do_controlcen_frame_d1
+     : int
+       -> int
+       -> int
+       -> int
+       -> int array
+       -> int array
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int array);
+  ignore
+    (Controlcen_bridge.cd_do_controlcen_frame_d2
+     : int
+       -> int
+       -> int
+       -> int
+       -> int array
+       -> int array
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int
+       -> int array);
+  (* Force ai_frame bridge module initialization so its callbacks are registered. *)
+  ignore Ai_frame_bridge.cd_do_ai_frame_d1;
+  ignore Ai_frame_bridge.cd_do_ai_frame_d2;
+  (* Force physics_sim bridge module initialization so its callbacks are registered. *)
+  ignore Physics_sim_bridge.cd_do_physics_sim_d1;
+  ignore Physics_sim_bridge.cd_do_physics_sim_d2
 ;;
