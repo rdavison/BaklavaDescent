@@ -330,6 +330,85 @@ int	Last_time_cc_vis_check = 0;
 //do whatever this thing does in a frame
 void do_controlcen_frame(object *obj)
 {
+#ifdef USE_OX_BRIDGE
+	//	If a boss level, then Control_center_present will be 0.
+	if (!Control_center_present)
+		return;
+
+	if (!Robot_firing_enabled)
+		return;
+
+	// Multiplayer believed_pos sync (stays on C side)
+	if (Game_mode & GM_MULTI)
+		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
+
+	// Precompute has_children
+	int has_children = 0;
+	segment *segp = &Segments[obj->segnum];
+	for (int i = 0; i < MAX_SIDES_PER_SEGMENT; i++)
+		if (IS_CHILD(segp->children[i])) { has_children = 1; break; }
+
+	// One-time registration of effect callbacks
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_controlcen_frame_effects(
+				[](int dx, int dy, int dz, int px, int py, int pz, int parent_id, int make_sound) {
+					vms_vector dir = {dx, dy, dz};
+					vms_vector pos = {px, py, pz};
+					Laser_create_new_easy(&dir, &pos, parent_id, CONTROLCEN_WEAPON_NUM, make_sound);
+				},
+				[](int dx, int dy, int dz, int gun_num, int obj_id) {
+					vms_vector dir = {dx, dy, dz};
+#ifdef NETWORK
+					multi_send_controlcen_fire(&dir, gun_num, obj_id);
+#else
+					(void)gun_num; (void)obj_id;
+#endif
+				},
+				[](int32_t* rx, int32_t* ry, int32_t* rz) {
+					vms_vector v;
+					make_random_vector(&v);
+					*rx = v.x; *ry = v.y; *rz = v.z;
+				},
+				[]() -> int { return P_Rand(); });
+		}
+	}
+
+	// Pack gun arrays (n_guns * 3 each)
+	int32_t gun_pos_flat[MAX_CONTROLCEN_GUNS * 3];
+	int32_t gun_dir_flat[MAX_CONTROLCEN_GUNS * 3];
+	for (int i = 0; i < N_controlcen_guns; i++) {
+		gun_pos_flat[i*3]   = Gun_pos[i].x;
+		gun_pos_flat[i*3+1] = Gun_pos[i].y;
+		gun_pos_flat[i*3+2] = Gun_pos[i].z;
+		gun_dir_flat[i*3]   = Gun_dir[i].x;
+		gun_dir_flat[i*3+1] = Gun_dir[i].y;
+		gun_dir_flat[i*3+2] = Gun_dir[i].z;
+	}
+
+	int32_t result[4];
+	cd_ox_do_controlcen_frame_d2(
+		Control_center_been_hit, Control_center_player_been_seen,
+		Control_center_next_fire_time,
+		N_controlcen_guns, gun_pos_flat, gun_dir_flat,
+		FrameCount, FrameTime,
+		Game_mode, Difficulty_level,
+		Players[Player_num].flags, Player_is_dead,
+		GameTime, Player_time_of_death,
+		obj->pos.x, obj->pos.y, obj->pos.z, obj->segnum,
+		ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
+		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z,
+		has_children, (int)(obj - Objects), Players[Player_num].objnum,
+		Current_level_num, Last_time_cc_vis_check,
+		result);
+
+	Control_center_been_hit = result[0];
+	Control_center_player_been_seen = result[1];
+	Control_center_next_fire_time = result[2];
+	Last_time_cc_vis_check = result[3];
+#else
 	int			best_gun_num;
 
 	//	If a boss level, then Control_center_present will be 0.
@@ -357,7 +436,7 @@ void do_controlcen_frame(object *obj)
 			// the value of Believed_player_position that was set by the last
 			// person to go through ai_do_frame.  But since a no-robots game
 			// never goes through ai_do_frame, I'm making it so the control
-			// center can spot cloaked dudes.  
+			// center can spot cloaked dudes.
 
 			if (Game_mode & GM_MULTI)
 				Believed_player_pos = Objects[Players[Player_num].objnum].pos;
@@ -376,7 +455,7 @@ void do_controlcen_frame(object *obj)
 				Control_center_player_been_seen = player_is_visible_from_object(obj, &obj->pos, 0, &vec_to_player);
 				Control_center_next_fire_time = 0;
 			}
-		}			
+		}
 
 		return;
 	}
@@ -425,10 +504,10 @@ void do_controlcen_frame(object *obj)
 				Control_center_player_been_seen = 0;
 				return;
 			}
-	
+
 			#ifdef NETWORK
 			if (Game_mode & GM_MULTI)
-				multi_send_controlcen_fire(&vec_to_goal, best_gun_num, obj-Objects);	
+				multi_send_controlcen_fire(&vec_to_goal, best_gun_num, obj-Objects);
 			#endif
 			Laser_create_new_easy( &vec_to_goal, &Gun_pos[best_gun_num], obj-Objects, CONTROLCEN_WEAPON_NUM, 1);
 
@@ -461,7 +540,7 @@ void do_controlcen_frame(object *obj)
 		}
 	} else
 		Control_center_next_fire_time -= FrameTime;
-
+#endif
 }
 
 int Reactor_strength=-1;		//-1 mean not set by designer

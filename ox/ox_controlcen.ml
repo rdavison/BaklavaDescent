@@ -7,18 +7,37 @@ let ndl = 5
 (* -- Algebraic effects for side effects -------------------------------- *)
 
 type _ Effect.t +=
-  | Player_is_visible : (int * int * int * int * int * int * int) -> int Effect.t
   | Fire_weapon : (int * int * int * int * int * int * int * int) -> unit Effect.t
   | Send_controlcen_fire : (int * int * int * int * int) -> unit Effect.t
   | Make_random_vector : (int * int * int) Effect.t
   | P_Rand : int Effect.t
 
-(* Player_is_visible args: obj_px, obj_py, obj_pz, segnum, vtpx, vtpy, vtpz
-   Returns: 0/1/2 *)
 (* Fire_weapon args: dir_x, dir_y, dir_z, pos_x, pos_y, pos_z, parent_id, make_sound *)
 (* Send_controlcen_fire args: dir_x, dir_y, dir_z, gun_num, obj_id *)
 (* Make_random_vector returns: (rx, ry, rz) *)
 (* P_Rand returns: int *)
+
+(* FVI external for inline visibility check — reuses physics sim C function *)
+external fvi_find_vector_intersection : int array -> int array
+  = "cd_ox_effect_ps_find_vector_intersection"
+
+(* Inline visibility check using FVI ray cast.
+   Returns 2 if player visible (hit nothing or hit the player object), 0 otherwise. *)
+let check_player_visible ~obj_x ~obj_y ~obj_z ~obj_segnum ~console_x ~console_y
+    ~console_z ~obj_id ~player_objnum =
+  let query = [| obj_x; obj_y; obj_z; console_x; console_y; console_z;
+                 f1_0 / 4;      (* rad = F1_0/4 *)
+                 obj_id;        (* thisobjnum *)
+                 5;             (* FQ_TRANSWALL | FQ_CHECK_OBJS *)
+                 obj_segnum;    (* startseg *)
+                 0 |]           (* no ignore list *)
+  in
+  let result = fvi_find_vector_intersection query in
+  let hit_type = result.(0) in
+  let hit_object = result.(7) in
+  if hit_type = 0 (* HIT_NONE *)
+     || (hit_type = 2 (* HIT_OBJECT *) && hit_object = player_objnum)
+  then 2 else 0
 
 (* -- D1: do_controlcen_frame ------------------------------------------- *)
 
@@ -49,6 +68,7 @@ let do_controlcen_frame_d1
       ~believed_z
       ~has_children
       ~obj_id
+      ~player_objnum
   =
   let player_flags_cloaked = 0x800 in
   let cc_been_hit = ref cc_been_hit in
@@ -71,8 +91,8 @@ let do_controlcen_frame_d1
         if dist < f1_0 * 200
         then (
           let vis =
-            Effect.perform
-              (Player_is_visible (obj_x, obj_y, obj_z, obj_segnum, nx, ny, nz))
+            check_player_visible ~obj_x ~obj_y ~obj_z ~obj_segnum ~console_x
+              ~console_y ~console_z ~obj_id ~player_objnum
           in
           cc_player_seen := vis;
           cc_next_fire_time := 0));
@@ -193,6 +213,7 @@ let do_controlcen_frame_d2
       ~believed_z
       ~has_children
       ~obj_id
+      ~player_objnum
       ~current_level_num
       ~last_time_cc_vis_check
   =
@@ -218,8 +239,8 @@ let do_controlcen_frame_d2
         if dist < f1_0 * 200
         then (
           let vis =
-            Effect.perform
-              (Player_is_visible (obj_x, obj_y, obj_z, obj_segnum, nx, ny, nz))
+            check_player_visible ~obj_x ~obj_y ~obj_z ~obj_segnum ~console_x
+              ~console_y ~console_z ~obj_id ~player_objnum
           in
           cc_player_seen := vis;
           cc_next_fire_time := 0));
@@ -240,8 +261,8 @@ let do_controlcen_frame_d2
         if dist < f1_0 * 120
         then (
           let vis =
-            Effect.perform
-              (Player_is_visible (obj_x, obj_y, obj_z, obj_segnum, nx, ny, nz))
+            check_player_visible ~obj_x ~obj_y ~obj_z ~obj_segnum ~console_x
+              ~console_y ~console_z ~obj_id ~player_objnum
           in
           cc_player_seen := vis;
           if !cc_player_seen = 0 then cc_been_hit := 0));

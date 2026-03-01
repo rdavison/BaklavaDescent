@@ -163,7 +163,6 @@ static cd_effect_explode_object_delay_controlcen_fn g_effect_explode_object_dela
 static const value* g_apply_damage_to_controlcen = NULL;
 
 /* Controlcen frame effect function pointers */
-static cd_effect_cc_player_is_visible_fn g_effect_cc_player_is_visible = NULL;
 static cd_effect_cc_fire_weapon_fn g_effect_cc_fire_weapon = NULL;
 static cd_effect_cc_send_controlcen_fire_fn g_effect_cc_send_controlcen_fire = NULL;
 static cd_effect_cc_make_random_vector_fn g_effect_cc_make_random_vector = NULL;
@@ -3562,38 +3561,15 @@ int cd_ox_player_has_weapon_d2(
 /* -- Control center frame effects + entry points ---------------------- */
 
 void cd_ox_register_controlcen_frame_effects(
-    cd_effect_cc_player_is_visible_fn player_is_visible,
     cd_effect_cc_fire_weapon_fn fire_weapon,
     cd_effect_cc_send_controlcen_fire_fn send_controlcen_fire,
     cd_effect_cc_make_random_vector_fn make_random_vector,
     cd_effect_cc_p_rand_fn p_rand)
 {
-    g_effect_cc_player_is_visible = player_is_visible;
     g_effect_cc_fire_weapon = fire_weapon;
     g_effect_cc_send_controlcen_fire = send_controlcen_fire;
     g_effect_cc_make_random_vector = make_random_vector;
     g_effect_cc_p_rand = p_rand;
-}
-
-/* player_is_visible: 7 args -> int (native code path) */
-CAMLprim value cd_ox_effect_cc_player_is_visible(
-    value v_px, value v_py, value v_pz, value v_seg,
-    value v_vx, value v_vy, value v_vz)
-{
-    int result = 0;
-    if (g_effect_cc_player_is_visible)
-        result = g_effect_cc_player_is_visible(
-            Int_val(v_px), Int_val(v_py), Int_val(v_pz), Int_val(v_seg),
-            Int_val(v_vx), Int_val(v_vy), Int_val(v_vz));
-    return Val_int(result);
-}
-
-/* player_is_visible: bytecode wrapper */
-CAMLprim value cd_ox_effect_cc_player_is_visible_bytecode(value* argv, int argn)
-{
-    (void)argn;
-    return cd_ox_effect_cc_player_is_visible(
-        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
 }
 
 /* fire_weapon: 8 args -> unit (native code path) */
@@ -3666,7 +3642,7 @@ void cd_ox_do_controlcen_frame_d1(
     int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
     int32_t console_x, int32_t console_y, int32_t console_z,
     int32_t believed_x, int32_t believed_y, int32_t believed_z,
-    int has_children, int obj_id,
+    int has_children, int obj_id, int player_objnum,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_controlcen_frame_d1");
@@ -3687,7 +3663,7 @@ void cd_ox_do_controlcen_frame_d1(
         v_gd = Atom(0);
     }
 
-    value args[26] = {
+    value args[27] = {
         Val_long(cc_been_hit), Val_long(cc_player_seen), Val_long(cc_next_fire_time),
         Val_long(n_guns), v_gp, v_gd,
         Val_long(frame_count), Val_long(frame_time),
@@ -3697,9 +3673,9 @@ void cd_ox_do_controlcen_frame_d1(
         Val_long(obj_x), Val_long(obj_y), Val_long(obj_z), Val_long(obj_segnum),
         Val_long(console_x), Val_long(console_y), Val_long(console_z),
         Val_long(believed_x), Val_long(believed_y), Val_long(believed_z),
-        Val_long(has_children), Val_long(obj_id)
+        Val_long(has_children), Val_long(obj_id), Val_long(player_objnum)
     };
-    v_result = caml_callbackN(*g_do_controlcen_frame_d1, 26, args);
+    v_result = caml_callbackN(*g_do_controlcen_frame_d1, 27, args);
 
     result[0] = Int_val(Field(v_result, 0));
     result[1] = Int_val(Field(v_result, 1));
@@ -3718,7 +3694,7 @@ void cd_ox_do_controlcen_frame_d2(
     int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
     int32_t console_x, int32_t console_y, int32_t console_z,
     int32_t believed_x, int32_t believed_y, int32_t believed_z,
-    int has_children, int obj_id,
+    int has_children, int obj_id, int player_objnum,
     int32_t current_level_num, int32_t last_time_cc_vis_check,
     int32_t* result)
 {
@@ -3740,7 +3716,7 @@ void cd_ox_do_controlcen_frame_d2(
         v_gd = Atom(0);
     }
 
-    value args[28] = {
+    value args[29] = {
         Val_long(cc_been_hit), Val_long(cc_player_seen), Val_long(cc_next_fire_time),
         Val_long(n_guns), v_gp, v_gd,
         Val_long(frame_count), Val_long(frame_time),
@@ -3750,10 +3726,10 @@ void cd_ox_do_controlcen_frame_d2(
         Val_long(obj_x), Val_long(obj_y), Val_long(obj_z), Val_long(obj_segnum),
         Val_long(console_x), Val_long(console_y), Val_long(console_z),
         Val_long(believed_x), Val_long(believed_y), Val_long(believed_z),
-        Val_long(has_children), Val_long(obj_id),
+        Val_long(has_children), Val_long(obj_id), Val_long(player_objnum),
         Val_long(current_level_num), Val_long(last_time_cc_vis_check)
     };
-    v_result = caml_callbackN(*g_do_controlcen_frame_d2, 28, args);
+    v_result = caml_callbackN(*g_do_controlcen_frame_d2, 29, args);
 
     result[0] = Int_val(Field(v_result, 0));
     result[1] = Int_val(Field(v_result, 1));

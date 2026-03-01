@@ -2,17 +2,6 @@
    Uses algebraic effects: OCaml performs effects, C handler executes them. *)
 
 (* Effect externals — called from OCaml effect handler, dispatch to C *)
-external effect_player_is_visible
-  :  int
-  -> int
-  -> int
-  -> int
-  -> int
-  -> int
-  -> int
-  -> int
-  = "cd_ox_effect_cc_player_is_visible_bytecode" "cd_ox_effect_cc_player_is_visible"
-
 external effect_fire_weapon
   :  int
   -> int
@@ -47,11 +36,6 @@ let controlcen_effect_handler
   =
   fun eff ->
   match eff with
-  | Ox_controlcen.Player_is_visible (px, py, pz, seg, vx, vy, vz) ->
-    Some
-      (fun k ->
-        let result = effect_player_is_visible px py pz seg vx vy vz in
-        Effect.Deep.continue k result)
   | Ox_controlcen.Fire_weapon (dx, dy, dz, px, py, pz, parent_id, make_sound) ->
     Some
       (fun k ->
@@ -103,6 +87,7 @@ let cd_do_controlcen_frame_d1
       believed_z
       has_children
       obj_id
+      player_objnum
   =
   try
     Effect.Deep.match_with
@@ -133,7 +118,8 @@ let cd_do_controlcen_frame_d1
            ~believed_y
            ~believed_z
            ~has_children
-           ~obj_id)
+           ~obj_id
+           ~player_objnum)
       ()
       { retc = (fun x -> x)
       ; exnc = raise
@@ -175,6 +161,7 @@ let cd_do_controlcen_frame_d2
       believed_z
       has_children
       obj_id
+      player_objnum
       current_level_num
       last_time_cc_vis_check
   =
@@ -207,6 +194,7 @@ let cd_do_controlcen_frame_d2
          ~believed_z
          ~has_children
          ~obj_id
+         ~player_objnum
          ~current_level_num
          ~last_time_cc_vis_check)
     ()

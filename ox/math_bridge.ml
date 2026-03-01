@@ -473,6 +473,7 @@ let () =
        -> int
        -> int
        -> int
+       -> int
        -> int array);
   ignore
     (Controlcen_bridge.cd_do_controlcen_frame_d2
@@ -482,6 +483,7 @@ let () =
        -> int
        -> int array
        -> int array
+       -> int
        -> int
        -> int
        -> int

@@ -897,8 +897,6 @@ void cd_ox_robot_set_angles(
 
 /* -- Control center frame (do_controlcen_frame) ----------------------- */
 /* Effect callback typedefs for control center frame AI */
-typedef int  (*cd_effect_cc_player_is_visible_fn)(int px, int py, int pz, int seg,
-                                                   int vx, int vy, int vz);
 typedef void (*cd_effect_cc_fire_weapon_fn)(int dx, int dy, int dz,
                                              int px, int py, int pz,
                                              int parent_id, int make_sound);
@@ -908,7 +906,6 @@ typedef void (*cd_effect_cc_make_random_vector_fn)(int32_t* rx, int32_t* ry, int
 typedef int  (*cd_effect_cc_p_rand_fn)(void);
 
 void cd_ox_register_controlcen_frame_effects(
-    cd_effect_cc_player_is_visible_fn player_is_visible,
     cd_effect_cc_fire_weapon_fn fire_weapon,
     cd_effect_cc_send_controlcen_fire_fn send_controlcen_fire,
     cd_effect_cc_make_random_vector_fn make_random_vector,
@@ -927,7 +924,7 @@ void cd_ox_do_controlcen_frame_d1(
     int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
     int32_t console_x, int32_t console_y, int32_t console_z,
     int32_t believed_x, int32_t believed_y, int32_t believed_z,
-    int has_children, int obj_id,
+    int has_children, int obj_id, int player_objnum,
     int32_t* result);
 
 /* D2: do_controlcen_frame.
@@ -942,7 +939,7 @@ void cd_ox_do_controlcen_frame_d2(
     int32_t obj_x, int32_t obj_y, int32_t obj_z, int32_t obj_segnum,
     int32_t console_x, int32_t console_y, int32_t console_z,
     int32_t believed_x, int32_t believed_y, int32_t believed_z,
-    int has_children, int obj_id,
+    int has_children, int obj_id, int player_objnum,
     int32_t current_level_num, int32_t last_time_cc_vis_check,
     int32_t* result);
 

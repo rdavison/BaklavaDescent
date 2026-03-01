@@ -202,20 +202,6 @@ void do_controlcen_frame(object* obj)
 		if (!reg) {
 			reg = 1;
 			cd_ox_register_controlcen_frame_effects(
-				[](int px, int py, int pz, int seg, int vx, int vy, int vz) -> int {
-					extern bool g_ox_nested_ocaml_guard;
-					vms_vector objpos = {px, py, pz};
-					vms_vector vec = {vx, vy, vz};
-					// Build a temporary object-like struct for the call
-					object tmpobj = *(&Objects[0]); // dummy init
-					tmpobj.pos = objpos;
-					tmpobj.segnum = seg;
-					// Guard: we're inside OCaml controlcen effects, prevent nested OCaml calls
-					g_ox_nested_ocaml_guard = true;
-					int result = player_is_visible_from_object(&tmpobj, &objpos, 0, &vec);
-					g_ox_nested_ocaml_guard = false;
-					return result;
-				},
 				[](int dx, int dy, int dz, int px, int py, int pz, int parent_id, int make_sound) {
 					vms_vector dir = {dx, dy, dz};
 					vms_vector pos = {px, py, pz};
@@ -262,7 +248,7 @@ void do_controlcen_frame(object* obj)
 		obj->pos.x, obj->pos.y, obj->pos.z, obj->segnum,
 		ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
 		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z,
-		has_children, (int)(obj - Objects),
+		has_children, (int)(obj - Objects), Players[Player_num].objnum,
 		result);
 
 	Control_center_been_hit = result[0];
