@@ -41,8 +41,13 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "player.h"
 #include "gauges.h"
 #include "cntrlcen.h"
+#include "fireball.h"
+#include "hostage.h"
 #include "ox/bridge.h"
 #include <stdio.h>
+
+// Forward declaration from collide.cpp
+int do_boss_weapon_collision(object* robot, object* weapon, vms_vector* collision_point);
 #endif
 
 #ifdef TACTILE
@@ -653,6 +658,42 @@ void do_physics_sim(object *obj)
 					out[45] = Player_num;
 					out[46] = hit_objnum;
 					out[47] = FrameTime;
+					// Phase 2: This-object extras
+					out[48] = a->segnum;
+					out[49] = a->size;
+					out[50] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.multiplier : F1_0;
+					out[51] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.last_hitobj : -1;
+					out[52] = a->signature;
+					out[53] = (a->type == OBJ_WEAPON) ? Weapon_info[a->id].damage_radius : 0;
+					out[54] = (a->type == OBJ_WEAPON) ? Weapon_info[a->id].destroyable : 0;
+					out[55] = (a->type == OBJ_WEAPON) ? Weapon_info[a->id].robot_hit_sound : -1;
+					out[56] = (a->type == OBJ_WEAPON) ? Weapon_info[a->id].impact_size : 0;
+					out[57] = a->pos.x;
+					out[58] = a->pos.y;
+					out[59] = a->pos.z;
+					// Phase 2: Hit-object extras
+					out[60] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].exp1_vclip_num : -1;
+					out[61] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].exp1_sound_num : -1;
+					out[62] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].claw_sound : -1;
+					out[63] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].thief : 0;
+					out[64] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].kamikaze : 0;
+					out[65] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].energy_drain : 0;
+					out[66] = (b->type == OBJ_WEAPON) ? Weapon_info[b->id].damage_radius : 0;
+					out[67] = (b->type == OBJ_WEAPON) ? Weapon_info[b->id].destroyable : 0;
+					out[68] = (b->type == OBJ_WEAPON) ? b->ctype.laser_info.multiplier : F1_0;
+					out[69] = (b->type == OBJ_WEAPON) ? b->ctype.laser_info.last_hitobj : -1;
+					out[70] = b->signature;
+					out[71] = (b->type == OBJ_WEAPON) ? Weapon_info[b->id].robot_hit_sound : -1;
+					out[72] = b->pos.x;
+					out[73] = b->pos.y;
+					out[74] = b->pos.z;
+					// Phase 2: Global/player state
+					out[75] = Players[Player_num].flags;
+					out[76] = Players[Player_num].objnum;
+					out[77] = Game_mode;
+					out[78] = (a->type == OBJ_WEAPON) ? Weapon_info[a->id].multi_damage_scale : F1_0;
+					out[79] = GameTime;
+					out[80] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.creation_time : 0;
 				},
 				// write_back_hit_object
 				[](const int32_t* packed, int len) {
@@ -668,6 +709,11 @@ void do_physics_sim(object *obj)
 					o->shields = packed[7];
 					o->flags = packed[8];
 				},
+				// write_back_this_object
+				[](int32_t shields, int32_t flags) {
+					ps_obj->shields = shields;
+					ps_obj->flags = flags;
+				},
 				// play_collision_sound
 				[](int sound_id, int seg, int px, int py, int pz) {
 					vms_vector pos = {px, py, pz};
@@ -682,6 +728,119 @@ void do_physics_sim(object *obj)
 					(void)type;
 					Control_center_been_hit = 1;
 					ai_do_cloak_stuff();
+				},
+				// apply_damage_to_player
+				[](int player_objnum, int killer_objnum, int32_t damage) {
+					apply_damage_to_player(&Objects[player_objnum], &Objects[killer_objnum], damage);
+				}
+			);
+			cd_ox_register_collision_effects_phase2(
+				// create_object_explosion
+				[](int seg, int px, int py, int pz, int size, int vclip) -> int {
+					vms_vector pos = {px, py, pz};
+					object* expl = object_create_explosion(seg, &pos, size, vclip);
+					return expl ? (int)(expl - Objects) : -1;
+				},
+				// explode_badass_weapon
+				[](int weapon_objnum) {
+					object* w = &Objects[weapon_objnum];
+					explode_badass_weapon(w, &w->pos);
+				},
+				// obj_attach
+				[](int parent, int child) {
+					obj_attach(&Objects[parent], &Objects[child]);
+				},
+				// do_ai_robot_hit
+				[](int robot, int awareness) {
+					do_ai_robot_hit(&Objects[robot], awareness);
+				},
+				// do_ai_robot_hit_attack
+				[](int robot, int player, int px, int py, int pz) {
+					vms_vector pos = {px, py, pz};
+					do_ai_robot_hit_attack(&Objects[robot], &Objects[player], &pos);
+				},
+				// ai_do_cloak_stuff
+				[]() { ai_do_cloak_stuff(); },
+				// hostage_rescue
+				[](int hostage_id) { hostage_rescue(hostage_id); },
+				// multi_robot_request_change
+				[](int robot, int player_id) {
+#if defined(NETWORK)
+					multi_robot_request_change(&Objects[robot], player_id);
+#else
+					(void)robot; (void)player_id;
+#endif
+				},
+				// multi_send_remobj
+				[](int objnum) {
+#if defined(NETWORK)
+					if (Game_mode & GM_MULTI)
+						multi_send_remobj(objnum);
+#else
+					(void)objnum;
+#endif
+				},
+				// multi_send_play_sound
+				[](int sound_id, int volume) {
+#if defined(NETWORK)
+					if (Game_mode & GM_MULTI)
+						multi_send_play_sound(sound_id, volume);
+#else
+					(void)sound_id; (void)volume;
+#endif
+				},
+				// set_weapon_last_hitobj
+				[](int weapon, int hit_objnum) {
+					Objects[weapon].ctype.laser_info.last_hitobj = hit_objnum;
+				},
+				// set_boss_hit_this_frame (in D2, we set Boss_hit_time instead)
+				[]() { Boss_hit_time = GameTime; },
+				// set_weapon_flags
+				[](int weapon, int flags) {
+					Objects[weapon].flags = flags;
+				},
+				// set_weapon_lifeleft
+				[](int weapon, int lifeleft) {
+					Objects[weapon].lifeleft = lifeleft;
+				},
+				// detect_escort_goal
+				[](int objnum) {
+					detect_escort_goal_accomplished(objnum);
+				},
+				// attempt_to_steal
+				[](int robot, int player_id) {
+					attempt_to_steal_item(&Objects[robot], player_id);
+				},
+				// create_smart_children
+				[](int robot, int num) {
+					create_smart_children(&Objects[robot], num);
+				},
+				// smega_rock_stuff
+				[]() { smega_rock_stuff(); },
+				// set_robot_gauss_spin
+				[](int robot) {
+					ai_static* aip = &Objects[robot].ctype.ai_info;
+					if (aip->SKIP_AI_COUNT * FrameTime < F1_0) {
+						aip->SKIP_AI_COUNT++;
+						Objects[robot].mtype.phys_info.rotthrust.x = fixmul((P_Rand() - 16384), FrameTime * aip->SKIP_AI_COUNT);
+						Objects[robot].mtype.phys_info.rotthrust.y = fixmul((P_Rand() - 16384), FrameTime * aip->SKIP_AI_COUNT);
+						Objects[robot].mtype.phys_info.rotthrust.z = fixmul((P_Rand() - 16384), FrameTime * aip->SKIP_AI_COUNT);
+						Objects[robot].mtype.phys_info.flags |= PF_USES_THRUST;
+					}
+				},
+				// do_boss_weapon_collision
+				[](int robot, int weapon) -> int {
+					return do_boss_weapon_collision(&Objects[robot], &Objects[weapon], &Objects[weapon].pos);
+				},
+				// create_badass_explosion_for_boss
+				[](int weapon, int seg, int px, int py, int pz) {
+					weapon_info* wi = &Weapon_info[Objects[weapon].id];
+					vms_vector pos = {px, py, pz};
+					object_create_badass_explosion(&Objects[weapon], seg, &pos,
+						wi->impact_size, wi->robot_hit_vclip,
+						wi->strength[Difficulty_level],
+						wi->damage_radius, wi->strength[Difficulty_level],
+						Objects[weapon].ctype.laser_info.parent_num);
 				}
 			);
 		}

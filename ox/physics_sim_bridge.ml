@@ -69,6 +69,21 @@ external effect_write_back_hit_object
   -> unit
   = "cd_ox_effect_ps_write_back_hit_object"
 
+(* Write back this-object (ps_obj) shields and flags after OCaml collision handler. *)
+external effect_write_back_this_object
+  :  int
+  -> int
+  -> unit
+  = "cd_ox_effect_ps_write_back_this_object"
+
+(* Apply damage to player — calls C's apply_damage_to_player *)
+external effect_apply_damage_to_player
+  :  int
+  -> int
+  -> int
+  -> unit
+  = "cd_ox_effect_ps_apply_damage_to_player"
+
 (* Sound: digi_link_sound_to_pos *)
 external effect_play_collision_sound
   :  int
@@ -154,6 +169,76 @@ external effect_palette_flash_d2 : int -> int -> int -> unit
   = "cd_ox_effect_palette_flash_d2"
 external effect_set_player_dead_d2 : int -> unit = "cd_ox_effect_set_player_dead_d2"
 external effect_set_buddy_sorry_time : unit -> unit = "cd_ox_effect_set_buddy_sorry_time"
+
+(* Phase 2 collision effect externals *)
+external effect_create_object_explosion
+  :  int -> int -> int -> int -> int -> int -> int
+  = "cd_ox_effect_ps_create_object_explosion_bytecode"
+    "cd_ox_effect_ps_create_object_explosion"
+
+external effect_explode_badass_weapon : int -> unit
+  = "cd_ox_effect_ps_explode_badass_weapon"
+
+external effect_obj_attach : int -> int -> unit
+  = "cd_ox_effect_ps_obj_attach"
+
+external effect_do_ai_robot_hit : int -> int -> unit
+  = "cd_ox_effect_ps_do_ai_robot_hit"
+
+external effect_do_ai_robot_hit_attack
+  :  int -> int -> int -> int -> int -> unit
+  = "cd_ox_effect_ps_do_ai_robot_hit_attack_bytecode"
+    "cd_ox_effect_ps_do_ai_robot_hit_attack"
+
+external effect_ai_do_cloak_stuff : unit -> unit
+  = "cd_ox_effect_ps_ai_do_cloak_stuff"
+
+external effect_hostage_rescue : int -> unit
+  = "cd_ox_effect_ps_hostage_rescue"
+
+external effect_multi_robot_request_change : int -> int -> unit
+  = "cd_ox_effect_ps_multi_robot_request_change"
+
+external effect_multi_send_remobj : int -> unit
+  = "cd_ox_effect_ps_multi_send_remobj"
+
+external effect_multi_send_play_sound : int -> int -> unit
+  = "cd_ox_effect_ps_multi_send_play_sound"
+
+external effect_set_weapon_last_hitobj : int -> int -> unit
+  = "cd_ox_effect_ps_set_weapon_last_hitobj"
+
+external effect_set_boss_hit_this_frame : unit -> unit
+  = "cd_ox_effect_ps_set_boss_hit_this_frame"
+
+external effect_set_weapon_flags : int -> int -> unit
+  = "cd_ox_effect_ps_set_weapon_flags"
+
+external effect_set_weapon_lifeleft : int -> int -> unit
+  = "cd_ox_effect_ps_set_weapon_lifeleft"
+
+external effect_detect_escort_goal : int -> unit
+  = "cd_ox_effect_ps_detect_escort_goal"
+
+external effect_attempt_to_steal : int -> int -> unit
+  = "cd_ox_effect_ps_attempt_to_steal"
+
+external effect_create_smart_children : int -> int -> unit
+  = "cd_ox_effect_ps_create_smart_children"
+
+external effect_smega_rock_stuff : unit -> unit
+  = "cd_ox_effect_ps_smega_rock_stuff"
+
+external effect_set_robot_gauss_spin : int -> unit
+  = "cd_ox_effect_ps_set_robot_gauss_spin"
+
+external effect_do_boss_weapon_collision : int -> int -> int
+  = "cd_ox_effect_ps_do_boss_weapon_collision"
+
+external effect_create_badass_explosion_for_boss
+  :  int -> int -> int -> int -> int -> unit
+  = "cd_ox_effect_ps_create_badass_explosion_for_boss_bytecode"
+    "cd_ox_effect_ps_create_badass_explosion_for_boss"
 
 external effect_obj_relink : int -> int -> unit = "cd_ox_effect_ps_obj_relink"
 external effect_find_object_seg : int -> int = "cd_ox_effect_ps_find_object_seg"
@@ -244,6 +329,10 @@ let collision_effect_handler (type a) ~is_d2 (eff : a Effect.t)
   | Ox_collide.Write_back_hit_object packed ->
     Some (fun (k : (a, _) Effect.Deep.continuation) ->
       effect_write_back_hit_object packed;
+      Effect.Deep.continue k ())
+  | Ox_collide.Apply_damage_to_player (player_objnum, killer_objnum, damage) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_apply_damage_to_player player_objnum killer_objnum damage;
       Effect.Deep.continue k ())
   (* D1 robot damage effects *)
   | Ox_collide.Increment_kills ->
@@ -359,6 +448,91 @@ let collision_effect_handler (type a) ~is_d2 (eff : a Effect.t)
     Some (fun (k : (a, _) Effect.Deep.continuation) ->
       effect_set_buddy_sorry_time ();
       Effect.Deep.continue k ())
+  (* Phase 2 collision effects *)
+  | Ox_collide.Create_object_explosion (seg, px, py, pz, sz, vclip) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_create_object_explosion seg px py pz sz vclip in
+      Effect.Deep.continue k r)
+  | Ox_collide.Explode_badass_weapon objnum ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_explode_badass_weapon objnum;
+      Effect.Deep.continue k ())
+  | Ox_collide.Obj_attach (parent, child) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_obj_attach parent child;
+      Effect.Deep.continue k ())
+  | Ox_collide.Do_ai_robot_hit (robot, awareness) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_do_ai_robot_hit robot awareness;
+      Effect.Deep.continue k ())
+  | Ox_collide.Do_ai_robot_hit_attack (robot, player, px, py, pz) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_do_ai_robot_hit_attack robot player px py pz;
+      Effect.Deep.continue k ())
+  | Ox_collide.Ai_do_cloak_stuff ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_ai_do_cloak_stuff ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Hostage_rescue hostage_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_hostage_rescue hostage_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Multi_robot_request_change (robot, player_id) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_robot_request_change robot player_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Multi_send_remobj objnum ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_send_remobj objnum;
+      Effect.Deep.continue k ())
+  | Ox_collide.Multi_send_play_sound (sid, vol) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_send_play_sound sid vol;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_weapon_last_hitobj (wep, hit) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_weapon_last_hitobj wep hit;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_boss_hit_this_frame ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_boss_hit_this_frame ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_weapon_flags (wep, flags) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_weapon_flags wep flags;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_weapon_lifeleft (wep, lifeleft) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_weapon_lifeleft wep lifeleft;
+      Effect.Deep.continue k ())
+  | Ox_collide.Detect_escort_goal objnum ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_detect_escort_goal objnum;
+      Effect.Deep.continue k ())
+  | Ox_collide.Attempt_to_steal (robot, player_id) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_attempt_to_steal robot player_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Create_smart_children (robot, num) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_create_smart_children robot num;
+      Effect.Deep.continue k ())
+  | Ox_collide.Smega_rock_stuff ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_smega_rock_stuff ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_robot_gauss_spin robot ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_robot_gauss_spin robot;
+      Effect.Deep.continue k ())
+  | Ox_collide.Do_boss_weapon_collision (robot, weapon) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_do_boss_weapon_collision robot weapon in
+      Effect.Deep.continue k r)
+  | Ox_collide.Create_badass_explosion_for_boss (wep, seg, px, py, pz) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_create_badass_explosion_for_boss wep seg px py pz;
+      Effect.Deep.continue k ())
   | _ -> None
 ;;
 
@@ -462,7 +636,8 @@ let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
         in
         let result =
           match ocaml_result with
-          | Some (flags, vx, vy, vz, _shields) ->
+          | Some (flags, vx, vy, vz, shields) ->
+            effect_write_back_this_object shields flags;
             (flags, vx, vy, vz)
           | None ->
             (* Fall back to C for unported collision types *)

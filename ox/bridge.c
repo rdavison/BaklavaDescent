@@ -4439,34 +4439,40 @@ CAMLprim value cd_ox_effect_ps_vm_vector_2_matrix_orient_bytecode(value* argv, i
 
 static cd_effect_ps_fetch_collision_data_fn g_effect_ps_fetch_collision_data = NULL;
 static cd_effect_ps_write_back_hit_object_fn g_effect_ps_write_back_hit_object = NULL;
+static cd_effect_ps_write_back_this_object_fn g_effect_ps_write_back_this_object = NULL;
 static cd_effect_ps_play_collision_sound_fn g_effect_ps_play_collision_sound = NULL;
 static cd_effect_ps_add_points_to_score_fn g_effect_ps_add_points_to_score = NULL;
 static cd_effect_ps_create_awareness_event_fn g_effect_ps_create_awareness_event = NULL;
+static cd_effect_ps_apply_damage_to_player_fn g_effect_ps_apply_damage_to_player = NULL;
 
 void cd_ox_register_collision_effects(
     cd_effect_ps_fetch_collision_data_fn fetch_collision_data,
     cd_effect_ps_write_back_hit_object_fn write_back_hit_object,
+    cd_effect_ps_write_back_this_object_fn write_back_this_object,
     cd_effect_ps_play_collision_sound_fn play_collision_sound,
     cd_effect_ps_add_points_to_score_fn add_points_to_score,
-    cd_effect_ps_create_awareness_event_fn create_awareness_event)
+    cd_effect_ps_create_awareness_event_fn create_awareness_event,
+    cd_effect_ps_apply_damage_to_player_fn apply_damage_to_player)
 {
     g_effect_ps_fetch_collision_data = fetch_collision_data;
     g_effect_ps_write_back_hit_object = write_back_hit_object;
+    g_effect_ps_write_back_this_object = write_back_this_object;
     g_effect_ps_play_collision_sound = play_collision_sound;
     g_effect_ps_add_points_to_score = add_points_to_score;
     g_effect_ps_create_awareness_event = create_awareness_event;
+    g_effect_ps_apply_damage_to_player = apply_damage_to_player;
 }
 
-/* Fetch collision data: returns packed int array with 48 fields */
+/* Fetch collision data: returns packed int array with 81 fields */
 CAMLprim value cd_ox_effect_ps_fetch_collision_data(value v_hit_objnum)
 {
     CAMLparam1(v_hit_objnum);
     CAMLlocal1(result);
-    int32_t out[48] = {0};
+    int32_t out[81] = {0};
     if (g_effect_ps_fetch_collision_data)
-        g_effect_ps_fetch_collision_data(Int_val(v_hit_objnum), out, 48);
-    result = caml_alloc(48, 0);
-    for (int i = 0; i < 48; i++)
+        g_effect_ps_fetch_collision_data(Int_val(v_hit_objnum), out, 81);
+    result = caml_alloc(81, 0);
+    for (int i = 0; i < 81; i++)
         Store_field(result, i, Val_long(out[i]));
     CAMLreturn(result);
 }
@@ -4482,6 +4488,22 @@ CAMLprim value cd_ox_effect_ps_write_back_hit_object(value v_packed)
             buf[i] = (int32_t)Long_val(Field(v_packed, i));
         g_effect_ps_write_back_hit_object(buf, len);
     }
+    return Val_unit;
+}
+
+/* Write back this-object (ps_obj) shields and flags */
+CAMLprim value cd_ox_effect_ps_write_back_this_object(value v_shields, value v_flags)
+{
+    if (g_effect_ps_write_back_this_object)
+        g_effect_ps_write_back_this_object((int32_t)Long_val(v_shields), (int32_t)Long_val(v_flags));
+    return Val_unit;
+}
+
+/* Apply damage to player — calls C's apply_damage_to_player directly */
+CAMLprim value cd_ox_effect_ps_apply_damage_to_player(value v_player, value v_killer, value v_damage)
+{
+    if (g_effect_ps_apply_damage_to_player)
+        g_effect_ps_apply_damage_to_player(Int_val(v_player), Int_val(v_killer), (int32_t)Long_val(v_damage));
     return Val_unit;
 }
 
@@ -4517,6 +4539,254 @@ CAMLprim value cd_ox_effect_ps_create_awareness_event(value v_objnum, value v_ty
     if (g_effect_ps_create_awareness_event)
         g_effect_ps_create_awareness_event(Int_val(v_objnum), Int_val(v_type));
     return Val_unit;
+}
+
+/* Phase 2 collision effect function pointers */
+static cd_effect_ps_create_object_explosion_fn g_effect_ps_create_object_explosion = NULL;
+static cd_effect_ps_explode_badass_weapon_fn g_effect_ps_explode_badass_weapon = NULL;
+static cd_effect_ps_obj_attach_fn g_effect_ps_obj_attach = NULL;
+static cd_effect_ps_do_ai_robot_hit_fn g_effect_ps_do_ai_robot_hit = NULL;
+static cd_effect_ps_do_ai_robot_hit_attack_fn g_effect_ps_do_ai_robot_hit_attack = NULL;
+static cd_effect_ps_ai_do_cloak_stuff_fn g_effect_ps_ai_do_cloak_stuff = NULL;
+static cd_effect_ps_hostage_rescue_fn g_effect_ps_hostage_rescue = NULL;
+static cd_effect_ps_multi_robot_request_change_fn g_effect_ps_multi_robot_request_change = NULL;
+static cd_effect_ps_multi_send_remobj_fn g_effect_ps_multi_send_remobj = NULL;
+static cd_effect_ps_multi_send_play_sound_fn g_effect_ps_multi_send_play_sound = NULL;
+static cd_effect_ps_set_weapon_last_hitobj_fn g_effect_ps_set_weapon_last_hitobj = NULL;
+static cd_effect_ps_set_boss_hit_this_frame_fn g_effect_ps_set_boss_hit_this_frame = NULL;
+static cd_effect_ps_set_weapon_flags_fn g_effect_ps_set_weapon_flags = NULL;
+static cd_effect_ps_set_weapon_lifeleft_fn g_effect_ps_set_weapon_lifeleft = NULL;
+static cd_effect_ps_detect_escort_goal_fn g_effect_ps_detect_escort_goal = NULL;
+static cd_effect_ps_attempt_to_steal_fn g_effect_ps_attempt_to_steal = NULL;
+static cd_effect_ps_create_smart_children_fn g_effect_ps_create_smart_children = NULL;
+static cd_effect_ps_smega_rock_stuff_fn g_effect_ps_smega_rock_stuff = NULL;
+static cd_effect_ps_set_robot_gauss_spin_fn g_effect_ps_set_robot_gauss_spin = NULL;
+static cd_effect_ps_do_boss_weapon_collision_fn g_effect_ps_do_boss_weapon_collision = NULL;
+static cd_effect_ps_create_badass_explosion_for_boss_fn g_effect_ps_create_badass_explosion_for_boss = NULL;
+
+void cd_ox_register_collision_effects_phase2(
+    cd_effect_ps_create_object_explosion_fn create_object_explosion,
+    cd_effect_ps_explode_badass_weapon_fn explode_badass_weapon,
+    cd_effect_ps_obj_attach_fn obj_attach,
+    cd_effect_ps_do_ai_robot_hit_fn do_ai_robot_hit,
+    cd_effect_ps_do_ai_robot_hit_attack_fn do_ai_robot_hit_attack,
+    cd_effect_ps_ai_do_cloak_stuff_fn ai_do_cloak_stuff,
+    cd_effect_ps_hostage_rescue_fn hostage_rescue,
+    cd_effect_ps_multi_robot_request_change_fn multi_robot_request_change,
+    cd_effect_ps_multi_send_remobj_fn multi_send_remobj,
+    cd_effect_ps_multi_send_play_sound_fn multi_send_play_sound,
+    cd_effect_ps_set_weapon_last_hitobj_fn set_weapon_last_hitobj,
+    cd_effect_ps_set_boss_hit_this_frame_fn set_boss_hit_this_frame,
+    cd_effect_ps_set_weapon_flags_fn set_weapon_flags,
+    cd_effect_ps_set_weapon_lifeleft_fn set_weapon_lifeleft,
+    cd_effect_ps_detect_escort_goal_fn detect_escort_goal,
+    cd_effect_ps_attempt_to_steal_fn attempt_to_steal,
+    cd_effect_ps_create_smart_children_fn create_smart_children,
+    cd_effect_ps_smega_rock_stuff_fn smega_rock_stuff,
+    cd_effect_ps_set_robot_gauss_spin_fn set_robot_gauss_spin,
+    cd_effect_ps_do_boss_weapon_collision_fn do_boss_weapon_collision,
+    cd_effect_ps_create_badass_explosion_for_boss_fn create_badass_explosion_for_boss)
+{
+    g_effect_ps_create_object_explosion = create_object_explosion;
+    g_effect_ps_explode_badass_weapon = explode_badass_weapon;
+    g_effect_ps_obj_attach = obj_attach;
+    g_effect_ps_do_ai_robot_hit = do_ai_robot_hit;
+    g_effect_ps_do_ai_robot_hit_attack = do_ai_robot_hit_attack;
+    g_effect_ps_ai_do_cloak_stuff = ai_do_cloak_stuff;
+    g_effect_ps_hostage_rescue = hostage_rescue;
+    g_effect_ps_multi_robot_request_change = multi_robot_request_change;
+    g_effect_ps_multi_send_remobj = multi_send_remobj;
+    g_effect_ps_multi_send_play_sound = multi_send_play_sound;
+    g_effect_ps_set_weapon_last_hitobj = set_weapon_last_hitobj;
+    g_effect_ps_set_boss_hit_this_frame = set_boss_hit_this_frame;
+    g_effect_ps_set_weapon_flags = set_weapon_flags;
+    g_effect_ps_set_weapon_lifeleft = set_weapon_lifeleft;
+    g_effect_ps_detect_escort_goal = detect_escort_goal;
+    g_effect_ps_attempt_to_steal = attempt_to_steal;
+    g_effect_ps_create_smart_children = create_smart_children;
+    g_effect_ps_smega_rock_stuff = smega_rock_stuff;
+    g_effect_ps_set_robot_gauss_spin = set_robot_gauss_spin;
+    g_effect_ps_do_boss_weapon_collision = do_boss_weapon_collision;
+    g_effect_ps_create_badass_explosion_for_boss = create_badass_explosion_for_boss;
+}
+
+/* Phase 2 CAMLprim wrappers */
+CAMLprim value cd_ox_effect_ps_create_object_explosion(
+    value v_seg, value v_px, value v_py, value v_pz, value v_size, value v_vclip)
+{
+    int r = -1;
+    if (g_effect_ps_create_object_explosion)
+        r = g_effect_ps_create_object_explosion(
+            Int_val(v_seg), Int_val(v_px), Int_val(v_py),
+            Int_val(v_pz), Int_val(v_size), Int_val(v_vclip));
+    return Val_long(r);
+}
+CAMLprim value cd_ox_effect_ps_create_object_explosion_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_create_object_explosion(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+CAMLprim value cd_ox_effect_ps_explode_badass_weapon(value v_objnum)
+{
+    if (g_effect_ps_explode_badass_weapon)
+        g_effect_ps_explode_badass_weapon(Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_obj_attach(value v_parent, value v_child)
+{
+    if (g_effect_ps_obj_attach)
+        g_effect_ps_obj_attach(Int_val(v_parent), Int_val(v_child));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_do_ai_robot_hit(value v_robot, value v_awareness)
+{
+    if (g_effect_ps_do_ai_robot_hit)
+        g_effect_ps_do_ai_robot_hit(Int_val(v_robot), Int_val(v_awareness));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_do_ai_robot_hit_attack(
+    value v_robot, value v_player, value v_px, value v_py, value v_pz)
+{
+    if (g_effect_ps_do_ai_robot_hit_attack)
+        g_effect_ps_do_ai_robot_hit_attack(
+            Int_val(v_robot), Int_val(v_player),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz));
+    return Val_unit;
+}
+CAMLprim value cd_ox_effect_ps_do_ai_robot_hit_attack_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_do_ai_robot_hit_attack(
+        argv[0], argv[1], argv[2], argv[3], argv[4]);
+}
+
+CAMLprim value cd_ox_effect_ps_ai_do_cloak_stuff(value v_unit)
+{
+    (void)v_unit;
+    if (g_effect_ps_ai_do_cloak_stuff)
+        g_effect_ps_ai_do_cloak_stuff();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_hostage_rescue(value v_id)
+{
+    if (g_effect_ps_hostage_rescue)
+        g_effect_ps_hostage_rescue(Int_val(v_id));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_multi_robot_request_change(value v_robot, value v_pid)
+{
+    if (g_effect_ps_multi_robot_request_change)
+        g_effect_ps_multi_robot_request_change(Int_val(v_robot), Int_val(v_pid));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_multi_send_remobj(value v_objnum)
+{
+    if (g_effect_ps_multi_send_remobj)
+        g_effect_ps_multi_send_remobj(Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_multi_send_play_sound(value v_sid, value v_vol)
+{
+    if (g_effect_ps_multi_send_play_sound)
+        g_effect_ps_multi_send_play_sound(Int_val(v_sid), Int_val(v_vol));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_set_weapon_last_hitobj(value v_wep, value v_hit)
+{
+    if (g_effect_ps_set_weapon_last_hitobj)
+        g_effect_ps_set_weapon_last_hitobj(Int_val(v_wep), Int_val(v_hit));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_set_boss_hit_this_frame(value v_unit)
+{
+    (void)v_unit;
+    if (g_effect_ps_set_boss_hit_this_frame)
+        g_effect_ps_set_boss_hit_this_frame();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_set_weapon_flags(value v_wep, value v_flags)
+{
+    if (g_effect_ps_set_weapon_flags)
+        g_effect_ps_set_weapon_flags(Int_val(v_wep), Int_val(v_flags));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_set_weapon_lifeleft(value v_wep, value v_life)
+{
+    if (g_effect_ps_set_weapon_lifeleft)
+        g_effect_ps_set_weapon_lifeleft(Int_val(v_wep), Int_val(v_life));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_detect_escort_goal(value v_objnum)
+{
+    if (g_effect_ps_detect_escort_goal)
+        g_effect_ps_detect_escort_goal(Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_attempt_to_steal(value v_robot, value v_pid)
+{
+    if (g_effect_ps_attempt_to_steal)
+        g_effect_ps_attempt_to_steal(Int_val(v_robot), Int_val(v_pid));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_create_smart_children(value v_robot, value v_num)
+{
+    if (g_effect_ps_create_smart_children)
+        g_effect_ps_create_smart_children(Int_val(v_robot), Int_val(v_num));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_smega_rock_stuff(value v_unit)
+{
+    (void)v_unit;
+    if (g_effect_ps_smega_rock_stuff)
+        g_effect_ps_smega_rock_stuff();
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_set_robot_gauss_spin(value v_robot)
+{
+    if (g_effect_ps_set_robot_gauss_spin)
+        g_effect_ps_set_robot_gauss_spin(Int_val(v_robot));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_do_boss_weapon_collision(value v_robot, value v_weapon)
+{
+    int r = 1;
+    if (g_effect_ps_do_boss_weapon_collision)
+        r = g_effect_ps_do_boss_weapon_collision(Int_val(v_robot), Int_val(v_weapon));
+    return Val_long(r);
+}
+
+CAMLprim value cd_ox_effect_ps_create_badass_explosion_for_boss(
+    value v_wep, value v_seg, value v_px, value v_py, value v_pz)
+{
+    if (g_effect_ps_create_badass_explosion_for_boss)
+        g_effect_ps_create_badass_explosion_for_boss(
+            Int_val(v_wep), Int_val(v_seg), Int_val(v_px), Int_val(v_py), Int_val(v_pz));
+    return Val_unit;
+}
+CAMLprim value cd_ox_effect_ps_create_badass_explosion_for_boss_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_create_badass_explosion_for_boss(
+        argv[0], argv[1], argv[2], argv[3], argv[4]);
 }
 
 /* Physics sim entry points */

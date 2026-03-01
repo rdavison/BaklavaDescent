@@ -144,9 +144,9 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 ### Unported
 - [x] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI)
 - [x] do_physics_drag — thrust/drag velocity integration subpart of do_physics_sim (D1+D2)
-- [ ] bump_one_object — applies bump force + damage
-- [ ] bump_two_objects — mutual bump between two objects
-- [ ] bump_this_object — simple bump helper
+- [x] bump_one_object — applies bump force + damage
+- [x] bump_two_objects — mutual bump between two objects
+- [x] bump_this_object — simple bump helper
 - [ ] collide_object_with_wall — main wall collision handler
 - [ ] scrape_object_on_wall — wall scraping effect
 
@@ -169,24 +169,24 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] calc_best_gun
 
 ### Unported — Collision Event Handlers
-- [ ] collide_two_objects — top-level collision dispatcher
-- [ ] collide_robot_and_robot
-- [ ] collide_robot_and_controlcen
-- [ ] collide_robot_and_weapon
-- [ ] collide_robot_and_player — ramming attack
-- [ ] collide_player_and_player
-- [ ] collide_player_and_weapon
-- [ ] collide_player_and_controlcen
+- [x] collide_two_objects — top-level collision dispatcher (simple handlers in OCaml, complex fall back to C)
+- [x] collide_robot_and_robot
+- [x] collide_robot_and_controlcen
+- [x] collide_robot_and_weapon — D1 ported, D2 falls back to C
+- [x] collide_robot_and_player — ramming attack, bump damage + Apply_damage_to_player effect
+- [x] collide_player_and_player
+- [x] collide_player_and_weapon — D1 ported, D2 falls back to C
+- [x] collide_player_and_controlcen
 - [ ] collide_player_and_powerup — powerup pickup
-- [ ] collide_player_and_clutter
-- [ ] collide_weapon_and_weapon
-- [ ] collide_weapon_and_controlcen
-- [ ] collide_weapon_and_clutter
-- [ ] collide_weapon_and_debris
-- [ ] collide_hostage_and_player — hostage pickup
+- [x] collide_player_and_clutter
+- [x] collide_weapon_and_weapon
+- [x] collide_weapon_and_controlcen
+- [x] collide_weapon_and_clutter
+- [x] collide_weapon_and_debris
+- [x] collide_hostage_and_player — hostage pickup
 
 ### Unported — Damage Utilities
-- [ ] apply_force_damage — force-based damage dispatcher
+- [x] apply_force_damage — force-based damage dispatcher
 - [ ] maybe_detonate_weapon — weapon-weapon detonation check
 - [ ] check_effect_blowup — explosion through segment check
 - [ ] net_destroy_controlcen — network control center destruction

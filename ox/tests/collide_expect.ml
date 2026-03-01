@@ -1697,3 +1697,859 @@ let%expect_test "ccgp: identity orient, gun offset → world offset" =
   printf "gp=(%d,%d,%d)\n" gpx gpy gpz;
   [%expect {| gp=(393216,0,0) |}]
 ;;
+
+(* ══════════════════════════════════════════════════════════════════════════
+   Phase 2: Collision handler tests
+   ══════════════════════════════════════════════════════════════════════════ *)
+
+(* Helper: make a fresh 81-element cd array with defaults *)
+let make_cd () = Array.create ~len:81 0
+
+(* Object type constants *)
+let _obj_robot = 2
+let obj_hostage = 3
+let obj_player = 4
+let obj_weapon = 5
+let obj_debris = 8
+let obj_cntrlcen = 9
+let obj_clutter = 11
+
+(* CD field indices *)
+let cd_this_type          = 0
+let cd_this_id            = 1
+let cd_this_flags         = 2
+let cd_this_shields       = 3
+let cd_this_vel_x         = 4
+let cd_this_vel_y         = 5
+let cd_this_vel_z         = 6
+let cd_this_mass          = 7
+let cd_this_phys_flags    = 8
+let cd_this_objnum        = 12
+let cd_this_robot_boss    = 13
+let cd_this_robot_score   = 15
+let cd_this_laser_pnum    = 17
+let cd_this_laser_ptype   = 18
+let cd_this_laser_psig    = 19
+let cd_hit_type           = 20
+let cd_hit_id             = 21
+let cd_hit_flags          = 22
+let cd_hit_shields        = 23
+let cd_hit_vel_x          = 24
+let cd_hit_vel_y          = 25
+let cd_hit_vel_z          = 26
+let cd_hit_mass           = 27
+let cd_hit_phys_flags     = 28
+let cd_hit_rotvel_x       = 29
+let cd_hit_rotvel_y       = 30
+let cd_hit_rotvel_z       = 31
+let cd_hit_size           = 34
+let cd_hit_robot_boss     = 35
+let cd_hit_robot_score    = 37
+let cd_hit_laser_pnum     = 39
+let cd_hit_laser_ptype    = 40
+let cd_hit_laser_psig     = 41
+let cd_console_sig        = 42
+let cd_is_multiplayer     = 44
+let cd_player_num         = 45
+let cd_hit_objnum         = 46
+let cd_this_segnum        = 48
+let cd_this_size          = 49
+let cd_this_laser_multiplier   = 50
+let cd_this_laser_last_hitobj  = 51
+let cd_this_signature          = 52
+let cd_this_weapon_damage_radius   = 53
+let cd_this_weapon_destroyable     = 54
+let cd_this_weapon_robot_hit_sound = 55
+let cd_this_pos_x                 = 57
+let cd_this_pos_y                 = 58
+let cd_this_pos_z                 = 59
+let cd_hit_robot_exp1_vclip       = 60
+let cd_hit_robot_exp1_sound       = 61
+let cd_hit_weapon_damage_radius   = 66
+let cd_hit_weapon_destroyable     = 67
+let cd_hit_laser_multiplier       = 68
+let cd_hit_laser_last_hitobj      = 69
+let cd_hit_signature              = 70
+let cd_hit_weapon_robot_hit_sound = 71
+let cd_hit_pos_x                  = 72
+let cd_hit_pos_y                  = 73
+let cd_hit_pos_z                  = 74
+let cd_player_flags               = 75
+let cd_player_objnum              = 76
+
+(* Constants *)
+let _of_should_be_dead = 2
+let of_exploding = 1
+let _of_harmless = 32
+let _pf_persistent = 0x20
+let _player_flags_invulnerable = 0x08
+
+(* Comprehensive Phase 2 effect handler *)
+let run_collision_handler ?(create_expl_result = 42) f =
+  let effects = ref [] in
+  let result =
+    Effect.Deep.match_with f ()
+      { retc = (fun x -> x)
+      ; exnc = raise
+      ; effc =
+          (fun (type a) (eff : a Effect.t) ->
+            match eff with
+            (* Phase 1 effects *)
+            | Ox_collide.Increment_kills ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Increment_kills" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Start_boss_death obj_id ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Start_boss_death(%d)" obj_id :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Explode_object obj_id ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Explode_object(%d)" obj_id :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Send_net_robot_explode (obj_id, killer) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Send_net_robot_explode(%d,%d)" obj_id killer :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Query_multi_explode (obj_id, killer) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Query_multi_explode(%d,%d)" obj_id killer :: !effects;
+                Effect.Deep.continue k true)
+            | Ox_collide.Explode_object_delay (obj_id, delay) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Explode_object_delay(%d,%d)" obj_id delay :: !effects;
+                Effect.Deep.continue k ())
+            (* Phase 1 collision effects *)
+            | Ox_collide.Play_collision_sound (snd, seg, _px, _py, _pz) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Play_sound(%d,seg=%d)" snd seg :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Add_points_to_score pts ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Add_points(%d)" pts :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Create_awareness_event (obj, level) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Awareness(%d,%d)" obj level :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Write_back_hit_object arr ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Write_back(obj=%d,shields=%d,flags=%d)"
+                  arr.(0) arr.(7) arr.(8) :: !effects;
+                Effect.Deep.continue k ())
+            (* Phase 2 effects *)
+            | Ox_collide.Create_object_explosion (seg, _px, _py, _pz, size, vclip) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Create_expl(seg=%d,size=%d,vc=%d)" seg size vclip :: !effects;
+                Effect.Deep.continue k create_expl_result)
+            | Ox_collide.Explode_badass_weapon w ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Explode_badass(%d)" w :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Obj_attach (parent, child) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Obj_attach(%d,%d)" parent child :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Do_ai_robot_hit (robot, level) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Do_ai_robot_hit(%d,%d)" robot level :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Do_ai_robot_hit_attack (robot, player, _px, _py, _pz) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Do_ai_hit_attack(%d,%d)" robot player :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Ai_do_cloak_stuff ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Ai_cloak" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Hostage_rescue hid ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Hostage_rescue(%d)" hid :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Multi_robot_request_change (robot, pid) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Multi_robot_req(%d,%d)" robot pid :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Multi_send_remobj obj ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Multi_send_remobj(%d)" obj :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Multi_send_play_sound (snd, vol) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Multi_play_sound(%d,%d)" snd vol :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Set_weapon_last_hitobj (w, hit) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Set_last_hitobj(%d,%d)" w hit :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Set_boss_hit_this_frame ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Set_boss_hit" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Set_weapon_flags (w, flags) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Set_weapon_flags(%d,%d)" w flags :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Set_weapon_lifeleft (w, ll) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Set_lifeleft(%d,%d)" w ll :: !effects;
+                Effect.Deep.continue k ())
+            (* Control center effects *)
+            | Ox_collide.Controlcen_been_hit ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Controlcen_been_hit" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Do_controlcen_destroyed obj_id ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Do_controlcen_destroyed(%d)" obj_id :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Add_controlcen_score ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Add_controlcen_score" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Multi_send_destroy_controlcen (obj, who) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Multi_send_destroy_cc(%d,%d)" obj who :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Sound_controlcen_destroyed obj_id ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Sound_cc_destroyed(%d)" obj_id :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Show_hud_invul_message ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Show_hud_invul" :: !effects;
+                Effect.Deep.continue k ())
+            (* Player damage effects *)
+            | Ox_collide.Palette_flash (r, _g, _b) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Palette_flash(%d)" r :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Set_player_dead _killer ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := "Set_player_dead" :: !effects;
+                Effect.Deep.continue k ())
+            | Ox_collide.Apply_damage_to_player (player, killer, damage) ->
+              Some (fun (k : (a, _) Effect.Deep.continuation) ->
+                effects := sprintf "Apply_damage_to_player(%d,%d,%d)" player killer damage :: !effects;
+                Effect.Deep.continue k ())
+            | _ -> None)
+      }
+  in
+  let effs = List.rev !effects |> String.concat ~sep:", " in
+  result, effs
+;;
+
+let pp_result (flags, vx, vy, vz, shields) effs =
+  printf "flags=%d vel=(%d,%d,%d) shields=%d effects=[%s]\n" flags vx vy vz shields effs
+;;
+
+(* ── collide_hostage_and_player_d1 ────────────────────── *)
+
+let%expect_test "hostage+player: local player rescues hostage (this=hostage)" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_hostage;
+  cd.(cd_this_id) <- 7;   (* hostage_id *)
+  cd.(cd_this_objnum) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 100;
+  cd.(cd_hit_type) <- obj_player;
+  cd.(cd_hit_id) <- 0;    (* player id *)
+  cd.(cd_player_num) <- 0;  (* local player id *)
+  cd.(cd_is_multiplayer) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_hostage_and_player_d1 ~cd) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=100 effects=[Add_points(1000), Hostage_rescue(7)] |}]
+;;
+
+let%expect_test "hostage+player: remote player — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_hostage;
+  cd.(cd_this_id) <- 7;
+  cd.(cd_this_objnum) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 100;
+  cd.(cd_hit_type) <- obj_player;
+  cd.(cd_hit_id) <- 1;    (* remote player *)
+  cd.(cd_player_num) <- 0;  (* local is 0 *)
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_hostage_and_player_d1 ~cd) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=100 effects=[] |}]
+;;
+
+let%expect_test "hostage+player: multiplayer sends remobj" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_hostage;
+  cd.(cd_this_id) <- 3;
+  cd.(cd_this_objnum) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 100;
+  cd.(cd_hit_type) <- obj_player;
+  cd.(cd_hit_id) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_is_multiplayer) <- 1;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_hostage_and_player_d1 ~cd) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=100 effects=[Add_points(1000), Hostage_rescue(3), Multi_send_remobj(10)] |}]
+;;
+
+let%expect_test "hostage+player: this=player, hit=hostage" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_player;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_hit_type) <- obj_hostage;
+  cd.(cd_hit_id) <- 5;
+  cd.(cd_hit_objnum) <- 15;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_shields) <- 50;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_is_multiplayer) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_hostage_and_player_d1 ~cd) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=200 effects=[Add_points(1000), Hostage_rescue(5), Write_back(obj=15,shields=50,flags=2)] |}]
+;;
+
+(* ── collide_weapon_and_clutter_d1 ────────────────────── *)
+
+let%expect_test "weapon+clutter: weapon doesn't kill clutter" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_shields) <- 10;
+  cd.(cd_this_id) <- 0;  (* laser *)
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_segnum) <- 5;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_clutter;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_objnum) <- 30;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_clutter_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=10 effects=[Play_sound(30,seg=5), Create_expl(seg=0,size=16383,vc=2), Write_back(obj=30,shields=90,flags=0)] |}]
+;;
+
+let%expect_test "weapon+clutter: weapon kills clutter" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_segnum) <- 5;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_clutter;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_objnum) <- 30;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_clutter_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=200 effects=[Play_sound(30,seg=5), Create_expl(seg=0,size=16383,vc=2), Explode_object_delay(30,16384), Write_back(obj=30,shields=-100,flags=0)] |}]
+;;
+
+let%expect_test "weapon+clutter: clutter already exploding" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_segnum) <- 5;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_clutter;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 1;  (* OF_EXPLODING *)
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_objnum) <- 30;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_clutter_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=200 effects=[Play_sound(30,seg=5), Create_expl(seg=0,size=16383,vc=2), Write_back(obj=30,shields=-100,flags=1)] |}]
+;;
+
+(* ── collide_weapon_and_debris_d1 ─────────────────────── *)
+
+let%expect_test "weapon+debris: player weapon hits debris" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_hit_type) <- obj_debris;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 10;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_debris_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=50 effects=[Play_sound(20,seg=3), Explode_object_delay(30,0), Write_back(obj=30,shields=10,flags=0)] |}]
+;;
+
+let%expect_test "weapon+debris: robot weapon — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- _obj_robot;
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_debris;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_objnum) <- 30;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_debris_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=50 effects=[] |}]
+;;
+
+let%expect_test "weapon+debris: debris already exploding — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_debris;
+  cd.(cd_hit_flags) <- of_exploding;
+  cd.(cd_hit_objnum) <- 30;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_debris_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=50 effects=[] |}]
+;;
+
+let%expect_test "weapon+debris: badass weapon" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_weapon_damage_radius) <- f1_0;  (* has damage radius *)
+  cd.(cd_hit_type) <- obj_debris;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 10;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_debris_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=50 effects=[Play_sound(20,seg=3), Explode_object_delay(30,0), Explode_badass(20), Write_back(obj=30,shields=10,flags=0)] |}]
+;;
+
+(* ── collide_weapon_and_weapon_d1 ─────────────────────── *)
+
+let%expect_test "weapon+weapon: neither destroyable — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_weapon_destroyable) <- 0;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_id) <- 1;
+  cd.(cd_hit_weapon_destroyable) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=0 effects=[] |}]
+;;
+
+let%expect_test "weapon+weapon: same parent same id — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_id) <- 5;
+  cd.(cd_this_weapon_destroyable) <- 1;
+  cd.(cd_this_laser_pnum) <- 0;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_id) <- 5;
+  cd.(cd_hit_weapon_destroyable) <- 1;
+  cd.(cd_hit_laser_pnum) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=0 effects=[] |}]
+;;
+
+(* ── collide_robot_and_player_d1 ──────────────────────── *)
+
+let%expect_test "robot+player: local player" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- _obj_robot;
+  cd.(cd_this_objnum) <- 10;  (* robot *)
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 100;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_size) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- obj_player;
+  cd.(cd_hit_id) <- 0;  (* player 0 *)
+  cd.(cd_hit_objnum) <- 5;
+  cd.(cd_hit_shields) <- 200;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_player_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=100 effects=[Awareness(5,3), Do_ai_hit_attack(10,5), Do_ai_robot_hit(10,4), Play_sound(17,seg=0), Write_back(obj=5,shields=200,flags=0)] |}]
+;;
+
+let%expect_test "robot+player: remote player in multiplayer" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- _obj_robot;
+  cd.(cd_this_objnum) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_shields) <- 100;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- obj_player;
+  cd.(cd_hit_id) <- 1;  (* remote player *)
+  cd.(cd_hit_objnum) <- 5;
+  cd.(cd_hit_shields) <- 200;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_is_multiplayer) <- 1;
+  cd.(cd_this_segnum) <- 3;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_player_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=100 effects=[Multi_robot_req(10,1), Play_sound(17,seg=0), Write_back(obj=5,shields=200,flags=0)] |}]
+;;
+
+(* ── collide_robot_and_weapon_d1 (THE BIG ONE) ─────────── *)
+
+let%expect_test "robot+weapon: basic hit, player weapon, no kill" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_objnum) <- 20;  (* weapon *)
+  cd.(cd_this_id) <- 0;  (* laser *)
+  cd.(cd_this_shields) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_laser_pnum) <- 5;
+  cd.(cd_this_laser_psig) <- 100;
+  cd.(cd_this_laser_multiplier) <- f1_0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- _obj_robot;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_robot_boss) <- 0;
+  cd.(cd_hit_robot_score) <- 500;
+  cd.(cd_hit_robot_exp1_vclip) <- 10;
+  cd.(cd_hit_robot_exp1_sound) <- 5;
+  cd.(cd_hit_signature) <- 200;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_objnum) <- 5;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_console_sig) <- 100;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=10 effects=[Awareness(20,4), Do_ai_robot_hit(30,4), Create_expl(seg=3,size=24576,vc=10), Obj_attach(30,42), Play_sound(5,seg=0), Write_back(obj=30,shields=90,flags=0)] |}]
+;;
+
+let%expect_test "robot+weapon: friendly fire (same signature) — no-op" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_laser_pnum) <- 5;
+  cd.(cd_this_laser_psig) <- 200;  (* same as robot *)
+  cd.(cd_this_laser_multiplier) <- f1_0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_hit_type) <- _obj_robot;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_robot_boss) <- 0;
+  cd.(cd_hit_signature) <- 200;  (* same *)
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=10 effects=[] |}]
+;;
+
+let%expect_test "robot+weapon: boss sets boss_hit" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_laser_pnum) <- 5;
+  cd.(cd_this_laser_psig) <- 100;
+  cd.(cd_this_laser_multiplier) <- f1_0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_hit_type) <- _obj_robot;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_robot_boss) <- 1;  (* IS boss *)
+  cd.(cd_hit_robot_score) <- 1000;
+  cd.(cd_hit_robot_exp1_vclip) <- 10;
+  cd.(cd_hit_robot_exp1_sound) <- 5;
+  cd.(cd_hit_signature) <- 200;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_objnum) <- 5;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_console_sig) <- 100;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=10 effects=[Set_boss_hit, Awareness(20,4), Do_ai_robot_hit(30,4), Create_expl(seg=3,size=24576,vc=10), Obj_attach(30,42), Play_sound(5,seg=0), Write_back(obj=30,shields=90,flags=0)] |}]
+;;
+
+let%expect_test "robot+weapon: persistent weapon dedup" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 10;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_phys_flags) <- 0x20;  (* PF_PERSISTENT *)
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_laser_pnum) <- 5;
+  cd.(cd_this_laser_psig) <- 100;
+  cd.(cd_this_laser_last_hitobj) <- 30;  (* already hit this robot *)
+  cd.(cd_this_laser_multiplier) <- f1_0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_hit_type) <- _obj_robot;
+  cd.(cd_hit_objnum) <- 30;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_robot_boss) <- 0;
+  cd.(cd_hit_signature) <- 200;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_robot_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=10 effects=[] |}]
+;;
+
+(* ── collide_player_and_weapon_d1 ─────────────────────── *)
+
+let%expect_test "player+weapon: basic hit, non-invulnerable" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_player;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_objnum) <- 5;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_shields) <- 10;
+  cd.(cd_hit_id) <- 0;
+  cd.(cd_hit_phys_flags) <- 0;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_laser_pnum) <- 30;
+  cd.(cd_hit_laser_multiplier) <- f1_0;
+  cd.(cd_hit_laser_last_hitobj) <- (-1);
+  cd.(cd_hit_objnum) <- 20;
+  cd.(cd_hit_weapon_damage_radius) <- 0;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_player_flags) <- 0;  (* not invulnerable *)
+  cd.(cd_player_objnum) <- 5;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_player_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=200 effects=[Play_sound(71,seg=3), Create_expl(seg=3,size=163840,vc=1), Write_back(obj=20,shields=10,flags=0), Apply_damage_to_player(5,30,10), Ai_cloak, Write_back(obj=20,shields=10,flags=2)] |}]
+;;
+
+let%expect_test "player+weapon: invulnerable player" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_player;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_objnum) <- 5;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_shields) <- 10;
+  cd.(cd_hit_id) <- 0;
+  cd.(cd_hit_phys_flags) <- 0;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_laser_pnum) <- 30;
+  cd.(cd_hit_laser_multiplier) <- f1_0;
+  cd.(cd_hit_laser_last_hitobj) <- (-1);
+  cd.(cd_hit_objnum) <- 20;
+  cd.(cd_hit_weapon_damage_radius) <- 0;
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_player_flags) <- 0x08;  (* PLAYER_FLAGS_INVULNERABLE *)
+  cd.(cd_player_objnum) <- 5;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_player_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=200 effects=[Play_sound(27,seg=3), Create_expl(seg=3,size=163840,vc=1), Write_back(obj=20,shields=10,flags=0), Apply_damage_to_player(5,30,10), Ai_cloak, Write_back(obj=20,shields=10,flags=2)] |}]
+;;
+
+let%expect_test "player+weapon: persistent weapon already hit player" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_player;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_objnum) <- 5;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_shields) <- 10;
+  cd.(cd_hit_id) <- 0;
+  cd.(cd_hit_phys_flags) <- 0x20;  (* PF_PERSISTENT *)
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_laser_pnum) <- 30;
+  cd.(cd_hit_laser_multiplier) <- f1_0;
+  cd.(cd_hit_laser_last_hitobj) <- 5;  (* already hit this player *)
+  cd.(cd_hit_objnum) <- 20;
+  cd.(cd_player_num) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_player_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=200 effects=[] |}]
+;;
+
+let%expect_test "player+weapon: badass weapon — no direct damage" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_player;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_shields) <- 200;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_objnum) <- 5;
+  cd.(cd_this_segnum) <- 3;
+  cd.(cd_this_mass) <- f1_0;
+  cd.(cd_this_vel_x) <- 0;
+  cd.(cd_this_vel_y) <- 0;
+  cd.(cd_this_vel_z) <- 0;
+  cd.(cd_hit_type) <- obj_weapon;
+  cd.(cd_hit_shields) <- 100;
+  cd.(cd_hit_id) <- 0;
+  cd.(cd_hit_phys_flags) <- 0;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_laser_pnum) <- 30;
+  cd.(cd_hit_laser_multiplier) <- f1_0;
+  cd.(cd_hit_laser_last_hitobj) <- (-1);
+  cd.(cd_hit_objnum) <- 20;
+  cd.(cd_hit_weapon_damage_radius) <- f1_0;  (* has damage radius *)
+  cd.(cd_hit_mass) <- f1_0;
+  cd.(cd_hit_vel_x) <- 0;
+  cd.(cd_hit_vel_y) <- 0;
+  cd.(cd_hit_vel_z) <- 0;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_player_flags) <- 0;
+  cd.(cd_player_objnum) <- 5;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_player_and_weapon_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=0 vel=(0,0,0) shields=200 effects=[Play_sound(71,seg=3), Create_expl(seg=3,size=163840,vc=1), Explode_badass(20), Write_back(obj=20,shields=100,flags=0), Ai_cloak, Write_back(obj=20,shields=100,flags=2)] |}]
+;;
+
+(* ── collide_weapon_and_controlcen_d1 ─────────────────── *)
+
+let%expect_test "weapon+controlcen: player weapon" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- obj_player;
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_laser_pnum) <- 5;
+  cd.(cd_this_laser_multiplier) <- f1_0;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_this_weapon_damage_radius) <- 0;
+  cd.(cd_hit_type) <- obj_cntrlcen;
+  cd.(cd_hit_shields) <- 500;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_objnum) <- 40;
+  cd.(cd_player_objnum) <- 5;
+  cd.(cd_player_num) <- 0;
+  cd.(cd_is_multiplayer) <- 0;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_controlcen_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=50 effects=[Create_expl(seg=0,size=16383,vc=2), Play_sound(30,seg=0), Controlcen_been_hit, Write_back(obj=40,shields=450,flags=0)] |}]
+;;
+
+let%expect_test "weapon+controlcen: robot weapon — explosion only" =
+  let cd = make_cd () in
+  cd.(cd_this_type) <- obj_weapon;
+  cd.(cd_this_laser_ptype) <- _obj_robot;  (* robot weapon *)
+  cd.(cd_this_shields) <- 50;
+  cd.(cd_this_id) <- 0;
+  cd.(cd_this_phys_flags) <- 0;
+  cd.(cd_this_objnum) <- 20;
+  cd.(cd_this_flags) <- 0;
+  cd.(cd_hit_type) <- obj_cntrlcen;
+  cd.(cd_hit_shields) <- 500;
+  cd.(cd_hit_flags) <- 0;
+  cd.(cd_hit_size) <- f1_0;
+  cd.(cd_hit_objnum) <- 40;
+  let result, effs = run_collision_handler (fun () ->
+    Ox_collide.collide_weapon_and_controlcen_d1 ~cd ~hit_px:0 ~hit_py:0 ~hit_pz:0) in
+  pp_result result effs;
+  [%expect {| flags=2 vel=(0,0,0) shields=50 effects=[Create_expl(seg=0,size=16383,vc=2)] |}]
+;;

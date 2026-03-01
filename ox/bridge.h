@@ -1120,6 +1120,10 @@ typedef void (*cd_effect_ps_fetch_collision_data_fn)(
 typedef void (*cd_effect_ps_write_back_hit_object_fn)(
     const int32_t* packed, int len);
 
+/* Write back this-object (ps_obj) shields+flags after OCaml collision handler. */
+typedef void (*cd_effect_ps_write_back_this_object_fn)(
+    int32_t shields, int32_t flags);
+
 /* digi_link_sound_to_pos(sound_id, seg, 0, &pos, 0, F1_0) */
 typedef void (*cd_effect_ps_play_collision_sound_fn)(
     int sound_id, int seg, int px, int py, int pz);
@@ -1130,12 +1134,67 @@ typedef void (*cd_effect_ps_add_points_to_score_fn)(int score);
 /* create_awareness_event / ai_do_cloak_stuff */
 typedef void (*cd_effect_ps_create_awareness_event_fn)(int objnum, int type);
 
+/* apply_damage_to_player(player_obj, killer_obj, damage) — calls C function directly */
+typedef void (*cd_effect_ps_apply_damage_to_player_fn)(
+    int player_objnum, int killer_objnum, int32_t damage);
+
 void cd_ox_register_collision_effects(
     cd_effect_ps_fetch_collision_data_fn fetch_collision_data,
     cd_effect_ps_write_back_hit_object_fn write_back_hit_object,
+    cd_effect_ps_write_back_this_object_fn write_back_this_object,
     cd_effect_ps_play_collision_sound_fn play_collision_sound,
     cd_effect_ps_add_points_to_score_fn add_points_to_score,
-    cd_effect_ps_create_awareness_event_fn create_awareness_event);
+    cd_effect_ps_create_awareness_event_fn create_awareness_event,
+    cd_effect_ps_apply_damage_to_player_fn apply_damage_to_player);
+
+/* Phase 2 collision effect typedefs */
+typedef int (*cd_effect_ps_create_object_explosion_fn)(
+    int seg, int px, int py, int pz, int size, int vclip);
+typedef void (*cd_effect_ps_explode_badass_weapon_fn)(int weapon_objnum);
+typedef void (*cd_effect_ps_obj_attach_fn)(int parent, int child);
+typedef void (*cd_effect_ps_do_ai_robot_hit_fn)(int robot, int awareness);
+typedef void (*cd_effect_ps_do_ai_robot_hit_attack_fn)(
+    int robot, int player, int px, int py, int pz);
+typedef void (*cd_effect_ps_ai_do_cloak_stuff_fn)(void);
+typedef void (*cd_effect_ps_hostage_rescue_fn)(int hostage_id);
+typedef void (*cd_effect_ps_multi_robot_request_change_fn)(int robot, int player_id);
+typedef void (*cd_effect_ps_multi_send_remobj_fn)(int objnum);
+typedef void (*cd_effect_ps_multi_send_play_sound_fn)(int sound_id, int volume);
+typedef void (*cd_effect_ps_set_weapon_last_hitobj_fn)(int weapon, int hit_objnum);
+typedef void (*cd_effect_ps_set_boss_hit_this_frame_fn)(void);
+typedef void (*cd_effect_ps_set_weapon_flags_fn)(int weapon, int flags);
+typedef void (*cd_effect_ps_set_weapon_lifeleft_fn)(int weapon, int lifeleft);
+typedef void (*cd_effect_ps_detect_escort_goal_fn)(int objnum);
+typedef void (*cd_effect_ps_attempt_to_steal_fn)(int robot, int player_id);
+typedef void (*cd_effect_ps_create_smart_children_fn)(int robot, int num);
+typedef void (*cd_effect_ps_smega_rock_stuff_fn)(void);
+typedef void (*cd_effect_ps_set_robot_gauss_spin_fn)(int robot);
+typedef int (*cd_effect_ps_do_boss_weapon_collision_fn)(int robot, int weapon);
+typedef void (*cd_effect_ps_create_badass_explosion_for_boss_fn)(
+    int weapon, int seg, int px, int py, int pz);
+
+void cd_ox_register_collision_effects_phase2(
+    cd_effect_ps_create_object_explosion_fn create_object_explosion,
+    cd_effect_ps_explode_badass_weapon_fn explode_badass_weapon,
+    cd_effect_ps_obj_attach_fn obj_attach,
+    cd_effect_ps_do_ai_robot_hit_fn do_ai_robot_hit,
+    cd_effect_ps_do_ai_robot_hit_attack_fn do_ai_robot_hit_attack,
+    cd_effect_ps_ai_do_cloak_stuff_fn ai_do_cloak_stuff,
+    cd_effect_ps_hostage_rescue_fn hostage_rescue,
+    cd_effect_ps_multi_robot_request_change_fn multi_robot_request_change,
+    cd_effect_ps_multi_send_remobj_fn multi_send_remobj,
+    cd_effect_ps_multi_send_play_sound_fn multi_send_play_sound,
+    cd_effect_ps_set_weapon_last_hitobj_fn set_weapon_last_hitobj,
+    cd_effect_ps_set_boss_hit_this_frame_fn set_boss_hit_this_frame,
+    cd_effect_ps_set_weapon_flags_fn set_weapon_flags,
+    cd_effect_ps_set_weapon_lifeleft_fn set_weapon_lifeleft,
+    cd_effect_ps_detect_escort_goal_fn detect_escort_goal,
+    cd_effect_ps_attempt_to_steal_fn attempt_to_steal,
+    cd_effect_ps_create_smart_children_fn create_smart_children,
+    cd_effect_ps_smega_rock_stuff_fn smega_rock_stuff,
+    cd_effect_ps_set_robot_gauss_spin_fn set_robot_gauss_spin,
+    cd_effect_ps_do_boss_weapon_collision_fn do_boss_weapon_collision,
+    cd_effect_ps_create_badass_explosion_for_boss_fn create_badass_explosion_for_boss);
 
 /* D1: do_physics_sim.
    result[25] receives: [pos xyz, vel xyz, orient 9, segnum, obj_flags,

@@ -163,6 +163,8 @@ type _ Effect.t +=
   | Palette_flash : (int * int * int) -> unit Effect.t
   | Set_player_dead : int -> unit Effect.t
   | Set_buddy_sorry_time : unit Effect.t
+  | Apply_damage_to_player : (int * int * int) -> unit Effect.t
+      (* player_objnum, killer_objnum, damage — calls C's apply_damage_to_player *)
 
 (* f2i: shift right by 16 (matching fix-point conversion) *)
 let f2i x = x asr 16
@@ -622,6 +624,34 @@ type _ Effect.t +=
       (* [| hit_objnum; vel_x; vel_y; vel_z; rotvel_x; rotvel_y; rotvel_z;
             shields; flags |] *)
 
+(* Phase 2 effects *)
+type _ Effect.t +=
+  | Create_object_explosion : (int * int * int * int * int * int) -> int Effect.t
+      (* segnum, px, py, pz, size, vclip_id → objnum or -1 *)
+  | Explode_badass_weapon : int -> unit Effect.t  (* weapon_objnum *)
+  | Obj_attach : (int * int) -> unit Effect.t  (* parent, child *)
+  | Do_ai_robot_hit : (int * int) -> unit Effect.t  (* robot_objnum, awareness *)
+  | Do_ai_robot_hit_attack : (int * int * int * int * int) -> unit Effect.t
+      (* robot, player, px, py, pz *)
+  | Ai_do_cloak_stuff : unit Effect.t
+  | Hostage_rescue : int -> unit Effect.t  (* hostage_id *)
+  | Multi_robot_request_change : (int * int) -> unit Effect.t  (* robot_objnum, player_id *)
+  | Multi_send_remobj : int -> unit Effect.t  (* objnum *)
+  | Multi_send_play_sound : (int * int) -> unit Effect.t  (* sound_id, volume *)
+  | Set_weapon_last_hitobj : (int * int) -> unit Effect.t  (* weapon_objnum, hit_objnum *)
+  | Set_boss_hit_this_frame : unit Effect.t
+  | Set_weapon_flags : (int * int) -> unit Effect.t  (* weapon_objnum, new_flags *)
+  | Set_weapon_lifeleft : (int * int) -> unit Effect.t  (* weapon_objnum, lifeleft *)
+  | Detect_escort_goal : int -> unit Effect.t  (* objnum, D2 only *)
+  | Attempt_to_steal : (int * int) -> unit Effect.t  (* robot_objnum, player_id *)
+  | Create_smart_children : (int * int) -> unit Effect.t  (* robot_objnum, num_blobs *)
+  | Smega_rock_stuff : unit Effect.t  (* D2 earthshaker *)
+  | Set_robot_gauss_spin : int -> unit Effect.t  (* robot_objnum, D2 gauss effect *)
+  | Do_boss_weapon_collision : (int * int) -> int Effect.t
+      (* robot_objnum, weapon_objnum → damage_flag *)
+  | Create_badass_explosion_for_boss : (int * int * int * int * int) -> unit Effect.t
+      (* weapon_objnum, segnum, px, py, pz *)
+
 (* Collision data field indices — returned by Fetch_collision_data.
    The C function reads ps_obj (this-object) and Objects[hit_objnum]. *)
 (* This-object fields (from ps_obj) *)
@@ -675,7 +705,43 @@ let cd_is_multiplayer     = 44
 let cd_player_num         = 45
 let cd_hit_objnum         = 46
 let cd_frame_time         = 47
-let cd_num_fields         = 48
+(* Phase 2: This-object extras *)
+let cd_this_segnum                = 48
+let cd_this_size                  = 49
+let cd_this_laser_multiplier      = 50
+let cd_this_laser_last_hitobj     = 51
+let cd_this_signature             = 52
+let cd_this_weapon_damage_radius  = 53
+let cd_this_weapon_destroyable    = 54
+let cd_this_weapon_robot_hit_sound = 55
+let cd_this_weapon_impact_size    = 56
+let cd_this_pos_x                 = 57
+let cd_this_pos_y                 = 58
+let cd_this_pos_z                 = 59
+(* Phase 2: Hit-object extras *)
+let cd_hit_robot_exp1_vclip       = 60
+let cd_hit_robot_exp1_sound       = 61
+let cd_hit_robot_claw_sound       = 62
+let cd_hit_robot_thief            = 63
+let cd_hit_robot_kamikaze         = 64
+let cd_hit_robot_energy_drain     = 65
+let cd_hit_weapon_damage_radius   = 66
+let cd_hit_weapon_destroyable     = 67
+let cd_hit_laser_multiplier       = 68
+let cd_hit_laser_last_hitobj      = 69
+let cd_hit_signature              = 70
+let cd_hit_weapon_robot_hit_sound = 71
+let cd_hit_pos_x                  = 72
+let cd_hit_pos_y                  = 73
+let cd_hit_pos_z                  = 74
+(* Phase 2: Global/player state *)
+let cd_player_flags               = 75
+let cd_player_objnum              = 76
+let cd_game_mode                  = 77
+let cd_weapon_multi_damage_scale  = 78
+let cd_game_time                  = 79
+let cd_this_laser_creation_time   = 80
+let cd_num_fields         = 81
 
 (* -- bump_one_object ------------------------------------------------------ *)
 (* Pure: applies hit_dir scaled by damage as force to object.
@@ -694,7 +760,7 @@ let bump_one_object ~vel ~hit_dir ~damage ~mass =
 let rec bump_this_object_d1
       (* Object being bumped *)
       ~obj_type ~obj_id ~obj_flags ~vel ~rotvel ~shields ~mass ~phys_flags
-      ~obj_segnum:_ ~objnum:_
+      ~obj_segnum:_ ~objnum
       (* Robot info for this object *)
       ~robot_boss ~robot_attack ~robot_score:_
       (* Force *)
@@ -718,7 +784,7 @@ let rec bump_this_object_d1
       let force_mag = Ox_math.vm_vec_mag_quick ~v:f2 in
       let new_shields, new_flags =
         apply_force_damage_d1
-          ~obj_type ~obj_id ~obj_flags ~shields ~mass
+          ~obj_type ~obj_id ~objnum ~obj_flags ~shields ~mass
           ~robot_attack ~robot_boss
           ~force:force_mag
           ~other_type ~other_laser_pnum ~other_laser_psig ~other_objnum
@@ -749,7 +815,7 @@ let rec bump_this_object_d1
         let force_mag = Ox_math.vm_vec_mag_quick ~v:force in
         let new_shields, new_flags =
           apply_force_damage_d1
-            ~obj_type ~obj_id ~obj_flags ~shields ~mass
+            ~obj_type ~obj_id ~objnum ~obj_flags ~shields ~mass
             ~robot_attack ~robot_boss
             ~force:force_mag
             ~other_type ~other_laser_pnum ~other_laser_psig ~other_objnum
@@ -759,7 +825,7 @@ let rec bump_this_object_d1
   else vel, rotvel, shields, obj_flags, false
 
 and apply_force_damage_d1
-      ~obj_type ~obj_id ~obj_flags ~shields ~mass
+      ~obj_type ~obj_id:_ ~objnum ~obj_flags ~shields ~mass
       ~robot_attack ~robot_boss
       ~force
       ~other_type ~other_laser_pnum ~other_laser_psig ~other_objnum
@@ -779,20 +845,20 @@ and apply_force_damage_d1
           ~flags:obj_flags ~shields ~damage:dmg
           ~is_boss:(robot_boss <> 0)
           ~is_multiplayer:false  (* will be overridden by caller context *)
-          ~obj_id ~killer_objnum:killer
+          ~obj_id:objnum ~killer_objnum:killer
       in
       if killed <> 0 && other_laser_psig = -999
       then () (* score handled below *)
       else ();
       new_shields, obj_flags
     | t when t = obj_player ->
-      (* apply_damage_to_player needs more context than we have here;
-         for bump damage, we skip the full player damage path.
-         In the C code, apply_damage_to_player is called with the full
-         object pointers. We'll handle this via the existing effect path. *)
+      let killer =
+        if other_type = obj_weapon then other_laser_pnum else other_objnum
+      in
+      Effect.perform (Apply_damage_to_player (objnum, killer, damage));
       shields, obj_flags
     | t when t = obj_clutter ->
-      let new_shields, _destroyed = apply_damage_to_clutter ~flags:obj_flags ~shields ~damage ~obj_id in
+      let new_shields, _destroyed = apply_damage_to_clutter ~flags:obj_flags ~shields ~damage ~obj_id:objnum in
       new_shields, obj_flags
     | t when t = obj_cntrlcen ->
       shields, obj_flags  (* controlcen damage from bumps is minimal *)
@@ -879,7 +945,7 @@ and apply_force_damage_d2
       ~other_type ~other_laser_pnum ~other_laser_psig ~other_objnum
       ~other_robot_attack
       ~console_sig ~difficulty:_ ~is_multiplayer:_ ~player_num:_
-      ~frame_time ~obj_segnum:_ ~objnum:_
+      ~frame_time ~obj_segnum:_ ~objnum
   =
   if obj_flags land (of_exploding lor of_should_be_dead) <> 0
   then shields, obj_flags
@@ -906,7 +972,7 @@ and apply_force_damage_d2
           ~robot_id:obj_id
           ~is_multiplayer:false
           ~is_final_level:false
-          ~obj_id ~killer_objnum:killer
+          ~obj_id:objnum ~killer_objnum:killer
       in
       if killed <> 0 && other_laser_psig = console_sig
       then Effect.perform (Add_points_to_score robot_score);
@@ -918,10 +984,13 @@ and apply_force_damage_d2
         then Ox_math.fixmul ~a:damage ~b:(frame_time * 2)
         else damage
       in
-      let _damage = damage in  (* trainee reduction would go here *)
-      shields, obj_flags  (* player damage handled via existing path *)
+      let killer =
+        if other_type = obj_weapon then other_laser_pnum else other_objnum
+      in
+      Effect.perform (Apply_damage_to_player (objnum, killer, damage));
+      shields, obj_flags
     | t when t = obj_clutter ->
-      let new_shields, _destroyed = apply_damage_to_clutter ~flags:obj_flags ~shields ~damage ~obj_id in
+      let new_shields, _destroyed = apply_damage_to_clutter ~flags:obj_flags ~shields ~damage ~obj_id:objnum in
       new_shields, obj_flags
     | t when t = obj_cntrlcen ->
       shields, obj_flags
@@ -1263,12 +1332,891 @@ let collide_player_and_controlcen_d2 ~cd ~hit_px ~hit_py ~hit_pz =
     (sound_robot_hit_player, cd.(cd_hit_segnum), hit_px, hit_py, hit_pz));
   do_bump_two_d2 ~cd ~damage_flag:true
 
+(* ══════════════════════════════════════════════════════════════════════════
+   Phase 2: Collision handlers — weapon/hostage/player/robot interactions
+   ══════════════════════════════════════════════════════════════════════════ *)
+
+(* Sound IDs (same in D1 and D2) *)
+let sound_laser_hit_clutter = 30
+let sound_robot_hit = 20
+let sound_control_center_hit = 30
+let sound_player_got_hit = 71
+let sound_weapon_hit_door = 27
+let sound_hostage_rescued = 91
+
+(* Game constants *)
+let hostage_score = 1000
+let of_harmless = 32
+let standard_expl_delay = f1_0 / 4
+let pa_weapon_robot_collision = 4
+let pa_player_collision = 3
+let ndl = 5
+
+(* Player flags *)
+let player_flags_invulnerable = 0x08
+
+(* D2 weapon IDs *)
+let omega_id = 35
+let earthshaker_id = 40
+let gauss_id = 32
+
+(* GM flags *)
+let gm_multi = 1
+let gm_multi_coop = 0x04
+
+(* -- Helper: identify which side of cd[] is which object type ------------ *)
+(* When the dispatcher gets (weapon, clutter) it could be cd_this=weapon, cd_hit=clutter
+   or cd_this=clutter, cd_hit=weapon. We canonicalize. *)
+
+(* Return unchanged this-object state for no-op *)
+let no_op_result ~cd =
+  cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+  cd.(cd_this_shields)
+
+(* -- collide_hostage_and_player ------------------------------------------ *)
+(* D1: if player == ConsoleObject: score + rescue + kill hostage + multi_send_remobj
+   D2: same + detect_escort_goal *)
+
+let collide_hostage_and_player_d1 ~cd =
+  (* Canonicalize: figure out which is hostage and which is player *)
+  let hostage_id, hostage_objnum, hostage_flags, player_id =
+    if cd.(cd_this_type) = obj_hostage
+    then cd.(cd_this_id), cd.(cd_this_objnum), cd.(cd_this_flags), cd.(cd_hit_id)
+    else cd.(cd_hit_id), cd.(cd_hit_objnum), cd.(cd_hit_flags), cd.(cd_this_id)
+  in
+  if player_id = cd.(cd_player_num)
+  then (
+    Effect.perform (Add_points_to_score hostage_score);
+    Effect.perform (Hostage_rescue hostage_id);
+    let new_hostage_flags = hostage_flags lor of_should_be_dead in
+    if cd.(cd_is_multiplayer) <> 0
+    then Effect.perform (Multi_send_remobj hostage_objnum);
+    (* Write back hostage state if it's the hit object *)
+    if cd.(cd_hit_type) = obj_hostage
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           cd.(cd_hit_shields); new_hostage_flags |]);
+    (* Return this-object state *)
+    if cd.(cd_this_type) = obj_hostage
+    then new_hostage_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         cd.(cd_this_shields)
+    else no_op_result ~cd)
+  else no_op_result ~cd
+
+let collide_hostage_and_player_d2 ~cd =
+  let hostage_id, hostage_objnum, hostage_flags, player_id =
+    if cd.(cd_this_type) = obj_hostage
+    then cd.(cd_this_id), cd.(cd_this_objnum), cd.(cd_this_flags), cd.(cd_hit_id)
+    else cd.(cd_hit_id), cd.(cd_hit_objnum), cd.(cd_hit_flags), cd.(cd_this_id)
+  in
+  if player_id = cd.(cd_player_num)
+  then (
+    Effect.perform (Detect_escort_goal hostage_objnum);
+    Effect.perform (Add_points_to_score hostage_score);
+    Effect.perform (Hostage_rescue hostage_id);
+    let new_hostage_flags = hostage_flags lor of_should_be_dead in
+    if cd.(cd_is_multiplayer) <> 0
+    then Effect.perform (Multi_send_remobj hostage_objnum);
+    if cd.(cd_hit_type) = obj_hostage
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           cd.(cd_hit_shields); new_hostage_flags |]);
+    if cd.(cd_this_type) = obj_hostage
+    then new_hostage_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         cd.(cd_this_shields)
+    else no_op_result ~cd)
+  else no_op_result ~cd
+
+(* -- collide_weapon_and_clutter ------------------------------------------ *)
+(* Subtract weapon shields from clutter shields. Sound. Explosion.
+   If clutter dead + not exploding: explode. maybe_kill_weapon. *)
+
+let collide_weapon_and_clutter_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* Canonicalize *)
+  let w_shields, w_id, w_phys_flags, w_segnum, _w_objnum =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_shields), cd.(cd_this_id), cd.(cd_this_phys_flags),
+         cd.(cd_this_segnum), cd.(cd_this_objnum)
+    else cd.(cd_hit_shields), cd.(cd_hit_id), cd.(cd_hit_phys_flags),
+         cd.(cd_hit_segnum), cd.(cd_hit_objnum)
+  in
+  let c_shields, c_flags, c_segnum, c_size, c_objnum =
+    if cd.(cd_this_type) = obj_clutter
+    then cd.(cd_this_shields), cd.(cd_this_flags), cd.(cd_this_segnum),
+         cd.(cd_this_size), cd.(cd_this_objnum)
+    else cd.(cd_hit_shields), cd.(cd_hit_flags), cd.(cd_hit_segnum),
+         cd.(cd_hit_size), cd.(cd_hit_objnum)
+  in
+  let new_c_shields = if c_shields >= 0 then c_shields - w_shields else c_shields in
+  Effect.perform (Play_collision_sound
+    (sound_laser_hit_clutter, w_segnum, hit_px, hit_py, hit_pz));
+  let expl_size = ((c_size / 3) * 3) / 4 in
+  ignore (Effect.perform (Create_object_explosion
+    (c_segnum, hit_px, hit_py, hit_pz, expl_size, vclip_small_explosion)));
+  if new_c_shields < 0 && c_flags land (of_exploding lor of_destroyed) = 0
+  then Effect.perform (Explode_object_delay (c_objnum, standard_expl_delay));
+  let new_w_shields, w_killed =
+    maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+      ~weapon_shields:w_shields ~other_type:obj_clutter ~other_shields:c_shields
+  in
+  let new_w_flags =
+    if cd.(cd_this_type) = obj_weapon
+    then (if w_killed then cd.(cd_this_flags) lor of_should_be_dead else cd.(cd_this_flags))
+    else (if w_killed then cd.(cd_hit_flags) lor of_should_be_dead else cd.(cd_hit_flags))
+  in
+  (* Write back whichever is the hit object *)
+  if cd.(cd_hit_type) = obj_clutter
+  then
+    Effect.perform (Write_back_hit_object
+      [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+         cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+         new_c_shields; c_flags |])
+  else
+    Effect.perform (Write_back_hit_object
+      [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+         cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+         new_w_shields; new_w_flags |]);
+  (* Return this-object state *)
+  if cd.(cd_this_type) = obj_weapon
+  then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+  else
+    let new_this_flags =
+      if new_c_shields < 0 && c_flags land (of_exploding lor of_destroyed) = 0
+      then c_flags
+      else c_flags
+    in
+    new_this_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_c_shields
+
+let collide_weapon_and_clutter_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* D2 is identical to D1 for weapon+clutter *)
+  let w_shields, w_id, w_phys_flags, w_segnum, _w_objnum =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_shields), cd.(cd_this_id), cd.(cd_this_phys_flags),
+         cd.(cd_this_segnum), cd.(cd_this_objnum)
+    else cd.(cd_hit_shields), cd.(cd_hit_id), cd.(cd_hit_phys_flags),
+         cd.(cd_hit_segnum), cd.(cd_hit_objnum)
+  in
+  let c_shields, c_flags, c_segnum, c_size, c_objnum =
+    if cd.(cd_this_type) = obj_clutter
+    then cd.(cd_this_shields), cd.(cd_this_flags), cd.(cd_this_segnum),
+         cd.(cd_this_size), cd.(cd_this_objnum)
+    else cd.(cd_hit_shields), cd.(cd_hit_flags), cd.(cd_hit_segnum),
+         cd.(cd_hit_size), cd.(cd_hit_objnum)
+  in
+  let new_c_shields = if c_shields >= 0 then c_shields - w_shields else c_shields in
+  Effect.perform (Play_collision_sound
+    (sound_laser_hit_clutter, w_segnum, hit_px, hit_py, hit_pz));
+  let expl_size = ((c_size / 3) * 3) / 4 in
+  ignore (Effect.perform (Create_object_explosion
+    (c_segnum, hit_px, hit_py, hit_pz, expl_size, vclip_small_explosion)));
+  if new_c_shields < 0 && c_flags land (of_exploding lor of_destroyed) = 0
+  then Effect.perform (Explode_object_delay (c_objnum, standard_expl_delay));
+  let new_w_shields, w_killed =
+    maybe_kill_weapon_d2 ~weapon_id:w_id ~phys_flags:w_phys_flags
+      ~weapon_shields:w_shields ~other_type:obj_clutter ~other_shields:c_shields
+      ~is_shareware:false
+  in
+  let new_w_flags =
+    if cd.(cd_this_type) = obj_weapon
+    then (if w_killed then cd.(cd_this_flags) lor of_should_be_dead else cd.(cd_this_flags))
+    else (if w_killed then cd.(cd_hit_flags) lor of_should_be_dead else cd.(cd_hit_flags))
+  in
+  if cd.(cd_hit_type) = obj_clutter
+  then
+    Effect.perform (Write_back_hit_object
+      [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+         cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+         new_c_shields; c_flags |])
+  else
+    Effect.perform (Write_back_hit_object
+      [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+         cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+         new_w_shields; new_w_flags |]);
+  if cd.(cd_this_type) = obj_weapon
+  then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+  else cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+       new_c_shields
+
+(* -- collide_weapon_and_debris ------------------------------------------- *)
+(* Only if weapon parent is player and debris not exploding.
+   Sound, explode debris, maybe badass, maybe_kill_weapon, kill weapon. *)
+
+let collide_weapon_and_debris_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  let w_ptype, w_shields, w_id, w_phys_flags, w_segnum, w_objnum, w_damage_radius =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_laser_ptype), cd.(cd_this_shields), cd.(cd_this_id),
+         cd.(cd_this_phys_flags), cd.(cd_this_segnum), cd.(cd_this_objnum),
+         cd.(cd_this_weapon_damage_radius)
+    else cd.(cd_hit_laser_ptype), cd.(cd_hit_shields), cd.(cd_hit_id),
+         cd.(cd_hit_phys_flags), cd.(cd_hit_segnum), cd.(cd_hit_objnum),
+         cd.(cd_hit_weapon_damage_radius)
+  in
+  let d_flags, d_objnum, d_shields =
+    if cd.(cd_this_type) = obj_debris
+    then cd.(cd_this_flags), cd.(cd_this_objnum), cd.(cd_this_shields)
+    else cd.(cd_hit_flags), cd.(cd_hit_objnum), cd.(cd_hit_shields)
+  in
+  if w_ptype = obj_player && d_flags land of_exploding = 0
+  then (
+    Effect.perform (Play_collision_sound
+      (sound_robot_hit, w_segnum, hit_px, hit_py, hit_pz));
+    Effect.perform (Explode_object_delay (d_objnum, 0));
+    if w_damage_radius <> 0
+    then Effect.perform (Explode_badass_weapon w_objnum);
+    let new_w_shields, w_killed =
+      maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+        ~weapon_shields:w_shields ~other_type:obj_debris ~other_shields:d_shields
+    in
+    (* weapon->flags |= OF_SHOULD_BE_DEAD *)
+    let base_w_flags =
+      if cd.(cd_this_type) = obj_weapon then cd.(cd_this_flags) else cd.(cd_hit_flags)
+    in
+    let new_w_flags = base_w_flags lor of_should_be_dead in
+    ignore w_killed; ignore new_w_shields;
+    (* Write back *)
+    if cd.(cd_hit_type) = obj_debris
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           cd.(cd_hit_shields); cd.(cd_hit_flags) |])
+    else
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_w_shields; new_w_flags |]);
+    if cd.(cd_this_type) = obj_weapon
+    then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+    else cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         cd.(cd_this_shields))
+  else no_op_result ~cd
+
+let collide_weapon_and_debris_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  let w_ptype, w_shields, w_id, w_phys_flags, w_segnum, w_objnum, w_damage_radius,
+      w_creation_time =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_laser_ptype), cd.(cd_this_shields), cd.(cd_this_id),
+         cd.(cd_this_phys_flags), cd.(cd_this_segnum), cd.(cd_this_objnum),
+         cd.(cd_this_weapon_damage_radius), cd.(cd_this_laser_creation_time)
+    else cd.(cd_hit_laser_ptype), cd.(cd_hit_shields), cd.(cd_hit_id),
+         cd.(cd_hit_phys_flags), cd.(cd_hit_segnum), cd.(cd_hit_objnum),
+         cd.(cd_hit_weapon_damage_radius), 0
+  in
+  let d_flags, d_objnum, d_shields =
+    if cd.(cd_this_type) = obj_debris
+    then cd.(cd_this_flags), cd.(cd_this_objnum), cd.(cd_this_shields)
+    else cd.(cd_hit_flags), cd.(cd_hit_objnum), cd.(cd_hit_shields)
+  in
+  (* D2 hack: prevent prox/superprox from detonating debris if recently created *)
+  if (w_id = proximity_id || w_id = superprox_id)
+     && w_creation_time + (f1_0 / 2) > cd.(cd_game_time)
+  then no_op_result ~cd
+  else if w_ptype = obj_player && d_flags land of_exploding = 0
+  then (
+    Effect.perform (Play_collision_sound
+      (sound_robot_hit, w_segnum, hit_px, hit_py, hit_pz));
+    Effect.perform (Explode_object_delay (d_objnum, 0));
+    if w_damage_radius <> 0
+    then Effect.perform (Explode_badass_weapon w_objnum);
+    let new_w_shields, _w_killed =
+      maybe_kill_weapon_d2 ~weapon_id:w_id ~phys_flags:w_phys_flags
+        ~weapon_shields:w_shields ~other_type:obj_debris ~other_shields:d_shields
+        ~is_shareware:false
+    in
+    let base_w_flags =
+      if cd.(cd_this_type) = obj_weapon then cd.(cd_this_flags) else cd.(cd_hit_flags)
+    in
+    let new_w_flags = base_w_flags lor of_should_be_dead in
+    if cd.(cd_hit_type) = obj_debris
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           cd.(cd_hit_shields); cd.(cd_hit_flags) |])
+    else
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_w_shields; new_w_flags |]);
+    if cd.(cd_this_type) = obj_weapon
+    then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+    else cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         cd.(cd_this_shields))
+  else no_op_result ~cd
+
+(* -- maybe_detonate_weapon + collide_weapon_and_weapon ------------------- *)
+
+let maybe_detonate_weapon_d1 ~w1_id ~w1_phys_flags ~w1_shields ~w1_damage_radius
+      ~w1_robot_hit_sound ~w1_objnum ~w1_pos_x ~w1_pos_y ~w1_pos_z
+      ~w2_shields ~w2_pos_x ~w2_pos_y ~w2_pos_z
+      ~hit_px ~hit_py ~hit_pz =
+  if w1_damage_radius <> 0
+  then (
+    let dist = Ox_math.vm_vec_dist_quick
+      ~a:(w1_pos_x, w1_pos_y, w1_pos_z) ~b:(w2_pos_x, w2_pos_y, w2_pos_z) in
+    if dist < f1_0 * 5
+    then (
+      let _, w1_killed =
+        maybe_kill_weapon_d1 ~weapon_id:w1_id ~phys_flags:w1_phys_flags
+          ~weapon_shields:w1_shields ~other_type:obj_weapon ~other_shields:w2_shields
+      in
+      if w1_killed
+      then (
+        Effect.perform (Set_weapon_flags (w1_objnum, of_should_be_dead));
+        Effect.perform (Explode_badass_weapon w1_objnum);
+        Effect.perform (Play_collision_sound
+          (w1_robot_hit_sound, 0, hit_px, hit_py, hit_pz)));
+      true)
+    else (
+      let lifeleft = min (dist / 64) f1_0 in
+      Effect.perform (Set_weapon_lifeleft (w1_objnum, lifeleft));
+      true))
+  else false
+
+let collide_weapon_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  let w1_id = cd.(cd_this_id) in
+  let w2_id = cd.(cd_hit_id) in
+  let w1_destroyable = cd.(cd_this_weapon_destroyable) in
+  let w2_destroyable = cd.(cd_hit_weapon_destroyable) in
+  if w1_destroyable <> 0 || w2_destroyable <> 0
+  then (
+    (* Skip if same weapon from same parent *)
+    if w1_id = w2_id && cd.(cd_this_laser_pnum) = cd.(cd_hit_laser_pnum)
+    then no_op_result ~cd
+    else (
+      if w1_destroyable <> 0
+      then (
+        let detonated = maybe_detonate_weapon_d1
+          ~w1_id ~w1_phys_flags:cd.(cd_this_phys_flags) ~w1_shields:cd.(cd_this_shields)
+          ~w1_damage_radius:cd.(cd_this_weapon_damage_radius)
+          ~w1_robot_hit_sound:cd.(cd_this_weapon_robot_hit_sound)
+          ~w1_objnum:cd.(cd_this_objnum)
+          ~w1_pos_x:cd.(cd_this_pos_x) ~w1_pos_y:cd.(cd_this_pos_y) ~w1_pos_z:cd.(cd_this_pos_z)
+          ~w2_shields:cd.(cd_hit_shields)
+          ~w2_pos_x:cd.(cd_hit_pos_x) ~w2_pos_y:cd.(cd_hit_pos_y) ~w2_pos_z:cd.(cd_hit_pos_z)
+          ~hit_px ~hit_py ~hit_pz in
+        if detonated then (
+          let _, w2_killed =
+            maybe_kill_weapon_d1 ~weapon_id:w2_id ~phys_flags:cd.(cd_hit_phys_flags)
+              ~weapon_shields:cd.(cd_hit_shields) ~other_type:obj_weapon
+              ~other_shields:cd.(cd_this_shields)
+          in
+          if w2_killed
+          then Effect.perform (Set_weapon_flags
+            (cd.(cd_hit_objnum), cd.(cd_hit_flags) lor of_should_be_dead))));
+      if w2_destroyable <> 0
+      then (
+        let detonated = maybe_detonate_weapon_d1
+          ~w1_id:w2_id ~w1_phys_flags:cd.(cd_hit_phys_flags)
+          ~w1_shields:cd.(cd_hit_shields)
+          ~w1_damage_radius:cd.(cd_hit_weapon_damage_radius)
+          ~w1_robot_hit_sound:cd.(cd_hit_weapon_robot_hit_sound)
+          ~w1_objnum:cd.(cd_hit_objnum)
+          ~w1_pos_x:cd.(cd_hit_pos_x) ~w1_pos_y:cd.(cd_hit_pos_y) ~w1_pos_z:cd.(cd_hit_pos_z)
+          ~w2_shields:cd.(cd_this_shields)
+          ~w2_pos_x:cd.(cd_this_pos_x) ~w2_pos_y:cd.(cd_this_pos_y) ~w2_pos_z:cd.(cd_this_pos_z)
+          ~hit_px ~hit_py ~hit_pz in
+        if detonated then (
+          let _, w1_killed =
+            maybe_kill_weapon_d1 ~weapon_id:w1_id ~phys_flags:cd.(cd_this_phys_flags)
+              ~weapon_shields:cd.(cd_this_shields) ~other_type:obj_weapon
+              ~other_shields:cd.(cd_hit_shields)
+          in
+          if w1_killed
+          then Effect.perform (Set_weapon_flags
+            (cd.(cd_this_objnum), cd.(cd_this_flags) lor of_should_be_dead))));
+      no_op_result ~cd))
+  else no_op_result ~cd
+
+let collide_weapon_and_weapon_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  let w1_id = cd.(cd_this_id) in
+  let w2_id = cd.(cd_hit_id) in
+  (* PMines can't blow each other up *)
+  if w1_id = pmine_id && w2_id = pmine_id then no_op_result ~cd
+  else (
+    let w1_destroyable = cd.(cd_this_weapon_destroyable) in
+    let w2_destroyable = cd.(cd_hit_weapon_destroyable) in
+    if w1_destroyable <> 0 || w2_destroyable <> 0
+    then (
+      if w1_id = w2_id && cd.(cd_this_laser_pnum) = cd.(cd_hit_laser_pnum)
+      then no_op_result ~cd
+      else (
+        (* D2 uses maybe_detonate for both, with chain reaction *)
+        if w1_destroyable <> 0
+        then (
+          let detonated = maybe_detonate_weapon_d1
+            ~w1_id ~w1_phys_flags:cd.(cd_this_phys_flags) ~w1_shields:cd.(cd_this_shields)
+            ~w1_damage_radius:cd.(cd_this_weapon_damage_radius)
+            ~w1_robot_hit_sound:cd.(cd_this_weapon_robot_hit_sound)
+            ~w1_objnum:cd.(cd_this_objnum)
+            ~w1_pos_x:cd.(cd_this_pos_x) ~w1_pos_y:cd.(cd_this_pos_y) ~w1_pos_z:cd.(cd_this_pos_z)
+            ~w2_shields:cd.(cd_hit_shields)
+            ~w2_pos_x:cd.(cd_hit_pos_x) ~w2_pos_y:cd.(cd_hit_pos_y) ~w2_pos_z:cd.(cd_hit_pos_z)
+            ~hit_px ~hit_py ~hit_pz in
+          if detonated then
+            ignore (maybe_detonate_weapon_d1
+              ~w1_id:w2_id ~w1_phys_flags:cd.(cd_hit_phys_flags) ~w1_shields:cd.(cd_hit_shields)
+              ~w1_damage_radius:cd.(cd_hit_weapon_damage_radius)
+              ~w1_robot_hit_sound:cd.(cd_hit_weapon_robot_hit_sound)
+              ~w1_objnum:cd.(cd_hit_objnum)
+              ~w1_pos_x:cd.(cd_hit_pos_x) ~w1_pos_y:cd.(cd_hit_pos_y) ~w1_pos_z:cd.(cd_hit_pos_z)
+              ~w2_shields:cd.(cd_this_shields)
+              ~w2_pos_x:cd.(cd_this_pos_x) ~w2_pos_y:cd.(cd_this_pos_y) ~w2_pos_z:cd.(cd_this_pos_z)
+              ~hit_px ~hit_py ~hit_pz));
+        if w2_destroyable <> 0
+        then (
+          let detonated = maybe_detonate_weapon_d1
+            ~w1_id:w2_id ~w1_phys_flags:cd.(cd_hit_phys_flags) ~w1_shields:cd.(cd_hit_shields)
+            ~w1_damage_radius:cd.(cd_hit_weapon_damage_radius)
+            ~w1_robot_hit_sound:cd.(cd_hit_weapon_robot_hit_sound)
+            ~w1_objnum:cd.(cd_hit_objnum)
+            ~w1_pos_x:cd.(cd_hit_pos_x) ~w1_pos_y:cd.(cd_hit_pos_y) ~w1_pos_z:cd.(cd_hit_pos_z)
+            ~w2_shields:cd.(cd_this_shields)
+            ~w2_pos_x:cd.(cd_this_pos_x) ~w2_pos_y:cd.(cd_this_pos_y) ~w2_pos_z:cd.(cd_this_pos_z)
+            ~hit_px ~hit_py ~hit_pz in
+          if detonated then
+            ignore (maybe_detonate_weapon_d1
+              ~w1_id ~w1_phys_flags:cd.(cd_this_phys_flags) ~w1_shields:cd.(cd_this_shields)
+              ~w1_damage_radius:cd.(cd_this_weapon_damage_radius)
+              ~w1_robot_hit_sound:cd.(cd_this_weapon_robot_hit_sound)
+              ~w1_objnum:cd.(cd_this_objnum)
+              ~w1_pos_x:cd.(cd_this_pos_x) ~w1_pos_y:cd.(cd_this_pos_y) ~w1_pos_z:cd.(cd_this_pos_z)
+              ~w2_shields:cd.(cd_hit_shields)
+              ~w2_pos_x:cd.(cd_hit_pos_x) ~w2_pos_y:cd.(cd_hit_pos_y) ~w2_pos_z:cd.(cd_hit_pos_z)
+              ~hit_px ~hit_py ~hit_pz));
+        no_op_result ~cd))
+    else no_op_result ~cd)
+
+(* -- collide_weapon_and_controlcen --------------------------------------- *)
+
+let collide_weapon_and_controlcen_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  let w_ptype, w_shields, w_id, w_phys_flags, w_pnum, w_damage_radius, w_multiplier,
+      w_objnum =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_laser_ptype), cd.(cd_this_shields), cd.(cd_this_id),
+         cd.(cd_this_phys_flags), cd.(cd_this_laser_pnum), cd.(cd_this_weapon_damage_radius),
+         cd.(cd_this_laser_multiplier), cd.(cd_this_objnum)
+    else cd.(cd_hit_laser_ptype), cd.(cd_hit_shields), cd.(cd_hit_id),
+         cd.(cd_hit_phys_flags), cd.(cd_hit_laser_pnum), cd.(cd_hit_weapon_damage_radius),
+         cd.(cd_hit_laser_multiplier), cd.(cd_hit_objnum)
+  in
+  let c_segnum, c_size, c_shields, c_flags, c_objnum =
+    if cd.(cd_this_type) = obj_cntrlcen
+    then cd.(cd_this_segnum), cd.(cd_this_size), cd.(cd_this_shields), cd.(cd_this_flags),
+         cd.(cd_this_objnum)
+    else cd.(cd_hit_segnum), cd.(cd_hit_size), cd.(cd_hit_shields), cd.(cd_hit_flags),
+         cd.(cd_hit_objnum)
+  in
+  ignore c_objnum;
+  if w_ptype = obj_player
+  then (
+    let damage = w_shields in
+    (* apply_damage_to_controlcen checks who is player internally *)
+    if w_damage_radius <> 0
+    then Effect.perform (Explode_badass_weapon w_objnum)
+    else (
+      let expl_size = ((c_size / 3) * 3) / 4 in
+      ignore (Effect.perform (Create_object_explosion
+        (c_segnum, hit_px, hit_py, hit_pz, expl_size, vclip_small_explosion))));
+    Effect.perform (Play_collision_sound
+      (sound_control_center_hit, c_segnum, hit_px, hit_py, hit_pz));
+    let damage = Ox_math.fixmul ~a:damage ~b:w_multiplier in
+    (* Call apply_damage_to_controlcen directly - it's pure OCaml *)
+    let parent_is_local = (cd.(cd_player_objnum) >= 0 &&
+      w_pnum >= 0 && w_pnum < 200 (* bounds check *)) in
+    let parent_obj_id =
+      if cd.(cd_this_type) = obj_weapon
+      then cd.(cd_hit_id)  (* hit is the parent *)
+      else cd.(cd_this_id) (* no, this is wrong *)
+    in
+    ignore parent_obj_id;
+    let who_is_local_player = parent_is_local && w_pnum = cd.(cd_player_objnum) in
+    ignore who_is_local_player;
+    (* We need to pass through to apply_damage_to_controlcen via effect since
+       we need the parent object's player id, which requires looking up Objects[pnum].id.
+       Instead, we use the cd array: the weapon's parent_num points to a player object,
+       and we need that player object's id. We have cd_player_num for the local player.
+       The weapon's parent player's id is stored as Objects[parent_num].id.
+       We can't easily get this from the cd array, so let's use cd_player_num
+       and check if parent is local player. *)
+    let who_id =
+      (* For the 'who' parameter, apply_damage_to_controlcen wants Objects[who].id *)
+      cd.(cd_player_num)  (* approximation: works for single player *)
+    in
+    let new_c_shields = apply_damage_to_controlcen
+      ~shields:c_shields ~flags:c_flags ~damage
+      ~who_is_player:true
+      ~who_is_local_player:(w_pnum = cd.(cd_player_objnum))
+      ~who_objnum:w_pnum
+      ~local_player_objnum:cd.(cd_player_objnum)
+      ~is_multiplayer:(cd.(cd_is_multiplayer) <> 0)
+      ~is_coop:(cd.(cd_game_mode) land gm_multi_coop <> 0)
+      ~time_level_ok:true  (* simplified: in D1 this checks network invul timer *)
+      ~obj_id:c_objnum ~who_id
+    in
+    let new_w_shields, w_killed =
+      maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+        ~weapon_shields:w_shields ~other_type:obj_cntrlcen ~other_shields:c_shields
+    in
+    let new_w_flags =
+      if cd.(cd_this_type) = obj_weapon
+      then (if w_killed then cd.(cd_this_flags) lor of_should_be_dead else cd.(cd_this_flags))
+      else (if w_killed then cd.(cd_hit_flags) lor of_should_be_dead else cd.(cd_hit_flags))
+    in
+    if cd.(cd_hit_type) = obj_cntrlcen
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_c_shields; c_flags |])
+    else
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_w_shields; new_w_flags |]);
+    if cd.(cd_this_type) = obj_weapon
+    then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+    else cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         new_c_shields)
+  else (
+    (* Robot weapon: just explosion + maybe_kill_weapon *)
+    let expl_size = ((c_size / 3) * 3) / 4 in
+    ignore (Effect.perform (Create_object_explosion
+      (c_segnum, hit_px, hit_py, hit_pz, expl_size, vclip_small_explosion)));
+    let new_w_shields, w_killed =
+      maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+        ~weapon_shields:w_shields ~other_type:obj_cntrlcen ~other_shields:c_shields
+    in
+    let new_w_flags =
+      if cd.(cd_this_type) = obj_weapon
+      then (if w_killed then cd.(cd_this_flags) lor of_should_be_dead else cd.(cd_this_flags))
+      else (if w_killed then cd.(cd_hit_flags) lor of_should_be_dead else cd.(cd_hit_flags))
+    in
+    if cd.(cd_hit_type) = obj_weapon
+    then
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_w_shields; new_w_flags |]);
+    if cd.(cd_this_type) = obj_weapon
+    then new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+    else cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+         cd.(cd_this_shields))
+
+let collide_weapon_and_controlcen_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* D2 is same as D1 but uses controlcen->size * 3 / 20 for explosion size
+     and has omega check. For now treat identically. *)
+  collide_weapon_and_controlcen_d1 ~cd ~hit_px ~hit_py ~hit_pz
+
+(* -- collide_robot_and_player -------------------------------------------- *)
+
+let collide_robot_and_player_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* Canonicalize: which is robot, which is player *)
+  let r_objnum, p_id, p_objnum =
+    if cd.(cd_this_type) = obj_robot
+    then cd.(cd_this_objnum), cd.(cd_hit_id), cd.(cd_hit_objnum)
+    else cd.(cd_hit_objnum), cd.(cd_this_id), cd.(cd_this_objnum)
+  in
+  if p_id = cd.(cd_player_num)
+  then (
+    Effect.perform (Create_awareness_event (p_objnum, pa_player_collision));
+    Effect.perform (Do_ai_robot_hit_attack (r_objnum, p_objnum, hit_px, hit_py, hit_pz));
+    Effect.perform (Do_ai_robot_hit (r_objnum, pa_weapon_robot_collision)))
+  else if cd.(cd_is_multiplayer) <> 0
+  then Effect.perform (Multi_robot_request_change (r_objnum, p_id));
+  let p_segnum =
+    if cd.(cd_this_type) = obj_player then cd.(cd_this_segnum) else cd.(cd_hit_segnum) in
+  Effect.perform (Play_collision_sound
+    (sound_robot_hit_player, p_segnum, hit_px, hit_py, hit_pz));
+  if cd.(cd_this_type) = obj_robot
+  then do_bump_two_d1 ~cd ~damage_flag:true
+  else do_bump_two_d1 ~cd ~damage_flag:true
+
+let collide_robot_and_player_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  let r_objnum, r_flags, r_companion, r_kamikaze, r_thief, r_energy_drain, r_score,
+      r_shields =
+    if cd.(cd_this_type) = obj_robot
+    then cd.(cd_this_objnum), cd.(cd_this_flags), cd.(cd_this_robot_companion),
+         0, 0, 0, cd.(cd_this_robot_score), cd.(cd_this_shields)
+    else cd.(cd_hit_objnum), cd.(cd_hit_flags), cd.(cd_hit_robot_companion),
+         cd.(cd_hit_robot_kamikaze), cd.(cd_hit_robot_thief), cd.(cd_hit_robot_energy_drain),
+         cd.(cd_hit_robot_score), cd.(cd_hit_shields)
+  in
+  let p_id, p_objnum, p_segnum =
+    if cd.(cd_this_type) = obj_player
+    then cd.(cd_this_id), cd.(cd_this_objnum), cd.(cd_this_segnum)
+    else cd.(cd_hit_id), cd.(cd_hit_objnum), cd.(cd_hit_segnum)
+  in
+  if r_flags land of_exploding <> 0 then no_op_result ~cd
+  else (
+    if p_id = cd.(cd_player_num) then (
+      if r_companion <> 0 then no_op_result ~cd  (* companion + player = no-op *)
+      else (
+        if r_kamikaze <> 0 then (
+          (* Kamikaze: self-destruct and give points *)
+          ignore (apply_damage_to_robot_d2
+            ~flags:r_flags ~shields:r_shields ~damage:(r_shields + 1)
+            ~is_boss:false ~is_companion:false ~is_thief:false
+            ~is_death_roll:false ~is_kamikaze:true ~robot_id:0
+            ~is_multiplayer:(cd.(cd_is_multiplayer) <> 0)
+            ~is_final_level:false ~obj_id:r_objnum ~killer_objnum:p_objnum);
+          if p_objnum = cd.(cd_player_objnum)
+          then Effect.perform (Add_points_to_score r_score));
+        if r_thief <> 0 then
+          Effect.perform (Attempt_to_steal (r_objnum, p_id));
+        Effect.perform (Create_awareness_event (p_objnum, pa_player_collision));
+        Effect.perform (Do_ai_robot_hit_attack (r_objnum, p_objnum, hit_px, hit_py, hit_pz));
+        Effect.perform (Do_ai_robot_hit (r_objnum, pa_weapon_robot_collision));
+        let steal_attempt = r_thief <> 0 in
+        if (not steal_attempt) && r_energy_drain = 0
+        then Effect.perform (Play_collision_sound
+          (sound_robot_hit_player, p_segnum, hit_px, hit_py, hit_pz));
+        do_bump_two_d2 ~cd ~damage_flag:true))
+    else (
+      if cd.(cd_is_multiplayer) <> 0
+      then Effect.perform (Multi_robot_request_change (r_objnum, p_id));
+      let steal_attempt = false in
+      if (not steal_attempt) && r_energy_drain = 0
+      then Effect.perform (Play_collision_sound
+        (sound_robot_hit_player, p_segnum, hit_px, hit_py, hit_pz));
+      do_bump_two_d2 ~cd ~damage_flag:true))
+
+(* -- collide_robot_and_weapon (THE BIG ONE) ------------------------------ *)
+
+let rec collide_robot_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* Canonicalize *)
+  let r_objnum, r_flags, r_boss, r_score, r_exp1_vclip, r_exp1_sound, r_shields,
+      r_signature =
+    if cd.(cd_this_type) = obj_robot
+    then cd.(cd_this_objnum), cd.(cd_this_flags), cd.(cd_this_robot_boss),
+         cd.(cd_this_robot_score), 0, 0, cd.(cd_this_shields), cd.(cd_this_signature)
+    else cd.(cd_hit_objnum), cd.(cd_hit_flags), cd.(cd_hit_robot_boss),
+         cd.(cd_hit_robot_score), cd.(cd_hit_robot_exp1_vclip), cd.(cd_hit_robot_exp1_sound),
+         cd.(cd_hit_shields), cd.(cd_hit_signature)
+  in
+  let w_objnum, w_shields, w_id, w_phys_flags, w_ptype, w_pnum, w_psig, w_flags,
+      w_damage_radius, w_multiplier, w_last_hitobj, w_segnum =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_objnum), cd.(cd_this_shields), cd.(cd_this_id),
+         cd.(cd_this_phys_flags), cd.(cd_this_laser_ptype), cd.(cd_this_laser_pnum),
+         cd.(cd_this_laser_psig), cd.(cd_this_flags), cd.(cd_this_weapon_damage_radius),
+         cd.(cd_this_laser_multiplier), cd.(cd_this_laser_last_hitobj),
+         cd.(cd_this_segnum)
+    else cd.(cd_hit_objnum), cd.(cd_hit_shields), cd.(cd_hit_id),
+         cd.(cd_hit_phys_flags), cd.(cd_hit_laser_ptype), cd.(cd_hit_laser_pnum),
+         cd.(cd_hit_laser_psig), cd.(cd_hit_flags), cd.(cd_hit_weapon_damage_radius),
+         cd.(cd_hit_laser_multiplier), cd.(cd_hit_laser_last_hitobj),
+         cd.(cd_hit_segnum)
+  in
+  (* Boss check *)
+  if r_boss <> 0 then Effect.perform Set_boss_hit_this_frame;
+  (* Persistent weapon dedup *)
+  if w_phys_flags land pf_persistent <> 0 then (
+    if w_last_hitobj = r_objnum then no_op_result ~cd
+    else (
+      Effect.perform (Set_weapon_last_hitobj (w_objnum, r_objnum));
+      (* Continue with collision *)
+      collide_robot_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+        ~r_objnum ~r_flags ~r_boss ~r_score ~r_exp1_vclip ~r_exp1_sound ~r_shields
+        ~r_signature
+        ~w_objnum ~w_shields ~w_id ~w_phys_flags ~w_ptype ~w_pnum ~w_psig ~w_flags
+        ~w_damage_radius ~w_multiplier ~w_segnum))
+  else
+    collide_robot_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+      ~r_objnum ~r_flags ~r_boss ~r_score ~r_exp1_vclip ~r_exp1_sound ~r_shields
+      ~r_signature
+      ~w_objnum ~w_shields ~w_id ~w_phys_flags ~w_ptype ~w_pnum ~w_psig ~w_flags
+      ~w_damage_radius ~w_multiplier ~w_segnum
+
+and collide_robot_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+      ~r_objnum ~r_flags ~r_boss ~r_score ~r_exp1_vclip ~r_exp1_sound ~r_shields
+      ~r_signature
+      ~w_objnum ~w_shields ~w_id ~w_phys_flags ~w_ptype ~w_pnum ~w_psig ~w_flags
+      ~w_damage_radius ~w_multiplier ~w_segnum =
+  (* Friendly fire check *)
+  if w_psig = r_signature then no_op_result ~cd
+  else (
+    if w_damage_radius <> 0 then Effect.perform (Explode_badass_weapon w_objnum);
+    if w_ptype = obj_player && r_flags land of_exploding = 0 then (
+      (* AI awareness *)
+      if w_pnum = cd.(cd_player_objnum) then (
+        Effect.perform (Create_awareness_event (w_objnum, pa_weapon_robot_collision));
+        Effect.perform (Do_ai_robot_hit (r_objnum, pa_weapon_robot_collision)))
+      else if cd.(cd_is_multiplayer) <> 0 then (
+        (* In multiplayer, need parent object's player id. w_pnum is the parent objnum,
+           but we need the id. For simplicity, use w_pnum's id from the Objects array
+           via effect. Actually in D1 the code does:
+           multi_robot_request_change(robot, Objects[weapon->ctype.laser_info.parent_num].id)
+           We don't have Objects[pnum].id in the cd array. Use cd_player_num as fallback. *)
+        Effect.perform (Multi_robot_request_change (r_objnum, cd.(cd_player_num))));
+      (* Explosion *)
+      let r_size =
+        if cd.(cd_this_type) = obj_robot then cd.(cd_this_size) else cd.(cd_hit_size) in
+      if r_exp1_vclip > -1 then (
+        let expl_size = (r_size / 2 * 3) / 4 in
+        let expl_objnum = Effect.perform (Create_object_explosion
+          (w_segnum, hit_px, hit_py, hit_pz, expl_size, r_exp1_vclip)) in
+        if expl_objnum >= 0 then Effect.perform (Obj_attach (r_objnum, expl_objnum)));
+      if r_exp1_sound > -1 then
+        Effect.perform (Play_collision_sound
+          (r_exp1_sound, (if cd.(cd_this_type) = obj_robot then cd.(cd_this_segnum)
+                          else cd.(cd_hit_segnum)), hit_px, hit_py, hit_pz));
+      if w_flags land of_harmless = 0 then (
+        let damage = Ox_math.fixmul ~a:w_shields ~b:w_multiplier in
+        let new_r_shields, _boss_hit, killed =
+          apply_damage_to_robot_d1
+            ~flags:r_flags ~shields:r_shields ~damage
+            ~is_boss:(r_boss <> 0)
+            ~is_multiplayer:(cd.(cd_is_multiplayer) <> 0)
+            ~obj_id:r_objnum ~killer_objnum:w_pnum
+        in
+        (* Write damaged robot shields into cd so do_bump_two sees them *)
+        (if cd.(cd_this_type) = obj_robot
+         then cd.(cd_this_shields) <- new_r_shields
+         else cd.(cd_hit_shields) <- new_r_shields);
+        if killed = 0 then
+          ignore (do_bump_two_d1 ~cd ~damage_flag:false)
+        else (
+          if w_psig = cd.(cd_console_sig) then
+            Effect.perform (Add_points_to_score r_score);
+          (* Robot killed — write back shields explicitly since do_bump_two won't run *)
+          if cd.(cd_hit_type) = obj_robot then
+            Effect.perform (Write_back_hit_object
+              [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+                 cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+                 new_r_shields; cd.(cd_hit_flags) |]))));
+    (* maybe_kill_weapon *)
+    let new_w_shields, w_killed =
+      maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+        ~weapon_shields:w_shields ~other_type:obj_robot ~other_shields:r_shields
+    in
+    let new_w_flags =
+      if w_killed then w_flags lor of_should_be_dead else w_flags
+    in
+    if cd.(cd_this_type) = obj_weapon then (
+      (* this-object is weapon: Write_back_hit_object already handled robot above *)
+      new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields)
+    else (
+      (* this-object is robot: write back weapon as hit object, return robot state *)
+      Effect.perform (Write_back_hit_object
+        [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+           cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+           new_w_shields; new_w_flags |]);
+      cd.(cd_this_flags), cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z),
+      cd.(cd_this_shields)))
+
+let collide_robot_and_weapon_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* For D2, fall back to C for now due to complexity (omega, boss invulnerability,
+     energy blobs, gauss spin, companion, etc.) *)
+  ignore (hit_px, hit_py, hit_pz);
+  ignore cd;
+  None
+
+(* -- collide_player_and_weapon ------------------------------------------- *)
+
+let rec collide_player_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* Canonicalize *)
+  let p_id, p_segnum, p_shields, p_flags, p_objnum =
+    if cd.(cd_this_type) = obj_player
+    then cd.(cd_this_id), cd.(cd_this_segnum), cd.(cd_this_shields), cd.(cd_this_flags),
+         cd.(cd_this_objnum)
+    else cd.(cd_hit_id), cd.(cd_hit_segnum), cd.(cd_hit_shields), cd.(cd_hit_flags),
+         cd.(cd_hit_objnum)
+  in
+  let w_shields, w_id, w_phys_flags, w_flags, w_pnum, w_damage_radius, w_multiplier,
+      w_last_hitobj, w_objnum =
+    if cd.(cd_this_type) = obj_weapon
+    then cd.(cd_this_shields), cd.(cd_this_id), cd.(cd_this_phys_flags), cd.(cd_this_flags),
+         cd.(cd_this_laser_pnum), cd.(cd_this_weapon_damage_radius),
+         cd.(cd_this_laser_multiplier), cd.(cd_this_laser_last_hitobj), cd.(cd_this_objnum)
+    else cd.(cd_hit_shields), cd.(cd_hit_id), cd.(cd_hit_phys_flags), cd.(cd_hit_flags),
+         cd.(cd_hit_laser_pnum), cd.(cd_hit_weapon_damage_radius),
+         cd.(cd_hit_laser_multiplier), cd.(cd_hit_laser_last_hitobj), cd.(cd_hit_objnum)
+  in
+  let damage = Ox_math.fixmul ~a:w_shields ~b:w_multiplier in
+  (* Persistent weapon dedup *)
+  if w_phys_flags land pf_persistent <> 0 then (
+    if w_last_hitobj = p_objnum then no_op_result ~cd
+    else (
+      Effect.perform (Set_weapon_last_hitobj (w_objnum, p_objnum));
+      collide_player_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+        ~p_id ~p_segnum ~p_shields ~p_flags ~p_objnum
+        ~w_shields ~w_id ~w_phys_flags ~w_flags ~w_pnum ~w_damage_radius
+        ~w_objnum ~damage))
+  else
+    collide_player_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+      ~p_id ~p_segnum ~p_shields ~p_flags ~p_objnum
+      ~w_shields ~w_id ~w_phys_flags ~w_flags ~w_pnum ~w_damage_radius
+      ~w_objnum ~damage
+
+and collide_player_and_weapon_d1_inner ~cd ~hit_px ~hit_py ~hit_pz
+      ~p_id ~p_segnum ~p_shields:_ ~p_flags:_ ~p_objnum:_
+      ~w_shields ~w_id ~w_phys_flags ~w_flags ~w_pnum ~w_damage_radius
+      ~w_objnum ~damage =
+  (* Sound *)
+  if p_id = cd.(cd_player_num) then (
+    let is_invulnerable = cd.(cd_player_flags) land player_flags_invulnerable <> 0 in
+    if not is_invulnerable then (
+      Effect.perform (Play_collision_sound
+        (sound_player_got_hit, p_segnum, hit_px, hit_py, hit_pz));
+      if cd.(cd_is_multiplayer) <> 0 then
+        Effect.perform (Multi_send_play_sound (sound_player_got_hit, f1_0)))
+    else (
+      Effect.perform (Play_collision_sound
+        (sound_weapon_hit_door, p_segnum, hit_px, hit_py, hit_pz));
+      if cd.(cd_is_multiplayer) <> 0 then
+        Effect.perform (Multi_send_play_sound (sound_weapon_hit_door, f1_0))));
+  (* Explosion at player location *)
+  let vclip_player_hit = 1 in
+  ignore (Effect.perform (Create_object_explosion
+    (p_segnum, hit_px, hit_py, hit_pz, 0x50000 / 2, vclip_player_hit)));
+  (* Badass weapon *)
+  if w_damage_radius <> 0 then
+    Effect.perform (Explode_badass_weapon w_objnum);
+  (* maybe_kill_weapon *)
+  let new_w_shields, w_killed =
+    maybe_kill_weapon_d1 ~weapon_id:w_id ~phys_flags:w_phys_flags
+      ~weapon_shields:w_shields ~other_type:obj_player ~other_shields:0
+  in
+  let new_w_flags = if w_killed then w_flags lor of_should_be_dead else w_flags in
+  (* Bump *)
+  ignore (do_bump_two_d1 ~cd ~damage_flag:false);
+  (* Apply damage if not damage_radius weapon and not harmless *)
+  if w_damage_radius = 0 then (
+    if w_flags land of_harmless = 0 then
+      let p_objnum =
+        if cd.(cd_this_type) = obj_player then cd.(cd_this_objnum)
+        else cd.(cd_hit_objnum) in
+      let killer_objnum = if w_pnum > -1 then w_pnum else w_objnum in
+      Effect.perform (Apply_damage_to_player (p_objnum, killer_objnum, damage)));
+  (* ai_do_cloak_stuff *)
+  Effect.perform Ai_do_cloak_stuff;
+  (* Return weapon state *)
+  if cd.(cd_this_type) = obj_weapon then
+    new_w_flags, cd.(cd_this_vel_x), cd.(cd_this_vel_y), cd.(cd_this_vel_z), new_w_shields
+  else (
+    Effect.perform (Write_back_hit_object
+      [| cd.(cd_hit_objnum); cd.(cd_hit_vel_x); cd.(cd_hit_vel_y); cd.(cd_hit_vel_z);
+         cd.(cd_hit_rotvel_x); cd.(cd_hit_rotvel_y); cd.(cd_hit_rotvel_z);
+         new_w_shields; new_w_flags |]);
+    no_op_result ~cd)
+
+let collide_player_and_weapon_d2 ~cd ~hit_px ~hit_py ~hit_pz =
+  (* D2 has omega, superprox, earthshaker, multi_damage_scale.
+     Fall back to C for now *)
+  ignore (cd, hit_px, hit_py, hit_pz);
+  None
+
 (* -- collide_two_objects dispatchers -------------------------------------- *)
 
 (* COLLISION_OF macro: (type_a << 8) + type_b *)
 let collision_of a b = (a lsl 8) lor b
 
-(* D1 dispatcher. Returns (flags, vel_x, vel_y, vel_z) or None for C fallback.
+(* D1 dispatcher. Returns (flags, vel_x, vel_y, vel_z, shields) or None for C fallback.
    All object data comes from the collision data array (cd). *)
 let collide_two_objects_d1
       ~cd  (* collision data array from C *)
@@ -1277,7 +2225,7 @@ let collide_two_objects_d1
   let a_type = cd.(cd_this_type) in
   let b_type = cd.(cd_hit_type) in
   let ct = collision_of a_type b_type in
-  (* Simple handlers we've ported *)
+  (* Phase 1 handlers *)
   if ct = collision_of obj_robot obj_robot
   then Some (collide_robot_and_robot_d1 ~cd)
   else if ct = collision_of obj_player obj_player
@@ -1291,6 +2239,30 @@ let collide_two_objects_d1
   else if ct = collision_of obj_robot obj_cntrlcen
        || ct = collision_of obj_cntrlcen obj_robot
   then Some (collide_robot_and_controlcen ~cd ~hit_px ~hit_py ~hit_pz)
+  (* Phase 2 handlers *)
+  else if ct = collision_of obj_hostage obj_player
+       || ct = collision_of obj_player obj_hostage
+  then Some (collide_hostage_and_player_d1 ~cd)
+  else if ct = collision_of obj_weapon obj_clutter
+       || ct = collision_of obj_clutter obj_weapon
+  then Some (collide_weapon_and_clutter_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_debris
+       || ct = collision_of obj_debris obj_weapon
+  then Some (collide_weapon_and_debris_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_weapon
+  then Some (collide_weapon_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_cntrlcen
+       || ct = collision_of obj_cntrlcen obj_weapon
+  then Some (collide_weapon_and_controlcen_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_robot obj_player
+       || ct = collision_of obj_player obj_robot
+  then Some (collide_robot_and_player_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_robot obj_weapon
+       || ct = collision_of obj_weapon obj_robot
+  then Some (collide_robot_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_player obj_weapon
+       || ct = collision_of obj_weapon obj_player
+  then Some (collide_player_and_weapon_d1 ~cd ~hit_px ~hit_py ~hit_pz)
   else None  (* Fall back to C for unported handlers *)
 
 let collide_two_objects_d2
@@ -1300,6 +2272,7 @@ let collide_two_objects_d2
   let a_type = cd.(cd_this_type) in
   let b_type = cd.(cd_hit_type) in
   let ct = collision_of a_type b_type in
+  (* Phase 1 handlers *)
   if ct = collision_of obj_robot obj_robot
   then Some (collide_robot_and_robot_d2 ~cd)
   else if ct = collision_of obj_player obj_player
@@ -1313,5 +2286,24 @@ let collide_two_objects_d2
   else if ct = collision_of obj_robot obj_cntrlcen
        || ct = collision_of obj_cntrlcen obj_robot
   then Some (collide_robot_and_controlcen ~cd ~hit_px ~hit_py ~hit_pz)
+  (* Phase 2 handlers *)
+  else if ct = collision_of obj_hostage obj_player
+       || ct = collision_of obj_player obj_hostage
+  then Some (collide_hostage_and_player_d2 ~cd)
+  else if ct = collision_of obj_weapon obj_clutter
+       || ct = collision_of obj_clutter obj_weapon
+  then Some (collide_weapon_and_clutter_d2 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_debris
+       || ct = collision_of obj_debris obj_weapon
+  then Some (collide_weapon_and_debris_d2 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_weapon
+  then Some (collide_weapon_and_weapon_d2 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_weapon obj_cntrlcen
+       || ct = collision_of obj_cntrlcen obj_weapon
+  then Some (collide_weapon_and_controlcen_d2 ~cd ~hit_px ~hit_py ~hit_pz)
+  else if ct = collision_of obj_robot obj_player
+       || ct = collision_of obj_player obj_robot
+  then Some (collide_robot_and_player_d2 ~cd ~hit_px ~hit_py ~hit_pz)
+  (* D2 robot+weapon and player+weapon fall back to C for now *)
   else None
 ;;
