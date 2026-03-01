@@ -795,6 +795,10 @@ int fvi_sub(vms_vector *intp,int *ints,vms_vector *p0,int startseg,vms_vector *p
 
 //What the hell is fvi_hit_seg for???
 
+//check if a particular point on a wall is a transparent pixel
+//returns 1 if can pass though the wall, else 0
+int check_trans_wall(vms_vector *pnt,segment *seg,int sidenum,int facenum);
+
 //Find out if a vector intersects with anything.
 //Fills in hit_data, an fvi_info structure (see header file).
 //Parms:
@@ -814,6 +818,15 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		{
 			fprintf(stderr, "[OX] find_vector_intersection (D2) using cd_ox_find_vector_intersection.\n");
 			ox_bridge_logged = 1;
+			cd_ox_register_check_trans_wall(
+				[](int segnum, int sidenum, int facenum,
+				   int32_t hit_x, int32_t hit_y, int32_t hit_z) -> int {
+					vms_vector pnt;
+					pnt.x = hit_x;
+					pnt.y = hit_y;
+					pnt.z = hit_z;
+					return check_trans_wall(&pnt, &Segments[segnum], sidenum, facenum);
+				});
 		}
 
 		int n_segments = Highest_segment_index + 1;
@@ -1081,8 +1094,6 @@ int obj_in_list(int objnum,int *obj_list)
 
 	return (t==objnum);
 }
-
-int check_trans_wall(vms_vector *pnt,segment *seg,int sidenum,int facenum);
 
 int fvi_sub(vms_vector *intp,int *ints,vms_vector *p0,int startseg,vms_vector *p1,fix rad,short thisobjnum,int *ignore_obj_list,int flags,int *seglist,int *n_segs,int entry_seg)
 {

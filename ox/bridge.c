@@ -84,6 +84,9 @@ static const value* g_special_check_line_to_face = NULL;
 static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
 
+/* FVI check_trans_wall callback (set via cd_ox_register_check_trans_wall) */
+static cd_check_trans_wall_fn g_check_trans_wall = NULL;
+
 /* Collide effect function pointers (set via cd_ox_register_collide_effects) */
 static cd_effect_increment_kills_fn g_effect_increment_kills = NULL;
 static cd_effect_start_boss_death_fn g_effect_start_boss_death = NULL;
@@ -3323,6 +3326,31 @@ void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
     *out_dist = Int_val(Field(result, 0));
     *out_csd = Int_val(Field(result, 1));
     CAMLreturn0;
+}
+
+/* -- FVI check_trans_wall callback ------------------------------------ */
+
+void cd_ox_register_check_trans_wall(cd_check_trans_wall_fn fn)
+{
+    g_check_trans_wall = fn;
+}
+
+CAMLprim value cd_ox_check_trans_wall(value v_segnum, value v_sidenum,
+                                       value v_facenum, value v_hx,
+                                       value v_hy, value v_hz)
+{
+    if (!g_check_trans_wall) return Val_int(0);
+    int result = g_check_trans_wall(Int_val(v_segnum), Int_val(v_sidenum),
+                                    Int_val(v_facenum), Int_val(v_hx),
+                                    Int_val(v_hy), Int_val(v_hz));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_check_trans_wall_bytecode(value *argv, int argn)
+{
+    (void)argn;
+    return cd_ox_check_trans_wall(argv[0], argv[1], argv[2],
+                                  argv[3], argv[4], argv[5]);
 }
 
 void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,

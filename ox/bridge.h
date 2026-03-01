@@ -858,6 +858,15 @@ void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, 
     aip_GOAL_STATE, aip_CURRENT_STATE, sound_count, sound1_id, sound2_id] */
 void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out);
 
+/* -- FVI check_trans_wall callback ------------------------------------ */
+/* Callback type for pixel-level transparency check on walls.
+   Called from OCaml FVI when FQ_TRANSPOINT is set.
+   Args: segnum, sidenum, facenum, hit_x, hit_y, hit_z
+   Returns: 1 if pixel is transparent (passable), 0 if solid */
+typedef int (*cd_check_trans_wall_fn)(int segnum, int sidenum, int facenum,
+                                      int32_t hit_x, int32_t hit_y, int32_t hit_z);
+void cd_ox_register_check_trans_wall(cd_check_trans_wall_fn fn);
+
 /* -- Robot animation functions ---------------------------------------- */
 
 /* robot_get_anim_state: look up joint positions for a gun/state combo.

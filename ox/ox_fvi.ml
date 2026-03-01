@@ -480,6 +480,14 @@ let fq_check_objs = 1
 let fq_transwall = 2
 let fq_transpoint = 4
 let fq_get_seglist = 8
+
+(* Callback to C's check_trans_wall for FQ_TRANSPOINT pixel-level check.
+   Set by fvi_bridge.ml at init time.
+   Args: segnum, sidenum, facenum, hit_x, hit_y, hit_z → 1 if passable *)
+let check_trans_wall_callback : (int -> int -> int -> int -> int -> int -> int) ref =
+  ref (fun _segnum _sidenum _facenum _hx _hy _hz -> 0)
+;;
+
 let fq_ignore_powerups = 16
 
 (* WID flags *)
@@ -939,9 +947,11 @@ let rec fvi_sub
               let passable =
                 is_flyable
                 || (is_trans && flags land fq_transwall <> 0)
-                (* FQ_TRANSPOINT requires check_trans_wall pixel check which we
-                   can't do from OCaml, so treat transparent walls as solid for
-                   weapons. This is conservative but correct for doors. *)
+                || (is_trans
+                    && flags land fq_transpoint <> 0
+                    &&
+                    let hx, hy, hz = hit_point in
+                    !check_trans_wall_callback startseg sn face hx hy hz <> 0)
               in
               if passable
               then (

@@ -17,6 +17,21 @@
    p0(3) + p1(3) + sphere_pos(3) + sphere_rad(1)
    Returns [| dist; intpx; intpy; intpz |] *)
 
+(* check_trans_wall callback: OCaml calls back into C for per-pixel
+   transparency check on FQ_TRANSPOINT walls.
+   Args: segnum, sidenum, facenum, hit_x, hit_y, hit_z → 1 if passable *)
+external check_trans_wall_c
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  = "cd_ox_check_trans_wall_bytecode" "cd_ox_check_trans_wall"
+
+let () = Ox_fvi.check_trans_wall_callback := check_trans_wall_c
+
 let cd_check_line_to_face (arr : int array) =
   let p0 = arr.(0), arr.(1), arr.(2) in
   let p1 = arr.(3), arr.(4), arr.(5) in

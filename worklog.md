@@ -1660,3 +1660,21 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d1/physics.cpp` — cleanup of debug logging added during investigation
 
 - **Verification:** `cmake --build build-ox -j8` clean. Runtime tested: D1 launches, lasers hit doors and open them correctly.
+
+### §54 — Implement check_trans_wall OCaml→C callback for FQ_TRANSPOINT
+
+- **What:** §53's conservative fix treated ALL transparent walls as solid for weapons (FQ_TRANSPOINT). This was correct for doors but prevented weapons from passing through grated/windowed walls where they should. This section implements a callback mechanism so the OCaml FVI can call C's `check_trans_wall()` for pixel-level transparency checking, restoring correct behavior for all transparent wall types.
+
+- **Design:** Mutable ref callback pattern. `ox_fvi.ml` defines `check_trans_wall_callback` as a ref initialized to a no-op (returns 0 = solid). `fvi_bridge.ml` declares an `external` to C and assigns it to the ref at module init time. The C side (`bridge.c`) stores a function pointer registered from fvi.cpp via `cd_ox_register_check_trans_wall`. When OCaml's `fvi_sub` encounters a transparent wall with FQ_TRANSPOINT set, it calls through the ref → external → C function pointer → `check_trans_wall()` which does UV computation and bitmap pixel lookup.
+
+- **Callback flow:** OCaml fvi_sub → `!check_trans_wall_callback segnum sn face hx hy hz` → `check_trans_wall_c` (external) → `cd_ox_check_trans_wall` (bridge.c CAMLprim) → `g_check_trans_wall` (function pointer) → lambda in fvi.cpp → `check_trans_wall(&pnt, &Segments[segnum], sidenum, facenum)` → `find_hitpoint_uv` + bitmap pixel test → returns 1 if transparent pixel, 0 if solid.
+
+- **Files modified:**
+  - `ox/ox_fvi.ml` — added `check_trans_wall_callback` ref, updated passability check to use it for FQ_TRANSPOINT
+  - `ox/fvi_bridge.ml` — added `external check_trans_wall_c` + ref initialization
+  - `ox/bridge.c` — added `g_check_trans_wall` function pointer, `cd_ox_register_check_trans_wall`, `cd_ox_check_trans_wall` + bytecode wrapper
+  - `ox/bridge.h` — added `cd_check_trans_wall_fn` typedef, `cd_ox_register_check_trans_wall` declaration
+  - `main_d1/fvi.cpp` — moved `check_trans_wall` forward declaration earlier, registered callback lambda
+  - `main_d2/fvi.cpp` — same
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2).
