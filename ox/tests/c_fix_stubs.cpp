@@ -8,6 +8,7 @@ extern "C" {
 #include "c_oracle_gameseg.h"
 #include "c_oracle_fvi.h"
 #include "c_oracle_curves.h"
+#include "c_oracle_collide.h"
 
 extern "C" CAMLprim value caml_c_i2f(value i)
 {
@@ -2912,3 +2913,97 @@ extern "C" CAMLprim value caml_c_get_explosion_vclip(
         Long_val(v_ot), Long_val(v_st),
         Long_val(v_e1), Long_val(v_e2), Long_val(v_ep)));
 }
+
+/* --- bump_one_object --- */
+extern "C" CAMLprim value caml_c_bump_one_object(
+    value v_vx, value v_vy, value v_vz,
+    value v_hdx, value v_hdy, value v_hdz,
+    value v_damage, value v_mass)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t ovx, ovy, ovz;
+    c_oracle_bump_one_object(
+        Long_val(v_vx), Long_val(v_vy), Long_val(v_vz),
+        Long_val(v_hdx), Long_val(v_hdy), Long_val(v_hdz),
+        Long_val(v_damage), Long_val(v_mass),
+        &ovx, &ovy, &ovz);
+    result = caml_alloc_tuple(3);
+    Store_field(result, 0, Val_long(ovx));
+    Store_field(result, 1, Val_long(ovy));
+    Store_field(result, 2, Val_long(ovz));
+    CAMLreturn(result);
+}
+
+extern "C" CAMLprim value caml_c_bump_one_object_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_bump_one_object(
+        argv[0], argv[1], argv[2], argv[3],
+        argv[4], argv[5], argv[6], argv[7]);
+}
+
+/* --- bump_this_object_no_damage --- */
+extern "C" CAMLprim value caml_c_bump_this_object_no_damage(
+    value v_obj_type, value v_phys_flags, value v_robot_boss,
+    value v_vx, value v_vy, value v_vz,
+    value v_rx, value v_ry, value v_rz,
+    value v_mass, value v_difficulty,
+    value v_fx, value v_fy, value v_fz)
+{
+    CAMLparam0();
+    CAMLlocal1(result);
+    int32_t ovx, ovy, ovz, orx, ory, orz;
+    c_oracle_bump_this_object_no_damage(
+        Long_val(v_obj_type), Long_val(v_phys_flags), Long_val(v_robot_boss),
+        Long_val(v_vx), Long_val(v_vy), Long_val(v_vz),
+        Long_val(v_rx), Long_val(v_ry), Long_val(v_rz),
+        Long_val(v_mass), Long_val(v_difficulty),
+        Long_val(v_fx), Long_val(v_fy), Long_val(v_fz),
+        &ovx, &ovy, &ovz, &orx, &ory, &orz);
+    result = caml_alloc_tuple(6);
+    Store_field(result, 0, Val_long(ovx));
+    Store_field(result, 1, Val_long(ovy));
+    Store_field(result, 2, Val_long(ovz));
+    Store_field(result, 3, Val_long(orx));
+    Store_field(result, 4, Val_long(ory));
+    Store_field(result, 5, Val_long(orz));
+    CAMLreturn(result);
+}
+
+extern "C" CAMLprim value caml_c_bump_this_object_no_damage_bc(value* argv, int argn)
+{
+    (void)argn;
+    return caml_c_bump_this_object_no_damage(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6],
+        argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13]);
+}
+
+/* --- bump_two_objects_no_damage (packed array in, 12-tuple out) --- */
+extern "C" CAMLprim value caml_c_bump_two_objects_no_damage(value v_packed)
+{
+    CAMLparam1(v_packed);
+    CAMLlocal1(result);
+    /* v_packed is an int array of length 22 */
+    int32_t out_buf[12];
+    /* packed: [0..10] = this, [11..21] = hit, [22] = difficulty */
+    c_oracle_bump_two_objects_no_damage(
+        Long_val(Field(v_packed, 0)),  Long_val(Field(v_packed, 1)),
+        Long_val(Field(v_packed, 2)),  Long_val(Field(v_packed, 3)),
+        Long_val(Field(v_packed, 4)),  Long_val(Field(v_packed, 5)),
+        Long_val(Field(v_packed, 6)),  Long_val(Field(v_packed, 7)),
+        Long_val(Field(v_packed, 8)),  Long_val(Field(v_packed, 9)),
+        Long_val(Field(v_packed, 10)), Long_val(Field(v_packed, 11)),
+        Long_val(Field(v_packed, 12)), Long_val(Field(v_packed, 13)),
+        Long_val(Field(v_packed, 14)), Long_val(Field(v_packed, 15)),
+        Long_val(Field(v_packed, 16)), Long_val(Field(v_packed, 17)),
+        Long_val(Field(v_packed, 18)), Long_val(Field(v_packed, 19)),
+        Long_val(Field(v_packed, 20)), Long_val(Field(v_packed, 21)),
+        Long_val(Field(v_packed, 22)),
+        out_buf);
+    result = caml_alloc_tuple(12);
+    for (int i = 0; i < 12; i++)
+        Store_field(result, i, Val_long(out_buf[i]));
+    CAMLreturn(result);
+}
+

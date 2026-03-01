@@ -1824,3 +1824,37 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `ox/ox_physics.ml` — `obj_weapon` constant 7→5
 
 - **Verification:** D2 weapons now pass through both types of grate walls tested. Powerup pickup no longer causes wall-collision behavior. D1 unaffected (already had correct value in `ox_fvi.ml` and `ox_collide.ml`).
+
+### §62 — Port collision bump functions and simple collision handlers to OCaml (Phase 1)
+
+- **Goal:** Eliminate OCaml→C→OCaml round-trips for collision handling. The physics sim already runs in OCaml but bounced collision dispatch back to C via the `Collide_two_objects` effect. Many sub-functions called by C collision handlers (apply_damage_to_robot, phys_apply_force, etc.) were already ported to OCaml, creating unnecessary round-trips.
+
+- **What was ported:**
+  - **Bump functions** (pure physics math): `bump_one_object`, `bump_this_object_d1/d2`, `bump_two_objects_d1/d2`, `apply_force_damage_d1/d2`
+  - **Simple collision handlers**: `collide_robot_and_robot`, `collide_robot_and_controlcen`, `collide_player_and_player`, `collide_player_and_clutter`, `collide_player_and_controlcen` (D1+D2 variants)
+  - **Dispatcher**: `collide_two_objects_d1/d2` — pattern matches on (type_a, type_b), handles ported cases in OCaml, falls back to C for unported handlers
+
+- **Architecture:** Kept `ox_physics_sim.ml` unchanged. The `Collide_two_objects` handler in `physics_sim_bridge.ml` now: (1) fetches collision data from C via `effect_fetch_collision_data`, (2) tries OCaml dispatch under nested `Effect.Deep.match_with`, (3) falls back to C for unported handlers.
+
+- **New effects:** `Add_points_to_score`, `Play_collision_sound`, `Create_awareness_event`, `Write_back_hit_object`
+
+- **C-side:** Added collision effect callback registration (`cd_ox_register_collision_effects`), fetch_collision_data packs 48 object fields into int array, write_back_hit_object unpacks 9 fields.
+
+- **Key fixes during implementation:**
+  - `bump_this_object` and `apply_force_damage` are mutually recursive → `let rec ... and ...`
+  - Build link order: ox_physics → ox_collide → ox_fvi (ox_collide now depends on ox_physics)
+  - `PF_PERSISTENT = 0x20`, not `4`
+  - Type annotation syntax: `let f (type a) ~is_d2 (eff : a Effect.t)` instead of `let f ~is_d2 : type a. ...`
+
+- **Parity tests:** Added C oracle implementations of bump functions (`c_oracle_collide.cpp`) and 11 parity expect tests comparing C vs OCaml output. All tests pass with bit-identical results.
+
+- **Files modified:**
+  - `ox/ox_collide.ml` — +728 lines: bump functions, collision handlers, dispatcher
+  - `ox/physics_sim_bridge.ml` — +283 lines: collision effect handler, modified Collide_two_objects handler
+  - `ox/bridge.c` / `ox/bridge.h` — C-side collision effect callbacks
+  - `main_d1/physics.cpp` / `main_d2/physics.cpp` — collision callback registration
+  - `ox/oracle/c_oracle_collide.cpp` / `.h` — C oracle for parity tests
+  - `ox/tests/c_fix_stubs.cpp` / `parity_expect.ml` — stubs and 11 parity tests
+  - `CMakeLists.txt`, `ox/dune`, `scripts/ox/build_bridge.sh` — build/link order fixes
+
+- **Verification:** D1 and D2 launch and play correctly. No OCaml exceptions. Parity tests all pass.

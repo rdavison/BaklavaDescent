@@ -12664,3 +12664,261 @@ let%expect_test "homing - track two types" =
   printf "result=%d\n" r;
   [%expect {| result=2 |}]
 ;;
+
+(* ====================================================================== *)
+(*  Collision parity tests: bump functions (C oracle vs OCaml)             *)
+(* ====================================================================== *)
+
+(* --- bump_one_object --- *)
+
+external c_bump_one_object
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int
+  = "caml_c_bump_one_object_bc" "caml_c_bump_one_object"
+
+let check_bump_one ~vel:(vx, vy, vz) ~hit_dir:(hx, hy, hz) ~damage ~mass =
+  let c = c_bump_one_object vx vy vz hx hy hz damage mass in
+  let ox =
+    Ox_collide.bump_one_object
+      ~vel:(vx, vy, vz)
+      ~hit_dir:(hx, hy, hz)
+      ~damage
+      ~mass
+  in
+  let cx, cy, cz = c in
+  let ox_x, ox_y, ox_z = ox in
+  printf
+    "bump_one c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    cx cy cz ox_x ox_y ox_z
+    (cx = ox_x && cy = ox_y && cz = ox_z)
+
+let%expect_test "bump_one_object: zero damage" =
+  check_bump_one ~vel:(f1, 0, 0) ~hit_dir:(f1, 0, 0) ~damage:0 ~mass:f1;
+  [%expect {| bump_one c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_one_object: unit hit" =
+  check_bump_one ~vel:(0, 0, 0) ~hit_dir:(f1, 0, 0) ~damage:f1 ~mass:f1;
+  [%expect {| bump_one c=(65536,0,0) ox=(65536,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_one_object: diagonal hit" =
+  check_bump_one ~vel:(f1, f1, 0) ~hit_dir:(0, f1, f1) ~damage:(f1 / 2) ~mass:(f1 * 2);
+  [%expect {| bump_one c=(65536,81920,16384) ox=(65536,81920,16384) eq=true |}]
+;;
+
+let%expect_test "bump_one_object: heavy mass" =
+  check_bump_one ~vel:(0, 0, 0) ~hit_dir:(f1, 0, 0) ~damage:(f1 * 10) ~mass:(f1 * 100);
+  [%expect {| bump_one c=(6550,0,0) ox=(6550,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_one_object: negative hit_dir" =
+  check_bump_one ~vel:(f1, 0, 0) ~hit_dir:(-f1, -f1, 0) ~damage:f1 ~mass:f1;
+  [%expect {| bump_one c=(0,-65536,0) ox=(0,-65536,0) eq=true |}]
+;;
+
+(* --- bump_this_object_no_damage --- *)
+
+external c_bump_this_object_no_damage
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> int * int * int * int * int * int
+  = "caml_c_bump_this_object_no_damage_bc" "caml_c_bump_this_object_no_damage"
+
+let check_bump_this ~obj_type ~phys_flags ~robot_boss
+    ~vel:(vx, vy, vz) ~rotvel:(rx, ry, rz) ~mass ~difficulty
+    ~force:(fx, fy, fz) =
+  let c =
+    c_bump_this_object_no_damage
+      obj_type phys_flags robot_boss
+      vx vy vz rx ry rz mass difficulty fx fy fz
+  in
+  let ox_vel, ox_rotvel, _shields, _flags, _skip =
+    Ox_collide.bump_this_object_d1
+      ~obj_type ~obj_id:0 ~obj_flags:0
+      ~vel:(vx, vy, vz) ~rotvel:(rx, ry, rz)
+      ~shields:0 ~mass ~phys_flags
+      ~obj_segnum:0 ~objnum:0
+      ~robot_boss ~robot_attack:0 ~robot_score:0
+      ~force:(fx, fy, fz)
+      ~damage_flag:false
+      ~other_type:0 ~other_laser_pnum:0 ~other_laser_psig:0 ~other_objnum:0
+      ~console_sig:0 ~difficulty ~is_multiplayer:false ~player_num:0
+      ~is_morph:false
+  in
+  let cvx, cvy, cvz, crx, cry, crz = c in
+  let ovx, ovy, ovz = ox_vel in
+  let orx, ory, orz = ox_rotvel in
+  let vel_eq = cvx = ovx && cvy = ovy && cvz = ovz in
+  let rot_eq = crx = orx && cry = ory && crz = orz in
+  printf
+    "bump_this vel c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b rot c=(%d,%d,%d) ox=(%d,%d,%d) eq=%b\n"
+    cvx cvy cvz ovx ovy ovz vel_eq
+    crx cry crz orx ory orz rot_eq
+
+let%expect_test "bump_this: player basic force" =
+  check_bump_this ~obj_type:Ox_collide.obj_player ~phys_flags:0 ~robot_boss:0
+    ~vel:(0, 0, 0) ~rotvel:(0, 0, 0) ~mass:f1 ~difficulty:0
+    ~force:(f1 * 4, 0, 0);
+  [%expect
+    {| bump_this vel c=(65536,0,0) ox=(65536,0,0) eq=true rot c=(0,0,0) ox=(0,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_this: player persistent ignored" =
+  check_bump_this ~obj_type:Ox_collide.obj_player ~phys_flags:Ox_collide.pf_persistent ~robot_boss:0
+    ~vel:(0, 0, 0) ~rotvel:(0, 0, 0) ~mass:f1 ~difficulty:0
+    ~force:(f1 * 100, 0, 0);
+  [%expect
+    {| bump_this vel c=(0,0,0) ox=(0,0,0) eq=true rot c=(0,0,0) ox=(0,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_this: robot force + rotation" =
+  check_bump_this ~obj_type:Ox_collide.obj_robot ~phys_flags:0 ~robot_boss:0
+    ~vel:(0, 0, 0) ~rotvel:(0, 0, 0) ~mass:(f1 * 2) ~difficulty:0
+    ~force:(f1 * 8, 0, 0);
+  [%expect
+    {| bump_this vel c=(262144,0,0) ox=(262144,0,0) eq=true rot c=(0,8192,0) ox=(0,8192,0) eq=true |}]
+;;
+
+let%expect_test "bump_this: robot boss immune" =
+  check_bump_this ~obj_type:Ox_collide.obj_robot ~phys_flags:0 ~robot_boss:1
+    ~vel:(0, 0, 0) ~rotvel:(0, 0, 0) ~mass:f1 ~difficulty:0
+    ~force:(f1 * 100, 0, 0);
+  [%expect
+    {| bump_this vel c=(0,0,0) ox=(0,0,0) eq=true rot c=(0,0,0) ox=(0,0,0) eq=true |}]
+;;
+
+let%expect_test "bump_this: clutter with difficulty" =
+  check_bump_this ~obj_type:Ox_collide.obj_clutter ~phys_flags:0 ~robot_boss:0
+    ~vel:(f1, f1, 0) ~rotvel:(0, 0, 0) ~mass:(f1 * 4) ~difficulty:3
+    ~force:(0, f1 * 14, 0);
+  [%expect
+    {| bump_this vel c=(65536,294912,0) ox=(65536,294912,0) eq=true rot c=(4096,0,0) ox=(4096,0,0) eq=true |}]
+;;
+
+(* --- bump_two_objects_no_damage --- *)
+
+external c_bump_two_objects_no_damage
+  :  int array
+  -> int * int * int * int * int * int * int * int * int * int * int * int
+  = "caml_c_bump_two_objects_no_damage"
+
+let check_bump_two
+    ~this_type ~this_phys_flags ~this_robot_boss
+    ~this_vel:(tvx, tvy, tvz) ~this_rotvel:(trx, try_, trz) ~this_mass ~this_mt
+    ~hit_type ~hit_phys_flags ~hit_robot_boss
+    ~hit_vel:(hvx, hvy, hvz) ~hit_rotvel:(hrx, hry, hrz) ~hit_mass ~hit_mt
+    ~difficulty
+  =
+  let packed =
+    [| this_type; this_phys_flags; this_robot_boss;
+       tvx; tvy; tvz; trx; try_; trz; this_mass; this_mt;
+       hit_type; hit_phys_flags; hit_robot_boss;
+       hvx; hvy; hvz; hrx; hry; hrz; hit_mass; hit_mt;
+       difficulty |]
+  in
+  let c = c_bump_two_objects_no_damage packed in
+  let c_tvx, c_tvy, c_tvz, c_trx, c_try, c_trz,
+      c_hvx, c_hvy, c_hvz, c_hrx, c_hry, c_hrz = c
+  in
+  let ox_result =
+    Ox_collide.bump_two_objects_d1
+      ~this_type ~this_id:0 ~this_flags:0
+      ~this_vel:(tvx, tvy, tvz) ~this_rotvel:(trx, try_, trz)
+      ~this_shields:0 ~this_mass ~this_phys_flags ~this_movement_type:this_mt
+      ~this_segnum:0 ~this_objnum:0
+      ~this_robot_boss ~this_robot_attack:0 ~this_robot_score:0
+      ~this_laser_pnum:0 ~this_laser_psig:0
+      ~hit_type ~hit_id:0 ~hit_flags:0
+      ~hit_vel:(hvx, hvy, hvz) ~hit_rotvel:(hrx, hry, hrz)
+      ~hit_shields:0 ~hit_mass ~hit_phys_flags ~hit_movement_type:hit_mt
+      ~hit_segnum:0 ~hit_objnum:0
+      ~hit_robot_boss ~hit_robot_attack:0 ~hit_robot_score:0
+      ~hit_laser_pnum:0 ~hit_laser_psig:0
+      ~damage_flag:false
+      ~console_sig:0 ~difficulty ~is_multiplayer:false ~player_num:0
+  in
+  let (o_tvx, o_tvy, o_tvz), (o_trx, o_try, o_trz), _ts, _tf,
+      (o_hvx, o_hvy, o_hvz), (o_hrx, o_hry, o_hrz), _hs, _hf = ox_result
+  in
+  let tv_eq = c_tvx = o_tvx && c_tvy = o_tvy && c_tvz = o_tvz in
+  let tr_eq = c_trx = o_trx && c_try = o_try && c_trz = o_trz in
+  let hv_eq = c_hvx = o_hvx && c_hvy = o_hvy && c_hvz = o_hvz in
+  let hr_eq = c_hrx = o_hrx && c_hry = o_hry && c_hrz = o_hrz in
+  printf
+    "bump_two this_vel eq=%b this_rot eq=%b hit_vel eq=%b hit_rot eq=%b all=%b\n"
+    tv_eq tr_eq hv_eq hr_eq (tv_eq && tr_eq && hv_eq && hr_eq);
+  if not (tv_eq && tr_eq && hv_eq && hr_eq) then
+    printf
+      "  C: tv=(%d,%d,%d) tr=(%d,%d,%d) hv=(%d,%d,%d) hr=(%d,%d,%d)\n  OX: tv=(%d,%d,%d) tr=(%d,%d,%d) hv=(%d,%d,%d) hr=(%d,%d,%d)\n"
+      c_tvx c_tvy c_tvz c_trx c_try c_trz c_hvx c_hvy c_hvz c_hrx c_hry c_hrz
+      o_tvx o_tvy o_tvz o_trx o_try o_trz o_hvx o_hvy o_hvz o_hrx o_hry o_hrz
+
+let%expect_test "bump_two: two robots head-on" =
+  check_bump_two
+    ~this_type:Ox_collide.obj_robot ~this_phys_flags:0 ~this_robot_boss:0
+    ~this_vel:(f1, 0, 0) ~this_rotvel:(0, 0, 0) ~this_mass:(f1 * 2) ~this_mt:Ox_collide.mt_physics
+    ~hit_type:Ox_collide.obj_robot ~hit_phys_flags:0 ~hit_robot_boss:0
+    ~hit_vel:(-f1, 0, 0) ~hit_rotvel:(0, 0, 0) ~hit_mass:(f1 * 2) ~hit_mt:Ox_collide.mt_physics
+    ~difficulty:0;
+  [%expect {| bump_two this_vel eq=true this_rot eq=true hit_vel eq=true hit_rot eq=true all=true |}]
+;;
+
+let%expect_test "bump_two: player vs robot" =
+  check_bump_two
+    ~this_type:Ox_collide.obj_player ~this_phys_flags:0 ~this_robot_boss:0
+    ~this_vel:(f1 * 3, 0, 0) ~this_rotvel:(0, 0, 0) ~this_mass:f1 ~this_mt:Ox_collide.mt_physics
+    ~hit_type:Ox_collide.obj_robot ~hit_phys_flags:0 ~hit_robot_boss:0
+    ~hit_vel:(0, 0, 0) ~hit_rotvel:(0, 0, 0) ~hit_mass:(f1 * 4) ~hit_mt:Ox_collide.mt_physics
+    ~difficulty:1;
+  [%expect {| bump_two this_vel eq=true this_rot eq=true hit_vel eq=true hit_rot eq=true all=true |}]
+;;
+
+let%expect_test "bump_two: unequal masses diagonal" =
+  check_bump_two
+    ~this_type:Ox_collide.obj_robot ~this_phys_flags:0 ~this_robot_boss:0
+    ~this_vel:(f1, f1, 0) ~this_rotvel:(0, 0, 0) ~this_mass:f1 ~this_mt:Ox_collide.mt_physics
+    ~hit_type:Ox_collide.obj_robot ~hit_phys_flags:0 ~hit_robot_boss:0
+    ~hit_vel:(0, -f1, f1) ~hit_rotvel:(0, 0, 0) ~hit_mass:(f1 * 10) ~hit_mt:Ox_collide.mt_physics
+    ~difficulty:2;
+  [%expect {| bump_two this_vel eq=true this_rot eq=true hit_vel eq=true hit_rot eq=true all=true |}]
+;;
+
+let%expect_test "bump_two: one non-physics" =
+  check_bump_two
+    ~this_type:Ox_collide.obj_robot ~this_phys_flags:0 ~this_robot_boss:0
+    ~this_vel:(f1, 0, 0) ~this_rotvel:(0, 0, 0) ~this_mass:(f1 * 3) ~this_mt:0
+    ~hit_type:Ox_collide.obj_robot ~hit_phys_flags:0 ~hit_robot_boss:0
+    ~hit_vel:(0, f1, 0) ~hit_rotvel:(0, 0, 0) ~hit_mass:(f1 * 2) ~hit_mt:Ox_collide.mt_physics
+    ~difficulty:0;
+  [%expect {| bump_two this_vel eq=true this_rot eq=true hit_vel eq=true hit_rot eq=true all=true |}]
+;;
+
+let%expect_test "bump_two: boss immune to force" =
+  check_bump_two
+    ~this_type:Ox_collide.obj_player ~this_phys_flags:0 ~this_robot_boss:0
+    ~this_vel:(f1 * 5, 0, 0) ~this_rotvel:(0, 0, 0) ~this_mass:f1 ~this_mt:Ox_collide.mt_physics
+    ~hit_type:Ox_collide.obj_robot ~hit_phys_flags:0 ~hit_robot_boss:1
+    ~hit_vel:(0, 0, 0) ~hit_rotvel:(0, 0, 0) ~hit_mass:(f1 * 20) ~hit_mt:Ox_collide.mt_physics
+    ~difficulty:0;
+  [%expect {| bump_two this_vel eq=true this_rot eq=true hit_vel eq=true hit_rot eq=true all=true |}]
+;;

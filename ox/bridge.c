@@ -4433,6 +4433,92 @@ CAMLprim value cd_ox_effect_ps_vm_vector_2_matrix_orient_bytecode(value* argv, i
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
 
+/* ====================================================================== */
+/* Collision handler effects                                               */
+/* ====================================================================== */
+
+static cd_effect_ps_fetch_collision_data_fn g_effect_ps_fetch_collision_data = NULL;
+static cd_effect_ps_write_back_hit_object_fn g_effect_ps_write_back_hit_object = NULL;
+static cd_effect_ps_play_collision_sound_fn g_effect_ps_play_collision_sound = NULL;
+static cd_effect_ps_add_points_to_score_fn g_effect_ps_add_points_to_score = NULL;
+static cd_effect_ps_create_awareness_event_fn g_effect_ps_create_awareness_event = NULL;
+
+void cd_ox_register_collision_effects(
+    cd_effect_ps_fetch_collision_data_fn fetch_collision_data,
+    cd_effect_ps_write_back_hit_object_fn write_back_hit_object,
+    cd_effect_ps_play_collision_sound_fn play_collision_sound,
+    cd_effect_ps_add_points_to_score_fn add_points_to_score,
+    cd_effect_ps_create_awareness_event_fn create_awareness_event)
+{
+    g_effect_ps_fetch_collision_data = fetch_collision_data;
+    g_effect_ps_write_back_hit_object = write_back_hit_object;
+    g_effect_ps_play_collision_sound = play_collision_sound;
+    g_effect_ps_add_points_to_score = add_points_to_score;
+    g_effect_ps_create_awareness_event = create_awareness_event;
+}
+
+/* Fetch collision data: returns packed int array with 48 fields */
+CAMLprim value cd_ox_effect_ps_fetch_collision_data(value v_hit_objnum)
+{
+    CAMLparam1(v_hit_objnum);
+    CAMLlocal1(result);
+    int32_t out[48] = {0};
+    if (g_effect_ps_fetch_collision_data)
+        g_effect_ps_fetch_collision_data(Int_val(v_hit_objnum), out, 48);
+    result = caml_alloc(48, 0);
+    for (int i = 0; i < 48; i++)
+        Store_field(result, i, Val_long(out[i]));
+    CAMLreturn(result);
+}
+
+/* Write back hit object state */
+CAMLprim value cd_ox_effect_ps_write_back_hit_object(value v_packed)
+{
+    if (g_effect_ps_write_back_hit_object) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[16];
+        if (len > 16) len = 16;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_ps_write_back_hit_object(buf, len);
+    }
+    return Val_unit;
+}
+
+/* Play collision sound */
+CAMLprim value cd_ox_effect_ps_play_collision_sound(
+    value v_sid, value v_seg, value v_px, value v_py, value v_pz)
+{
+    if (g_effect_ps_play_collision_sound)
+        g_effect_ps_play_collision_sound(
+            Int_val(v_sid), Int_val(v_seg),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_ps_play_collision_sound_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_ps_play_collision_sound(
+        argv[0], argv[1], argv[2], argv[3], argv[4]);
+}
+
+/* Add points to score */
+CAMLprim value cd_ox_effect_ps_add_points_to_score(value v_score)
+{
+    if (g_effect_ps_add_points_to_score)
+        g_effect_ps_add_points_to_score(Int_val(v_score));
+    return Val_unit;
+}
+
+/* Create awareness event */
+CAMLprim value cd_ox_effect_ps_create_awareness_event(value v_objnum, value v_type)
+{
+    if (g_effect_ps_create_awareness_event)
+        g_effect_ps_create_awareness_event(Int_val(v_objnum), Int_val(v_type));
+    return Val_unit;
+}
+
 /* Physics sim entry points */
 void cd_ox_do_physics_sim_d1(
     int32_t pos_x, int32_t pos_y, int32_t pos_z,

@@ -40,7 +40,7 @@ external effect_scrape_object_on_wall
   = "cd_ox_effect_ps_scrape_object_on_wall_bytecode"
     "cd_ox_effect_ps_scrape_object_on_wall"
 
-(* collide_two_objects:
+(* collide_two_objects (C fallback for unported handlers):
    Args: hit_objnum, pos_hit_x, pos_hit_y, pos_hit_z
    Returns: (obj_flags, new_vx, new_vy, new_vz) *)
 external effect_collide_two_objects
@@ -50,6 +50,110 @@ external effect_collide_two_objects
   -> int
   -> int * int * int * int
   = "cd_ox_effect_ps_collide_two_objects"
+
+(* -- Collision handler externals ------------------------------------------ *)
+
+(* Fetch collision data for both this-object and hit-object.
+   Args: hit_objnum
+   Returns: packed int array with cd_num_fields elements *)
+external effect_fetch_collision_data
+  :  int
+  -> int array
+  = "cd_ox_effect_ps_fetch_collision_data"
+
+(* Write back hit object state after OCaml collision handler.
+   Args: packed [| objnum; vel_x; vel_y; vel_z; rotvel_x; rotvel_y; rotvel_z;
+                   shields; flags |] *)
+external effect_write_back_hit_object
+  :  int array
+  -> unit
+  = "cd_ox_effect_ps_write_back_hit_object"
+
+(* Sound: digi_link_sound_to_pos *)
+external effect_play_collision_sound
+  :  int
+  -> int
+  -> int
+  -> int
+  -> int
+  -> unit
+  = "cd_ox_effect_ps_play_collision_sound_bytecode"
+    "cd_ox_effect_ps_play_collision_sound"
+
+(* add_points_to_score *)
+external effect_add_points_to_score
+  :  int
+  -> unit
+  = "cd_ox_effect_ps_add_points_to_score"
+
+(* create_awareness_event *)
+external effect_create_awareness_event
+  :  int
+  -> int
+  -> unit
+  = "cd_ox_effect_ps_create_awareness_event"
+
+(* -- Damage effect externals (reused from collide_bridge C functions) ----- *)
+
+external effect_increment_kills : unit -> unit = "cd_ox_effect_increment_kills"
+external effect_start_boss_death : int -> unit = "cd_ox_effect_start_boss_death"
+external effect_explode_object : int -> unit = "cd_ox_effect_explode_object"
+
+external effect_send_net_robot_explode
+  :  int
+  -> int
+  -> unit
+  = "cd_ox_effect_send_net_robot_explode"
+
+external effect_multi_explode_robot_sub
+  :  int
+  -> int
+  -> bool
+  = "cd_ox_effect_multi_explode_robot_sub"
+
+external effect_explode_object_delay
+  :  int
+  -> int
+  -> unit
+  = "cd_ox_effect_explode_object_delay"
+
+(* D2 damage externals *)
+external effect_set_boss_hit_time : unit -> unit = "cd_ox_effect_set_boss_hit_time"
+external effect_query_player_dead_or_no_shields
+  :  unit -> bool = "cd_ox_effect_query_player_dead_or_no_shields"
+external effect_query_multi_all_players_alive
+  :  unit -> bool = "cd_ox_effect_query_multi_all_players_alive"
+external effect_do_final_boss_hacks : unit -> unit = "cd_ox_effect_do_final_boss_hacks"
+external effect_multi_send_finish_game : unit -> unit = "cd_ox_effect_multi_send_finish_game"
+external effect_save_stolen_items : unit -> unit = "cd_ox_effect_save_stolen_items"
+external effect_restore_stolen_items : unit -> unit = "cd_ox_effect_restore_stolen_items"
+external effect_clear_stolen_items : unit -> unit = "cd_ox_effect_clear_stolen_items"
+external effect_multi_explode_d2 : int -> int -> bool -> bool = "cd_ox_effect_multi_explode_d2"
+external effect_multi_send_robot_explode_d2
+  :  int -> int -> bool -> unit = "cd_ox_effect_multi_send_robot_explode_d2"
+external effect_start_robot_death_sequence : int -> unit = "cd_ox_effect_start_robot_death_sequence"
+external effect_special_reactor_stuff : unit -> unit = "cd_ox_effect_special_reactor_stuff"
+
+(* Controlcen/player damage externals *)
+external effect_show_hud_invul_message : unit -> unit = "cd_ox_effect_show_hud_invul_message"
+external effect_controlcen_been_hit : unit -> unit = "cd_ox_effect_controlcen_been_hit"
+external effect_do_controlcen_destroyed : int -> unit = "cd_ox_effect_do_controlcen_destroyed"
+external effect_add_controlcen_score : unit -> unit = "cd_ox_effect_add_controlcen_score"
+external effect_multi_send_destroy_controlcen : int -> int -> unit
+  = "cd_ox_effect_multi_send_destroy_controlcen"
+external effect_sound_controlcen_destroyed : int -> unit
+  = "cd_ox_effect_sound_controlcen_destroyed"
+external effect_explode_object_delay_clutter : int -> int -> unit
+  = "cd_ox_effect_explode_object_delay_clutter"
+external effect_explode_object_delay_controlcen : int -> int -> unit
+  = "cd_ox_effect_explode_object_delay_controlcen"
+external effect_palette_flash_d1 : int -> int -> int -> unit
+  = "cd_ox_effect_palette_flash_d1"
+external effect_set_player_dead_d1 : int -> unit = "cd_ox_effect_set_player_dead_d1"
+external effect_palette_flash_d2 : int -> int -> int -> unit
+  = "cd_ox_effect_palette_flash_d2"
+external effect_set_player_dead_d2 : int -> unit = "cd_ox_effect_set_player_dead_d2"
+external effect_set_buddy_sorry_time : unit -> unit = "cd_ox_effect_set_buddy_sorry_time"
 
 external effect_obj_relink : int -> int -> unit = "cd_ox_effect_ps_obj_relink"
 external effect_find_object_seg : int -> int = "cd_ox_effect_ps_find_object_seg"
@@ -117,11 +221,152 @@ external effect_vm_vector_2_matrix_orient
   = "cd_ox_effect_ps_vm_vector_2_matrix_orient_bytecode"
     "cd_ox_effect_ps_vm_vector_2_matrix_orient"
 
-(* Effect handler *)
-let physics_sim_effect_handler
-  : type a. a Effect.t -> ((a, _) Effect.Deep.continuation -> _) option
+(* -- Collision sub-effect handler ----------------------------------------- *)
+(* Handles effects performed by Ox_collide collision functions *)
+
+let collision_effect_handler (type a) ~is_d2 (eff : a Effect.t)
+  : ((a, _) Effect.Deep.continuation -> _) option
   =
-  fun eff ->
+  match eff with
+  (* New collision effects *)
+  | Ox_collide.Add_points_to_score score ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_add_points_to_score score;
+      Effect.Deep.continue k ())
+  | Ox_collide.Play_collision_sound (sid, seg, px, py, pz) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_play_collision_sound sid seg px py pz;
+      Effect.Deep.continue k ())
+  | Ox_collide.Create_awareness_event (objnum, atype) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_create_awareness_event objnum atype;
+      Effect.Deep.continue k ())
+  | Ox_collide.Write_back_hit_object packed ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_write_back_hit_object packed;
+      Effect.Deep.continue k ())
+  (* D1 robot damage effects *)
+  | Ox_collide.Increment_kills ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_increment_kills ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Start_boss_death obj_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_start_boss_death obj_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Explode_object obj_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_explode_object obj_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Send_net_robot_explode (obj_id, killer) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_send_net_robot_explode obj_id killer;
+      Effect.Deep.continue k ())
+  | Ox_collide.Query_multi_explode (obj_id, killer) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_multi_explode_robot_sub obj_id killer in
+      Effect.Deep.continue k r)
+  | Ox_collide.Explode_object_delay (obj_id, delay) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_explode_object_delay obj_id delay;
+      Effect.Deep.continue k ())
+  (* D2 robot damage effects *)
+  | Ox_collide.Set_boss_hit_time ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_boss_hit_time ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Query_player_dead_or_no_shields ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_query_player_dead_or_no_shields () in
+      Effect.Deep.continue k r)
+  | Ox_collide.Query_multi_all_players_alive ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_query_multi_all_players_alive () in
+      Effect.Deep.continue k r)
+  | Ox_collide.Do_final_boss_hacks ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_do_final_boss_hacks ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Multi_send_finish_game ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_send_finish_game ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Save_stolen_items ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_save_stolen_items ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Restore_stolen_items ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_restore_stolen_items ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Clear_stolen_items ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_clear_stolen_items ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Query_multi_explode_d2 (obj_id, killer, is_thief) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      let r = effect_multi_explode_d2 obj_id killer is_thief in
+      Effect.Deep.continue k r)
+  | Ox_collide.Multi_send_robot_explode_d2 (obj_id, killer, is_thief) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_send_robot_explode_d2 obj_id killer is_thief;
+      Effect.Deep.continue k ())
+  | Ox_collide.Start_robot_death_sequence obj_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_start_robot_death_sequence obj_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Special_reactor_stuff ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_special_reactor_stuff ();
+      Effect.Deep.continue k ())
+  (* Controlcen damage effects *)
+  | Ox_collide.Show_hud_invul_message ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_show_hud_invul_message ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Controlcen_been_hit ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_controlcen_been_hit ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Do_controlcen_destroyed obj_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_do_controlcen_destroyed obj_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Add_controlcen_score ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_add_controlcen_score ();
+      Effect.Deep.continue k ())
+  | Ox_collide.Multi_send_destroy_controlcen (obj_id, who_id) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_multi_send_destroy_controlcen obj_id who_id;
+      Effect.Deep.continue k ())
+  | Ox_collide.Sound_controlcen_destroyed obj_id ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_sound_controlcen_destroyed obj_id;
+      Effect.Deep.continue k ())
+  (* Player damage effects *)
+  | Ox_collide.Palette_flash (r, g, b) ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      if is_d2 then effect_palette_flash_d2 r g b
+      else effect_palette_flash_d1 r g b;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_player_dead killer ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      if is_d2 then effect_set_player_dead_d2 killer
+      else effect_set_player_dead_d1 killer;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_buddy_sorry_time ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_buddy_sorry_time ();
+      Effect.Deep.continue k ())
+  | _ -> None
+;;
+
+(* -- Physics sim effect handler ------------------------------------------- *)
+
+let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
+  : ((a, _) Effect.Deep.continuation -> _) option
+  =
   match eff with
   | Ox_physics_sim.Find_vector_intersection
       (p0x, p0y, p0z, p1x, p1y, p1z, rad, thisobjnum, ignore_list, flags, startseg) ->
@@ -198,8 +443,30 @@ let physics_sim_effect_handler
   | Ox_physics_sim.Collide_two_objects (hit_objnum, pos_hit_x, pos_hit_y, pos_hit_z) ->
     Some
       (fun k ->
+        (* Fetch collision data from C for both objects *)
+        let cd = effect_fetch_collision_data hit_objnum in
+        (* Try OCaml dispatch *)
+        let dispatch_fn =
+          if is_d2 then Ox_collide.collide_two_objects_d2
+          else Ox_collide.collide_two_objects_d1
+        in
+        let ocaml_result =
+          Effect.Deep.match_with
+            (fun () -> dispatch_fn ~cd ~hit_px:pos_hit_x ~hit_py:pos_hit_y ~hit_pz:pos_hit_z)
+            ()
+            { retc = (fun x -> x)
+            ; exnc = raise
+            ; effc = (fun (type b) (eff : b Effect.t) ->
+                collision_effect_handler ~is_d2 eff)
+            }
+        in
         let result =
-          effect_collide_two_objects hit_objnum pos_hit_x pos_hit_y pos_hit_z
+          match ocaml_result with
+          | Some (flags, vx, vy, vz, _shields) ->
+            (flags, vx, vy, vz)
+          | None ->
+            (* Fall back to C for unported collision types *)
+            effect_collide_two_objects hit_objnum pos_hit_x pos_hit_y pos_hit_z
         in
         Effect.Deep.continue k result)
   | Ox_physics_sim.Obj_relink (objnum, new_seg) ->
@@ -336,7 +603,7 @@ let cd_do_physics_sim_d1
     ()
     { retc = (fun x -> x)
     ; exnc = raise
-    ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler eff)
+    ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler ~is_d2:false eff)
     }
 ;;
 
@@ -419,7 +686,7 @@ let cd_do_physics_sim_d2
     ()
     { retc = (fun x -> x)
     ; exnc = raise
-    ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler eff)
+    ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler ~is_d2:true eff)
     }
 ;;
 

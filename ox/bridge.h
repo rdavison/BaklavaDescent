@@ -1108,6 +1108,35 @@ void cd_ox_register_physics_sim_effects(
     cd_effect_ps_tmap_is_force_field_fn tmap_is_force_field,
     cd_effect_ps_vm_vector_2_matrix_orient_fn vm_vector_2_matrix_orient);
 
+/* -- Collision handler effects (called from OCaml collision dispatch) ------ */
+
+/* Fetch collision data: packs both objects' fields into int array.
+   out[] must have at least 48 elements. */
+typedef void (*cd_effect_ps_fetch_collision_data_fn)(
+    int hit_objnum, int32_t* out, int out_len);
+
+/* Write back hit object state after OCaml collision handler.
+   packed: [objnum, vel_x, vel_y, vel_z, rotvel_x, rotvel_y, rotvel_z, shields, flags] */
+typedef void (*cd_effect_ps_write_back_hit_object_fn)(
+    const int32_t* packed, int len);
+
+/* digi_link_sound_to_pos(sound_id, seg, 0, &pos, 0, F1_0) */
+typedef void (*cd_effect_ps_play_collision_sound_fn)(
+    int sound_id, int seg, int px, int py, int pz);
+
+/* add_points_to_score(score) */
+typedef void (*cd_effect_ps_add_points_to_score_fn)(int score);
+
+/* create_awareness_event / ai_do_cloak_stuff */
+typedef void (*cd_effect_ps_create_awareness_event_fn)(int objnum, int type);
+
+void cd_ox_register_collision_effects(
+    cd_effect_ps_fetch_collision_data_fn fetch_collision_data,
+    cd_effect_ps_write_back_hit_object_fn write_back_hit_object,
+    cd_effect_ps_play_collision_sound_fn play_collision_sound,
+    cd_effect_ps_add_points_to_score_fn add_points_to_score,
+    cd_effect_ps_create_awareness_event_fn create_awareness_event);
+
 /* D1: do_physics_sim.
    result[25] receives: [pos xyz, vel xyz, orient 9, segnum, obj_flags,
    phys_flags, turnroll, rotvel xyz, retry_count, n_phys_segs, needs_levelling] */

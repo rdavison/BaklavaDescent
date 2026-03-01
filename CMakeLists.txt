@@ -738,12 +738,12 @@ if (USE_OX_BRIDGE)
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/g3d_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_gameseg.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/gameseg_bridge.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_fvi.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/fvi_bridge.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_collide.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/collide_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_physics.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_collide.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/collide_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_fvi.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/fvi_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_robot.ml

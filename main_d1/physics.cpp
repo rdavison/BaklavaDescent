@@ -30,6 +30,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "wall.h"
 #include "laser.h"
 #ifdef USE_OX_BRIDGE
+#include "robot.h"
+#include "player.h"
+#include "gauges.h"
+#include "cntrlcen.h"
 #include "ox/bridge.h"
 #include <stdio.h>
 #endif
@@ -534,6 +538,99 @@ void do_physics_sim(object* obj)
 				[](int seg, int side) -> int { return 0; },
 				// vm_vector_2_matrix_orient (D2 only, noop for D1)
 				[](int vx, int vy, int vz, int ux, int uy, int uz, int32_t* out) {}
+			);
+			cd_ox_register_collision_effects(
+				// fetch_collision_data
+				[](int hit_objnum, int32_t* out, int out_len) {
+					(void)out_len;
+					object* a = ps_obj;
+					object* b = &Objects[hit_objnum];
+					// This-object fields (from ps_obj)
+					out[0]  = a->type;
+					out[1]  = a->id;
+					out[2]  = a->flags;
+					out[3]  = a->shields;
+					out[4]  = a->mtype.phys_info.velocity.x;
+					out[5]  = a->mtype.phys_info.velocity.y;
+					out[6]  = a->mtype.phys_info.velocity.z;
+					out[7]  = a->mtype.phys_info.mass;
+					out[8]  = a->mtype.phys_info.flags;
+					out[9]  = a->mtype.phys_info.rotvel.x;
+					out[10] = a->mtype.phys_info.rotvel.y;
+					out[11] = a->mtype.phys_info.rotvel.z;
+					out[12] = (int)(a - Objects);
+					out[13] = (a->type == OBJ_ROBOT) ? Robot_info[a->id].boss_flag : 0;
+					out[14] = (a->type == OBJ_ROBOT) ? Robot_info[a->id].attack_type : 0;
+					out[15] = (a->type == OBJ_ROBOT) ? Robot_info[a->id].score_value : 0;
+					out[16] = 0; // companion (D2 only)
+					out[17] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.parent_num : -1;
+					out[18] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.parent_type : -1;
+					out[19] = (a->type == OBJ_WEAPON) ? a->ctype.laser_info.parent_signature : -1;
+					// Hit-object fields
+					out[20] = b->type;
+					out[21] = b->id;
+					out[22] = b->flags;
+					out[23] = b->shields;
+					out[24] = b->mtype.phys_info.velocity.x;
+					out[25] = b->mtype.phys_info.velocity.y;
+					out[26] = b->mtype.phys_info.velocity.z;
+					out[27] = b->mtype.phys_info.mass;
+					out[28] = b->mtype.phys_info.flags;
+					out[29] = b->mtype.phys_info.rotvel.x;
+					out[30] = b->mtype.phys_info.rotvel.y;
+					out[31] = b->mtype.phys_info.rotvel.z;
+					out[32] = b->movement_type;
+					out[33] = b->segnum;
+					out[34] = b->size;
+					out[35] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].boss_flag : 0;
+					out[36] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].attack_type : 0;
+					out[37] = (b->type == OBJ_ROBOT) ? Robot_info[b->id].score_value : 0;
+					out[38] = 0; // companion (D2 only)
+					out[39] = (b->type == OBJ_WEAPON) ? b->ctype.laser_info.parent_num : -1;
+					out[40] = (b->type == OBJ_WEAPON) ? b->ctype.laser_info.parent_type : -1;
+					out[41] = (b->type == OBJ_WEAPON) ? b->ctype.laser_info.parent_signature : -1;
+					// Global state
+					out[42] = ConsoleObject->signature;
+					out[43] = Difficulty_level;
+					out[44] = 0; // is_multiplayer (Game_mode check)
+					#if defined(NETWORK)
+					if (Game_mode & GM_MULTI) out[44] = 1;
+					#endif
+					out[45] = Player_num;
+					out[46] = hit_objnum;
+					out[47] = FrameTime;
+				},
+				// write_back_hit_object
+				[](const int32_t* packed, int len) {
+					if (len < 9) return;
+					int objnum = packed[0];
+					object* o = &Objects[objnum];
+					o->mtype.phys_info.velocity.x = packed[1];
+					o->mtype.phys_info.velocity.y = packed[2];
+					o->mtype.phys_info.velocity.z = packed[3];
+					o->mtype.phys_info.rotvel.x = packed[4];
+					o->mtype.phys_info.rotvel.y = packed[5];
+					o->mtype.phys_info.rotvel.z = packed[6];
+					o->shields = packed[7];
+					o->flags = packed[8];
+				},
+				// play_collision_sound
+				[](int sound_id, int seg, int px, int py, int pz) {
+					vms_vector pos = {px, py, pz};
+					digi_link_sound_to_pos(sound_id, seg, 0, &pos, 0, F1_0);
+				},
+				// add_points_to_score
+				[](int score) {
+					add_points_to_score(score);
+				},
+				// create_awareness_event
+				[](int objnum, int type) {
+					(void)type;
+					// In D1, collide_player_and_controlcen sets Control_center_been_hit
+					// and calls ai_do_cloak_stuff
+					Control_center_been_hit = 1;
+					ai_do_cloak_stuff();
+				}
 			);
 		}
 	}
