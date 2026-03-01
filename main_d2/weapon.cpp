@@ -33,6 +33,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "misc/args.h"
 
 #include "misc/rand.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 #if defined (TACTILE)
 #include "tactile.h"
@@ -167,52 +170,81 @@ int8_t	Weapon_is_energy[MAX_WEAPON_TYPES] = {
 // See weapon.h for bit values
 int player_has_weapon(int weapon_num, int secondary_flag)
 {
-	int	return_value = 0;
-	int	weapon_index;
-
 	//	Hack! If energy goes negative, you can't fire a weapon that doesn't require energy.
 	//	But energy should not go negative (but it does), so find out why it does!
 	if (Players[Player_num].energy < 0)
 		Players[Player_num].energy = 0;
 
-	if (!secondary_flag) {
-		weapon_index = Primary_weapon_to_weapon_info[weapon_num];
+#ifdef USE_OX_BRIDGE
+	{
+		int weapon_index;
+		int weapon_flags;
+		int ammo;
 
-		if (Players[Player_num].primary_weapon_flags & (1 << weapon_num))
-			return_value |= HAS_WEAPON_FLAG;
-
-		// Special case: Gauss cannon uses vulcan ammo.		
-		if (weapon_num == GAUSS_INDEX) {
-			if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[VULCAN_INDEX])
-				return_value |= HAS_AMMO_FLAG;
+		if (!secondary_flag) {
+			weapon_index = Primary_weapon_to_weapon_info[weapon_num];
+			weapon_flags = (Players[Player_num].primary_weapon_flags & (1 << weapon_num)) ? 1 : 0;
+			ammo = Players[Player_num].primary_ammo[weapon_num];
+		} else {
+			weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
+			weapon_flags = (Players[Player_num].secondary_weapon_flags & (1 << weapon_num)) ? 1 : 0;
+			ammo = Players[Player_num].secondary_ammo[weapon_num];
 		}
-		else
-			if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[weapon_num])
+
+		return cd_ox_player_has_weapon_d2(
+			weapon_flags, ammo, Players[Player_num].energy,
+			Weapon_info[weapon_index].ammo_usage,
+			Weapon_info[weapon_index].energy_usage,
+			(!secondary_flag && weapon_num == GAUSS_INDEX) ? 1 : 0,
+			Players[Player_num].primary_ammo[VULCAN_INDEX],
+			(!secondary_flag && weapon_num == OMEGA_INDEX) ? 1 : 0,
+			Omega_charge);
+	}
+#else
+	{
+		int	return_value = 0;
+		int	weapon_index;
+
+		if (!secondary_flag) {
+			weapon_index = Primary_weapon_to_weapon_info[weapon_num];
+
+			if (Players[Player_num].primary_weapon_flags & (1 << weapon_num))
+				return_value |= HAS_WEAPON_FLAG;
+
+			// Special case: Gauss cannon uses vulcan ammo.
+			if (weapon_num == GAUSS_INDEX) {
+				if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[VULCAN_INDEX])
+					return_value |= HAS_AMMO_FLAG;
+			}
+			else
+				if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[weapon_num])
+					return_value |= HAS_AMMO_FLAG;
+
+			if (weapon_num == OMEGA_INDEX) {	// Hack: Make sure player has energy to omega
+				if (Players[Player_num].energy || Omega_charge)
+					return_value |= HAS_ENERGY_FLAG;
+			}
+			else
+				if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
+					return_value |= HAS_ENERGY_FLAG;
+
+		}
+		else {
+			weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
+
+			if (Players[Player_num].secondary_weapon_flags & (1 << weapon_num))
+				return_value |= HAS_WEAPON_FLAG;
+
+			if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].secondary_ammo[weapon_num])
 				return_value |= HAS_AMMO_FLAG;
 
-		if (weapon_num == OMEGA_INDEX) {	// Hack: Make sure player has energy to omega
-			if (Players[Player_num].energy || Omega_charge)
-				return_value |= HAS_ENERGY_FLAG;
-		}
-		else
 			if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
 				return_value |= HAS_ENERGY_FLAG;
+		}
 
+		return return_value;
 	}
-	else {
-		weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
-
-		if (Players[Player_num].secondary_weapon_flags & (1 << weapon_num))
-			return_value |= HAS_WEAPON_FLAG;
-
-		if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].secondary_ammo[weapon_num])
-			return_value |= HAS_AMMO_FLAG;
-
-		if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
-			return_value |= HAS_ENERGY_FLAG;
-	}
-
-	return return_value;
+#endif
 }
 
 void InitWeaponOrdering()
@@ -650,7 +682,7 @@ void ReorderPrimary()
 	{
 		m[i].type = NM_TYPE_MENU;
 		if (PrimaryOrder[i] == 255)
-			m[i].text = const_cast<char*>("ˆˆˆˆˆˆˆ Never autoselect ˆˆˆˆˆˆˆ");
+			m[i].text = const_cast<char*>("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Never autoselect ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
 		else
 			m[i].text = (char*)PRIMARY_WEAPON_NAMES(PrimaryOrder[i]);
 		m[i].value = PrimaryOrder[i];
@@ -672,7 +704,7 @@ void ReorderSecondary()
 	{
 		m[i].type = NM_TYPE_MENU;
 		if (SecondaryOrder[i] == 255)
-			m[i].text = const_cast<char*>("ˆˆˆˆˆˆˆ Never autoselect ˆˆˆˆˆˆˆ");
+			m[i].text = const_cast<char*>("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Never autoselect ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
 		else
 			m[i].text = (char*)SECONDARY_WEAPON_NAMES(SecondaryOrder[i]);
 		m[i].value = SecondaryOrder[i];

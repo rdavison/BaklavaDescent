@@ -1678,3 +1678,24 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/fvi.cpp` — same
 
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2).
+
+### §55 — Port player_has_weapon to OxCaml (D1 + D2)
+
+- **What:** `player_has_weapon` — checks whether player has the weapon, energy, and ammo for a given weapon slot. Returns bitmask of `HAS_WEAPON_FLAG | HAS_ENERGY_FLAG | HAS_AMMO_FLAG`. Called per-frame from HUD, firing logic, and auto-select. Nearly pure function (only side effect is energy clamp ≥0, kept on C side).
+
+- **D1 vs D2 differences:** D2 adds two special cases: GAUSS_INDEX uses VULCAN_INDEX ammo, OMEGA_INDEX has energy if energy>0 OR Omega_charge>0. Separate `player_has_weapon_d1` and `player_has_weapon_d2` OCaml functions.
+
+- **Design:** Direct scalar args bridge (5 args D1, 9 args D2). C pre-evaluates weapon_flags (has weapon bit → 0/1), ammo, energy, ammo_usage, energy_usage from globals. D2 adds is_gauss, vulcan_ammo, is_omega, omega_charge. OCaml returns int bitmask. Energy clamp side effect stays on C side before bridge call.
+
+- **Files modified:**
+  - `ox/ox_weapon.ml` — new module with `player_has_weapon_d1`, `player_has_weapon_d2`
+  - `ox/weapon_bridge.ml` — new bridge with `Callback.register`
+  - `ox/dune` — added `ox_weapon` and `bridge_weapon` libraries
+  - `ox/bridge.c` — `g_player_has_weapon_d1/d2` static pointers, init, wrappers
+  - `ox/bridge.h` — `cd_ox_player_has_weapon_d1/d2` declarations
+  - `main_d1/weapon.cpp` — `#ifdef USE_OX_BRIDGE` around `player_has_weapon`
+  - `main_d2/weapon.cpp` — same
+  - `CMakeLists.txt` — added new .ml files to dependencies
+  - `CHECKLIST.md` — marked done
+
+- **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2).

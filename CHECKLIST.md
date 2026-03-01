@@ -418,7 +418,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 
 ## 14. Weapon Pickup (main_d1/weapon.cpp)
 
-- [ ] player_has_weapon — weapon ownership check
+- [x] player_has_weapon — weapon ownership check (D1+D2)
 - [ ] select_weapon — selects active weapon
 - [ ] auto_select_weapon — auto-selects best weapon
 - [ ] pick_up_primary — primary weapon pickup

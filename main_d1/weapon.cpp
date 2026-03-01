@@ -22,6 +22,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "powerup.h"
 #include "newdemo.h"
 #include "multi.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/bridge.h"
+#endif
 
 //	Note, only Vulcan cannon requires ammo.
 //uint8_t	Default_primary_ammo_level[MAX_PRIMARY_WEAPONS] = {255, 0, 255, 255, 255};
@@ -79,43 +82,68 @@ int8_t	Primary_weapon, Secondary_weapon;
 // See weapon.h for bit values
 int player_has_weapon(int weapon_num, int secondary_flag)
 {
-	int	return_value = 0;
-	int	weapon_index;
-
 	//	Hack! If energy goes negative, you can't fire a weapon that doesn't require energy.
 	//	But energy should not go negative (but it does), so find out why it does!
 	if (Players[Player_num].energy < 0)
 		Players[Player_num].energy = 0;
 
-	if (!secondary_flag) 
+#ifdef USE_OX_BRIDGE
 	{
-		weapon_index = Primary_weapon_to_weapon_info[weapon_num];
+		int weapon_index;
+		int weapon_flags;
+		int ammo;
 
-		if (Players[Player_num].primary_weapon_flags & (1 << weapon_num))
-			return_value |= HAS_WEAPON_FLAG;
+		if (!secondary_flag) {
+			weapon_index = Primary_weapon_to_weapon_info[weapon_num];
+			weapon_flags = (Players[Player_num].primary_weapon_flags & (1 << weapon_num)) ? 1 : 0;
+			ammo = Players[Player_num].primary_ammo[weapon_num];
+		} else {
+			weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
+			weapon_flags = (Players[Player_num].secondary_weapon_flags & (1 << weapon_num)) ? 1 : 0;
+			ammo = Players[Player_num].secondary_ammo[weapon_num];
+		}
 
-		if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[weapon_num])
-			return_value |= HAS_AMMO_FLAG;
-
-		if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
-			return_value |= HAS_ENERGY_FLAG;
-
+		return cd_ox_player_has_weapon_d1(
+			weapon_flags, ammo, Players[Player_num].energy,
+			Weapon_info[weapon_index].ammo_usage,
+			Weapon_info[weapon_index].energy_usage);
 	}
-	else 
+#else
 	{
-		weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
+		int	return_value = 0;
+		int	weapon_index;
 
-		if (Players[Player_num].secondary_weapon_flags & (1 << weapon_num))
-			return_value |= HAS_WEAPON_FLAG;
+		if (!secondary_flag)
+		{
+			weapon_index = Primary_weapon_to_weapon_info[weapon_num];
 
-		if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].secondary_ammo[weapon_num])
-			return_value |= HAS_AMMO_FLAG;
+			if (Players[Player_num].primary_weapon_flags & (1 << weapon_num))
+				return_value |= HAS_WEAPON_FLAG;
 
-		if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
-			return_value |= HAS_ENERGY_FLAG;
+			if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].primary_ammo[weapon_num])
+				return_value |= HAS_AMMO_FLAG;
+
+			if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
+				return_value |= HAS_ENERGY_FLAG;
+
+		}
+		else
+		{
+			weapon_index = Secondary_weapon_to_weapon_info[weapon_num];
+
+			if (Players[Player_num].secondary_weapon_flags & (1 << weapon_num))
+				return_value |= HAS_WEAPON_FLAG;
+
+			if (Weapon_info[weapon_index].ammo_usage <= Players[Player_num].secondary_ammo[weapon_num])
+				return_value |= HAS_AMMO_FLAG;
+
+			if (Weapon_info[weapon_index].energy_usage <= Players[Player_num].energy)
+				return_value |= HAS_ENERGY_FLAG;
+		}
+
+		return return_value;
 	}
-
-	return return_value;
+#endif
 }
 
 //	------------------------------------------------------------------------------------

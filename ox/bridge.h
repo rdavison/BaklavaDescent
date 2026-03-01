@@ -895,6 +895,18 @@ void cd_ox_robot_set_angles(
     const int32_t* packed, int packed_len,
     int32_t* out_buf, int* out_len);
 
+/* -- Weapon decision logic -------------------------------------------- */
+/* player_has_weapon: check if player has weapon+energy+ammo.
+   Returns bitmask: HAS_WEAPON_FLAG=1, HAS_ENERGY_FLAG=2, HAS_AMMO_FLAG=4. */
+int cd_ox_player_has_weapon_d1(
+    int weapon_flags, int32_t ammo, int32_t energy,
+    int32_t ammo_usage, int32_t energy_usage);
+int cd_ox_player_has_weapon_d2(
+    int weapon_flags, int32_t ammo, int32_t energy,
+    int32_t ammo_usage, int32_t energy_usage,
+    int is_gauss, int32_t vulcan_ammo,
+    int is_omega, int32_t omega_charge);
+
 #ifdef __cplusplus
 }
 #endif

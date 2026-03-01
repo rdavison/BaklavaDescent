@@ -145,6 +145,8 @@ static const value* g_do_firing_stuff = NULL;
 static const value* g_compute_object_light = NULL;
 static const value* g_do_physics_drag = NULL;
 static const value* g_do_homing_weapon_frame = NULL;
+static const value* g_player_has_weapon_d1 = NULL;
+static const value* g_player_has_weapon_d2 = NULL;
 
 /* Clutter effect function pointers */
 static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
@@ -456,6 +458,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_compute_object_light = caml_named_value("cd_compute_object_light");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
     g_do_homing_weapon_frame = caml_named_value("cd_do_homing_weapon_frame");
+    g_player_has_weapon_d1 = caml_named_value("cd_player_has_weapon_d1");
+    g_player_has_weapon_d2 = caml_named_value("cd_player_has_weapon_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
     g_apply_damage_to_controlcen = caml_named_value("cd_apply_damage_to_controlcen");
     g_apply_damage_to_player_d1 = caml_named_value("cd_apply_damage_to_player_d1");
@@ -3440,4 +3444,34 @@ void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out)
     for (int i = 0; i < 28; i++)
         out[i] = Int_val(Field(result, i));
     CAMLreturn0;
+}
+
+/* -- Weapon decision logic -------------------------------------------- */
+
+int cd_ox_player_has_weapon_d1(
+    int weapon_flags, int32_t ammo, int32_t energy,
+    int32_t ammo_usage, int32_t energy_usage)
+{
+    cd_ox_require_ready("cd_ox_player_has_weapon_d1");
+    value args[5] = {
+        Val_int(weapon_flags), Val_int(ammo), Val_int(energy),
+        Val_int(ammo_usage), Val_int(energy_usage)
+    };
+    return Int_val(caml_callbackN(*g_player_has_weapon_d1, 5, args));
+}
+
+int cd_ox_player_has_weapon_d2(
+    int weapon_flags, int32_t ammo, int32_t energy,
+    int32_t ammo_usage, int32_t energy_usage,
+    int is_gauss, int32_t vulcan_ammo,
+    int is_omega, int32_t omega_charge)
+{
+    cd_ox_require_ready("cd_ox_player_has_weapon_d2");
+    value args[9] = {
+        Val_int(weapon_flags), Val_int(ammo), Val_int(energy),
+        Val_int(ammo_usage), Val_int(energy_usage),
+        Val_int(is_gauss), Val_int(vulcan_ammo),
+        Val_int(is_omega), Val_int(omega_charge)
+    };
+    return Int_val(caml_callbackN(*g_player_has_weapon_d2, 9, args));
 }

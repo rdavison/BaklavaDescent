@@ -132,6 +132,21 @@
  (flags
   (:standard -open Core)))
 
+(library
+ (name ox_weapon)
+ (libraries core)
+ (modules ox_weapon)
+ (flags
+  (:standard -open Core)))
+
+(library
+ (name bridge_weapon)
+ (libraries core ox_weapon)
+ (modules weapon_bridge)
+ (wrapped false)
+ (flags
+  (:standard -open Core)))
+
 (executable
  (name math_bridge)
  (modes native)
@@ -154,6 +169,8 @@
   ox_robot
   bridge_robot
   ox_lighting
-  bridge_lighting)
+  bridge_lighting
+  ox_weapon
+  bridge_weapon)
  (flags
   (:standard -open Core)))
