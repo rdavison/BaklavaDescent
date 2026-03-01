@@ -752,6 +752,12 @@ if (USE_OX_BRIDGE)
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/lighting_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_weapon.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/weapon_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_controlcen.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/controlcen_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai_frame.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_frame_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_physics_sim.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_sim_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		COMMENT "Building OxCaml bridge object"

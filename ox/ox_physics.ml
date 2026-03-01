@@ -696,7 +696,7 @@ let ai_move_relative_to_player (packed : int array) =
   let thief = packed.(54) <> 0 in
   let kamikaze = packed.(55) <> 0 in
   let ai_evaded = ref 0 in
-  let obj_weapon = 7 in
+  let obj_weapon = 5 in
   let rt_polyobj = 1 in
   (* Helper: call move_around_player with current state *)
   let do_move_around fast_flag =

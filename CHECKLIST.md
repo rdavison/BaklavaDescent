@@ -142,7 +142,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] calc_gun_point
 
 ### Unported
-- [ ] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI)
+- [x] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI)
 - [x] do_physics_drag — thrust/drag velocity integration subpart of do_physics_sim (D1+D2)
 - [ ] bump_one_object — applies bump force + damage
 - [ ] bump_two_objects — mutual bump between two objects
@@ -267,11 +267,11 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] ai_path_set_orient_and_vel — path-following velocity and orientation (D1+D2, wraps ai_turn_towards_vector internally)
 
 ### Unported — AI Frame Logic
-- [ ] do_ai_frame — main AI frame (massive, reads ~50 globals)
+- [x] do_ai_frame — main AI frame (massive, reads ~50 globals)
 - [ ] ai_do_cloak_stuff — cloaking behavior
 - [x] do_firing_stuff — firing decision dispatcher (D1+D2)
-- [ ] ai_do_actual_firing_stuff — main firing logic
-- [ ] maybe_ai_do_actual_firing_stuff — conditional firing
+- [x] ai_do_actual_firing_stuff — main firing logic
+- [x] maybe_ai_do_actual_firing_stuff — conditional firing
 
 ### Unported — Robot Animation
 - [x] ai_frame_animation — robot model animation (D1+D2, joint angle interpolation)
@@ -355,7 +355,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] calc_best_gun
 
 ### Unported
-- [ ] do_controlcen_frame — main control center frame (fires at player)
+- [x] do_controlcen_frame — main control center frame (fires at player)
 - [ ] do_controlcen_destroyed_stuff — destruction effects
 - [ ] do_controlcen_dead_frame — death animation
 - [ ] init_controlcen_for_level — level init

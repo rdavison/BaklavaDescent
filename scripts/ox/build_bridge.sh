@@ -33,6 +33,12 @@ ocamlfind ocamlopt \
   "$OX_DIR/lighting_bridge.ml" \
   "$OX_DIR/ox_weapon.ml" \
   "$OX_DIR/weapon_bridge.ml" \
+  "$OX_DIR/ox_controlcen.ml" \
+  "$OX_DIR/controlcen_bridge.ml" \
+  "$OX_DIR/ox_ai_frame.ml" \
+  "$OX_DIR/ai_frame_bridge.ml" \
+  "$OX_DIR/ox_physics_sim.ml" \
+  "$OX_DIR/physics_sim_bridge.ml" \
   "$OX_DIR/math_bridge.ml"
 
 cat <<MSG

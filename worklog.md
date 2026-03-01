@@ -1701,3 +1701,126 @@ First AI system function ported. Determines whether a robot can open a door on a
 - **Verification:** `dune fmt` stable, `cmake --build build-ox -j8` clean (D1+D2).
 
 - **Bugfix (post-commit):** Runtime crash in `cd_ox_player_has_weapon_d1` — NULL dereference because `Weapon_bridge` module wasn't initialized (`Callback.register` never executed). Root cause: `math_bridge.ml` didn't reference the module, and `scripts/ox/build_bridge.sh` (uses `ocamlfind ocamlopt`, not dune) was missing `ox_weapon.ml` and `weapon_bridge.ml`. Fix: (1) added `g_player_has_weapon_d1/d2` to `cd_ox_require_ready` in bridge.c, (2) forced `Weapon_bridge` init in math_bridge.ml, (3) added missing files to build_bridge.sh.
+
+---
+
+### §56 — Port `do_controlcen_frame` to OxCaml (D1 + D2)
+
+- **What:** Ported the control center AI frame function — detects player, selects best gun, fires lasers with randomized spread. First heavily side-effectful port: uses 5 algebraic effects (Player_is_visible, Fire_weapon, Send_controlcen_fire, Make_random_vector, P_Rand).
+
+- **Design:** Algebraic effects + scalar args. Gun arrays passed as flat int arrays (n_guns*3). Returns int array of updated globals. D1 returns 3 values, D2 returns 4 (adds Last_time_cc_vis_check). Pure math functions (calc_best_gun, vm_vec_sub, normalize) called directly in OCaml.
+
+- **D1 vs D2 differences:** D2 adds periodic visibility re-check (every 5 sec), fires multiple spread shots in loop (up to 4, level-dependent) vs D1 single 25% shot, spread scale F1_0/6 vs F1_0/4, D2 extra shots silent, D2 trainee difficulty bonus (+F1_0/2 fire delay).
+
+- **Files created:**
+  - `ox/ox_controlcen.ml` — effect definitions + pure `do_controlcen_frame_d1/d2`
+  - `ox/controlcen_bridge.ml` — effect handlers, externals, Callback.register
+
+- **Files modified:**
+  - `ox/bridge.c` — effect CAMLprim wrappers (7-arg/8-arg native+bytecode), registration fn, D1/D2 entry points
+  - `ox/bridge.h` — effect typedefs, registration fn, entry point declarations
+  - `main_d1/cntrlcen.cpp` — `#ifdef USE_OX_BRIDGE` in `do_controlcen_frame`
+  - `main_d2/cntrlcen.cpp` — same
+  - `ox/dune` — added `ox_controlcen` + `bridge_controlcen` libraries
+  - `scripts/ox/build_bridge.sh` — added `ox_controlcen.ml` + `controlcen_bridge.ml`
+  - `ox/math_bridge.ml` — forced `Controlcen_bridge` module init
+  - `CMakeLists.txt` — added new .ml files to DEPENDS
+  - `CHECKLIST.md` — marked `do_controlcen_frame` done
+
+- **Verification:** `dune fmt` clean, `cmake --build build-ox -j8` clean (D1+D2).
+
+---
+
+### §57 — Port `ai_do_actual_firing_stuff`, `do_ai_frame`, `do_physics_sim` to OxCaml (D1 + D2)
+
+- **Scope:** Three of the biggest remaining game logic functions. `do_ai_frame` (~851 lines D1, ~1234 lines D2) is the main AI state machine. `ai_do_actual_firing_stuff` (~72 lines D1, ~170 lines D2) is the firing execution helper called from do_ai_frame. `do_physics_sim` (~600 lines D1, ~640 lines D2) is the FVI retry loop with collision response.
+
+- **Design:** Algebraic effects for all side-effectful operations (FVI, collisions, path creation, visibility, boss/special robot behaviors). AI state packed into ~43-int array (ai_static + ai_local fields), robot info into ~29-int array. Physics state packed into ~30-int array. Pure math and already-ported helper functions called directly in OCaml.
+
+- **AI effects (24):** Ai_multiplayer_awareness, Do_ai_robot_hit_attack, Ai_fire_laser_at_player, Calc_gun_point_for_gun, Create_path_to_player, Create_path_to_station, Create_n_segment_path, Create_n_segment_path_to_door, Attempt_to_resume_path, Ai_follow_path, Move_towards_segment_center, Compute_vis_and_vec, Ai_multi_send_robot_position, Do_boss_stuff, P_Rand, Make_random_vector, Object_to_object_visibility, Do_snipe_frame, Do_escort_frame, Do_thief_frame, Do_any_robot_dying_frame, Make_nearby_robot_snipe, Ai_do_cloak_stuff, Set_robot_state_and_joints.
+
+- **Physics effects (16):** Find_vector_intersection, Collide_object_with_wall, Scrape_object_on_wall, Collide_two_objects, Obj_relink, Find_object_seg, Update_object_seg, Find_point_seg, Get_seg_masks, Compute_segment_center, Add_stuck_object, Find_connect_side, Wall_is_doorway, Create_abs_vertex_lists_and_dist, Tmap_is_force_field (D2), Vm_vector_2_matrix_orient (D2).
+
+- **D1 vs D2 differences:** D2 adds dual weapon timers (next_fire2), camera awareness, robot-killing cheat, extra AI modes (BEHIND, GOTO_*, SNIPE_*, THIEF_*, WANDER), special robot types (sniper, companion, thief), brain robot door-opening, more complex time-slicing. D2 physics adds force field bounce detection, PF_BOUNCES_TWICE tracking, weapon orientation update on bounce, MAX_OBJECT_VEL clamping.
+
+- **Files created:**
+  - `ox/ox_ai_frame.ml` — effect definitions + `ai_do_actual_firing_stuff_d1/d2` + `do_ai_frame_d1/d2`
+  - `ox/ai_frame_bridge.ml` — effect handlers, externals, Callback.register
+  - `ox/ox_physics_sim.ml` — effect definitions + `do_physics_sim_d1/d2`
+  - `ox/physics_sim_bridge.ml` — effect handlers, externals, Callback.register
+
+- **Files modified:**
+  - `ox/bridge.c` — effect CAMLprim stubs + entry points for all 6 functions (d1/d2 × 3)
+  - `ox/bridge.h` — effect typedefs, registration functions, entry declarations
+  - `main_d1/ai.cpp` — `#ifdef USE_OX_BRIDGE` in `do_ai_frame` (24 effect callbacks + state packing/unpacking)
+  - `main_d2/ai.cpp` — `#ifdef USE_OX_BRIDGE` in `do_ai_frame` (24 effect callbacks with D2 signatures)
+  - `main_d1/physics.cpp` — `#ifdef USE_OX_BRIDGE` in `do_physics_sim` (16 effect callbacks + state packing/unpacking)
+  - `main_d2/physics.cpp` — `#ifdef USE_OX_BRIDGE` in `do_physics_sim` (16 effect callbacks with D2 extras)
+  - `ox/dune` — added `ox_ai_frame`, `ai_frame_bridge`, `ox_physics_sim`, `physics_sim_bridge` libraries
+  - `scripts/ox/build_bridge.sh` — added 4 new .ml files
+  - `ox/math_bridge.ml` — forced module init for new bridge modules
+  - `CMakeLists.txt` — added new .ml files to DEPENDS
+  - `CHECKLIST.md` — marked `do_ai_frame`, `ai_do_actual_firing_stuff`, `maybe_ai_do_actual_firing_stuff`, `do_physics_sim` done
+
+- **Verification:** `cmake --build build-ox -j8` clean (D1+D2). Both executables link and codesign successfully.
+
+---
+
+### §58 — Inline `player_is_visible_from_object` into OCaml controlcen
+
+- **Motivation:** The `Player_is_visible` effect's C handler called `player_is_visible_from_object`, which does FVI ray tracing deep into C. This violated the clean effect architecture where C handlers should be thin wrappers, not deeply nested calls that re-enter OCaml.
+
+- **Approach:** Replaced the `Player_is_visible` algebraic effect with an inline FVI ray cast directly in `ox_controlcen.ml`, calling the existing `cd_ox_effect_ps_find_vector_intersection` C external (same FFI the physics sim uses). The controlcen case uses `field_of_view=0`, making the FOV check trivially pass, so only line-of-sight matters.
+
+- **Files modified:**
+  - `ox/ox_controlcen.ml` — removed `Player_is_visible` effect type, added `fvi_find_vector_intersection` external and `check_player_visible` helper, added `~player_objnum` parameter to D1/D2 functions
+  - `ox/controlcen_bridge.ml` — removed `effect_player_is_visible` external and handler case, added `player_objnum` parameter
+  - `ox/bridge.c` — removed `g_effect_cc_player_is_visible` callback/registration, added `player_objnum` to D1 (26→27 args) and D2 (28→29 args) entry points
+  - `ox/bridge.h` — removed typedef, updated signatures
+  - `ox/math_bridge.ml` — added extra `-> int` for `player_objnum` in type annotations
+  - `main_d1/cntrlcen.cpp` — removed `player_is_visible` lambda, added `Players[Player_num].objnum` to bridge call
+  - `main_d2/cntrlcen.cpp` — same
+
+- **Verification:** D1 runtime tested, control center fires correctly, no crashes or OCaml exceptions. Death roll scenario works.
+
+---
+
+### §59 — Fix D2 `ai_frame` crash: rotthrust passed as scalar instead of 3-element array
+
+- **Bug:** D2 segfault in `camlStdlib__Array$copy` called from `do_ai_frame_d2`. Root cause: `rotthrust_in` was passed as a single `int32_t` (just `.x` component) but OCaml expected a 3-element `int array`.
+
+- **Fix:** Changed C bridge to pass `const int32_t*` array with all 3 rotthrust components. Changed D2 `ai.cpp` caller to use compound literal `(int32_t[]){ .x, .y, .z }`. Updated `bridge.h` signature.
+
+- **Verification:** D2 no longer crashes on level load. Robots animate and move.
+
+---
+
+### §60 — Fix D2 `ai_frame` rapid fire: apply effect-wins write-back policy
+
+- **Bug:** D2 robots fired weapons extremely rapidly and had erratic AI (not tracking player). Root cause: D2 unconditionally overwrote AI state (`ai_static`, `ai_local`, `phys_flags`, `rotthrust`) after the OCaml call, clobbering fire timers modified by C-side effect callbacks during the call.
+
+- **Fix:** Applied D1's "effect-wins" snapshot + conditional write-back policy. Before the OCaml call, snapshot `aip`, `ailp`, `phys_flags`, and `rotthrust`. After the call, only write back fields that C-side effects didn't modify (using `WRITEBACK_AIP`/`WRITEBACK_AILP` macros comparing current vs snapshot values).
+
+- **Files modified:**
+  - `main_d2/ai.cpp` — added snapshot variables and `WRITEBACK_AIP`/`WRITEBACK_AILP` macros
+
+- **Verification:** D2 robots fire at normal rate, track player correctly, AI behavior matches expected gameplay.
+
+---
+
+### §61 — Fix `OBJ_WEAPON` constant mismatch: weapons can now pass through grate walls
+
+- **Bug:** In D2, weapons could not shoot through grate/transparent walls. Debug logging revealed weapon FVI calls had `flags=1` (`FQ_CHECK_OBJS` only) instead of `flags=5` (`FQ_CHECK_OBJS | FQ_TRANSPOINT`), meaning the transparent pixel check was never triggered.
+
+- **Root cause:** `obj_weapon` was set to `7` (`OBJ_POWERUP`) instead of `5` (`OBJ_WEAPON`) in two OCaml files. The C headers define `OBJ_WEAPON=5`, `OBJ_POWERUP=7`. The wrong constant meant:
+  1. `ox_physics_sim.ml` — weapon objects never got `FQ_TRANSPOINT` added to FVI flags, so grate walls blocked all weapons
+  2. `ox_physics.ml` — robot "danger laser" detection (`compute_vis_and_vec`) failed to recognize actual weapons, potentially impairing robot evasion behavior
+  3. Powerup objects incorrectly got `FQ_TRANSPOINT` flags, which may have caused the D2 powerup-pickup wall-collision behavior reported earlier
+
+- **Fix:** Changed `obj_weapon = 7` to `obj_weapon = 5` in both files.
+
+- **Files modified:**
+  - `ox/ox_physics_sim.ml` — `obj_weapon` constant 7→5
+  - `ox/ox_physics.ml` — `obj_weapon` constant 7→5
+
+- **Verification:** D2 weapons now pass through both types of grate walls tested. Powerup pickup no longer causes wall-collision behavior. D1 unaffected (already had correct value in `ox_fvi.ml` and `ox_collide.ml`).

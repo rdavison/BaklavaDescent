@@ -383,6 +383,206 @@ extern dbool isPlayerCollision;
 //Simulate a physics object for this frame
 void do_physics_sim(object* obj)
 {
+#ifdef USE_OX_BRIDGE
+	Assert(obj->type != OBJ_NONE);
+	Assert(obj->movement_type == MT_PHYSICS);
+
+#ifndef NDEBUG
+	if (Dont_move_ai_objects)
+		if (obj->control_type == CT_AI)
+			return;
+#endif
+
+	// Set C-side globals needed by FVI
+	disable_new_fvi_stuff = (obj->type != OBJ_PLAYER);
+
+	// One-time registration of effect callbacks
+	static object* ps_obj = nullptr;
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_physics_sim_effects(
+				// find_vector_intersection
+				[](const int32_t* query, int query_len, int32_t* result, int* result_len) {
+					fvi_query fq;
+					fvi_info hi;
+					fq.p0 = (vms_vector*)&query[0]; // p0 xyz packed at 0,1,2
+					fq.p1 = (vms_vector*)&query[3]; // p1 xyz packed at 3,4,5
+					vms_vector p0 = {query[0], query[1], query[2]};
+					vms_vector p1 = {query[3], query[4], query[5]};
+					fq.p0 = &p0;
+					fq.p1 = &p1;
+					fq.rad = query[6];
+					fq.thisobjnum = query[7];
+					fq.flags = query[8];
+					fq.startseg = query[9];
+					int n_ignore = query[10];
+					int ignore_list[MAX_IGNORE_OBJS];
+					for (int i = 0; i < n_ignore && i < MAX_IGNORE_OBJS; i++)
+						ignore_list[i] = query[11 + i];
+					if (n_ignore > 0) {
+						ignore_list[n_ignore] = -1;
+						fq.ignore_obj_list = ignore_list;
+					} else {
+						fq.ignore_obj_list = nullptr;
+					}
+					int fate = find_vector_intersection(&fq, &hi);
+					result[0] = fate;
+					result[1] = hi.hit_pnt.x;
+					result[2] = hi.hit_pnt.y;
+					result[3] = hi.hit_pnt.z;
+					result[4] = hi.hit_seg;
+					result[5] = hi.hit_side;
+					result[6] = hi.hit_side_seg;
+					result[7] = hi.hit_object;
+					result[8] = hi.hit_wallnorm.x;
+					result[9] = hi.hit_wallnorm.y;
+					result[10] = hi.hit_wallnorm.z;
+					result[11] = hi.n_segs;
+					for (int i = 0; i < hi.n_segs && i < MAX_FVI_SEGS; i++)
+						result[12 + i] = hi.seglist[i];
+					*result_len = 12 + hi.n_segs;
+				},
+				// collide_object_with_wall
+				[](int hit_speed, int wall_seg, int wall_side,
+				   int hit_px, int hit_py, int hit_pz, int obj_flags) -> int {
+					vms_vector hp = {hit_px, hit_py, hit_pz};
+					ps_obj->flags = obj_flags;
+					collide_object_with_wall(ps_obj, (fix)hit_speed, wall_seg, wall_side, &hp);
+					return ps_obj->flags;
+				},
+				// scrape_object_on_wall
+				[](int wall_seg, int wall_side,
+				   int hit_px, int hit_py, int hit_pz) -> int {
+					vms_vector hp = {hit_px, hit_py, hit_pz};
+					scrape_object_on_wall(ps_obj, wall_seg, wall_side, &hp);
+					return ps_obj->flags;
+				},
+				// collide_two_objects
+				[](int hit_objnum, int pos_hit_x, int pos_hit_y, int pos_hit_z,
+				   int32_t* obj_flags_out, int32_t* new_vx, int32_t* new_vy, int32_t* new_vz) {
+					vms_vector pos_hit = {pos_hit_x, pos_hit_y, pos_hit_z};
+					collide_two_objects(ps_obj, &Objects[hit_objnum], &pos_hit);
+					*obj_flags_out = ps_obj->flags;
+					*new_vx = ps_obj->mtype.phys_info.velocity.x;
+					*new_vy = ps_obj->mtype.phys_info.velocity.y;
+					*new_vz = ps_obj->mtype.phys_info.velocity.z;
+				},
+				// obj_relink
+				[](int objnum, int new_seg) {
+					obj_relink(objnum, new_seg);
+				},
+				// find_object_seg
+				[](int objnum) -> int {
+					return find_object_seg(&Objects[objnum]);
+				},
+				// update_object_seg
+				[](int objnum) {
+					update_object_seg(&Objects[objnum]);
+				},
+				// find_point_seg
+				[](int px, int py, int pz, int seg) -> int {
+					vms_vector p = {px, py, pz};
+					return find_point_seg(&p, seg);
+				},
+				// get_seg_masks
+				[](int px, int py, int pz, int seg) -> int {
+					vms_vector p = {px, py, pz};
+					return get_seg_masks(&p, seg, 0).centermask;
+				},
+				// compute_segment_center
+				[](int seg, int32_t* cx, int32_t* cy, int32_t* cz) {
+					vms_vector c;
+					compute_segment_center(&c, &Segments[seg]);
+					*cx = c.x; *cy = c.y; *cz = c.z;
+				},
+				// add_stuck_object
+				[](int wall_seg, int wall_side) {
+					add_stuck_object(ps_obj, wall_seg, wall_side);
+				},
+				// find_connect_side
+				[](int seg1, int seg2) -> int {
+					return find_connect_side(&Segments[seg1], &Segments[seg2]);
+				},
+				// wall_is_doorway
+				[](int seg, int side) -> int {
+					return WALL_IS_DOORWAY(&Segments[seg], side);
+				},
+				// create_abs_vertex_lists_and_dist
+				[](int seg, int side, int spx, int spy, int spz,
+				   int32_t* dist, int32_t* nx, int32_t* ny, int32_t* nz) {
+					int num_faces, vertex_list[6];
+					create_abs_vertex_lists(&num_faces, vertex_list, seg, side);
+					int vertnum = vertex_list[0];
+					for (int i = 1; i < 4; i++)
+						if (vertex_list[i] < vertnum)
+							vertnum = vertex_list[i];
+					vms_vector start_pos = {spx, spy, spz};
+					struct side* s = &Segments[seg].sides[side];
+					#ifdef COMPACT_SEGS
+					vms_vector _vn;
+					get_side_normal(&Segments[seg], side, 0, &_vn);
+					*dist = vm_dist_to_plane(&start_pos, &_vn, &Vertices[vertnum]);
+					*nx = _vn.x; *ny = _vn.y; *nz = _vn.z;
+					#else
+					*dist = vm_dist_to_plane(&start_pos, &s->normals[0], &Vertices[vertnum]);
+					*nx = s->normals[0].x; *ny = s->normals[0].y; *nz = s->normals[0].z;
+					#endif
+				},
+				// tmap_is_force_field (D2 only, noop for D1)
+				[](int seg, int side) -> int { return 0; },
+				// vm_vector_2_matrix_orient (D2 only, noop for D1)
+				[](int vx, int vy, int vz, int ux, int uy, int uz, int32_t* out) {}
+			);
+		}
+	}
+	ps_obj = obj;
+
+	int objnum = obj - Objects;
+	physics_info* pi = &obj->mtype.phys_info;
+
+	int32_t orient[9] = {
+		obj->orient.rvec.x, obj->orient.rvec.y, obj->orient.rvec.z,
+		obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
+		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
+	};
+
+	int32_t result[25 + MAX_FVI_SEGS];
+	cd_ox_do_physics_sim_d1(
+		obj->pos.x, obj->pos.y, obj->pos.z,
+		pi->velocity.x, pi->velocity.y, pi->velocity.z,
+		pi->thrust.x, pi->thrust.y, pi->thrust.z,
+		orient,
+		pi->rotvel.x, pi->rotvel.y, pi->rotvel.z,
+		pi->rotthrust.x, pi->rotthrust.y, pi->rotthrust.z,
+		obj->size, pi->mass, pi->drag,
+		pi->flags, obj->flags, obj->type, obj->id,
+		obj->segnum, objnum, pi->turnroll,
+		obj->last_pos.x, obj->last_pos.y, obj->last_pos.z,
+		FrameTime, Physics_cheat_flag,
+		result);
+
+	// Write back results
+	obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
+	pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
+	obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
+	obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
+	obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
+	obj->segnum = result[15];
+	obj->flags = result[16];
+	pi->flags = result[17];
+	pi->turnroll = result[18];
+	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
+	// result[22] = retry_count (informational)
+	n_phys_segs = result[23];
+	// result[24] = needs_levelling (already handled inside OCaml via PF_LEVELLING flag)
+	// result[25..25+n_phys_segs-1] = phys_seglist values
+	for (int i = 0; i < n_phys_segs && i < MAX_FVI_SEGS; i++)
+		phys_seglist[i] = (short)result[25 + i];
+
+	return;
+#else
 	int ignore_obj_list[MAX_IGNORE_OBJS], n_ignore_objs;
 	int iseg;
 	int try_again;
@@ -981,6 +1181,7 @@ void do_physics_sim(object* obj)
 		}
 	}
 	//--WE ALWYS WANT THIS IN, MATT AND MIKE DECISION ON 12/10/94, TWO MONTHS AFTER FINAL 	#endif
+#endif // USE_OX_BRIDGE
 }
 
 //--unused-- //tell us what the given object will do (as far as hiting walls) in
