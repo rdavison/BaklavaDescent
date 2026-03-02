@@ -2040,3 +2040,60 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `ox/ox_ai_frame.ml` — D2 gun rotation dual-weapon fix
 
 - **Verification:** Both `build-ox/headless_replay` and `build-c-ref/headless_replay` compile successfully.
+
+---
+
+### Session 26: SKIP_AI_COUNT fix, animation ordering, escort mode writeback
+
+- **Goal:** Continue reducing parity divergences between C-only and OCaml builds.
+
+#### Fix 1: SKIP_AI_COUNT not set in OCaml collision path
+
+- **Root cause:** When a robot gets bumped during collisions, C's `phys_apply_rot` sets `SKIP_AI_COUNT` (causing the robot to skip AI frames). OCaml's collision system returned a `skip_ai` boolean from `phys_apply_rot` but discarded it (`_sa0`/`_sa1` in `bump_this_object_d2`).
+- **Fix:** Added `Set_bump_skip_ai_count` effect through the full bridge stack:
+  - `ox/ox_collide.ml`: New effect declaration + `Effect.perform` when `skip_ai=true`
+  - `ox/bridge.h`: New typedef + phase3 registration function
+  - `ox/bridge.c`: New global, registration, and `CAMLprim` wrapper
+  - `ox/physics_sim_bridge.ml`: New external + effect handler case
+  - `main_d2/physics.cpp`: C lambda with exact SKIP_AI_COUNT logic (P_Rand, FrameTime, thief/attack_type checks)
+  - `main_d1/physics.cpp`: Simpler D1 version (just sets count to 2)
+- **Impact:** Object divergences dropped from 102,332 → 7,681 (**92% reduction**).
+
+#### Fix 2: Pre-OCaml animation ordering (awareness decay + matcen skip)
+
+- **Root cause:** The bridge ran `do_silly_animation` before OCaml, but C-only runs it AFTER awareness decay (GOAL_STATE=AIS_REST when awareness=0), the unflinch hack, FLIN→LOCK transition, and potential matcen early return. This caused animation angle divergences for objects 60/83 at frame 1.
+- **Fix:** In `main_d2/ai.cpp` bridge pre-animation block:
+  - Moved `seg_station_enabled` computation before the pre-animation block
+  - Added `matcen_skip` check (skip animation for robots in active matcen segments)
+  - Added `GOAL_STATE=AIS_REST` when `player_awareness_type=0` before animation
+  - Added unflinch hack and FLIN→LOCK transition before animation
+- **Impact:** Eliminated frame 1 divergences for objects 60/83.
+
+#### Fix 3: Escort robot mode not written back after Do_escort_frame
+
+- **Root cause:** `do_escort_frame` (called as a C effect during OCaml execution) changes `ailp->mode` in C (e.g., FOLLOW_PATH→GOTO_OBJECT). But OCaml's local `mode` ref was never updated. OCaml dispatched on the stale mode, hitting AIM_FOLLOW_PATH (which unconditionally sets `goal_state := ais_lock` at line 2010-2013) instead of AIM_GOTO_OBJECT (which doesn't set GOAL_STATE).
+- **Fix:** Changed `Do_escort_frame` effect from `unit` to `int`, returning the updated `ailp->mode`:
+  - `ox/ox_ai_frame.ml`: Effect type `int Effect.t`, callsite updates `mode := new_mode`
+  - `ox/ai_frame_bridge.ml`: Handler returns mode value, external returns `int`
+  - `ox/bridge.h`: Typedef returns `int` instead of `void`
+  - `ox/bridge.c`: Returns `Val_int(new_mode)` from CAMLprim
+  - `main_d2/ai.cpp`: Lambda reads `Ai_local_info[objnum].mode` after `do_escort_frame`
+  - `main_d1/ai.cpp`: D1 stub returns 0
+- **Impact:** Eliminated frame 2-12 GOAL_STATE divergence for escort robot (obj28).
+
+#### Parity analysis and remaining divergences
+
+- **Current parity status (636 frames, test_session.rec):**
+  - Divergent frames: 624/636
+  - Object divergences: 7,637
+  - AI local divergences: 8,435
+  - Player divergences: 489
+  - Global (rand_state) divergences: 700
+
+- **Root cause of remaining divergences:**
+  - Frame 13: Escort robot (obj28, companion/guide-bot) CURRENT_STATE diverges (C=LOCK, OCaml=REST). GOAL_STATE matches. Subtle ordering issue within `do_escort_frame` or post-escort animation state.
+  - Frame 117: P_Rand call count diverges massively (C-only: 309 calls, OCaml: 1 call). Caused by escort robot's cascading state divergence triggering different pathfinding in C-only.
+  - Frames 117-636: All state diverges due to random state mismatch from P_Rand desync.
+  - The escort robot is the single remaining source of pre-random divergence. Fixing the frame 13 CS divergence would likely eliminate the P_Rand divergence and most subsequent divergences.
+
+- **Diagnostic approach used:** Added per-object P_Rand call counting to identify that obj28 (escort, id=33, behavior=AIB_FOLLOW=0x81) was making 308 extra P_Rand calls in C-only at the frame where random state diverges.
