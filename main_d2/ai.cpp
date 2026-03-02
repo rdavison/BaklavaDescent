@@ -422,9 +422,11 @@ void do_ai_frame(object* obj)
 					vms_vector vtp = {vtpx, vtpy, vtpz};
 					do_snipe_frame(af_obj, dist, vis, &vtp);
 				},
-				// do_escort_frame
-				[](int dist, int vis) {
+				// do_escort_frame — returns updated mode since escort can change ailp->mode
+				[](int dist, int vis) -> int {
+					int objnum = af_obj - Objects;
 					do_escort_frame(af_obj, dist, vis);
+					return Ai_local_info[objnum].mode;
 				},
 				// do_thief_frame
 				[](int dist, int vis, int vtpx, int vtpy, int vtpz,

@@ -985,7 +985,7 @@ typedef int  (*cd_effect_af_object_to_object_visibility_fn)(void);
 typedef void (*cd_effect_af_do_snipe_frame_fn)(int dist, int vis,
                                                 int vtpx, int vtpy, int vtpz,
                                                 int mode);
-typedef void (*cd_effect_af_do_escort_frame_fn)(int dist, int vis);
+typedef int (*cd_effect_af_do_escort_frame_fn)(int dist, int vis);  /* returns updated mode */
 typedef void (*cd_effect_af_do_thief_frame_fn)(int dist, int vis,
                                                 int vtpx, int vtpy, int vtpz,
                                                 int pat, int pat_time);

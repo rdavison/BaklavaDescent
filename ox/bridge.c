@@ -3987,9 +3987,10 @@ CAMLprim value cd_ox_effect_af_do_snipe_frame_bytecode(value *argv, int argn)
 
 CAMLprim value cd_ox_effect_af_do_escort_frame(value v_dist, value v_vis)
 {
+    int new_mode = 0;
     if (g_effect_af_do_escort_frame)
-        g_effect_af_do_escort_frame(Int_val(v_dist), Int_val(v_vis));
-    return Val_unit;
+        new_mode = g_effect_af_do_escort_frame(Int_val(v_dist), Int_val(v_vis));
+    return Val_int(new_mode);
 }
 
 CAMLprim value cd_ox_effect_af_do_thief_frame(

@@ -147,7 +147,7 @@ type _ Effect.t +=
   | Make_random_vector : (int * int * int) Effect.t
   | Object_to_object_visibility : int Effect.t
   | Do_snipe_frame : (int * int * int * int * int * int) -> unit Effect.t
-  | Do_escort_frame : (int * int) -> unit Effect.t
+  | Do_escort_frame : (int * int) -> int Effect.t  (* returns updated mode *)
   | Do_thief_frame : (int * int * int * int * int * int * int) -> unit Effect.t
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
@@ -1871,7 +1871,8 @@ let do_ai_frame_d2
       else if companion <> 0
       then (
         compute_vis ();
-        Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)));
+        let new_mode = Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)) in
+        mode := new_mode);
       (* Thief section: runs independently of snipe (thief has AIB_SNIPE behavior) *)
       if thief <> 0
       then (
