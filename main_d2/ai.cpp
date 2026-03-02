@@ -611,7 +611,7 @@ void do_ai_frame(object* obj)
 		1 /* animation_enabled */, Current_level_num, 0 /* last_missile_camera */,
 		Robots_kill_robots_cheat, (robptr->boss_flag) ? aip->dying_start_time : 0,
 		obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
-		Dist_to_last_fired_upon_player_pos, F1_0 * 48,
+		Dist_to_last_fired_upon_player_pos, F1_0 * 40, // FIRE_AT_NEARBY_PLAYER_THRESHOLD
 		result);
 
 	// Write back AI state using "effect-wins" policy:
