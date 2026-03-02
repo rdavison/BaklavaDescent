@@ -3613,6 +3613,12 @@ void do_ai_frame(object* obj)
 	// Animation (done on C side after OCaml state update)
 	if (do_silly_animation(obj))
 		ai_frame_animation(obj);
+	else
+		// do_silly_animation returns 0 for 0-gun robots.
+		// C-only path sets object_animates from do_silly_animation, then
+		// syncs CURRENT_STATE = GOAL_STATE when !object_animates.
+		// Replicate that here.
+		aip->CURRENT_STATE = aip->GOAL_STATE;
 
 	return;
 	}

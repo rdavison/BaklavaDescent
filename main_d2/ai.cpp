@@ -734,6 +734,12 @@ void do_ai_frame(object* obj)
 	if (result[47]) {
 		if (do_silly_animation(obj))
 			ai_frame_animation(obj);
+		else
+			// do_silly_animation returns 0 for 0-gun robots.
+			// C-only path sets object_animates=0, then line 1687 syncs
+			// CURRENT_STATE = GOAL_STATE. Replicate that here since OCaml
+			// unconditionally set object_animates=1 when close enough.
+			aip->CURRENT_STATE = aip->GOAL_STATE;
 	}
 
 #ifdef OX_PARITY_CHECK
