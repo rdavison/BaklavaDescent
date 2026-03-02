@@ -684,7 +684,14 @@ void do_ai_frame(object* obj)
 		vms_vector vec_to_player;
 		vm_vec_sub(&vec_to_player, &Believed_player_pos, &vis_vec_pos_mv);
 		vm_vec_normalize_quick(&vec_to_player);
+		// ailp->previous_visibility has been updated to current frame's raw visibility
+		// by compute_vis_and_vec called during OCaml execution.
+		// Apply D2 awareness-based bump (matches C-only compute_vis_and_vec lines 2317-2319).
 		int player_visibility = ailp->previous_visibility;
+		if (player_visibility == 1 && ailp->player_awareness_type >= PA_NEARBY_ROBOT_FIRED)
+			player_visibility = 2;
+		// Previous frame's visibility (C-only "previous_visibility" local saved at line 873).
+		int prev_frame_visibility = ailp_before.previous_visibility;
 
 		if (ailp->mode == AIM_CHASE_OBJECT) {
 			if (aip->CURRENT_STATE != AIS_REST && aip->GOAL_STATE != AIS_REST) {
@@ -699,7 +706,8 @@ void do_ai_frame(object* obj)
 				}
 			}
 		} else if (ailp->mode == AIM_STILL) {
-			if ((player_visibility == 2) || (ailp->previous_visibility == 2)) {
+			// C-only: turn if current visibility==2 OR previous frame visibility==2
+			if ((player_visibility == 2) || (prev_frame_visibility == 2)) {
 				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 			}
 			if (player_visibility == 2) {

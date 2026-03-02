@@ -2209,7 +2209,12 @@ let do_ai_frame_d2
       if !player_visibility = 0
       then (
         current_gun := !current_gun + 1;
-        if !current_gun >= n_guns then current_gun := 0);
+        if !current_gun >= n_guns
+        then
+          (* D2 two-weapon-type hack: wrap to 1 for dual-weapon robots, else 0 *)
+          if n_guns = 1 || weapon_type2 = -1
+          then current_gun := 0
+          else current_gun := 1);
       with Early_return -> ());
       pack_result ()))
 ;;
