@@ -1898,9 +1898,20 @@ let do_ai_frame_d2
       dist_to_player
       := Ox_math.vm_vec_dist_quick ~a:(bpx, bpy, bpz) ~b:(obj_x, obj_y, obj_z);
       (* Phase: gun point computation *)
-      if !next_fire <= 0 && !dist_to_player < f1_0 * 200 && n_guns > 0 && attack_type = 0
+      (* D2: gate on previous_visibility or obj_ref timing, and use ready_to_fire
+         which checks both next_fire and next_fire2 (for dual-weapon robots).
+         When next_fire > 0 but next_fire2 <= 0, calc gun point for gun 0. *)
+      let ready_to_fire =
+        !next_fire <= 0 || (weapon_type2 <> -1 && !next_fire2 <= 0)
+      in
+      if (!previous_visibility <> 0 || obj_ref land 3 = 0)
+         && ready_to_fire
+         && !dist_to_player < f1_0 * 200
+         && n_guns > 0
+         && attack_type = 0
       then (
-        let gpx, gpy, gpz = Effect.perform (Calc_gun_point !current_gun) in
+        let gun_to_calc = if !next_fire <= 0 then !current_gun else 0 in
+        let gpx, gpy, gpz = Effect.perform (Calc_gun_point gun_to_calc) in
         gun_point := gpx, gpy, gpz;
         vis_vec_pos := gpx, gpy, gpz)
       else (
