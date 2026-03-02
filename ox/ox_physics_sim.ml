@@ -393,9 +393,10 @@ let do_physics_sim_d1
                 cur_pos_x := cx + objnum;
                 cur_pos_y := cy;
                 cur_pos_z := cz);
-              if obj_type = obj_weapon then cur_flags := !cur_flags lor of_should_be_dead;
-              early_return := true)
-            else ());
+              if obj_type = obj_weapon then cur_flags := !cur_flags lor of_should_be_dead)
+            else ();
+            (* C does unconditional return when centermask != 0 *)
+            early_return := true);
           if not !early_return
           then (
             (* Calculate new sim_time *)
@@ -920,9 +921,10 @@ let do_physics_sim_d2
                 cur_pos_x := cx + objnum;
                 cur_pos_y := cy;
                 cur_pos_z := cz);
-              if obj_type = obj_weapon then cur_flags := !cur_flags lor of_should_be_dead;
-              early_return := true)
-            else ());
+              if obj_type = obj_weapon then cur_flags := !cur_flags lor of_should_be_dead)
+            else ();
+            (* C does unconditional return when centermask != 0 *)
+            early_return := true);
           if not !early_return
           then (
             let moved_time = ref 0 in
