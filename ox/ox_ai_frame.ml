@@ -62,7 +62,7 @@ let chase_time_length = f1_0 * 8
 let ri_cloaked_except_firing = 1
 let player_flags_cloaked = 0x800
 let player_flags_headlight_on = 0x4000
-let pf_uses_thrust = 1
+let pf_uses_thrust = 0x40
 
 (* D2-only constants *)
 let sub_flags_camera_awake = 4
@@ -2014,13 +2014,7 @@ let do_ai_frame_d2
         || !player_awareness_type >= pa_player_collision
       then (
         compute_vis ();
-        if !player_visibility = 1 then player_visibility := 2;
-        if
-          !behavior <> aib_still
-          && !behavior <> aib_snipe
-          && !behavior <> aib_run_from
-          && obj_id <> robot_brain
-        then mode := aim_chase_object)
+        if !player_visibility = 1 then player_visibility := 2)
       else if
         obj_ref land 3 = 0
         && !previous_visibility = 0
