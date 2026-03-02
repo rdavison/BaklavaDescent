@@ -1679,8 +1679,15 @@ let do_ai_frame_d2
          && n_guns > 0
          && attack_type = 0
       then (
-        let gun_to_calc = if !next_fire <= 0 then !current_gun else 0 in
-        let gpx, gpy, gpz = Effect.perform (Calc_gun_point gun_to_calc) in
+          (* Use pre-animation gun_point passed from C for primary weapon (matches C-only
+           timing where calc_gun_point runs before do_silly_animation).
+           For secondary weapon case (next_fire > 0 but next_fire2 <= 0), use gun 0
+           via Calc_gun_point effect (post-animation, minor discrepancy accepted). *)
+        let gpx, gpy, gpz =
+          if !next_fire <= 0
+          then gun_point_in.(0), gun_point_in.(1), gun_point_in.(2)
+          else Effect.perform (Calc_gun_point 0)
+        in
         gun_point := gpx, gpy, gpz;
         vis_vec_pos := gpx, gpy, gpz)
       else (
@@ -1688,7 +1695,12 @@ let do_ai_frame_d2
         gun_point := 0, 0, 0);
       (* Phase: agitation path creation *)
       if
-        !behavior <> aib_run_from && !behavior <> aib_still && game_mode land gm_multi = 0
+        !behavior <> aib_run_from
+        && !behavior <> aib_still
+        && !behavior <> aib_snipe
+        && companion = 0
+        && thief = 0
+        && game_mode land gm_multi = 0
       then
         if overall_agitation > 70
         then
