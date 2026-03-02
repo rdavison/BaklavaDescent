@@ -476,6 +476,14 @@ void do_ai_frame(object* obj)
 			Believed_player_pos = Ai_cloak_info[objnum & (MAX_AI_CLOAK_INFO - 1)].last_position;
 	}
 
+	// Pack gun_point (3 ints) — compute BEFORE animation to match C-only timing.
+	// In C-only (do_ai_frame2), calc_gun_point runs at lines 928-935 BEFORE
+	// do_silly_animation at line 1127. Using post-animation joint positions
+	// gives slightly different vis_vec_pos, causing orientation drift over frames.
+	vms_vector gun_point_vec;
+	calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
+	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
+
 	// Pre-OCaml animation: In C-only, do_silly_animation runs BEFORE the mode
 	// dispatch (line 1105), so CURRENT_STATE is updated before do_firing_stuff
 	// and state transition logic sees it. We must replicate this ordering.
@@ -567,11 +575,6 @@ void do_ai_frame(object* obj)
 		obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
-
-	// Pack gun_point (3 ints)
-	vms_vector gun_point_vec;
-	calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
-	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
 
 	// Pack cloak_last_pos (3 ints)
 	int cloak_idx = objnum % MAX_AI_CLOAK_INFO;

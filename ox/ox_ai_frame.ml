@@ -1663,9 +1663,6 @@ let do_ai_frame_d2
       then believed_player_pos := console_x, console_y, console_z
       else
         believed_player_pos := cloak_last_pos.(0), cloak_last_pos.(1), cloak_last_pos.(2);
-      (* D2: camera awareness *)
-      if !sub_flags land sub_flags_camera_awake <> 0
-      then sub_flags := !sub_flags land lnot sub_flags_camera_awake;
       let bpx, bpy, bpz = !believed_player_pos in
       dist_to_player
       := Ox_math.vm_vec_dist_quick ~a:(bpx, bpy, bpz) ~b:(obj_x, obj_y, obj_z);
