@@ -544,9 +544,19 @@ void do_ai_frame(object* obj)
 		Ai_cloak_info[cloak_idx].last_position.z
 	};
 
-	// Multiplayer believed_pos sync (stays on C side)
+	// Set Believed_player_pos for this robot (matches C-only path lines 848-889)
+	// Without this, single-player bridge path uses stale Believed_player_pos
+	// from the previous frame, causing dist_to_player and time-slice divergences.
 	if (Game_mode & GM_MULTI)
 		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
+	else if ((aip->SUB_FLAGS & SUB_FLAGS_CAMERA_AWAKE) && (Ai_last_missile_camera != -1))
+		Believed_player_pos = Objects[Ai_last_missile_camera].pos;
+	else {
+		if (!(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED))
+			Believed_player_pos = ConsoleObject->pos;
+		else
+			Believed_player_pos = Ai_cloak_info[objnum & (MAX_AI_CLOAK_INFO - 1)].last_position;
+	}
 
 	// Snapshot C state before OCaml call, so we can detect effect modifications
 	ai_static aip_before = *aip;
