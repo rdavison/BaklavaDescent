@@ -463,7 +463,44 @@ void do_ai_frame(object* obj)
 	}
 	af_obj = obj;
 
-	// Pack ai_state array (43 ints)
+	// Set Believed_player_pos for this robot (matches C-only path lines 848-889)
+	// Must happen before animation so dist_to_player is available.
+	if (Game_mode & GM_MULTI)
+		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
+	else if ((aip->SUB_FLAGS & SUB_FLAGS_CAMERA_AWAKE) && (Ai_last_missile_camera != -1))
+		Believed_player_pos = Objects[Ai_last_missile_camera].pos;
+	else {
+		if (!(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED))
+			Believed_player_pos = ConsoleObject->pos;
+		else
+			Believed_player_pos = Ai_cloak_info[objnum & (MAX_AI_CLOAK_INFO - 1)].last_position;
+	}
+
+	// Pre-OCaml animation: In C-only, do_silly_animation runs BEFORE the mode
+	// dispatch (line 1105), so CURRENT_STATE is updated before do_firing_stuff
+	// and state transition logic sees it. We must replicate this ordering.
+	robot_info* robptr_pre = &Robot_info[obj->id];
+	int object_animates;
+	{
+		fix dist_pre = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
+		// Unflinch hack (C-only line 803)
+		if ((aip->GOAL_STATE == AIS_FLIN) && ready_to_fire(robptr_pre, ailp))
+			aip->GOAL_STATE = AIS_FIRE;
+		// FLIN→LOCK (C-only line 1099)
+		if ((aip->GOAL_STATE == AIS_FLIN) && (aip->CURRENT_STATE == AIS_FLIN))
+			aip->GOAL_STATE = AIS_LOCK;
+		// Animation (C-only lines 1104-1115)
+		if (dist_pre < F1_0 * 100) {
+			object_animates = do_silly_animation(obj);
+			if (object_animates)
+				ai_frame_animation(obj);
+		} else {
+			aip->CURRENT_STATE = aip->GOAL_STATE;
+			object_animates = 0;
+		}
+	}
+
+	// Pack ai_state array (43 ints) — post-animation values
 	int32_t ai_state[43];
 	ai_state[0]  = aip->SKIP_AI_COUNT;
 	ai_state[1]  = aip->GOAL_STATE;
@@ -543,20 +580,6 @@ void do_ai_frame(object* obj)
 		Ai_cloak_info[cloak_idx].last_position.y,
 		Ai_cloak_info[cloak_idx].last_position.z
 	};
-
-	// Set Believed_player_pos for this robot (matches C-only path lines 848-889)
-	// Without this, single-player bridge path uses stale Believed_player_pos
-	// from the previous frame, causing dist_to_player and time-slice divergences.
-	if (Game_mode & GM_MULTI)
-		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
-	else if ((aip->SUB_FLAGS & SUB_FLAGS_CAMERA_AWAKE) && (Ai_last_missile_camera != -1))
-		Believed_player_pos = Objects[Ai_last_missile_camera].pos;
-	else {
-		if (!(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED))
-			Believed_player_pos = ConsoleObject->pos;
-		else
-			Believed_player_pos = Ai_cloak_info[objnum & (MAX_AI_CLOAK_INFO - 1)].last_position;
-	}
 
 	// Snapshot C state before OCaml call, so we can detect effect modifications
 	ai_static aip_before = *aip;
@@ -693,7 +716,7 @@ void do_ai_frame(object* obj)
 				vm_vec_normalize_quick(&vec_to_goal);
 				move_towards_vector(obj, &vec_to_goal, 0);
 				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, do_silly_animation(obj), aip->CURRENT_GUN);
+				ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, object_animates, aip->CURRENT_GUN);
 			}
 		} else if (ailp->mode == AIM_OPEN_DOOR) {
 			vms_vector center_point, goal_vector;
@@ -704,7 +727,7 @@ void do_ai_frame(object* obj)
 			move_towards_vector(obj, &goal_vector, 0);
 		} else if (ailp->mode == AIM_SNIPE_ATTACK || ailp->mode == AIM_SNIPE_FIRE ||
 		           ailp->mode == AIM_SNIPE_RETREAT_BACKWARDS) {
-			ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, do_silly_animation(obj), aip->CURRENT_GUN);
+			ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, object_animates, aip->CURRENT_GUN);
 			if (robptr->thief)
 				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
 		} else if (ailp->mode == AIM_FOLLOW_PATH) {
@@ -738,19 +761,7 @@ void do_ai_frame(object* obj)
 		}
 	}
 
-	// Animation (done on C side after OCaml state update)
-	// Only animate if OCaml indicates the robot should be animated:
-	// object_animates is 0 when time-sliced (early return) or too far from player.
-	if (result[47]) {
-		if (do_silly_animation(obj))
-			ai_frame_animation(obj);
-		else
-			// do_silly_animation returns 0 for 0-gun robots.
-			// C-only path sets object_animates=0, then line 1687 syncs
-			// CURRENT_STATE = GOAL_STATE. Replicate that here since OCaml
-			// unconditionally set object_animates=1 when close enough.
-			aip->CURRENT_STATE = aip->GOAL_STATE;
-	}
+	// Animation already done pre-OCaml (matching C-only ordering).
 
 #ifdef OX_PARITY_CHECK
 	parity_snapshot(&parity_snap_after_ocaml);
