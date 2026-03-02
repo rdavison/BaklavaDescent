@@ -1874,6 +1874,7 @@ let do_ai_frame_d2
            else circle_distance
          in
          compute_vis ();
+         let chase_break = ref false in
          if !player_visibility < 2 && !previous_visibility = 2
          then (
            let ok = Effect.perform (Ai_multiplayer_awareness 53) in
@@ -1886,52 +1887,52 @@ let do_ai_frame_d2
            !player_visibility = 0
            && !dist_to_player > f1_0 * 80
            && game_mode land gm_multi = 0
-         then
+         then (
            if !behavior = aib_station
            then (
              goal_segment := hide_segment;
-             Effect.perform (Create_path_to_station 15))
-           else Effect.perform (Create_n_segment_path (5, -1));
-         if !current_state = ais_rest && !goal_state = ais_rest
-         then
-           if !player_visibility > 0
-           then (
-             let pr = Effect.perform P_Rand in
-             if pr < frame_time * !player_visibility
-             then (
-               let pr2 = Effect.perform P_Rand in
-               if !dist_to_player / 256 < pr2 * !player_visibility
-               then (
-                 goal_state := ais_srch;
-                 current_state := ais_srch)));
-         if game_time - !time_player_seen > chase_time_length
-         then (
-           if game_mode land gm_multi <> 0
+             Effect.perform (Create_path_to_station 15));
+           (* C break: skip rest of AIM_CHASE_OBJECT case *)
+           chase_break := true);
+         if not !chase_break then (
+           if !current_state = ais_rest && !goal_state = ais_rest
            then
-             if !player_visibility = 0 && !dist_to_player > f1_0 * 70
-             then mode := aim_still;
-           let ok = Effect.perform (Ai_multiplayer_awareness 64) in
-           if not ok
-           then maybe_fire_mp ()
-           else (
-             Effect.perform (Create_path_to_player (10, 1));
-             Effect.perform (Ai_multi_send_robot_position (-1))))
-         else if !current_state <> ais_rest && !goal_state <> ais_rest
-         then (
-           let ok = Effect.perform (Ai_multiplayer_awareness 70) in
-           if not ok
-           then maybe_fire_mp ()
-           else (
-             ignore circle_distance;
-             (* ai_move_relative_to_player on C side *)
-             if obj_ref land 1 <> 0 && (!goal_state = ais_srch || !goal_state = ais_lock)
-             then ();
-             if !ai_evaded <> 0
+             if !player_visibility > 0
              then (
-               Effect.perform (Ai_multi_send_robot_position 1);
-               ai_evaded := 0)
-             else Effect.perform (Ai_multi_send_robot_position (-1));
-             do_firing_stuff ()))
+               let pr = Effect.perform P_Rand in
+               if pr < frame_time * !player_visibility
+               then (
+                 let pr2 = Effect.perform P_Rand in
+                 if !dist_to_player / 256 < pr2 * !player_visibility
+                 then (
+                   goal_state := ais_srch;
+                   current_state := ais_srch)));
+           if game_time - !time_player_seen > chase_time_length
+           then (
+             if game_mode land gm_multi <> 0
+             then
+               if !player_visibility = 0 && !dist_to_player > f1_0 * 70
+               then mode := aim_still;
+             let ok = Effect.perform (Ai_multiplayer_awareness 64) in
+             if not ok
+             then maybe_fire_mp ()
+             (* C has create_path_to_player commented out here *))
+           else if !current_state <> ais_rest && !goal_state <> ais_rest
+           then (
+             let ok = Effect.perform (Ai_multiplayer_awareness 70) in
+             if not ok
+             then maybe_fire_mp ()
+             else (
+               ignore circle_distance;
+               (* ai_move_relative_to_player on C side *)
+               if obj_ref land 1 <> 0 && (!goal_state = ais_srch || !goal_state = ais_lock)
+               then ();
+               if !ai_evaded <> 0
+               then (
+                 Effect.perform (Ai_multi_send_robot_position 1);
+                 ai_evaded := 0)
+               else Effect.perform (Ai_multi_send_robot_position (-1));
+               do_firing_stuff ())))
        | m when m = aim_run_from_object ->
          compute_vis ();
          if !player_visibility > 0
@@ -2067,6 +2068,7 @@ let do_ai_frame_d2
              if not ok
              then maybe_fire_mp ()
              else Effect.perform (Ai_multi_send_robot_position (-1)));
+           do_firing_stuff ();
            if !player_visibility = 2
            then
              if attack_type = 1
