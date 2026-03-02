@@ -22,35 +22,29 @@ let aim_wander = 1
 let aim_follow_path = 2
 let aim_chase_object = 3
 let aim_run_from_object = 4
-let aim_hide = 5
+let aim_behind = 5            (* D2: replaces D1's AIM_HIDE *)
 let aim_follow_path_2 = 6
 let aim_open_door = 7
-
-(* D2-only modes *)
-let aim_behind = 8
-let aim_goto_player = 9
-let aim_goto_object = 10
-let aim_snipe_attack = 11
-let aim_snipe_fire = 12
-let aim_snipe_retreat = 13
-let aim_snipe_retreat_backwards = 14
-let aim_snipe_wait = 15
-let aim_thief_attack = 16
-let aim_thief_retreat = 17
-let aim_thief_wait = 18
+let aim_goto_player = 8
+let aim_goto_object = 9
+let aim_snipe_attack = 10
+let aim_snipe_fire = 11
+let aim_snipe_retreat = 12
+let aim_snipe_retreat_backwards = 13
+let aim_snipe_wait = 14
+let aim_thief_attack = 15
+let aim_thief_retreat = 16
+let aim_thief_wait = 17
 
 (* AI behaviors *)
 let aib_still = 0x80
 let aib_normal = 0x81
-let aib_hide = 0x82
+let aib_behind = 0x82
 let aib_run_from = 0x83
-let aib_follow_path = 0x84
+let aib_snipe = 0x84
 let aib_station = 0x85
+let aib_follow = 0x86
 
-(* D2-only behaviors *)
-let aib_behind = 0x86
-let aib_snipe = 0x87
-let aib_follow = 0x88
 let min_behavior = aib_still
 let max_behavior_d1 = aib_station
 let max_behavior_d2 = aib_follow
@@ -406,9 +400,9 @@ type _ Effect.t +=
   | P_Rand : int Effect.t
   | Make_random_vector : (int * int * int) Effect.t
   | Object_to_object_visibility : int Effect.t
-  | Do_snipe_frame : (int * int * int * int * int) -> unit Effect.t
+  | Do_snipe_frame : (int * int * int * int * int * int) -> unit Effect.t
   | Do_escort_frame : (int * int) -> unit Effect.t
-  | Do_thief_frame : (int * int * int * int * int) -> unit Effect.t
+  | Do_thief_frame : (int * int * int * int * int * int * int) -> unit Effect.t
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
   | Move_away_from_player : unit Effect.t
@@ -582,7 +576,7 @@ let ai_do_actual_firing_stuff_d1
           if
             behavior <> aib_run_from
             && behavior <> aib_still
-            && behavior <> aib_follow_path
+            && behavior <> aib_snipe
             && (!mode = aim_follow_path || !mode = aim_still)
           then mode := aim_chase_object);
         goal_state := ais_reco;
@@ -1129,7 +1123,7 @@ let do_ai_frame_d1
            Effect.perform Move_towards_segment_center;
            Effect.perform (Create_n_segment_path (5, -1));
            mode := aim_run_from_object
-         | m when m = aim_hide ->
+         | m when m = aim_behind ->
            Effect.perform Move_towards_segment_center;
            if overall_agitation > 50 - (difficulty_level * 4)
            then Effect.perform (Create_path_to_player (4 + (overall_agitation / 8), 1))
@@ -1187,7 +1181,7 @@ let do_ai_frame_d1
       if !player_visibility = 1 then player_visibility := 2;
       if
         !behavior <> aib_still
-        && !behavior <> aib_follow_path
+        && !behavior <> aib_snipe
         && !behavior <> aib_run_from
         && obj_id <> robot_brain
       then mode := aim_chase_object)
@@ -1362,8 +1356,8 @@ let do_ai_frame_d1
              Effect.perform (Ai_multi_send_robot_position 1);
              ai_evaded := 0)
            else
-             Effect.perform (Ai_multi_send_robot_position (-1)));
-           do_firing_stuff ())
+             Effect.perform (Ai_multi_send_robot_position (-1));
+           do_firing_stuff ()))
      | m when m = aim_run_from_object ->
        compute_vis ();
        if !player_visibility > 0
@@ -1425,11 +1419,11 @@ let do_ai_frame_d1
          then goal_state := ais_lock
          else if !current_state = ais_flin
          then goal_state := ais_lock;
-         if !behavior <> aib_follow_path && !behavior <> aib_run_from
+         if !behavior <> aib_snipe && !behavior <> aib_run_from
          then do_firing_stuff ();
          if
            !player_visibility = 2
-           && !behavior <> aib_follow_path
+           && !behavior <> aib_snipe
            && !behavior <> aib_run_from
            && obj_id <> robot_brain
          then (if attack_type = 0 then mode := aim_chase_object)
@@ -1443,7 +1437,7 @@ let do_ai_frame_d1
            hide_index := -1;
            path_length := 0);
          Effect.perform (Ai_multi_send_robot_position (-1)))
-     | m when m = aim_hide ->
+     | m when m = aim_behind ->
        let ok = Effect.perform (Ai_multiplayer_awareness 71) in
        if not ok
        then (
@@ -1955,7 +1949,7 @@ let do_ai_frame_d2
              Effect.perform Move_towards_segment_center;
              Effect.perform (Create_n_segment_path (5, -1));
              mode := aim_behind
-           | m when m = aim_hide ->
+           | m when m = aim_behind ->
              Effect.perform Move_towards_segment_center;
              if overall_agitation > 50 - (difficulty_level * 4)
              then Effect.perform (Create_path_to_player (4 + (overall_agitation / 8), 1))
@@ -2011,7 +2005,7 @@ let do_ai_frame_d2
         if !player_visibility = 1 then player_visibility := 2;
         if
           !behavior <> aib_still
-          && !behavior <> aib_follow_path
+          && !behavior <> aib_snipe
           && !behavior <> aib_run_from
           && obj_id <> robot_brain
         then mode := aim_chase_object)
@@ -2067,20 +2061,32 @@ let do_ai_frame_d2
       (* Phase: D2 specials: snipe, escort, thief *)
       if !behavior = aib_snipe
       then (
-        compute_vis ();
-        let vtpx, vtpy, vtpz = !vec_to_player in
-        Effect.perform
-          (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz)))
+        if obj_ref land 3 = 0 || !previous_visibility <> 0
+        then (
+          compute_vis ();
+          (* If sniper is in still mode, switch to snipe mode if visible or hit *)
+          if !mode = aim_still then
+            (if !player_visibility <> 0
+                || !player_awareness_type = pa_weapon_robot_collision
+             then mode := aim_snipe_attack);
+          if thief = 0 && !mode <> aim_still then (
+            let vtpx, vtpy, vtpz = !vec_to_player in
+            Effect.perform
+              (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode))))
+        else if thief = 0 && companion = 0
+        then () (* return early - skip rest of AI frame *))
       else if companion <> 0
       then (
         compute_vis ();
-        Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)))
-      else if thief <> 0
+        Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)));
+      (* Thief section: runs independently of snipe (thief has AIB_SNIPE behavior) *)
+      if thief <> 0
       then (
         compute_vis ();
         let vtpx, vtpy, vtpz = !vec_to_player in
         Effect.perform
-          (Do_thief_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz)));
+          (Do_thief_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz,
+                           !player_awareness_type, !player_awareness_time)));
       (* Phase: mode dispatch (D2) *)
       (match !mode with
        | m when m = aim_chase_object ->
@@ -2210,11 +2216,11 @@ let do_ai_frame_d2
            then goal_state := ais_lock
            else if !current_state = ais_flin
            then goal_state := ais_lock;
-           if !behavior <> aib_follow_path && !behavior <> aib_run_from
+           if !behavior <> aib_snipe && !behavior <> aib_run_from
            then () (* do_firing_stuff on C side *);
            if
              !player_visibility = 2
-             && !behavior <> aib_follow_path
+             && !behavior <> aib_snipe
              && !behavior <> aib_run_from
              && obj_id <> robot_brain
            then (if attack_type = 0 then mode := aim_chase_object)
@@ -2243,7 +2249,7 @@ let do_ai_frame_d2
            then goal_state := ais_lock;
            if !player_visibility = 2 then do_actual_firing ();
            Effect.perform (Ai_multi_send_robot_position (-1)))
-       | m when m = aim_hide ->
+       | m when m = aim_behind ->
          let ok = Effect.perform (Ai_multiplayer_awareness 71) in
          if not ok
          then (

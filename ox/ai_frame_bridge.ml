@@ -95,8 +95,9 @@ external effect_do_snipe_frame
   -> int
   -> int
   -> int
+  -> int
   -> unit
-  = "cd_ox_effect_af_do_snipe_frame"
+  = "cd_ox_effect_af_do_snipe_frame_bytecode" "cd_ox_effect_af_do_snipe_frame"
 
 external effect_do_escort_frame : int -> int -> unit = "cd_ox_effect_af_do_escort_frame"
 
@@ -106,8 +107,10 @@ external effect_do_thief_frame
   -> int
   -> int
   -> int
+  -> int
+  -> int
   -> unit
-  = "cd_ox_effect_af_do_thief_frame"
+  = "cd_ox_effect_af_do_thief_frame_bytecode" "cd_ox_effect_af_do_thief_frame"
 
 external effect_do_any_robot_dying_frame
   :  unit
@@ -228,20 +231,20 @@ let ai_frame_effect_handler
       (fun k ->
         let result = effect_object_to_object_visibility () in
         Effect.Deep.continue k result)
-  | Ox_ai_frame.Do_snipe_frame (dist, vis, vtpx, vtpy, vtpz) ->
+  | Ox_ai_frame.Do_snipe_frame (dist, vis, vtpx, vtpy, vtpz, mode) ->
     Some
       (fun k ->
-        effect_do_snipe_frame dist vis vtpx vtpy vtpz;
+        effect_do_snipe_frame dist vis vtpx vtpy vtpz mode;
         Effect.Deep.continue k ())
   | Ox_ai_frame.Do_escort_frame (dist, vis) ->
     Some
       (fun k ->
         effect_do_escort_frame dist vis;
         Effect.Deep.continue k ())
-  | Ox_ai_frame.Do_thief_frame (dist, vis, vtpx, vtpy, vtpz) ->
+  | Ox_ai_frame.Do_thief_frame (dist, vis, vtpx, vtpy, vtpz, pat, pat_time) ->
     Some
       (fun k ->
-        effect_do_thief_frame dist vis vtpx vtpy vtpz;
+        effect_do_thief_frame dist vis vtpx vtpy vtpz pat pat_time;
         Effect.Deep.continue k ())
   | Ox_ai_frame.Do_any_robot_dying_frame ->
     Some

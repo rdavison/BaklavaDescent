@@ -414,7 +414,11 @@ void do_ai_frame(object* obj)
 					return object_to_object_visibility(af_obj, ConsoleObject, FQ_TRANSWALL);
 				},
 				// do_snipe_frame
-				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz, int mode) {
+					// Write back mode from OCaml so do_snipe_frame sees
+					// the AIM_STILL→AIM_SNIPE_ATTACK transition
+					int objnum = af_obj - Objects;
+					Ai_local_info[objnum].mode = mode;
 					vms_vector vtp = {vtpx, vtpy, vtpz};
 					do_snipe_frame(af_obj, dist, vis, &vtp);
 				},
@@ -423,7 +427,13 @@ void do_ai_frame(object* obj)
 					do_escort_frame(af_obj, dist, vis);
 				},
 				// do_thief_frame
-				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz,
+				   int pat, int pat_time) {
+					// Write back awareness from OCaml before calling do_thief_frame,
+					// which reads ailp->player_awareness_type directly from C memory
+					int objnum = af_obj - Objects;
+					Ai_local_info[objnum].player_awareness_type = pat;
+					Ai_local_info[objnum].player_awareness_time = pat_time;
 					vms_vector vtp = {vtpx, vtpy, vtpz};
 					do_thief_frame(af_obj, dist, vis, &vtp);
 				},
@@ -641,12 +651,10 @@ void do_ai_frame(object* obj)
 						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 				}
 			}
-			do_firing_stuff(obj, player_visibility, &vec_to_player);
 		} else if (ailp->mode == AIM_STILL) {
 			if ((player_visibility == 2) || (ailp->previous_visibility == 2)) {
 				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 			}
-			do_firing_stuff(obj, player_visibility, &vec_to_player);
 			if (player_visibility == 2) {
 				if (robptr->attack_type == 1) {
 					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
@@ -690,8 +698,7 @@ void do_ai_frame(object* obj)
 			if (robptr->thief)
 				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
 		} else if (ailp->mode == AIM_FOLLOW_PATH) {
-			if (aip->behavior != AIB_RUN_FROM)
-				do_firing_stuff(obj, player_visibility, &vec_to_player);
+			// do_firing_stuff handled by OCaml AI frame
 		}
 
 		// Secondary state machine: turning based on CURRENT_STATE

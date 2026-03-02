@@ -1941,3 +1941,47 @@ First AI system function ported. Determines whether a robot can open a door on a
   - Object byte 163 = `ai_info.PATH_DIR` (flags[3])
   - ai_local byte 36 = `next_fire2` (fix value)
   - ai_local byte 56 = `time_since_processed` (fix value)
+
+---
+
+### Session 23: D2 AI Constant Fixes, Thief/Snipe Parity & Crash Fix
+
+- **Goal:** Fix remaining parity divergences from session 22, investigate and fix crashes.
+
+- **Bugs found and fixed:**
+
+  1. **AIB behavior constants wrong (ox_ai_frame.ml)** — OCaml had D1-style values (`aib_snipe=0x87`, `aib_behind=0x86`) instead of correct D2 values (`aib_snipe=0x84`, `aib_behind=0x82`, `aib_follow=0x86`). All `aib_follow_path` references replaced with `aib_snipe` (7 occurrences).
+
+  2. **AIM mode constants wrong (ox_ai_frame.ml)** — OCaml had D1's `aim_hide=5` which doesn't exist in D2, pushing all subsequent modes off by 1. Removed `aim_hide`, set `aim_behind=5`, corrected all values through `aim_thief_wait=17`. Replaced all `aim_hide` references with `aim_behind`.
+
+  3. **Snipe robot gate missing (ox_ai_frame.ml)** — OCaml called `Do_snipe_frame` unconditionally for snipe robots. C has `!(obj_ref & 3) || previous_visibility` gate plus `mode != AIM_STILL` check. Added both guards and the AIM_STILL→AIM_SNIPE_ATTACK transition.
+
+  4. **Thief `Do_thief_frame` never called (ox_ai_frame.ml)** — Thief robot has `behavior=AIB_SNIPE`, so it enters the snipe `if` block. OCaml had snipe/companion/thief as `if/else if` chain, meaning the thief branch was unreachable. In C, the snipe section (line 1196) and thief section (line 1273) are separate sequential `if` blocks. Fixed by making thief section independent.
+
+  5. **Thief awareness not written back (ai.cpp, bridge)** — `do_thief_frame` reads `ailp->player_awareness_type` from C memory, but OCaml may have already modified it (e.g., random visibility check sets `pa_player_collision`). Added `player_awareness_type` and `player_awareness_time` parameters to `Do_thief_frame` effect; C handler writes them back before calling `do_thief_frame`.
+
+  6. **Snipe mode not written back — crash fix (ai.cpp, bridge)** — OCaml sets `mode := aim_snipe_attack` when transitioning from AIM_STILL, but C-side `Ai_local_info` still had AIM_STILL. `do_snipe_frame` hit `default: Int3()` causing SIGTRAP crash in live play. Added `mode` parameter to `Do_snipe_frame` effect; C handler writes it back before calling `do_snipe_frame`.
+
+- **Other fixes:**
+  - Removed debug code from `tools/headless_replay.cpp` (initial state dump)
+  - Fixed `tools/compare_state_logs.c` default struct sizes: 264/196/180 → 268/200/148 (arm64 macOS)
+  - Updated D1 `main_d1/ai.cpp` stubs for changed effect signatures
+
+- **Results:**
+  - Frame 1 divergences: 27 bytes → 16 bytes
+  - Thief robot (object 93): 11 byte divergences → 0
+  - Snipe robot crash: fixed
+  - Remaining 16 frame-1 divergences:
+    - 11 × CURRENT_STATE (byte 161): animation ordering — `do_silly_animation` runs before AI in C, after in bridge. Architectural issue.
+    - 5 × object 28 orientation: `vec_to_player` recomputed from `obj->pos` in bridge movement code vs `gun_point` in C's `compute_vis_and_vec`. Rounding difference.
+
+- **Key pattern identified:** Effects that call C functions reading `Ai_local_info` fields must write back any OCaml modifications first. Applied to `Do_thief_frame` (awareness) and `Do_snipe_frame` (mode). Same pattern may apply to other effects.
+
+- **Files changed:**
+  - `ox/ox_ai_frame.ml` — AIB/AIM constants, snipe gate, thief section, effect signatures
+  - `ox/ai_frame_bridge.ml` — Updated Do_snipe_frame/Do_thief_frame handlers and externals
+  - `ox/bridge.c` — New snipe/thief C stubs with write-back + bytecode wrappers
+  - `ox/bridge.h` — Updated function pointer typedefs
+  - `main_d2/ai.cpp` — Snipe/thief effect lambdas with mode/awareness write-back
+  - `main_d1/ai.cpp` — Updated D2-only stub signatures
+  - `tools/compare_state_logs.c` — Corrected default struct sizes

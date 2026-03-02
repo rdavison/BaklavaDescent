@@ -138,10 +138,10 @@ int main(int argc, char **argv)
 	const char *file_a = argv[arg_offset];
 	const char *file_b = argv[arg_offset + 1];
 
-	/* Default struct sizes for Descent 2 (platform-dependent, override if needed) */
-	size_t object_size = (argc > arg_offset + 2) ? (size_t)atoi(argv[arg_offset + 2]) : 264;
-	size_t ai_local_size = (argc > arg_offset + 3) ? (size_t)atoi(argv[arg_offset + 3]) : 196;
-	size_t player_size = (argc > arg_offset + 4) ? (size_t)atoi(argv[arg_offset + 4]) : 180;
+	/* Default struct sizes for Descent 2 on arm64 macOS */
+	size_t object_size = (argc > arg_offset + 2) ? (size_t)atoi(argv[arg_offset + 2]) : 268;
+	size_t ai_local_size = (argc > arg_offset + 3) ? (size_t)atoi(argv[arg_offset + 3]) : 200;
+	size_t player_size = (argc > arg_offset + 4) ? (size_t)atoi(argv[arg_offset + 4]) : 148;
 
 	FILE *fa = fopen(file_a, "rb");
 	FILE *fb = fopen(file_b, "rb");

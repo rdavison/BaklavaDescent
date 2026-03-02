@@ -3350,11 +3350,11 @@ void do_ai_frame(object* obj)
 				// object_to_object_visibility (D2 only, noop for D1)
 				[]() -> int { return 0; },
 				// do_snipe_frame (D2 only)
-				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {},
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz, int mode) {},
 				// do_escort_frame (D2 only)
 				[](int dist, int vis) {},
 				// do_thief_frame (D2 only)
-				[](int dist, int vis, int vtpx, int vtpy, int vtpz) {},
+				[](int dist, int vis, int vtpx, int vtpy, int vtpz, int pat, int pat_time) {},
 				// do_any_robot_dying_frame (D2 only)
 				[]() -> int { return 0; },
 				// make_nearby_robot_snipe (D2 only)

@@ -983,10 +983,12 @@ typedef int  (*cd_effect_af_p_rand_fn)(void);
 typedef void (*cd_effect_af_make_random_vector_fn)(int32_t* rx, int32_t* ry, int32_t* rz);
 typedef int  (*cd_effect_af_object_to_object_visibility_fn)(void);
 typedef void (*cd_effect_af_do_snipe_frame_fn)(int dist, int vis,
-                                                int vtpx, int vtpy, int vtpz);
+                                                int vtpx, int vtpy, int vtpz,
+                                                int mode);
 typedef void (*cd_effect_af_do_escort_frame_fn)(int dist, int vis);
 typedef void (*cd_effect_af_do_thief_frame_fn)(int dist, int vis,
-                                                int vtpx, int vtpy, int vtpz);
+                                                int vtpx, int vtpy, int vtpz,
+                                                int pat, int pat_time);
 typedef int  (*cd_effect_af_do_any_robot_dying_frame_fn)(void);
 typedef void (*cd_effect_af_make_nearby_robot_snipe_fn)(void);
 typedef void (*cd_effect_af_move_away_from_player_fn)(void);

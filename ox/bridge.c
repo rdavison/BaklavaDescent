@@ -3967,13 +3967,22 @@ CAMLprim value cd_ox_effect_af_object_to_object_visibility(value unit)
 
 CAMLprim value cd_ox_effect_af_do_snipe_frame(
     value v_dist, value v_vis,
-    value v_vtpx, value v_vtpy, value v_vtpz)
+    value v_vtpx, value v_vtpy, value v_vtpz,
+    value v_mode)
 {
     if (g_effect_af_do_snipe_frame)
         g_effect_af_do_snipe_frame(
             Int_val(v_dist), Int_val(v_vis),
-            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz),
+            Int_val(v_mode));
     return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_snipe_frame_bytecode(value *argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_af_do_snipe_frame(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
 }
 
 CAMLprim value cd_ox_effect_af_do_escort_frame(value v_dist, value v_vis)
@@ -3985,13 +3994,22 @@ CAMLprim value cd_ox_effect_af_do_escort_frame(value v_dist, value v_vis)
 
 CAMLprim value cd_ox_effect_af_do_thief_frame(
     value v_dist, value v_vis,
-    value v_vtpx, value v_vtpy, value v_vtpz)
+    value v_vtpx, value v_vtpy, value v_vtpz,
+    value v_pat, value v_pat_time)
 {
     if (g_effect_af_do_thief_frame)
         g_effect_af_do_thief_frame(
             Int_val(v_dist), Int_val(v_vis),
-            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz),
+            Int_val(v_pat), Int_val(v_pat_time));
     return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_af_do_thief_frame_bytecode(value *argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_af_do_thief_frame(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
 }
 
 CAMLprim value cd_ox_effect_af_do_any_robot_dying_frame(value unit)
