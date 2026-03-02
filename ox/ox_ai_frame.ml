@@ -67,6 +67,7 @@ let segment_is_robotmaker = 2
 let chase_time_length = f1_0 * 8
 let ri_cloaked_except_firing = 1
 let player_flags_cloaked = 0x800
+let player_flags_headlight_on = 0x4000
 let pf_uses_thrust = 1
 
 (* D2-only constants *)
@@ -1177,17 +1178,33 @@ let do_ai_frame_d1
                 if !dist_to_player < f1_0 * 30
                 then Effect.perform (Create_n_segment_path (5, 1))
                 else Effect.perform (Create_path_to_player (20, 1)))));
-    (* Phase: collision awareness *)
+    (* Phase: collision awareness + visibility agitation *)
     if
       !player_awareness_type = pa_weapon_robot_collision
       || !player_awareness_type >= pa_player_collision
-    then
+    then (
+      compute_vis ();
+      if !player_visibility = 1 then player_visibility := 2;
       if
         !behavior <> aib_still
         && !behavior <> aib_follow_path
         && !behavior <> aib_run_from
         && obj_id <> robot_brain
-      then mode := aim_chase_object;
+      then mode := aim_chase_object)
+    else if
+      obj_ref land 3 = 0
+      && !previous_visibility = 0
+      && !dist_to_player < f1_0 * 100
+    then (
+      let rval = Effect.perform P_Rand in
+      let sval = !dist_to_player * (difficulty_level + 1) / 64 in
+      if Ox_math.fixmul ~a:rval ~b:sval < frame_time
+         || player_flags land player_flags_headlight_on <> 0
+      then (
+        player_awareness_type := pa_player_collision;
+        player_awareness_time := f1_0 * 3;
+        compute_vis ();
+        if !player_visibility = 1 then player_visibility := 2));
     (* Phase: flinch→lock *)
     if !goal_state = ais_flin && !current_state = ais_flin then goal_state := ais_lock;
     (* Phase: animation *)
@@ -1227,19 +1244,14 @@ let do_ai_frame_d1
      | _ -> ());
     (* Phase: time slicing — C returns early here *)
     if !player_awareness_type < pa_weapon_robot_collision - 1
+       && rinfo.(ri_companion) = 0 && rinfo.(ri_thief) = 0
     then
-      if !dist_to_player > f1_0 * 250 && !time_since_processed <= f1_0 * 2
-      then raise Early_return
-      else if
-        not
-          (!behavior = aib_station
-           && !mode = aim_follow_path
-           && hide_segment <> obj_segnum)
-      then
-        if !dist_to_player > f1_0 * 150 && !time_since_processed <= f1_0
-        then raise Early_return
-        else if !dist_to_player > f1_0 * 100 && !time_since_processed <= f1_0 / 2
-        then raise Early_return;
+      if !behavior = aib_station && !mode = aim_follow_path
+         && hide_segment <> obj_segnum
+      then (if !dist_to_player > f1_0 * 250 then raise Early_return)
+      else if !previous_visibility = 0
+              && !dist_to_player asr 7 > !time_since_processed
+      then raise Early_return;
     time_since_processed := -(((objnum land 0x03) * frame_time) / 2);
     (* Phase: brain robot *)
     if obj_id = robot_brain
@@ -1461,12 +1473,8 @@ let do_ai_frame_d1
        then (
          compute_vis ();
          if
-           !player_visibility > 0
-           || !previous_visibility > 0
-           || (game_mode land gm_multi = 0
-               &&
-               let pr = Effect.perform P_Rand in
-               pr > 0x4000)
+           !player_visibility = 2
+           || !previous_visibility = 2
          then (
            let ok = Effect.perform (Ai_multiplayer_awareness 71) in
            if not ok
@@ -1475,7 +1483,7 @@ let do_ai_frame_d1
              (* ai_turn_towards_vector on C side *)
              Effect.perform (Ai_multi_send_robot_position (-1)));
          do_firing_stuff ();
-         if !player_visibility > 0
+         if !player_visibility = 2
          then
            if attack_type = 1
            then (
@@ -1863,6 +1871,8 @@ let do_ai_frame_d2
     if dying
     then pack_result ()
     else (
+      let exception Early_return in
+      (try
       (* Phase: unflinch (D2 uses ready_to_fire) *)
       if
         !goal_state = ais_flin
@@ -1874,7 +1884,8 @@ let do_ai_frame_d2
       (* Phase: timer decrements *)
       if !next_fire > -(f1_0 * 8) then next_fire := !next_fire - frame_time;
       if weapon_type2 <> -1
-      then if !next_fire2 > -(f1_0 * 8) then next_fire2 := !next_fire2 - frame_time;
+      then (if !next_fire2 > -(f1_0 * 8) then next_fire2 := !next_fire2 - frame_time)
+      else next_fire2 := f1_0 * 8;
       if !time_since_processed < f1_0 * 256
       then time_since_processed := !time_since_processed + frame_time;
       previous_visibility := ai_state.(idx_previous_visibility);
@@ -1991,17 +2002,33 @@ let do_ai_frame_d2
                   if !dist_to_player < f1_0 * 30
                   then Effect.perform (Create_n_segment_path (5, 1))
                   else Effect.perform (Create_path_to_player (20, 1)))));
-      (* Phase: collision awareness *)
+      (* Phase: collision awareness + visibility agitation *)
       if
         !player_awareness_type = pa_weapon_robot_collision
         || !player_awareness_type >= pa_player_collision
-      then
+      then (
+        compute_vis ();
+        if !player_visibility = 1 then player_visibility := 2;
         if
           !behavior <> aib_still
           && !behavior <> aib_follow_path
           && !behavior <> aib_run_from
           && obj_id <> robot_brain
-        then mode := aim_chase_object;
+        then mode := aim_chase_object)
+      else if
+        obj_ref land 3 = 0
+        && !previous_visibility = 0
+        && !dist_to_player < f1_0 * 100
+      then (
+        let rval = Effect.perform P_Rand in
+        let sval = !dist_to_player * (difficulty_level + 1) / 64 in
+        if Ox_math.fixmul ~a:rval ~b:sval < frame_time
+           || player_flags land player_flags_headlight_on <> 0
+        then (
+          player_awareness_type := pa_player_collision;
+          player_awareness_time := f1_0 * 3;
+          compute_vis ();
+          if !player_visibility = 1 then player_visibility := 2));
       (* Phase: flinch→lock *)
       if !goal_state = ais_flin && !current_state = ais_flin then goal_state := ais_lock;
       (* Phase: animation *)
@@ -2019,20 +2046,16 @@ let do_ai_frame_d2
         Effect.perform (Do_boss_stuff !player_visibility);
         dist_to_player := !dist_to_player * 4);
       (* Phase: time slicing *)
-      if !player_awareness_type < pa_weapon_robot_collision - 1
+      if not (!behavior = aib_snipe && !mode <> aim_snipe_wait)
+         && companion = 0 && thief = 0
+         && !player_awareness_type < pa_weapon_robot_collision - 1
       then
-        if !dist_to_player > f1_0 * 250 && !time_since_processed <= f1_0 * 2
-        then ()
-        else if
-          not
-            (!behavior = aib_station
-             && !mode = aim_follow_path
-             && hide_segment <> obj_segnum)
-        then
-          if !dist_to_player > f1_0 * 150 && !time_since_processed <= f1_0
-          then ()
-          else if !dist_to_player > f1_0 * 100 && !time_since_processed <= f1_0 / 2
-          then ();
+        if !behavior = aib_station && !mode = aim_follow_path
+           && hide_segment <> obj_segnum
+        then (if !dist_to_player > f1_0 * 250 then raise Early_return)
+        else if !previous_visibility = 0
+                && !dist_to_player asr 7 > !time_since_processed
+        then raise Early_return;
       time_since_processed := -(((objnum land 0x03) * frame_time) / 2);
       (* Phase: brain robot (D2) *)
       if obj_id = robot_brain
@@ -2250,18 +2273,14 @@ let do_ai_frame_d2
          then (
            compute_vis ();
            if
-             !player_visibility > 0
-             || !previous_visibility > 0
-             || (game_mode land gm_multi = 0
-                 &&
-                 let pr = Effect.perform P_Rand in
-                 pr > 0x4000)
+             !player_visibility = 2
+             || !previous_visibility = 2
            then (
              let ok = Effect.perform (Ai_multiplayer_awareness 71) in
              if not ok
              then maybe_fire_mp ()
              else Effect.perform (Ai_multi_send_robot_position (-1)));
-           if !player_visibility > 0
+           if !player_visibility = 2
            then
              if attack_type = 1
              then (
@@ -2405,5 +2424,6 @@ let do_ai_frame_d2
       then (
         current_gun := !current_gun + 1;
         if !current_gun >= n_guns then current_gun := 0);
+      with Early_return -> ());
       pack_result ()))
 ;;
