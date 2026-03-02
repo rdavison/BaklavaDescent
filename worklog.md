@@ -1908,3 +1908,36 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/gameseq.cpp` — Recorder level_start hook
   - `main_d2/inferno.cpp` — Record/replay arg parsing + cleanup
   - `main_d2/ai.cpp`, `main_d2/physics.cpp` — Parity check hooks
+
+---
+
+### Session 22: Headless Parity Divergence Analysis & Fixes
+
+- **Goal:** Analyze divergences between C-only and OCaml headless replay state logs; fix identified bugs.
+
+- **Analysis method:** Compared per-frame state logs (~74MB each, 636 frames) using `compare_state_logs` with arm64-correct struct sizes (268/200/148). Mapped divergent byte offsets to struct fields using `offsetof()`.
+
+- **Bugs found and fixed in `ox/ox_ai_frame.ml`:**
+  1. **Missing `else next_fire2 := f1_0 * 8`** — Robots without secondary weapons (`weapon_type2 = -1`) weren't getting `next_fire2` reset. C code (ai.cpp:815-816) has the else branch; OCaml was missing it.
+  2. **Extra P_Rand in AIM_STILL** — OCaml had `P_Rand() > 0x4000` condition active, but C code (ai.cpp:1561) has it commented out (MK 06/09/95). Extra RNG call desynchronized all downstream random state.
+  3. **Wrong visibility check in AIM_STILL** — OCaml checked `player_visibility > 0`; C checks `player_visibility == 2`. Also applied to the snipe variant.
+  4. **Missing visibility agitation block** — C code (ai.cpp:1050-1068) has an `else if` branch that calls `P_Rand()` for random visibility awareness when `(obj_ref & 3) == 0 && !previous_visibility && dist < F1_0*100`. OCaml was entirely missing this block, including the `compute_vis_and_vec` call in the collision awareness branch.
+  5. **Wrong time-slice logic** — OCaml had invented distance-based thresholds (250/150/100 with time checks) that don't match C. C's actual check: `(!previous_visibility) && ((dist >> 7) > time_since_processed)` for non-station robots. Also missing `!companion && !thief` guards and snipe behavior exclusion.
+
+- **Results:**
+  - RNG sync improved from 0 frames → 64 frames of perfect match
+  - Frame 1 divergences reduced from ~350+ lines to 43 lines
+  - Total divergence lines: ~113k (still large due to cascade from frame 65+ RNG desync)
+
+- **Remaining divergences (not yet fixed):**
+  - **GOAL_STATE mismatch:** OCaml AI frame defers `do_firing_stuff` to C movement code, which uses `ailp->previous_visibility` instead of freshly computed `player_visibility`. This causes robots newly becoming visible to fire differently.
+  - **RNG desync at frame 65:** Likely caused by accumulated GOAL_STATE differences leading to different code paths that conditionally call P_Rand.
+  - **Object 28 orientation:** Position/orientation divergences from frame 1, probably from `ai_turn_towards_vector` running differently due to GOAL_STATE mismatch.
+  - **Architectural note:** The bridge design splits AI state (OCaml) from movement/firing (C), using `previous_visibility` in the C movement code while C-only uses fresh visibility. This is a structural mismatch that requires either: (a) running `compute_vis_and_vec` in the C movement code, or (b) having the OCaml AI frame handle `do_firing_stuff` inline with proper D2 checks.
+
+- **Key offsets (arm64 macOS):**
+  - Object byte 161 = `ai_info.CURRENT_STATE` (flags[1])
+  - Object byte 162 = `ai_info.GOAL_STATE` (flags[2])
+  - Object byte 163 = `ai_info.PATH_DIR` (flags[3])
+  - ai_local byte 36 = `next_fire2` (fix value)
+  - ai_local byte 56 = `time_since_processed` (fix value)
