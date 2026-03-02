@@ -1930,7 +1930,8 @@ let do_ai_frame_d2
              then (
                Effect.perform (Ai_multi_send_robot_position 1);
                ai_evaded := 0)
-             else Effect.perform (Ai_multi_send_robot_position (-1))))
+             else Effect.perform (Ai_multi_send_robot_position (-1));
+             do_firing_stuff ()))
        | m when m = aim_run_from_object ->
          compute_vis ();
          if !player_visibility > 0
@@ -1993,13 +1994,16 @@ let do_ai_frame_d2
            then goal_state := ais_lock
            else if !current_state = ais_flin
            then goal_state := ais_lock;
-           if !behavior <> aib_snipe && !behavior <> aib_run_from
+           if !behavior <> aib_run_from
            then do_firing_stuff ();
            if
              !player_visibility = 2
              && !behavior <> aib_snipe
+             && !behavior <> aib_follow
              && !behavior <> aib_run_from
              && obj_id <> robot_brain
+             && companion = 0
+             && thief = 0
            then (if attack_type = 0 then mode := aim_chase_object)
            else if
              !player_visibility = 0
