@@ -2014,21 +2014,6 @@ let do_ai_frame_d2
              path_length := 0);
            Effect.perform (Ai_multi_send_robot_position (-1)))
        | m when m = aim_behind ->
-         compute_vis ();
-         let ok = Effect.perform (Ai_multiplayer_awareness 71) in
-         if not ok
-         then maybe_fire_mp ()
-         else (
-           let vtpx, vtpy, vtpz = !vec_to_player in
-           Effect.perform
-             (Ai_follow_path (!player_visibility, !previous_visibility, vtpx, vtpy, vtpz));
-           if !goal_state <> ais_flin
-           then goal_state := ais_lock
-           else if !current_state = ais_flin
-           then goal_state := ais_lock;
-           if !player_visibility = 2 then do_actual_firing ();
-           Effect.perform (Ai_multi_send_robot_position (-1)))
-       | m when m = aim_behind ->
          let ok = Effect.perform (Ai_multiplayer_awareness 71) in
          if not ok
          then (
@@ -2043,9 +2028,8 @@ let do_ai_frame_d2
              do_actual_firing ()))
          else (
            compute_vis ();
-           let vtpx, vtpy, vtpz = !vec_to_player in
-           Effect.perform
-             (Ai_follow_path (!player_visibility, !previous_visibility, vtpx, vtpy, vtpz));
+           (* Movement (move_towards_vector, ai_turn_towards_vector, ai_do_actual_firing_stuff)
+              is handled by the bridge post-OCaml section when player_visibility=2 *)
            if !goal_state <> ais_flin
            then goal_state := ais_lock
            else if !current_state = ais_flin
