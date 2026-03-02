@@ -277,9 +277,11 @@ let do_physics_sim_d1
       in
       if fvx = 0 && fvy = 0 && fvz = 0
       then () (* break *)
-      else if !retry_count >= 3 && not (obj_type = obj_player && !retry_count < 8)
-      then () (* break: too many retries *)
       else (
+        retry_count := !retry_count + 1;
+        if !retry_count > 3 && not (obj_type = obj_player && !retry_count <= 8)
+        then () (* break: too many retries *)
+        else (
         let new_px, new_py, new_pz =
           Ox_math.vm_vec_add ~a:(!cur_pos_x, !cur_pos_y, !cur_pos_z) ~b:(fvx, fvy, fvz)
         in
@@ -524,7 +526,7 @@ let do_physics_sim_d1
                   try_again := true)
             | _ ->
               (* HIT_NONE or HIT_BAD_P0 *)
-              ())))
+              ()))))
     done;
     (* Post-loop: set velocity from actual movement *)
     if (not !obj_stopped) && not !early_return
@@ -816,9 +818,11 @@ let do_physics_sim_d2
       in
       if fvx = 0 && fvy = 0 && fvz = 0
       then ()
-      else if !retry_count >= 3 && not (obj_type = obj_player && !retry_count < 8)
-      then ()
       else (
+        retry_count := !retry_count + 1;
+        if !retry_count > 3 && not (obj_type = obj_player && !retry_count <= 8)
+        then ()
+        else (
         let new_px, new_py, new_pz =
           Ox_math.vm_vec_add ~a:(!cur_pos_x, !cur_pos_y, !cur_pos_z) ~b:(fvx, fvy, fvz)
         in
@@ -1089,7 +1093,7 @@ let do_physics_sim_d2
                     ignore_objs.(!n_ignore_objs) <- hit_objnum;
                     n_ignore_objs := !n_ignore_objs + 1);
                   try_again := true)
-            | _ -> ())))
+            | _ -> ()))))
     done;
     (* Post-loop: set velocity from actual movement *)
     (* D2: skip velocity recalc if bounced *)

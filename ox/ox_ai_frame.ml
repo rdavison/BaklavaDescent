@@ -662,6 +662,9 @@ let ai_do_actual_firing_stuff_d2
       ~fire_at_nearby_threshold
       ~difficulty_level
       ~frame_time
+      ~believed_px
+      ~believed_py
+      ~believed_pz
   =
   let goal_state = ref goal_state in
   let goal_state_arr = Array.copy goal_state_arr in
@@ -702,11 +705,13 @@ let ai_do_actual_firing_stuff_d2
   if player_visibility = 2 || dist_to_last_fired_upon < fire_at_nearby_threshold
   then (
     (* Path 1: visible or recently fired upon *)
-    let fire_px = ref 0 in
-    let fire_py = ref 0 in
-    let fire_pz = ref 0 in
-    (* fire_pos is set by C side to Believed_player_pos or Last_fired_upon_player_pos *)
-    ignore (fire_px, fire_py, fire_pz);
+    (* fire_pos = Believed_player_pos by default;
+       if not melee and player not directly visible, use Last_fired_upon_player_pos.
+       We approximate Last_fired_upon_player_pos with believed_player_pos since they
+       are usually very close (Last is set to believed after each fire). *)
+    let fire_px = ref believed_px in
+    let fire_py = ref believed_py in
+    let fire_pz = ref believed_pz in
     if
       (not (object_animates <> 0))
       || next_fire <= 0
@@ -753,8 +758,7 @@ let ai_do_actual_firing_stuff_d2
         let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
         if ok
         then (
-          (* fire_pos = Believed_player_pos, handled by C side *)
-          Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, 0, 0, 0));
+          Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
           goal_state := ais_reco;
           goal_state_arr.(!current_gun) <- ais_reco;
           advance_gun ())
@@ -802,16 +806,16 @@ let ai_do_actual_firing_stuff_d2
                     if next_fire <= 0
                     then
                       Effect.perform
-                        (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, 0, 0, 0));
+                        (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
                     if next_fire2 <= 0 && weapon_type2 <> -1
                     then (
                       let gp2x, gp2y, gp2z = Effect.perform (Calc_gun_point 0) in
                       Effect.perform
-                        (Ai_fire_laser_at_player (gp2x, gp2y, gp2z, 0, 0, 0, 0))))
+                        (Ai_fire_laser_at_player (gp2x, gp2y, gp2z, 0, believed_px, believed_py, believed_pz))))
                   else if next_fire <= 0
                   then
                     Effect.perform
-                      (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, 0, 0, 0)));
+                      (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz)));
               if
                 behavior <> aib_run_from
                 && behavior <> aib_still
@@ -1820,6 +1824,9 @@ let do_ai_frame_d2
         ~fire_at_nearby_threshold
         ~difficulty_level
         ~frame_time
+        ~believed_px:(let bx, _, _ = !believed_player_pos in bx)
+        ~believed_py:(let _, by, _ = !believed_player_pos in by)
+        ~believed_pz:(let _, _, bz = !believed_player_pos in bz)
     in
     goal_state := result.(0);
     for i = 0 to 7 do

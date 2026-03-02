@@ -142,7 +142,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] calc_gun_point
 
 ### Unported
-- [x] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI)
+- [x] do_physics_sim — full per-object physics step (reads/writes ~30 object fields, calls FVI). Fixed: retry_count now incremented each iteration to enforce retry limit (prevents infinite loop on death debris).
 - [x] do_physics_drag — thrust/drag velocity integration subpart of do_physics_sim (D1+D2)
 - [x] bump_one_object — applies bump force + damage
 - [x] bump_two_objects — mutual bump between two objects
@@ -270,7 +270,7 @@ Legend: `[x]` = ported + tested, `[-]` = not portable / out of scope, `[ ]` = TO
 - [x] do_ai_frame — main AI frame (massive, reads ~50 globals)
 - [ ] ai_do_cloak_stuff — cloaking behavior
 - [x] do_firing_stuff — firing decision dispatcher (D1+D2)
-- [x] ai_do_actual_firing_stuff — main firing logic
+- [x] ai_do_actual_firing_stuff — main firing logic. Fixed D2: fire_pos was (0,0,0) instead of believed_player_pos, causing robots to aim at map origin.
 - [x] maybe_ai_do_actual_firing_stuff — conditional firing
 
 ### Unported — Robot Animation
