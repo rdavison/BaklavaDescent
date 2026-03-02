@@ -2086,7 +2086,7 @@ let do_ai_frame_d2
             Effect.perform
               (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode))))
         else if thief = 0 && companion = 0
-        then () (* return early - skip rest of AI frame *))
+        then raise Early_return)
       else if companion <> 0
       then (
         compute_vis ();

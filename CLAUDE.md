@@ -108,7 +108,7 @@ cd <game-data-dir>
 - Override with positional args: `compare_state_logs file_a file_b [obj_size] [ai_size] [player_size]`
 
 ### Key byte offsets (arm64 macOS)
-- **object** byte 161 = `CURRENT_STATE`, byte 162 = `GOAL_STATE`
+- **object** byte 160 = `behavior`, byte 161 = `CURRENT_GUN`, byte 162 = `CURRENT_STATE`, byte 163 = `GOAL_STATE`
 - **ai_local** byte 0 = `player_awareness_type`, byte 12 = `mode`, byte 28 = `next_action_time`, byte 56 = `time_since_processed`
 
 ## Code Layout
