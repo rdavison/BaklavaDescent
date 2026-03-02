@@ -1858,3 +1858,53 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `CMakeLists.txt`, `ox/dune`, `scripts/ox/build_bridge.sh` — build/link order fixes
 
 - **Verification:** D1 and D2 launch and play correctly. No OCaml exceptions. Parity tests all pass.
+
+### 21) Parity testing infrastructure: input record/replay and headless replay binary
+
+- **Input record/replay system** (`OX_REPLAY` flag):
+  - `ox/input_recorder.h/.cpp` — Records FrameTime, Controls, RNG state, and initial game snapshot per frame.
+  - `ox/input_replayer.h/.cpp` — Replays recordings: restores snapshot, overrides inputs each frame.
+  - Hooks wired into `main_d2/game.cpp` (GameLoop lines 2318-2332, 2413-2417), `main_d2/gameseq.cpp` (StartNewLevelSub), `main_d2/inferno.cpp` (arg parsing + cleanup).
+  - CLI: `-record file`, `-replay file`, `-state-log file`.
+  - `tools/compare_state_logs.c` — Offline comparison tool for state log binary files.
+  - D1/D2 handled with `#ifdef BUILD_DESCENT2` guards; files are .cpp (types.h includes cstdint).
+
+- **Headless replay binary** (`headless_replay` CMake target):
+  - `tools/headless_replay.cpp` — Standalone main() that loads level, restores snapshot, runs `GameLoop(0,0)` with recorded inputs. No SDL/OpenAL/FluidSynth dependencies.
+  - `tools/headless_stubs.cpp` — No-op stubs for all platform functions (graphics, audio, MIDI, mouse).
+  - CMakeLists.txt: New target uses `list(REMOVE_ITEM)` to strip SDL/OpenAL/FluidSynth sources, `target_compile_options(-UUSE_SDL -UUSE_OPENAL -UUSE_FLUIDSYNTH)` to undo directory-level defines.
+  - Inline version of `LoadLevel` that skips UI rendering (show_boxed_message, gr_clear_canvas).
+  - Sets `Viewer = ConsoleObject` (normally done by init_objects), ignores SIGTRAP from Int3() debug traps.
+
+- **Key implementation details:**
+  - `gr_init(0)` + `gr_use_palette_table` + `gamefont_init` required before `bm_init` (graphics subsystem bootstrap).
+  - `platform_config.cpp` already provides `plat_read_chocolate_cfg`, `plat_save_chocolate_cfg`, `NoOpenGL` — stubs must not duplicate these.
+  - `mouse_get_delta`, `mouse_get_btns` live in `sdl/mouse_sdl.cpp` (excluded) — added to stubs.
+
+- **Verification workflow:**
+  ```
+  # Build OCaml + C-only headless binaries
+  cmake -DUSE_OX_BRIDGE=ON  -DOX_REPLAY=ON -S . -B build-ox && cmake --build build-ox --target headless_replay -j8
+  cmake -DUSE_OX_BRIDGE=OFF -DOX_REPLAY=ON -S . -B build-c-ref && cmake --build build-c-ref --target headless_replay -j8
+  # Run from game data directory
+  cd /path/to/descent2/data
+  /path/to/build-ox/headless_replay -replay test_session.rec -state-log ox_states.bin
+  /path/to/build-c-ref/headless_replay -replay test_session.rec -state-log c_states.bin
+  # Compare
+  /path/to/build-c-ref/compare_state_logs c_states.bin ox_states.bin
+  ```
+
+- **Initial results:** Both builds replay 636 frames successfully. Comparison shows byte-level divergences in object and AI state from frame 1, confirming the tool is surfacing real C-vs-OCaml differences.
+
+- **Files added/modified:**
+  - `tools/headless_replay.cpp` — Headless replay main
+  - `tools/headless_stubs.cpp` — Platform no-op stubs
+  - `tools/compare_state_logs.c` — State log comparison tool
+  - `ox/input_recorder.cpp/.h` — Frame input recorder
+  - `ox/input_replayer.cpp/.h` — Frame input replayer
+  - `ox/parity.cpp/.h` — Parity snapshot/compare infrastructure
+  - `CMakeLists.txt` — OX_PARITY_CHECK, OX_REPLAY flags, headless_replay target
+  - `main_d2/game.cpp` — Replay hooks in GameLoop
+  - `main_d2/gameseq.cpp` — Recorder level_start hook
+  - `main_d2/inferno.cpp` — Record/replay arg parsing + cleanup
+  - `main_d2/ai.cpp`, `main_d2/physics.cpp` — Parity check hooks

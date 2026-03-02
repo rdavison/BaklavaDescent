@@ -29,6 +29,11 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "misc/rand.h"
 
+#ifdef OX_REPLAY
+#include "ox/input_recorder.h"
+#include "ox/input_replayer.h"
+#endif
+
 //#include "pa_enabl.h"                   //$$POLY_ACC
 #include "platform/platform.h"
 #include "inferno.h"
@@ -2102,6 +2107,16 @@ void StartNewLevelSub(int level_num, int page_in_textures, int secret_flag)
 
 	copy_defaults_to_robot_all();
 	init_controlcen_for_level();
+
+#ifdef OX_REPLAY
+	/* Record initial game state for this level */
+	if (ox_recorder_active())
+		ox_recorder_level_start(level_num, Difficulty_level);
+
+	/* Replay mode: restore initial state from recording */
+	if (ox_replayer_active())
+		ox_replayer_restore_initial_state();
+#endif
 
 	//	Say player can use FLASH cheat to mark path to exit.
 	Last_level_path_created = -1;

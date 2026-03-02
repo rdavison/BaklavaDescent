@@ -7,6 +7,8 @@ set(CHOCOLATE_DESCENT_VERSION "0.1")
 set(BUILD_EDITOR OFF CACHE BOOL "Build the game editor. Descent 2 is highly broken atm. Won't link outside of Windows ATM.")
 set(NETWORK OFF CACHE BOOL "Build with UDP networking enabled.")
 set(USE_OX_BRIDGE OFF CACHE BOOL "Enable OxCaml runtime bridge for selected math paths.")
+set(OX_PARITY_CHECK OFF CACHE BOOL "Enable dual-execution parity checking (requires USE_OX_BRIDGE).")
+set(OX_REPLAY OFF CACHE BOOL "Enable input record/replay for parity testing.")
 #These features are intended for testing.
 set(DESCENT1_TEXMAP_IN_DESCENT2 OFF CACHE BOOL "Swaps Descent 1's texture mapper into Descent 2.")
 set(DESCENT2_TEXMAP_IN_DESCENT1 OFF CACHE BOOL "Swaps Descent 2's texture mapper into Descent 1. ")
@@ -766,6 +768,9 @@ if (USE_OX_BRIDGE)
 	add_custom_target(ox_bridge_build DEPENDS ${OX_BRIDGE_OBJECT})
 
 	set(OX_BRIDGE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ox/bridge.c ${OX_BRIDGE_OBJECT})
+	if (OX_PARITY_CHECK)
+		set(OX_BRIDGE_SOURCES ${OX_BRIDGE_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/ox/parity.cpp)
+	endif()
 	set(OX_BRIDGE_LIBS dl m pthread)
 endif()
 
@@ -827,6 +832,58 @@ if (USE_OX_BRIDGE)
 	target_sources(ChocolateDescent2 PRIVATE ${OX_BRIDGE_SOURCES})
 	target_compile_definitions(ChocolateDescent PUBLIC USE_OX_BRIDGE)
 	target_compile_definitions(ChocolateDescent2 PUBLIC USE_OX_BRIDGE)
+	if (OX_PARITY_CHECK)
+		target_compile_definitions(ChocolateDescent PUBLIC OX_PARITY_CHECK)
+		target_compile_definitions(ChocolateDescent2 PUBLIC OX_PARITY_CHECK)
+	endif()
+endif()
+
+if (OX_REPLAY)
+	target_sources(ChocolateDescent PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_recorder.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_replayer.cpp)
+	target_sources(ChocolateDescent2 PRIVATE
+		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_recorder.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_replayer.cpp)
+	target_compile_definitions(ChocolateDescent PUBLIC OX_REPLAY)
+	target_compile_definitions(ChocolateDescent2 PUBLIC OX_REPLAY)
+endif()
+
+# Standalone comparison tool for offline state log diffing
+if (OX_REPLAY)
+	add_executable(compare_state_logs ${CMAKE_CURRENT_SOURCE_DIR}/tools/compare_state_logs.c)
+endif()
+
+# Headless replay binary for parity testing
+if (OX_REPLAY)
+	set(HEADLESS_SOURCES ${SHARED_SOURCES} ${DESCENT2_SOURCES})
+	# Remove platform backends that require SDL/OpenAL/FluidSynth
+	list(REMOVE_ITEM HEADLESS_SOURCES
+		${SDL_SOURCES} ${OPENAL_SOURCES} ${FLUIDSYNTH_SOURCES}
+		platform/unix/unixmain.cpp)
+	# Add headless stubs, replay main, and replay infrastructure
+	list(APPEND HEADLESS_SOURCES
+		tools/headless_replay.cpp
+		tools/headless_stubs.cpp
+		ox/input_recorder.cpp
+		ox/input_replayer.cpp)
+	add_executable(headless_replay ${HEADLESS_SOURCES} ${NOT_COMPILED_SOURCES})
+	target_compile_definitions(headless_replay PUBLIC
+		BUILD_DESCENT2 OX_REPLAY UNIX _UNIX)
+	# Undo directory-level USE_SDL/USE_OPENAL/USE_FLUIDSYNTH from add_definitions
+	target_compile_options(headless_replay PRIVATE
+		-UUSE_SDL -UUSE_OPENAL -UUSE_FLUIDSYNTH)
+	set_target_properties(headless_replay PROPERTIES CXX_STANDARD 14)
+	target_link_libraries(headless_replay pthread)
+	if (USE_OX_BRIDGE)
+		add_dependencies(headless_replay ox_bridge_build)
+		target_sources(headless_replay PRIVATE ${OX_BRIDGE_SOURCES})
+		target_compile_definitions(headless_replay PUBLIC USE_OX_BRIDGE)
+		target_link_libraries(headless_replay ${OX_BRIDGE_LIBS})
+	endif()
+	if (OX_PARITY_CHECK AND USE_OX_BRIDGE)
+		target_compile_definitions(headless_replay PUBLIC OX_PARITY_CHECK)
+	endif()
 endif()
 
 set_target_properties(ChocolateDescent ChocolateDescent2 PROPERTIES CXX_STANDARD 14)

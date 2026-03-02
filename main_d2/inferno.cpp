@@ -78,6 +78,11 @@ char copyright[] = "DESCENT II  COPYRIGHT (C) 1994-1996 PARALLAX SOFTWARE CORPOR
 #include "main_shared/compbit.h"
 #include "misc/types.h"
 
+#ifdef OX_REPLAY
+#include "ox/input_recorder.h"
+#include "ox/input_replayer.h"
+#endif
+
 //#include "3dfx_des.h"
 
 #if defined(POLY_ACC)
@@ -604,6 +609,24 @@ int D_DescentMain(int argc, const char** argv)
 	}
 	if (Inferno_verbose) printf("Setting FPS Limit %d\n", FPSLimit);
 
+#ifdef OX_REPLAY
+	{
+		int record_arg = FindArg("-record");
+		if (record_arg && record_arg < (Num_args - 1)) {
+			ox_recorder_init(Args[record_arg + 1]);
+		}
+
+		int replay_arg = FindArg("-replay");
+		if (replay_arg && replay_arg < (Num_args - 1)) {
+			const char *state_log_file = NULL;
+			int state_log_arg = FindArg("-state-log");
+			if (state_log_arg && state_log_arg < (Num_args - 1))
+				state_log_file = Args[state_log_arg + 1];
+			ox_replayer_init(Args[replay_arg + 1], state_log_file);
+		}
+	}
+#endif
+
 	Lighting_on = 1;
 
 	check_memory();
@@ -1069,6 +1092,13 @@ Here:
 #ifndef NDEBUG
 	if (FindArg("-showmeminfo"))
 		show_mem_info = 1;		// Make memory statistics show
+#endif
+
+#ifdef OX_REPLAY
+	if (ox_recorder_active())
+		ox_recorder_close();
+	if (ox_replayer_active())
+		ox_replayer_close();
 #endif
 
 	plat_close();

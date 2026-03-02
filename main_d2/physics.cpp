@@ -50,6 +50,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 int do_boss_weapon_collision(object* robot, object* weapon, vms_vector* collision_point);
 #endif
 
+#ifdef OX_PARITY_CHECK
+#include "ox/parity.h"
+#endif
+
 #ifdef TACTILE
 #include "tactile.h"
 #endif
@@ -856,6 +860,10 @@ void do_physics_sim(object *obj)
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
 
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_before);
+#endif
+
 	int32_t result[25 + MAX_FVI_SEGS];
 	cd_ox_do_physics_sim_d2(
 		obj->pos.x, obj->pos.y, obj->pos.z,
@@ -891,8 +899,17 @@ void do_physics_sim(object *obj)
 	for (int i = 0; i < n_phys_segs && i < MAX_FVI_SEGS; i++)
 		phys_seglist[i] = (short)result[25 + i];
 
-	return;
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_after_ocaml);
+	parity_restore(&parity_snap_before);
+	// Fall through to C reference path below
 #else
+	return;
+#endif
+#endif // USE_OX_BRIDGE
+
+#if !defined(USE_OX_BRIDGE) || defined(OX_PARITY_CHECK)
+	{ // C reference path (scoped to avoid variable conflicts with OCaml path)
 	int ignore_obj_list[MAX_IGNORE_OBJS],n_ignore_objs;
 	int iseg;
 	int try_again;
@@ -981,7 +998,7 @@ if (Dont_move_ai_objects)
 	//do thrust & drag
 	
 	if ((drag = obj->mtype.phys_info.drag) != 0) {
-#ifdef USE_OX_BRIDGE
+#if defined(USE_OX_BRIDGE) && !defined(OX_PARITY_CHECK)
 		int32_t packed[10];
 		packed[0] = obj->mtype.phys_info.velocity.x;
 		packed[1] = obj->mtype.phys_info.velocity.y;
@@ -1531,7 +1548,15 @@ save_p1 = *fq.p1;
 		}
 	}
 //--WE ALWYS WANT THIS IN, MATT AND MIKE DECISION ON 12/10/94, TWO MONTHS AFTER FINAL 	#endif
-#endif // USE_OX_BRIDGE
+
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_after_c);
+	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
+		"do_physics_sim", FrameCount, obj - Objects);
+	// C result is canonical (already in place)
+#endif
+	} // end C reference path scope
+#endif // !USE_OX_BRIDGE || OX_PARITY_CHECK
 
 }
 

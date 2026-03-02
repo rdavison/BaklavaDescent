@@ -29,6 +29,11 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "misc/rand.h"
 
+#ifdef OX_REPLAY
+#include "ox/input_recorder.h"
+#include "ox/input_replayer.h"
+#endif
+
 #include "platform/platform.h"
 //#include "pa_enabl.h"       //$$POLY_ACC //[ISB] todo figure out something here aaa
 #include "inferno.h"
@@ -2310,6 +2315,22 @@ void GameLoop(int RenderFlag, int ReadControlsFlag )
 		else
 			memset(&Controls, 0, sizeof(Controls));
 
+#ifdef OX_REPLAY
+		/* Replay mode: override FrameTime, Controls, and RNG from recording */
+		if (ox_replayer_active()) {
+			if (ox_replayer_apply_frame() < 0) {
+				/* Replay finished */
+				ox_replayer_close();
+				Function_mode = FMODE_MENU;
+				return;
+			}
+		}
+		/* Record mode: capture this frame's inputs */
+		if (ox_recorder_active()) {
+			ox_recorder_frame();
+		}
+#endif
+
 		GameTime += FrameTime;
 
 		if (f2i(GameTime)/10 != f2i(GameTime-FrameTime)/10)
@@ -2388,6 +2409,12 @@ void GameLoop(int RenderFlag, int ReadControlsFlag )
 			fuelcen_update_all();
 
 			do_ai_frame_all();
+
+#ifdef OX_REPLAY
+			/* Log game state after physics + AI for offline comparison */
+			if (ox_replayer_active())
+				ox_replayer_log_state();
+#endif
 
 			if (allowed_to_fire_laser())
 				FireLaser();				// Fire Laser!

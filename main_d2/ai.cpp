@@ -55,6 +55,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "misc/rand.h"
 #include "ox/bridge.h"
 
+#ifdef OX_PARITY_CHECK
+#include "ox/parity.h"
+#endif
+
 #ifdef EDITOR
 #include "editor\editor.h"
 #endif
@@ -540,6 +544,10 @@ void do_ai_frame(object* obj)
 	int32_t phys_flags_before = obj->mtype.phys_info.flags;
 	vms_vector rotthrust_before = obj->mtype.phys_info.rotthrust;
 
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_before);
+#endif
+
 	int32_t result[47]; // 43 + 4 D2 extras
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
@@ -717,7 +725,13 @@ void do_ai_frame(object* obj)
 	if (do_silly_animation(obj))
 		ai_frame_animation(obj);
 
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_after_ocaml);
+	parity_restore(&parity_snap_before);
+	// Fall through to C reference path below
+#else
 	return;
+#endif
 	}
 #endif
 	int			objnum = obj - Objects;
@@ -1794,6 +1808,12 @@ void do_ai_frame(object* obj)
 				aip->CURRENT_GUN = 1;
 	}
 
+#ifdef OX_PARITY_CHECK
+	parity_snapshot(&parity_snap_after_c);
+	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
+		"do_ai_frame", FrameCount, obj - Objects);
+	// C result is canonical (already in place)
+#endif
 }
 
 //	-----------------------------------------------------------------------------------
