@@ -1747,7 +1747,7 @@ let do_ai_frame_d2
   in
   (* Helper: pack result *)
   let pack_result () =
-    let r = Array.create ~len:(ai_state_size + 4) 0 in
+    let r = Array.create ~len:(ai_state_size + 5) 0 in
     r.(idx_skip_ai_count) <- !skip_ai_count;
     r.(idx_goal_state) <- !goal_state;
     r.(idx_current_state) <- !current_state;
@@ -1784,6 +1784,7 @@ let do_ai_frame_d2
     r.(ai_state_size + 1) <- rotthrust.(0);
     r.(ai_state_size + 2) <- rotthrust.(1);
     r.(ai_state_size + 3) <- rotthrust.(2);
+    r.(ai_state_size + 4) <- !object_animates;
     r
   in
   (* Helper: fire actual D2 *)
@@ -2445,6 +2446,6 @@ let do_ai_frame_d2
       then (
         current_gun := !current_gun + 1;
         if !current_gun >= n_guns then current_gun := 0);
-      with Early_return -> ());
+      with Early_return -> object_animates := 0);
       pack_result ()))
 ;;

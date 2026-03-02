@@ -558,7 +558,7 @@ void do_ai_frame(object* obj)
 	parity_snapshot(&parity_snap_before);
 #endif
 
-	int32_t result[47]; // 43 + 4 D2 extras
+	int32_t result[48]; // 43 + 4 D2 extras + object_animates
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
 		rinfo, 29,
@@ -729,8 +729,12 @@ void do_ai_frame(object* obj)
 	}
 
 	// Animation (done on C side after OCaml state update)
-	if (do_silly_animation(obj))
-		ai_frame_animation(obj);
+	// Only animate if OCaml indicates the robot should be animated:
+	// object_animates is 0 when time-sliced (early return) or too far from player.
+	if (result[47]) {
+		if (do_silly_animation(obj))
+			ai_frame_animation(obj);
+	}
 
 #ifdef OX_PARITY_CHECK
 	parity_snapshot(&parity_snap_after_ocaml);
