@@ -50,10 +50,10 @@ let max_behavior_d1 = aib_station
 let max_behavior_d2 = aib_follow
 
 (* Player awareness types *)
-let pa_weapon_wall_collision = 1
-let pa_nearby_robot_fired = 2
-let pa_weapon_robot_collision = 3
-let pa_player_collision = 4
+let pa_nearby_robot_fired = 1
+let pa_weapon_wall_collision = 2
+let pa_player_collision = 3
+let pa_weapon_robot_collision = 4
 let robot_brain = 7
 let robot_fire_agitation = 94
 let gm_multi = 38
@@ -2345,8 +2345,12 @@ let do_ai_frame_d2
        | _ -> mode := aim_chase_object);
       (* Phase: final visibility *)
       compute_vis ();
-      if !player_visibility = 2
-      then if !player_awareness_type = 0 then player_awareness_type := pa_player_collision;
+      if !player_visibility = 2 && !behavior <> aib_follow && thief = 0
+      then (
+        if !player_awareness_type = 0 && !sub_flags land sub_flags_camera_awake <> 0
+        then sub_flags := !sub_flags land lnot sub_flags_camera_awake
+        else if !player_awareness_type = 0
+        then player_awareness_type := pa_player_collision);
       (* Phase: non-animating state sync *)
       if !object_animates = 0 then current_state := !goal_state;
       (* Phase: state transition *)
