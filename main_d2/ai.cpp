@@ -666,9 +666,21 @@ void do_ai_frame(object* obj)
 	// Movement calls that OCaml defers to C side
 	{
 		robot_info* robptr = &Robot_info[obj->id];
+		// Match C-only vis_vec_pos: use gun_point when ready_to_fire (pre-OCaml state), else obj->pos.
+		// C-only computes vec_to_player as normalize(Believed_player_pos - vis_vec_pos).
+		fix dist_to_player = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
+		int obj_ref = objnum ^ FrameCount;
+		vms_vector vis_vec_pos_mv;
+		if ((ailp_before.previous_visibility || !(obj_ref & 3)) &&
+		    ready_to_fire(robptr, &ailp_before) &&
+		    (dist_to_player < F1_0 * 200) && (robptr->n_guns) && !(robptr->attack_type)) {
+			vis_vec_pos_mv = gun_point_vec;
+		} else {
+			vis_vec_pos_mv = obj->pos;
+		}
 		vms_vector vec_to_player;
-		vm_vec_sub(&vec_to_player, &Believed_player_pos, &obj->pos);
-		fix dist_to_player = vm_vec_normalize_quick(&vec_to_player);
+		vm_vec_sub(&vec_to_player, &Believed_player_pos, &vis_vec_pos_mv);
+		vm_vec_normalize_quick(&vec_to_player);
 		int player_visibility = ailp->previous_visibility;
 
 		if (ailp->mode == AIM_CHASE_OBJECT) {
@@ -678,7 +690,6 @@ void do_ai_frame(object* obj)
 					circle_distance += (objnum & 0xf) * F1_0 / 2;
 				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0, player_visibility);
 
-				int obj_ref = objnum ^ FrameCount;
 				if ((obj_ref & 1) && (aip->GOAL_STATE == AIS_SRCH || aip->GOAL_STATE == AIS_LOCK)) {
 					if (player_visibility)
 						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
