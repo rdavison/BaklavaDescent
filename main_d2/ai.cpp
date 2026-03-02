@@ -549,9 +549,9 @@ void do_ai_frame(object* obj)
 	ai_state[41] = ailp->previous_visibility;
 	ai_state[42] = ailp->next_action_time;
 
-	// Pack robot info (29 ints)
+	// Pack robot info (30 ints)
 	robot_info* robptr = &Robot_info[obj->id];
-	int32_t rinfo[29];
+	int32_t rinfo[30];
 	rinfo[0]  = robptr->attack_type;
 	rinfo[1]  = robptr->weapon_type;
 	rinfo[2]  = robptr->weapon_type2;
@@ -575,6 +575,7 @@ void do_ai_frame(object* obj)
 		rinfo[19 + i] = robptr->circle_distance[i];
 	for (int i = 0; i < 5; i++)
 		rinfo[24 + i] = robptr->turn_time[i];
+	rinfo[29] = robptr->pursuit;
 
 	// Pack orient (9 ints)
 	int32_t orient[9] = {
@@ -604,7 +605,7 @@ void do_ai_frame(object* obj)
 	int32_t result[49]; // 43 + 4 D2 extras + object_animates + early_return_flag
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
-		rinfo, 29,
+		rinfo, 30,
 		FrameTime, FrameCount, GameTime,
 		Game_mode, Difficulty_level,
 		Overall_agitation, Player_is_dead, Player_exploded,

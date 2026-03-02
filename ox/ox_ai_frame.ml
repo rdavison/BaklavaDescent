@@ -241,6 +241,7 @@ let ri_homing_flag = 17
 let ri_homing_flag2 = 18
 let ri_circle_distance = 19 (* array of NDL=5 *)
 let ri_turn_time = 24 (* array of NDL=5 *)
+let ri_pursuit = 29
 
 (* -- maybe_ai_do_actual_firing_stuff -------------------------------------- *)
 
@@ -1465,6 +1466,7 @@ let do_ai_frame_d2
   let cloak_type = rinfo.(ri_cloak_type) in
   let circle_distance_diff = rinfo.(ri_circle_distance + difficulty_level) in
   let turn_time_diff = rinfo.(ri_turn_time + difficulty_level) in
+  let pursuit = rinfo.(ri_pursuit) in
   ignore (weapon_type, turn_time_diff, animation_enabled, current_level_num);
   ignore (last_missile_camera, robots_kill_robots_cheat, boss_dying_start_time);
   ignore (believed_seg, cloak_last_time);
@@ -2021,7 +2023,8 @@ let do_ai_frame_d2
              !player_visibility = 0
              && !behavior = aib_normal
              && !mode = aim_follow_path
-             && !behavior <> aib_run_from
+             && !dist_to_player > f1_0 * (20 * (2 * difficulty_level + pursuit))
+             && game_time - !time_player_seen > f1_0 / 2 * (difficulty_level + pursuit)
            then (
              mode := aim_still;
              hide_index := -1;
