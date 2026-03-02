@@ -675,7 +675,7 @@ void do_ai_frame(object* obj)
 		int obj_ref = objnum ^ FrameCount;
 		vms_vector vis_vec_pos_mv;
 		if ((ailp_before.previous_visibility || !(obj_ref & 3)) &&
-		    ready_to_fire(robptr, &ailp_before) &&
+		    ready_to_fire(robptr, ailp) &&
 		    (dist_to_player < F1_0 * 200) && (robptr->n_guns) && !(robptr->attack_type)) {
 			vis_vec_pos_mv = gun_point_vec;
 		} else {
