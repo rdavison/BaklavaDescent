@@ -491,13 +491,30 @@ void do_ai_frame(object* obj)
 	}
 	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
 
+	// Compute seg_station_enabled early (used for matcen skip and passed to OCaml)
+	int seg_station_enabled = 0;
+	if (Segment2s[obj->segnum].special == SEGMENT_IS_ROBOTMAKER)
+		seg_station_enabled = Station[Segment2s[obj->segnum].value].Enabled ? 1 : 0;
+
 	// Pre-OCaml animation: In C-only, do_silly_animation runs BEFORE the mode
 	// dispatch (line 1105), so CURRENT_STATE is updated before do_firing_stuff
 	// and state transition logic sees it. We must replicate this ordering.
+	// But we must also replicate the C-only early returns and awareness decay
+	// that happen before animation.
 	robot_info* robptr_pre = &Robot_info[obj->id];
 	int object_animates;
 	{
 		fix dist_pre = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
+
+		// Matcen early return (C-only lines 1066-1071): robots in active matcen
+		// segments return early without animation in C-only.
+		bool matcen_skip = (!(Game_mode & GM_MULTI) && seg_station_enabled);
+
+		// Awareness decay effect on GOAL_STATE (C-only line 1101):
+		// When player_awareness_type is 0, C sets GOAL_STATE=AIS_REST before animation.
+		if (!ailp->player_awareness_type)
+			aip->GOAL_STATE = AIS_REST;
+
 		// Unflinch hack (C-only line 803)
 		if ((aip->GOAL_STATE == AIS_FLIN) && ready_to_fire(robptr_pre, ailp))
 			aip->GOAL_STATE = AIS_FIRE;
@@ -505,7 +522,7 @@ void do_ai_frame(object* obj)
 		if ((aip->GOAL_STATE == AIS_FLIN) && (aip->CURRENT_STATE == AIS_FLIN))
 			aip->GOAL_STATE = AIS_LOCK;
 		// Animation (C-only lines 1104-1115)
-		if (dist_pre < F1_0 * 100) {
+		if (!matcen_skip && dist_pre < F1_0 * 100) {
 			object_animates = do_silly_animation(obj);
 			if (object_animates)
 				ai_frame_animation(obj);
@@ -601,11 +618,6 @@ void do_ai_frame(object* obj)
 #ifdef OX_PARITY_CHECK
 	parity_snapshot(&parity_snap_before);
 #endif
-
-	// Compute seg_station_enabled for robotmaker exit (C-only line 1066-1071)
-	int seg_station_enabled = 0;
-	if (Segment2s[obj->segnum].special == SEGMENT_IS_ROBOTMAKER)
-		seg_station_enabled = Station[Segment2s[obj->segnum].value].Enabled ? 1 : 0;
 
 	int32_t result[49]; // 43 + 4 D2 extras + object_animates + early_return_flag
 	cd_ox_do_ai_frame_d2(
