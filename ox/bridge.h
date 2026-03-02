@@ -1172,6 +1172,7 @@ typedef void (*cd_effect_ps_attempt_to_steal_fn)(int robot, int player_id);
 typedef void (*cd_effect_ps_create_smart_children_fn)(int robot, int num);
 typedef void (*cd_effect_ps_smega_rock_stuff_fn)(void);
 typedef void (*cd_effect_ps_set_robot_gauss_spin_fn)(int robot);
+typedef void (*cd_effect_ps_set_bump_skip_ai_count_fn)(int robot);
 typedef int (*cd_effect_ps_do_boss_weapon_collision_fn)(int robot, int weapon);
 typedef void (*cd_effect_ps_create_badass_explosion_for_boss_fn)(
     int weapon, int seg, int px, int py, int pz);
@@ -1198,6 +1199,9 @@ void cd_ox_register_collision_effects_phase2(
     cd_effect_ps_set_robot_gauss_spin_fn set_robot_gauss_spin,
     cd_effect_ps_do_boss_weapon_collision_fn do_boss_weapon_collision,
     cd_effect_ps_create_badass_explosion_for_boss_fn create_badass_explosion_for_boss);
+
+void cd_ox_register_collision_effects_phase3(
+    cd_effect_ps_set_bump_skip_ai_count_fn set_bump_skip_ai_count);
 
 /* D1: do_physics_sim.
    result[25] receives: [pos xyz, vel xyz, orient 9, segnum, obj_flags,

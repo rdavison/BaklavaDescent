@@ -765,6 +765,12 @@ void do_physics_sim(object* obj)
 					(void)weapon; (void)seg; (void)px; (void)py; (void)pz;
 				}
 			);
+			cd_ox_register_collision_effects_phase3(
+				// set_bump_skip_ai_count — D1 just sets to 2
+				[](int robot) {
+					Objects[robot].ctype.ai_info.SKIP_AI_COUNT = 2;
+				}
+			);
 			cd_ox_register_collide_effects(
 				// increment_kills
 				[]() {

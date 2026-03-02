@@ -647,6 +647,7 @@ type _ Effect.t +=
   | Create_smart_children : (int * int) -> unit Effect.t  (* robot_objnum, num_blobs *)
   | Smega_rock_stuff : unit Effect.t  (* D2 earthshaker *)
   | Set_robot_gauss_spin : int -> unit Effect.t  (* robot_objnum, D2 gauss effect *)
+  | Set_bump_skip_ai_count : int -> unit Effect.t  (* robot_objnum, D2 bump SKIP_AI_COUNT *)
   | Do_boss_weapon_collision : (int * int) -> int Effect.t
       (* robot_objnum, weapon_objnum → damage_flag *)
   | Create_badass_explosion_for_boss : (int * int * int * int * int) -> unit Effect.t
@@ -920,6 +921,7 @@ let rec bump_this_object_d2
           ~is_morph
           ~cur_rotvel:rotvel
       in
+      if skip_ai then Effect.perform (Set_bump_skip_ai_count objnum);
       if damage_flag
       then (
         let force_mag = Ox_math.vm_vec_mag_quick ~v:force in

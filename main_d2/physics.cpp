@@ -847,6 +847,21 @@ void do_physics_sim(object *obj)
 						Objects[weapon].ctype.laser_info.parent_num);
 				}
 			);
+			cd_ox_register_collision_effects_phase3(
+				// set_bump_skip_ai_count — exact C logic from phys_apply_rot
+				[](int robot) {
+					object* obj = &Objects[robot];
+					if (!Robot_info[obj->id].thief && !Robot_info[obj->id].attack_type) {
+						if (obj->ctype.ai_info.SKIP_AI_COUNT * FrameTime < 3*F1_0/4) {
+							fix tval = fixdiv(F1_0, 8*FrameTime);
+							int addval = f2i(tval);
+							if ((P_Rand() * 2) < (tval & 0xffff))
+								addval++;
+							obj->ctype.ai_info.SKIP_AI_COUNT += addval;
+						}
+					}
+				}
+			);
 		}
 	}
 	ps_obj = obj;

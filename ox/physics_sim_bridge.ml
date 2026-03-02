@@ -232,6 +232,9 @@ external effect_smega_rock_stuff : unit -> unit
 external effect_set_robot_gauss_spin : int -> unit
   = "cd_ox_effect_ps_set_robot_gauss_spin"
 
+external effect_set_bump_skip_ai_count : int -> unit
+  = "cd_ox_effect_ps_set_bump_skip_ai_count"
+
 external effect_do_boss_weapon_collision : int -> int -> int
   = "cd_ox_effect_ps_do_boss_weapon_collision"
 
@@ -524,6 +527,10 @@ let collision_effect_handler (type a) ~is_d2 (eff : a Effect.t)
   | Ox_collide.Set_robot_gauss_spin robot ->
     Some (fun (k : (a, _) Effect.Deep.continuation) ->
       effect_set_robot_gauss_spin robot;
+      Effect.Deep.continue k ())
+  | Ox_collide.Set_bump_skip_ai_count robot ->
+    Some (fun (k : (a, _) Effect.Deep.continuation) ->
+      effect_set_bump_skip_ai_count robot;
       Effect.Deep.continue k ())
   | Ox_collide.Do_boss_weapon_collision (robot, weapon) ->
     Some (fun (k : (a, _) Effect.Deep.continuation) ->

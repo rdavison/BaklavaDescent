@@ -4581,6 +4581,7 @@ static cd_effect_ps_attempt_to_steal_fn g_effect_ps_attempt_to_steal = NULL;
 static cd_effect_ps_create_smart_children_fn g_effect_ps_create_smart_children = NULL;
 static cd_effect_ps_smega_rock_stuff_fn g_effect_ps_smega_rock_stuff = NULL;
 static cd_effect_ps_set_robot_gauss_spin_fn g_effect_ps_set_robot_gauss_spin = NULL;
+static cd_effect_ps_set_bump_skip_ai_count_fn g_effect_ps_set_bump_skip_ai_count = NULL;
 static cd_effect_ps_do_boss_weapon_collision_fn g_effect_ps_do_boss_weapon_collision = NULL;
 static cd_effect_ps_create_badass_explosion_for_boss_fn g_effect_ps_create_badass_explosion_for_boss = NULL;
 
@@ -4807,6 +4808,20 @@ CAMLprim value cd_ox_effect_ps_create_badass_explosion_for_boss_bytecode(value* 
     (void)argn;
     return cd_ox_effect_ps_create_badass_explosion_for_boss(
         argv[0], argv[1], argv[2], argv[3], argv[4]);
+}
+
+/* Phase 3: bump SKIP_AI_COUNT */
+void cd_ox_register_collision_effects_phase3(
+    cd_effect_ps_set_bump_skip_ai_count_fn set_bump_skip_ai_count)
+{
+    g_effect_ps_set_bump_skip_ai_count = set_bump_skip_ai_count;
+}
+
+CAMLprim value cd_ox_effect_ps_set_bump_skip_ai_count(value v_robot)
+{
+    if (g_effect_ps_set_bump_skip_ai_count)
+        g_effect_ps_set_bump_skip_ai_count(Int_val(v_robot));
+    return Val_unit;
 }
 
 /* Physics sim entry points */
