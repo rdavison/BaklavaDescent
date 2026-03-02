@@ -1304,7 +1304,7 @@ let do_ai_frame_d1
     (* Phase: bash to fire *)
     if !next_fire < 0 && !goal_state = ais_fire then current_state := ais_fire;
     (* Phase: state machine *)
-    if not (!goal_state = ais_flin && obj_id = robot_brain)
+    if !goal_state <> ais_flin && obj_id <> robot_brain
     then (
       match !current_state with
       | s when s = ais_none ->
@@ -2157,7 +2157,7 @@ let do_ai_frame_d2
       (* Phase: bash to fire *)
       if !next_fire < 0 && !goal_state = ais_fire then current_state := ais_fire;
       (* Phase: state machine *)
-      if not (!goal_state = ais_flin && obj_id = robot_brain)
+      if !goal_state <> ais_flin && obj_id <> robot_brain
       then (
         match !current_state with
         | s when s = ais_none ->
