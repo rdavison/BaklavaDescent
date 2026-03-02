@@ -1421,6 +1421,7 @@ let do_ai_frame_d2
       ~(rotthrust_in : int array)
       ~dist_to_last_fired_upon
       ~fire_at_nearby_threshold
+      ~seg_station_enabled
   =
   (* Unpack AI state into refs *)
   let skip_ai_count = ref ai_state.(idx_skip_ai_count) in
@@ -1754,11 +1755,13 @@ let do_ai_frame_d2
            | _ -> ());
           consecutive_retries := 0))
       else consecutive_retries := !consecutive_retries / 2;
-      (* Phase: robotmaker exit *)
+      (* Phase: robotmaker exit — C-only line 1066-1071: if in robotmaker segment
+         AND station is enabled, follow path to exit (vis=1, prev=1) and return. *)
       if game_mode land gm_multi = 0 && seg_special = segment_is_robotmaker
-      then
-        Effect.perform
-          (Ai_follow_path (!player_visibility, !previous_visibility, 0, 0, 0));
+         && seg_station_enabled <> 0
+      then (
+        Effect.perform (Ai_follow_path (1, 1, 0, 0, 0));
+        raise Early_return);
       (* Phase: awareness decay *)
       if !player_awareness_type > 0
       then

@@ -4144,6 +4144,7 @@ void cd_ox_do_ai_frame_d2(
     int robots_kill_robots_cheat, int32_t boss_dying_start_time,
     int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
+    int32_t seg_station_enabled,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_ai_frame_d2");
@@ -4178,7 +4179,7 @@ void cd_ox_do_ai_frame_d2(
     Store_field(v_rotthrust, 1, Val_long(rotthrust_in[1]));
     Store_field(v_rotthrust, 2, Val_long(rotthrust_in[2]));
 
-    value args[41] = {
+    value args[42] = {
         v_ai_state, v_rinfo,
         Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
         Val_long(game_mode), Val_long(difficulty_level),
@@ -4194,9 +4195,10 @@ void cd_ox_do_ai_frame_d2(
         Val_long(animation_enabled), Val_long(current_level_num), Val_long(last_missile_camera),
         Val_long(robots_kill_robots_cheat), Val_long(boss_dying_start_time),
         Val_long(phys_flags_in), v_rotthrust,
-        Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold)
+        Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold),
+        Val_long(seg_station_enabled)
     };
-    v_result = caml_callbackN(*g_do_ai_frame_d2, 41, args);
+    v_result = caml_callbackN(*g_do_ai_frame_d2, 42, args);
 
     int result_len = Wosize_val(v_result);
     for (int i = 0; i < result_len; i++)

@@ -1059,6 +1059,7 @@ void cd_ox_do_ai_frame_d2(
     int robots_kill_robots_cheat, int32_t boss_dying_start_time,
     int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
+    int32_t seg_station_enabled,
     int32_t* result);
 
 /* -- Physics sim logic ------------------------------------------------ */

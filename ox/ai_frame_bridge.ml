@@ -389,6 +389,7 @@ let cd_do_ai_frame_d2
       rotthrust_in
       dist_to_last_fired_upon
       fire_at_nearby_threshold
+      seg_station_enabled
   =
   Effect.Deep.match_with
     (fun () ->
@@ -433,7 +434,8 @@ let cd_do_ai_frame_d2
          ~phys_flags_in
          ~rotthrust_in
          ~dist_to_last_fired_upon
-         ~fire_at_nearby_threshold)
+         ~fire_at_nearby_threshold
+         ~seg_station_enabled)
     ()
     { retc = (fun x -> x)
     ; exnc = raise

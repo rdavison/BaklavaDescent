@@ -602,6 +602,11 @@ void do_ai_frame(object* obj)
 	parity_snapshot(&parity_snap_before);
 #endif
 
+	// Compute seg_station_enabled for robotmaker exit (C-only line 1066-1071)
+	int seg_station_enabled = 0;
+	if (Segment2s[obj->segnum].special == SEGMENT_IS_ROBOTMAKER)
+		seg_station_enabled = Station[Segment2s[obj->segnum].value].Enabled ? 1 : 0;
+
 	int32_t result[49]; // 43 + 4 D2 extras + object_animates + early_return_flag
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
@@ -620,6 +625,7 @@ void do_ai_frame(object* obj)
 		Robots_kill_robots_cheat, (robptr->boss_flag) ? aip->dying_start_time : 0,
 		obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
 		Dist_to_last_fired_upon_player_pos, F1_0 * 40, // FIRE_AT_NEARBY_PLAYER_THRESHOLD
+		seg_station_enabled,
 		result);
 
 	// Write back AI state using "effect-wins" policy:
@@ -717,7 +723,11 @@ void do_ai_frame(object* obj)
 					circle_distance += (objnum & 0xf) * F1_0 / 2;
 				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0, player_visibility);
 
-				if ((obj_ref & 1) && (aip->GOAL_STATE == AIS_SRCH || aip->GOAL_STATE == AIS_LOCK)) {
+				// Use pre-OCaml GOAL_STATE: C-only checks GOAL_STATE before do_firing_stuff
+				// runs (line 1439 < do_firing_stuff at 1449). OCaml's do_firing_stuff may
+				// upgrade GOAL_STATE from SRCH/LOCK to FIRE, so aip->GOAL_STATE here is
+				// post-do_firing_stuff and would falsely skip the turn.
+				if ((obj_ref & 1) && (aip_before.GOAL_STATE == AIS_SRCH || aip_before.GOAL_STATE == AIS_LOCK)) {
 					if (player_visibility)
 						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 				}
