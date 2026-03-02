@@ -2446,6 +2446,6 @@ let do_ai_frame_d2
       then (
         current_gun := !current_gun + 1;
         if !current_gun >= n_guns then current_gun := 0);
-      with Early_return -> object_animates := 0);
+      with Early_return -> ());
       pack_result ()))
 ;;
