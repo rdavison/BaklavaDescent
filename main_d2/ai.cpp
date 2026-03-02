@@ -480,8 +480,15 @@ void do_ai_frame(object* obj)
 	// In C-only (do_ai_frame2), calc_gun_point runs at lines 928-935 BEFORE
 	// do_silly_animation at line 1127. Using post-animation joint positions
 	// gives slightly different vis_vec_pos, causing orientation drift over frames.
+	//
+	// Match C-only gun selection (lines 942-945): after decrementing next_fire,
+	// use CURRENT_GUN if next_fire <= 0, else gun 0 (secondary weapon ready).
+	// Pre-decrement equivalent: next_fire <= FrameTime → post-decrement next_fire <= 0.
 	vms_vector gun_point_vec;
-	calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
+	{
+		int gun_for_vis = (ailp->next_fire <= FrameTime) ? aip->CURRENT_GUN : 0;
+		calc_gun_point(&gun_point_vec, obj, gun_for_vis);
+	}
 	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
 
 	// Pre-OCaml animation: In C-only, do_silly_animation runs BEFORE the mode
@@ -674,8 +681,13 @@ void do_ai_frame(object* obj)
 		fix dist_to_player = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
 		int obj_ref = objnum ^ FrameCount;
 		vms_vector vis_vec_pos_mv;
+		// Use pre-OCaml ready_to_fire equivalent (matching C-only timing where
+		// vis_vec_pos is computed before firing, not after OCaml may have fired).
+		// Pre-decrement equivalent: ailp_before.next_fire <= FrameTime → post-decrement <= 0.
+		bool rtf_before = (ailp_before.next_fire <= FrameTime ||
+		    (robptr->weapon_type2 != -1 && ailp_before.next_fire2 <= FrameTime));
 		if ((ailp_before.previous_visibility || !(obj_ref & 3)) &&
-		    ready_to_fire(robptr, ailp) &&
+		    rtf_before &&
 		    (dist_to_player < F1_0 * 200) && (robptr->n_guns) && !(robptr->attack_type)) {
 			vis_vec_pos_mv = gun_point_vec;
 		} else {

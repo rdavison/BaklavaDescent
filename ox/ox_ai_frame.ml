@@ -1679,14 +1679,12 @@ let do_ai_frame_d2
          && n_guns > 0
          && attack_type = 0
       then (
-          (* Use pre-animation gun_point passed from C for primary weapon (matches C-only
-           timing where calc_gun_point runs before do_silly_animation).
-           For secondary weapon case (next_fire > 0 but next_fire2 <= 0), use gun 0
-           via Calc_gun_point effect (post-animation, minor discrepancy accepted). *)
+          (* Always use pre-animation gun_point passed from C. The bridge now selects
+           the correct gun before calling us: CURRENT_GUN if next_fire <= FrameTime
+           (primary ready), else gun 0 (secondary ready). This matches C-only lines
+           942-945 where gun selection depends on which weapon is ready to fire. *)
         let gpx, gpy, gpz =
-          if !next_fire <= 0
-          then gun_point_in.(0), gun_point_in.(1), gun_point_in.(2)
-          else Effect.perform (Calc_gun_point 0)
+          gun_point_in.(0), gun_point_in.(1), gun_point_in.(2)
         in
         gun_point := gpx, gpy, gpz;
         vis_vec_pos := gpx, gpy, gpz)
@@ -1711,10 +1709,11 @@ let do_ai_frame_d2
             then (
               let pr2 = Effect.perform P_Rand in
               if pr2 * (overall_agitation - 40) > f1_0 * 5
-              then
+              then (
                 Effect.perform
                   (Create_path_to_player
-                     (4 + (overall_agitation / 8) + difficulty_level, 1))));
+                     (4 + (overall_agitation / 8) + difficulty_level, 1));
+                raise Early_return)));
       (* Phase: retry count *)
       if !retry_count > 0 && game_mode land gm_multi = 0
       then (
