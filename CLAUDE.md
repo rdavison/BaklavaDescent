@@ -61,7 +61,9 @@ The game looks for data files (`.hog`, `.pig`, etc.) in:
 - macOS: `~/Library/Application Support/Chocolate Descent/Descent 2/Data/`
 - Or run from a directory containing `descent2.hog`
 
-For headless replay, `cd` into the data directory before running.
+Our actual data directory: `/Users/richard/Documents/Games/Descent 2 Infinite Abyss Expansion (1996)(Interplay)/data/`
+
+For headless replay and recording, `cd` into the data directory before running.
 
 ### Crash reports (macOS)
 ```bash
@@ -72,28 +74,34 @@ Parse the `.ips` JSON to get stack traces. The faulting thread's frames include 
 ## Parity Testing Workflow
 
 ### 1. Record an input session
+Record from the **C-only reference build** so the recording captures correct C behavior:
 ```bash
 cd <game-data-dir>
-<build-dir>/ChocolateDescent2.app/Contents/MacOS/ChocolateDescent2 -record test_session.rec
+<project>/build-c-ref/ChocolateDescent2.app/Contents/MacOS/ChocolateDescent2 -record session.rec
 ```
-Play the game normally, then quit. Inputs are saved to `test_session.rec`.
+Play the game normally, then quit. Inputs are saved to `session.rec`.
+
+**Note:** The game arg parser mangles absolute paths (leading `/` becomes `-`). Always use relative filenames and `cd` into the data directory first.
+
+### Test recordings
+- `level1_full.rec` — Full level 1 playthrough (in game data dir)
+- `test_session.rec` — Short test session (~636 frames, in project root)
 
 ### 2. Replay through both builds and generate state logs
 ```bash
 cd <game-data-dir>
 
 # OCaml build
-<project>/build-ox/headless_replay -replay test_session.rec -state-log /tmp/ox_states.bin
+<project>/build-ox/headless_replay -replay session.rec -state-log /tmp/ox_states.bin
 
 # C-only build
-<project>/build-c-ref/headless_replay -replay test_session.rec -state-log /tmp/c_states.bin
+<project>/build-c-ref/headless_replay -replay session.rec -state-log /tmp/c_states.bin
 ```
+`headless_replay` uses its own arg parser, so absolute paths work for `-state-log`.
 
 ### 3. Compare state logs
 ```bash
-# Build the comparison tool (built automatically with OX_REPLAY)
-# Then compare:
-build-ox/compare_state_logs -v /tmp/c_states.bin /tmp/ox_states.bin
+<project>/build-ox/compare_state_logs -v /tmp/c_states.bin /tmp/ox_states.bin
 ```
 - `-v` for verbose byte-level diffs
 - Default struct sizes are for arm64 macOS (object=268, ai_local=200, player=148)
