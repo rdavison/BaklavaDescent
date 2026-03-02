@@ -1985,3 +1985,58 @@ First AI system function ported. Determines whether a robot can open a door on a
   - `main_d2/ai.cpp` — Snipe/thief effect lambdas with mode/awareness write-back
   - `main_d1/ai.cpp` — Updated D2-only stub signatures
   - `tools/compare_state_logs.c` — Corrected default struct sizes
+
+---
+
+### Session 24: Fix pre-animation gun_point and agitation path guards
+
+- **Goal:** Fix earliest parity divergences (frame 6+).
+
+- **Root cause analysis:**
+  - Frame 6: object[75] orientation bytes off by 1 — caused by wrong vis_vec_pos
+  - Frame 9: object[55] CURRENT_STATE/GOAL_STATE = AIS_LOCK in OCaml vs AIS_REST in C — cascade from wrong visibility computation and/or wrong do_firing_stuff calls
+
+- **Bug 1: Gun point using post-animation positions**
+  - The C bridge pre-computes `gun_point_in` before `do_silly_animation` runs, matching C-only's ordering (calc_gun_point at line 928-938, before animation at 1130).
+  - OCaml's D2 AI frame was calling `Calc_gun_point` effect which returns POST-animation joint positions.
+  - This caused vis_vec_pos to differ slightly (pre vs post animation), → different vec_to_player → different ai_turn_towards_vector result → orientation off by 1.
+  - **Fix:** Use `gun_point_in.(0,1,2)` directly when `next_fire <= 0` (primary weapon ready). For secondary weapon case (`next_fire > 0` but `next_fire2 <= 0`), still call `Calc_gun_point 0` (minor discrepancy accepted).
+
+- **Bug 2: Agitation path P_Rand called for wrong robots**
+  - C's agitation path creation (line 954) excludes: `AIB_SNIPE` robots, companion robots, thief robots.
+  - OCaml only excluded `AIB_RUN_FROM` and `AIB_STILL`, causing extra P_Rand calls for snipe/companion/thief robots → RNG desync.
+  - **Fix:** Added `!behavior <> aib_snipe && companion = 0 && thief = 0` guards.
+
+- **Files changed:** `ox/ox_ai_frame.ml`
+- **Verification:** Both `build-ox/headless_replay` and `build-c-ref/headless_replay` compile successfully.
+
+---
+
+### Session 25: Fix bridge movement code player_visibility bugs
+
+- **Goal:** Fix earliest parity divergences (frame 6+) remaining after session 24.
+
+- **Analysis:** Frame 6 object[75] bytes 32/48/64 (pos.y, orient.rvec.z, orient.fvec.x) off by 1 LSB. Traced to two bugs in post-OCaml bridge movement code (`main_d2/ai.cpp` lines 669-776).
+
+- **Bug 1: Raw vs awareness-bumped player_visibility (ai.cpp line 687)**
+  - Bridge used `ailp->previous_visibility` (current frame raw visibility) as `player_visibility`.
+  - C-only's `compute_vis_and_vec` applies an awareness bump: raw visibility 1 → 2 when `player_awareness_type >= PA_NEARBY_ROBOT_FIRED`. The bridge movement code didn't apply this bump.
+  - Affected: secondary state machine turning for AIS_LOCK/AIS_SRCH/AIS_FIRE, AIM_CHASE_OBJECT, AIM_STILL, AIM_BEHIND — any case checking `player_visibility == 2`.
+  - **Fix:** After line 687, apply awareness bump: if `raw == 1 && ailp->player_awareness_type >= PA_NEARBY_ROBOT_FIRED`, set `player_visibility = 2`.
+
+- **Bug 2: Wrong "previous frame" visibility in AIM_STILL condition (ai.cpp line 702)**
+  - Bridge checked `(player_visibility == 2) || (ailp->previous_visibility == 2)`. Since both equal the same value, this was really just `ailp->previous_visibility == 2` (current frame).
+  - C-only checks `player_visibility == 2` (current frame, bumped) OR `previous_visibility == 2` (PREVIOUS frame's visibility, saved before compute_vis_and_vec updates ailp->previous_visibility).
+  - The previous frame's value is `ailp_before.previous_visibility` (captured before OCaml runs).
+  - **Fix:** Introduced `prev_frame_visibility = ailp_before.previous_visibility` and used it in the AIM_STILL condition.
+
+- **Bug 3: OCaml D2 gun rotation missing dual-weapon hack (ox_ai_frame.ml)**
+  - C-only wraps to gun 1 (not 0) when `current_gun >= n_guns` for dual-weapon robots (`weapon_type2 != -1`).
+  - OCaml always wrapped to 0.
+  - **Fix:** Added the two-weapon-type check to match C-only line 1857-1860.
+
+- **Files changed:**
+  - `main_d2/ai.cpp` — player_visibility awareness bump + prev_frame_visibility
+  - `ox/ox_ai_frame.ml` — D2 gun rotation dual-weapon fix
+
+- **Verification:** Both `build-ox/headless_replay` and `build-c-ref/headless_replay` compile successfully.

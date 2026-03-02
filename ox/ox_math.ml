@@ -46,9 +46,16 @@ let long_sqrt a =
         then floor_loop (mid + 1) hi mid
         else floor_loop lo (mid - 1) best)
     in
-    let floor = floor_loop 0 46341 0 in
-    let floor64 = I64.of_int floor in
-    if I64.equal (I64.mul floor64 floor64) n then floor else floor + 1
+    let r = floor_loop 0 46341 0 in
+    (* Match C long_sqrt behavior:
+       C uses Newton's method and has two exit paths:
+       1. if (t == r) return r;  -- when a/r == r, return floor directly
+       2. if (a % r) r++;        -- otherwise, increment if remainder non-zero
+       We must replicate both paths to match C exactly. *)
+    if r = 0 then 0
+    else if a / r = r then r (* C early exit: a/r == r *)
+    else if a mod r <> 0 then r + 1
+    else r
 ;;
 
 let quad_sqrt q =
@@ -66,8 +73,15 @@ let quad_sqrt q =
         then floor_loop (I64.add mid 1L) hi mid
         else floor_loop lo (I64.sub mid 1L) best)
     in
-    let floor = floor_loop 1L 3037000500L 0L in
-    if I64.equal (I64.mul floor floor) q then floor else I64.add floor 1L)
+    let r = floor_loop 1L 3037000500L 0L in
+    (* Match C quad_sqrt behavior:
+       C uses Newton's method and has two exit paths:
+       1. if (t == r) return r;  -- when q/r == r, return floor directly
+       2. Check r*(q/r) != q, then r++  -- effectively q%r != 0
+       We must replicate both paths to match C exactly. *)
+    if I64.equal (I64.div q r) r then r (* C early exit: q/r == r *)
+    else if I64.equal (I64.rem q r) 0L then r
+    else I64.add r 1L)
 ;;
 
 let fix_sqrt ~a = Int.shift_left (long_sqrt a) 8

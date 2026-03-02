@@ -108,8 +108,45 @@ cd <game-data-dir>
 - Override with positional args: `compare_state_logs file_a file_b [obj_size] [ai_size] [player_size]`
 
 ### Key byte offsets (arm64 macOS)
-- **object** byte 160 = `behavior`, byte 161 = `CURRENT_GUN`, byte 162 = `CURRENT_STATE`, byte 163 = `GOAL_STATE`
-- **ai_local** byte 0 = `player_awareness_type`, byte 12 = `mode`, byte 28 = `next_action_time`, byte 56 = `time_since_processed`
+
+**object struct** (268 bytes):
+```
+  0  signature (int)
+  4  type (uint8)          5  id (uint8)
+  6  next (short)          8  prev (short)
+ 10  control_type (uint8) 11  movement_type (uint8)
+ 12  render_type (uint8)  13  flags (uint8)
+ 14  segnum (short)       16  attached_obj (short)
+ 20  pos.x                24  pos.y                28  pos.z
+ 32  orient.rvec.x        36  orient.rvec.y        40  orient.rvec.z
+ 44  orient.uvec.x        48  orient.uvec.y        52  orient.uvec.z
+ 56  orient.fvec.x        60  orient.fvec.y        64  orient.fvec.z
+ 68  size                 72  shields
+ 76  last_pos.x           80  last_pos.y           84  last_pos.z
+ 88  contains_type        89  contains_id
+ 90  contains_count       91  matcen_creator
+ 92  lifeleft
+ 96  mtype.phys_info.velocity.{x=96, y=100, z=104}
+108  mtype.phys_info.thrust.{x=108, y=112, z=116}
+120  mtype.phys_info.mass     124  mtype.phys_info.drag
+128  mtype.phys_info.brakes
+132  mtype.phys_info.rotvel.{x=132, y=136, z=140}
+144  mtype.phys_info.rotthrust.{x=144, y=148, z=152}
+156  mtype.phys_info.turnroll  158  mtype.phys_info.flags
+160  ctype.ai_info (ai_static union)
+162  ctype.ai_info.CURRENT_STATE
+163  ctype.ai_info.GOAL_STATE
+192  rtype (polyobj_info / vclip_info union)
+```
+
+**ai_local struct** (200 bytes):
+```
+  0  player_awareness_type (int)
+ 12  mode (int)
+ 28  next_action_time (fix)
+ 40  player_awareness_time (fix)
+ 56  time_since_processed (fix)
+```
 
 ## Code Layout
 
