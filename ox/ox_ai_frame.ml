@@ -70,312 +70,58 @@ let proximity_id = 47 (* D1 *)
 let proximity_id_d2 = 47 (* D2 *)
 let superprox_id_d2 = 53
 
-(* AI transition table (from ai.h):
-   [awareness-1][current_state][goal_state] -> new_goal_state *)
+(* AI transition table (from ai.h / ai.cpp):
+   [awareness_type-1][current_state][goal_state] -> new_goal_state
+   Matches Ai_transition_table in main_d2/ai.cpp exactly.
+   C table is [4][7][7]; OCaml extends to [4][8][8] for AIS_ERR_ entries. *)
 let ai_transition_table =
-  [| (* PA_WEAPON_WALL_COLLISION - 1 = 0 *)
+  [| (* AIE_FIRE: PA_NEARBY_ROBOT_FIRED - 1 = 0 *)
      [| (* current = AIS_NONE *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_REST *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_SRCH *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_LOCK *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_FLIN *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_rest; ais_lock; ais_lock; ais_lock; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_FIRE *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
+        [| ais_err_; ais_fire; ais_fire; ais_fire; ais_flin; ais_fire; ais_reco; ais_err_ |]
       ; (* current = AIS_RECO *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_fire
-         ; ais_err_
-        |]
+        [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_fire; ais_err_ |]
       ; (* current = AIS_ERR_ *)
-        [| ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_err_
-        |]
+        [| ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_err_ |]
      |]
-   ; (* PA_NEARBY_ROBOT_FIRED - 1 = 1 *)
-     [| [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_srch
-         ; ais_srch
-         ; ais_srch
-         ; ais_flin
-         ; ais_fire
-         ; ais_fire
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_err_
-        |]
+   ; (* AIE_HITT: PA_WEAPON_WALL_COLLISION - 1 = 1 *)
+     [| [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_lock; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_rest; ais_lock; ais_lock; ais_lock; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_fire; ais_err_ |]
+      ; [| ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_err_ |]
      |]
-   ; (* PA_WEAPON_ROBOT_COLLISION - 1 = 2 *)
-     [| [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_fire
-         ; ais_fire
-         ; ais_fire
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_fire
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_err_
-        |]
+   ; (* AIE_COLL: PA_PLAYER_COLLISION - 1 = 2 *)
+     [| [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_lock; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_rest; ais_lock; ais_lock; ais_lock; ais_fire; ais_reco; ais_err_ |]
+      ; [| ais_err_; ais_lock; ais_lock; ais_lock; ais_flin; ais_fire; ais_fire; ais_err_ |]
+      ; [| ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_err_ |]
      |]
-   ; (* PA_PLAYER_COLLISION - 1 = 3 *)
-     [| [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_fire
-         ; ais_fire
-         ; ais_fire
-         ; ais_flin
-         ; ais_fire
-         ; ais_reco
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_lock
-         ; ais_lock
-         ; ais_lock
-         ; ais_flin
-         ; ais_fire
-         ; ais_fire
-         ; ais_err_
-        |]
-      ; [| ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_rest
-         ; ais_err_
-        |]
+   ; (* AIE_HURT: PA_WEAPON_ROBOT_COLLISION - 1 = 3 *)
+     [| [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_err_; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_flin; ais_err_ |]
+      ; [| ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_rest; ais_err_ |]
      |]
   |]
 ;;
