@@ -601,7 +601,7 @@ void do_ai_frame(object* obj)
 	parity_snapshot(&parity_snap_before);
 #endif
 
-	int32_t result[48]; // 43 + 4 D2 extras + object_animates
+	int32_t result[49]; // 43 + 4 D2 extras + object_animates + early_return_flag
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
 		rinfo, 29,
@@ -673,6 +673,10 @@ void do_ai_frame(object* obj)
 #undef WRITEBACK_AIP
 #undef WRITEBACK_AILP
 
+	// If OCaml raised Early_return (time-slice, agitation, snipe), skip movement code.
+	// C-only exits before mode dispatch and secondary state machine in these cases.
+	bool ox_early_return = (result[48] != 0);
+	if (!ox_early_return) {
 	// Movement calls that OCaml defers to C side
 	{
 		robot_info* robptr = &Robot_info[obj->id];
@@ -794,6 +798,7 @@ void do_ai_frame(object* obj)
 			}
 		}
 	}
+	} // end if (!ox_early_return)
 
 	// Animation already done pre-OCaml (matching C-only ordering).
 

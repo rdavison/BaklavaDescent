@@ -1479,6 +1479,7 @@ let do_ai_frame_d2
   let ai_evaded = ref ai_evaded_in in
   let believed_player_pos = ref (believed_x, believed_y, believed_z) in
   let obj_ref = objnum lxor frame_count in
+  let early_return_flag = ref 0 in
   (* Helper: compute visibility *)
   let compute_vis () =
     if !visibility_and_vec_computed = 0
@@ -1493,7 +1494,7 @@ let do_ai_frame_d2
   in
   (* Helper: pack result *)
   let pack_result () =
-    let r = Array.create ~len:(ai_state_size + 5) 0 in
+    let r = Array.create ~len:(ai_state_size + 6) 0 in
     r.(idx_skip_ai_count) <- !skip_ai_count;
     r.(idx_goal_state) <- !goal_state;
     r.(idx_current_state) <- !current_state;
@@ -1531,6 +1532,7 @@ let do_ai_frame_d2
     r.(ai_state_size + 2) <- rotthrust.(1);
     r.(ai_state_size + 3) <- rotthrust.(2);
     r.(ai_state_size + 4) <- !object_animates;
+    r.(ai_state_size + 5) <- !early_return_flag;
     r
   in
   (* Helper: fire actual D2 *)
@@ -1713,6 +1715,7 @@ let do_ai_frame_d2
                 Effect.perform
                   (Create_path_to_player
                      (4 + (overall_agitation / 8) + difficulty_level, 1));
+                early_return_flag := 1;
                 raise Early_return)));
       (* Phase: retry count *)
       if !retry_count > 0 && game_mode land gm_multi = 0
@@ -1831,10 +1834,10 @@ let do_ai_frame_d2
       then
         if !behavior = aib_station && !mode = aim_follow_path
            && hide_segment <> obj_segnum
-        then (if !dist_to_player > f1_0 * 250 then raise Early_return)
+        then (if !dist_to_player > f1_0 * 250 then (early_return_flag := 1; raise Early_return))
         else if !previous_visibility = 0
                 && !dist_to_player asr 7 > !time_since_processed
-        then raise Early_return;
+        then (early_return_flag := 1; raise Early_return);
       time_since_processed := -(((objnum land 0x03) * frame_time) / 2);
       (* Phase: brain robot (D2) *)
       if obj_id = robot_brain
@@ -1859,7 +1862,7 @@ let do_ai_frame_d2
             Effect.perform
               (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode))))
         else if thief = 0 && companion = 0
-        then raise Early_return)
+        then (early_return_flag := 1; raise Early_return))
       else if companion <> 0
       then (
         compute_vis ();
