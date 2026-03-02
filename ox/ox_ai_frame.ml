@@ -1593,6 +1593,31 @@ let do_ai_frame_d2
         ~current_state:!current_state
     then do_actual_firing ()
   in
+  (* Helper: do_firing_stuff — upgrade GOAL_STATE based on visibility+facing (D2) *)
+  let do_firing_stuff () =
+    let is_d2_nearby = dist_to_last_fired_upon < fire_at_nearby_threshold in
+    if is_d2_nearby || !player_visibility >= 1
+    then (
+      let fvec = orient.(6), orient.(7), orient.(8) in
+      let dot = Ox_math.vm_vec_dotprod ~a:fvec ~b:!vec_to_player in
+      if dot >= 7 * f1_0 / 8
+         || player_flags land player_flags_cloaked <> 0
+      then (
+        match !goal_state with
+        | gs when gs = ais_none || gs = ais_rest || gs = ais_srch || gs = ais_lock ->
+          goal_state := ais_fire;
+          if !player_awareness_type <= pa_nearby_robot_fired
+          then (
+            player_awareness_type := pa_nearby_robot_fired;
+            player_awareness_time := 3 * f1_0)
+        | _ -> ())
+      else if dot >= f1_0 / 2
+      then (
+        match !goal_state with
+        | gs when gs = ais_none || gs = ais_rest || gs = ais_srch ->
+          goal_state := ais_lock
+        | _ -> ()))
+  in
   (* -- Phase 1: next_action_time decrement -------------------------------- *)
   next_action_time := !next_action_time - frame_time;
   (* Phase: skip count with D2 rotthrust decay *)
@@ -1969,7 +1994,7 @@ let do_ai_frame_d2
            else if !current_state = ais_flin
            then goal_state := ais_lock;
            if !behavior <> aib_snipe && !behavior <> aib_run_from
-           then () (* do_firing_stuff on C side *);
+           then do_firing_stuff ();
            if
              !player_visibility = 2
              && !behavior <> aib_snipe
