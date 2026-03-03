@@ -132,7 +132,7 @@ let create_abs_vertex_lists ~side_type ~(seg_verts : int array) ~sidenum =
       |]
     in
     2, vertices
-  | _ -> failwith "Illegal side type"
+  | _ -> failwith (Printf.sprintf "Illegal side type %d in create_abs_vertex_lists (sidenum=%d)" side_type sidenum)
 ;;
 
 (* Lookup a vertex position by absolute vertex index.

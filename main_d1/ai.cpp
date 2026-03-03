@@ -82,6 +82,66 @@ uint8_t	john_cheats_1[JOHN_CHEATS_SIZE_1] = { KEY_P ^ 0x00 ^ 0x34,
 
 #define MIN_D 0x100
 
+#ifdef USE_OX_BRIDGE
+// Ensure FVI data callbacks are registered before any OCaml FVI call.
+static void ensure_fvi_data_callbacks_registered()
+{
+	static int registered = 0;
+	if (registered) return;
+	registered = 1;
+	cd_ox_register_fvi_data_callbacks(
+		[](int segnum, int32_t* out) {
+			segment* seg = &Segments[segnum];
+			for (int i = 0; i < 6; i++)
+				out[i] = seg->children[i];
+			for (int i = 0; i < 6; i++)
+				out[6 + i] = seg->sides[i].type;
+			for (int i = 0; i < 8; i++)
+				out[12 + i] = seg->verts[i];
+			for (int sn = 0; sn < 6; sn++)
+			{
+				out[20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
+				out[20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
+				out[20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
+				out[20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
+				out[20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
+				out[20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
+			}
+			for (int i = 0; i < 8; i++)
+			{
+				out[56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+				out[56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+				out[56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+			}
+			for (int i = 0; i < 6; i++)
+				out[80 + i] = WALL_IS_DOORWAY(seg, i);
+			out[86] = seg->objects;
+		},
+		[](int objnum, int32_t* out) {
+			object* obj = &Objects[objnum];
+			out[0] = obj->type;
+			out[1] = obj->id;
+			out[2] = obj->flags;
+			out[3] = obj->pos.x;
+			out[4] = obj->pos.y;
+			out[5] = obj->pos.z;
+			out[6] = obj->size;
+			out[7] = obj->next;
+			out[8] = obj->ctype.laser_info.parent_type;
+			out[9] = obj->ctype.laser_info.parent_num;
+			out[10] = obj->ctype.laser_info.parent_signature;
+			out[11] = obj->ctype.laser_info.creation_time;
+			out[12] = obj->signature;
+			out[13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
+		},
+		[](int32_t* out) {
+			for (int i = 0; i < 16; i++)
+				for (int j = 0; j < 16; j++)
+					out[i * 16 + j] = CollisionResult[i][j];
+		});
+}
+#endif
+
 int	Flinch_scale = 4;
 int	john_cheats_index_1;		//	POBOYS		detonate reactor
 int	Attack_scale = 24;
@@ -825,6 +885,7 @@ int player_is_visible_from_object(object* objp, vms_vector* pos, fix field_of_vi
 {
 #ifdef USE_OX_BRIDGE
 	{
+		ensure_fvi_data_callbacks_registered();
 		// Fall back to C if objp is not in the Objects array or if we're inside a nested OCaml call
 		int objp_objnum = (int)(objp - Objects);
 		if (g_ox_nested_ocaml_guard || objp_objnum < 0 || objp_objnum > Highest_object_index)
@@ -2042,6 +2103,7 @@ void compute_vis_and_vec(object* objp, vms_vector* pos, ai_local* ailp, vms_vect
 {
 #ifdef USE_OX_BRIDGE
 	if (!*flag) {
+		ensure_fvi_data_callbacks_registered();
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{

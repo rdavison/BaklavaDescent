@@ -63,6 +63,71 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #endif
 
 
+#ifdef USE_OX_BRIDGE
+// Ensure FVI data callbacks are registered before any OCaml FVI call.
+// These are needed by player_is_visible_from_object_v2 and compute_vis_and_vec_v2
+// which call OCaml FVI functions that perform Fetch_segment_data effects.
+static void ensure_fvi_data_callbacks_registered()
+{
+	static int registered = 0;
+	if (registered) return;
+	registered = 1;
+	cd_ox_register_fvi_data_callbacks(
+		// fetch_segment_data: pack one segment's 87 ints
+		[](int segnum, int32_t* out) {
+			segment* seg = &Segments[segnum];
+			for (int i = 0; i < 6; i++)
+				out[i] = seg->children[i];
+			for (int i = 0; i < 6; i++)
+				out[6 + i] = seg->sides[i].type;
+			for (int i = 0; i < 8; i++)
+				out[12 + i] = seg->verts[i];
+			for (int sn = 0; sn < 6; sn++)
+			{
+				out[20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
+				out[20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
+				out[20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
+				out[20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
+				out[20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
+				out[20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
+			}
+			for (int i = 0; i < 8; i++)
+			{
+				out[56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+				out[56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+				out[56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+			}
+			for (int i = 0; i < 6; i++)
+				out[80 + i] = WALL_IS_DOORWAY(seg, i);
+			out[86] = seg->objects;
+		},
+		// fetch_object_data: pack one object's 14 ints
+		[](int objnum, int32_t* out) {
+			object* obj = &Objects[objnum];
+			out[0] = obj->type;
+			out[1] = obj->id;
+			out[2] = obj->flags;
+			out[3] = obj->pos.x;
+			out[4] = obj->pos.y;
+			out[5] = obj->pos.z;
+			out[6] = obj->size;
+			out[7] = obj->next;
+			out[8] = obj->ctype.laser_info.parent_type;
+			out[9] = obj->ctype.laser_info.parent_num;
+			out[10] = obj->ctype.laser_info.parent_signature;
+			out[11] = obj->ctype.laser_info.creation_time;
+			out[12] = obj->signature;
+			out[13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
+		},
+		// fetch_collision_table: pack 16x16 collision result table
+		[](int32_t* out) {
+			for (int i = 0; i < 16; i++)
+				for (int j = 0; j < 16; j++)
+					out[i * 16 + j] = CollisionResult[i][j];
+		});
+}
+#endif
+
 int	Flinch_scale = 4;
 int	Attack_scale = 24;
 int8_t	Mike_to_matt_xlate[] = {AS_REST, AS_REST, AS_ALERT, AS_ALERT, AS_FLINCH, AS_FIRE, AS_RECOIL, AS_REST};
@@ -603,6 +668,7 @@ int player_is_visible_from_object(object *objp, vms_vector *pos, fix field_of_vi
 {
 #ifdef USE_OX_BRIDGE
 	{
+		ensure_fvi_data_callbacks_registered();
 		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int objp_objnum = (int)(objp - Objects);
@@ -1976,6 +2042,7 @@ void compute_vis_and_vec(object *objp, vms_vector *pos, ai_local *ailp, vms_vect
 {
 #ifdef USE_OX_BRIDGE
 	if (!*flag) {
+		ensure_fvi_data_callbacks_registered();
 		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int objp_objnum = (int)(objp - Objects);

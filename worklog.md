@@ -2261,3 +2261,37 @@ Removed ~2,000 lines of dead v1 packed-array code:
 - **OCaml FVI crash:** `Ox_fvi.unpack_obj` throws `Invalid_argument "index out of bounds"` — pre-existing bug. Falls back to `HIT_BAD_P0`, causing state divergence vs C-ref at frame 32. Needs OCaml FVI fix.
 - **State log divergence:** OX build diverges from C-ref at frame 32 due to OCaml FVI exception fallback affecting C's physics path (FVI is OCaml-authoritative, not shadow mode).
 - **Parity logging volume:** Shadow mode parity comparisons produce heavy stderr output, slowing headless replay significantly.
+
+### Session 30: Fix "Illegal side type" bug in OCaml FVI
+
+#### Problem
+`compute_vis_and_vec_v2` threw `Failure "Illegal side type 0"` ~46 times per replay. The exceptions were caught by try/with handlers and dummy values returned, so the game didn't crash, but the OCaml FVI wasn't computing correctly.
+
+#### Root cause
+The FVI data fetch callbacks (`g_fvi_fetch_segment_data`, `g_fvi_fetch_object_data`, `g_fvi_fetch_collision_table`) were only registered inside `find_vector_intersection()` in `fvi.cpp` on first call. But `compute_vis_and_vec` and `player_is_visible_from_object` in `ai2.cpp` called OCaml FVI functions _before_ `find_vector_intersection` ever ran. With NULL callbacks, `cd_ox_fetch_segment_data()` returned all-zero buffers (from `memset`), producing `side_type=0` for every side of every segment.
+
+#### Investigation
+1. Added side_type value to error message — confirmed `side_type=0`
+2. Added segment number debug — found segments 5, 174, 176, 212, 224 all returning all-zero data (children, seg_verts, side_types all zeros)
+3. Checked stderr ordering — FVI callback registration message at line 537, but exceptions started at line 40
+4. Confirmed NULL callback path: `cd_ox_fetch_segment_data` does `memset(buf, 0, sizeof(buf)); if (g_fvi_fetch_segment_data) g_fvi_fetch_segment_data(segnum, buf);` — with NULL callback, buffer stays zeroed
+
+#### Fix
+Added `ensure_fvi_data_callbacks_registered()` static helper functions in both D1 and D2:
+- `main_d2/ai2.cpp` — registers FVI data callbacks on first use, called from `player_is_visible_from_object` and `compute_vis_and_vec`
+- `main_d1/ai.cpp` — same for D1
+
+#### Files changed
+| File | Changes |
+|------|---------|
+| `main_d2/ai2.cpp` | Added `ensure_fvi_data_callbacks_registered()` + calls from `player_is_visible_from_object` and `compute_vis_and_vec` |
+| `main_d1/ai.cpp` | Same for D1 |
+| `ox/ox_gameseg.ml` | Improved "Illegal side type" error message to include side_type value and sidenum |
+
+#### Verification
+- Headless replay: 0 "Illegal side type" exceptions (was 46)
+- 0 total exceptions (was 46)
+- OCaml FVI now computes real visibility results instead of returning dummy values
+
+#### Performance note
+With the fix, OCaml FVI functions now do real computation in shadow mode. This makes headless replay significantly slower (~37 `compute_vis_and_vec_v2` calls/sec, ~57 min for 636-frame replay vs previous near-instant exception-based skip). This is expected — the previous "fast" behavior masked the bug.
