@@ -635,7 +635,7 @@ void do_ai_frame(object* obj)
 		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, Believed_player_seg,
 		orient, gun_point, Segment2s[obj->segnum].special,
 		cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
-		1 /* animation_enabled */, Current_level_num, 0 /* last_missile_camera */,
+		object_animates /* animation_enabled carries pre-computed object_animates */, Current_level_num, 0 /* last_missile_camera */,
 		Robots_kill_robots_cheat, (robptr->boss_flag) ? aip->dying_start_time : 0,
 		obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
 		Dist_to_last_fired_upon_player_pos, F1_0 * 40, // FIRE_AT_NEARBY_PLAYER_THRESHOLD
@@ -701,8 +701,6 @@ void do_ai_frame(object* obj)
 	// Movement calls that OCaml defers to C side
 	{
 		robot_info* robptr = &Robot_info[obj->id];
-		// Match C-only vis_vec_pos: use gun_point when ready_to_fire (pre-OCaml state), else obj->pos.
-		// C-only computes vec_to_player as normalize(Believed_player_pos - vis_vec_pos).
 		fix dist_to_player = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
 		int obj_ref = objnum ^ FrameCount;
 		vms_vector vis_vec_pos_mv;
@@ -737,17 +735,12 @@ void do_ai_frame(object* obj)
 					circle_distance += (objnum & 0xf) * F1_0 / 2;
 				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0, player_visibility);
 
-				// Use pre-OCaml GOAL_STATE: C-only checks GOAL_STATE before do_firing_stuff
-				// runs (line 1439 < do_firing_stuff at 1449). OCaml's do_firing_stuff may
-				// upgrade GOAL_STATE from SRCH/LOCK to FIRE, so aip->GOAL_STATE here is
-				// post-do_firing_stuff and would falsely skip the turn.
 				if ((obj_ref & 1) && (aip_before.GOAL_STATE == AIS_SRCH || aip_before.GOAL_STATE == AIS_LOCK)) {
 					if (player_visibility)
 						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 				}
 			}
 		} else if (ailp->mode == AIM_STILL) {
-			// C-only: turn if current visibility==2 OR previous frame visibility==2
 			if ((player_visibility == 2) || (prev_frame_visibility == 2)) {
 				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
 			}
@@ -1113,7 +1106,6 @@ void do_ai_frame(object* obj)
 	}
 	else
 		aip->GOAL_STATE = AIS_REST;							//new: 12/13/94
-
 
 	if (Player_is_dead && (ailp->player_awareness_type == 0))
 		if ((dist_to_player < F1_0 * 200) && (P_Rand() < FrameTime / 8)) {

@@ -2093,6 +2093,52 @@ First AI system function ported. Determines whether a robot can open a door on a
 - **Root cause of remaining divergences:**
   - Frame 13: Escort robot (obj28, companion/guide-bot) CURRENT_STATE diverges (C=LOCK, OCaml=REST). GOAL_STATE matches. Subtle ordering issue within `do_escort_frame` or post-escort animation state.
   - Frame 117: P_Rand call count diverges massively (C-only: 309 calls, OCaml: 1 call). Caused by escort robot's cascading state divergence triggering different pathfinding in C-only.
+
+### Session 27: Collision position fix, retry_count writeback, object_animates & previous_visibility
+
+- **Goal:** Investigate and fix parity divergences starting from the earliest (frame 32 fireball position mismatch).
+
+#### Fix 1: Bridge collision callbacks use stale object position
+
+- **Root cause:** In `do_physics_sim`, the C-only path updates `obj->pos = ipos` (FVI hit point) at line 1203 BEFORE calling `collide_object_with_wall`. But in the bridge path, OCaml updates its `cur_pos` refs, while `ps_obj->pos` in C remains stale (pre-physics position). Collision handlers like `collide_object_with_wall` in `collide.cpp` create fireballs at `weapon->pos`, so the bridge path created fireballs at the wrong (old) position.
+- **Diagnosis:** Added diagnostic fprintf logging to both paths. C-only showed delta=(0,0,0) between pos and hit point (already synced). Bridge showed deltas of 100k+ units (completely stale).
+- **Fix (`main_d2/physics.cpp`):** Set `ps_obj->pos = hp;` before calling `collide_object_with_wall` and `scrape_object_on_wall` in the bridge effect callbacks.
+- **Impact:** Eliminated 1000 object divergences, pushed first divergence from frame 32 to frame 45.
+
+#### Fix 2: retry_count not written back from OCaml physics sim
+
+- **Root cause:** OCaml physics sim returned `retry_count` as `result[22]` but it was never written back to `Ai_local_info`. The C-only path updates retry_count at the end of the physics loop.
+- **Fix (`main_d2/physics.cpp`):** Added writeback: `if (obj->control_type == CT_AI && result[22] > 0) Ai_local_info[objnum].retry_count = result[22];`
+- **Impact:** Eliminated frame 14-15 ai_local[28] divergences, reduced divergent frames 607→605.
+
+#### Fix 3: object_animates passed as hardcoded 1 instead of pre-computed value
+
+- **Root cause:** The bridge passed `1` for `animation_enabled` to OCaml instead of the pre-computed `object_animates` value from `do_silly_animation`. OCaml then used a simplified `dist < 100` approximation which didn't match C's actual animation check.
+- **Fix (`main_d2/ai.cpp`):** Changed `1 /* animation_enabled */` to `object_animates`.
+- **Fix (`ox/ox_ai_frame.ml`):** Changed `let object_animates = ref 0` to `ref animation_enabled`, removed OCaml's dist-based animation phase approximation.
+
+#### Fix 4: AIM_GOTO_PLAYER visibility hardcoded to 2
+
+- **Root cause:** C-only passes `player_visibility=2` (hardcoded) when calling `ai_follow_path` for GOTO_PLAYER/GOTO_OBJECT modes. OCaml was passing the actual `!player_visibility` which could be different.
+- **Fix (`ox/ox_ai_frame.ml`):** Changed `Ai_follow_path (!player_visibility, ...)` to `Ai_follow_path (2, ...)` for goto modes.
+
+#### Fix 5: compute_vis doesn't update previous_visibility in OCaml
+
+- **Root cause:** C's `compute_vis_and_vec` updates `ailp->previous_visibility` as a side effect. OCaml's `compute_vis()` helper updated `player_visibility` but not `previous_visibility`. This could cause the time-slice check to use a stale value, potentially causing OCaml to early-return when C would not.
+- **Fix (`ox/ox_ai_frame.ml`):** Added `previous_visibility := pv;` inside `compute_vis()` for both D1 and D2 paths.
+
+#### Remaining divergence: vm_vector_2_matrix parity
+
+- **Root cause identified:** Frame 45 divergence is in `orient.rvec`/`orient.uvec` of obj69 (robot) while `fvec` matches perfectly. Both builds time-slice this robot (skip AI movement). The difference comes from `do_physics_align_object` calling `vm_vector_2_matrix` — the OX build delegates to OCaml's implementation while C-ref uses C's implementation. Cross-product rounding differences produce slightly different `rvec`/`uvec` for the same `fvec`.
+
+#### Parity status (636 frames, test_session.rec)
+
+| Metric | Session 26 | Session 27 | Change |
+|--------|-----------|-----------|--------|
+| Divergent frames | 624 | 592 | -32 |
+| Object divergences | 7,637 | 6,533 | -1,104 |
+| AI local divergences | 8,435 | 8,385 | -50 |
+| First divergence | Frame 14 | Frame 45 | +31 frames |
   - Frames 117-636: All state diverges due to random state mismatch from P_Rand desync.
   - The escort robot is the single remaining source of pre-random divergence. Fixing the frame 13 CS divergence would likely eliminate the P_Rand divergence and most subsequent divergences.
 

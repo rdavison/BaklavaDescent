@@ -506,6 +506,10 @@ void do_physics_sim(object *obj)
 				   int hit_px, int hit_py, int hit_pz, int obj_flags) -> int {
 					vms_vector hp = {hit_px, hit_py, hit_pz};
 					ps_obj->flags = obj_flags;
+					// OCaml updates cur_pos before this effect, but ps_obj->pos is stale.
+					// C-only path does obj->pos = ipos before collision handlers.
+					// Sync ps_obj->pos so collision handlers (e.g. fireball creation) use correct position.
+					ps_obj->pos = hp;
 					collide_object_with_wall(ps_obj, (fix)hit_speed, wall_seg, wall_side, &hp);
 					return ps_obj->flags;
 				},
@@ -513,6 +517,7 @@ void do_physics_sim(object *obj)
 				[](int wall_seg, int wall_side,
 				   int hit_px, int hit_py, int hit_pz) -> int {
 					vms_vector hp = {hit_px, hit_py, hit_pz};
+					ps_obj->pos = hp;
 					scrape_object_on_wall(ps_obj, wall_seg, wall_side, &hp);
 					return ps_obj->flags;
 				},
@@ -907,7 +912,10 @@ void do_physics_sim(object *obj)
 	pi->flags = result[17];
 	pi->turnroll = result[18];
 	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
-	// result[22] = retry_count (informational)
+	// Pass retry count info to AI (mirrors C-only path at end of physics loop)
+	if (obj->control_type == CT_AI && result[22] > 0) {
+		Ai_local_info[objnum].retry_count = result[22];
+	}
 	n_phys_segs = result[23];
 	// result[24] = needs_levelling (already handled inside OCaml via PF_LEVELLING flag)
 	// result[25..25+n_phys_segs-1] = phys_seglist values
@@ -1302,9 +1310,9 @@ save_p1 = *fq.p1;
 
 				wall_part = vm_vec_dot(&moved_v,&hit_info.hit_wallnorm);
 
-				if (wall_part != 0 && moved_time>0 && (hit_speed=-fixdiv(wall_part,moved_time))>0)
+				if (wall_part != 0 && moved_time>0 && (hit_speed=-fixdiv(wall_part,moved_time))>0) {
 					collide_object_with_wall( obj, hit_speed, WallHitSeg, WallHitSide, &hit_info.hit_pnt );
-				else
+				} else
 					scrape_object_on_wall(obj, WallHitSeg, WallHitSide, &hit_info.hit_pnt );
 
 				Assert( WallHitSeg > -1 );

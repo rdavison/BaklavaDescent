@@ -685,6 +685,9 @@ let do_ai_frame_d1
       in
       player_visibility := pv;
       vec_to_player := vtx, vty, vtz;
+      (* C's compute_vis_and_vec updates ailp->previous_visibility = player_visibility.
+         Mirror that here so the time-slice check uses the current frame's value. *)
+      previous_visibility := pv;
       visibility_and_vec_computed := 1)
   in
   (* Helper: pack result *)
@@ -1468,12 +1471,15 @@ let do_ai_frame_d2
   let circle_distance_diff = rinfo.(ri_circle_distance + difficulty_level) in
   let turn_time_diff = rinfo.(ri_turn_time + difficulty_level) in
   let pursuit = rinfo.(ri_pursuit) in
-  ignore (weapon_type, turn_time_diff, animation_enabled, current_level_num);
+  ignore (weapon_type, turn_time_diff, current_level_num);
   ignore (last_missile_camera, robots_kill_robots_cheat, boss_dying_start_time);
   ignore (believed_seg, cloak_last_time);
   (* Mutable locals *)
   let player_visibility = ref (-1) in
-  let object_animates = ref 0 in
+  (* animation_enabled carries the pre-computed object_animates from the bridge's
+     pre-animation phase (actual do_silly_animation result), so we use it directly
+     instead of the simplified dist<100 approximation *)
+  let object_animates = ref animation_enabled in
   let visibility_and_vec_computed = ref 0 in
   let vec_to_player = ref (0, 0, 0) in
   let dist_to_player = ref 0 in
@@ -1493,6 +1499,9 @@ let do_ai_frame_d2
       in
       player_visibility := pv;
       vec_to_player := vtx, vty, vtz;
+      (* C's compute_vis_and_vec updates ailp->previous_visibility = player_visibility.
+         Mirror that here so the time-slice check uses the current frame's value. *)
+      previous_visibility := pv;
       visibility_and_vec_computed := 1)
   in
   (* Helper: pack result *)
@@ -1818,12 +1827,11 @@ let do_ai_frame_d2
           if !player_visibility = 1 then player_visibility := 2));
       (* Phase: flinch→lock *)
       if !goal_state = ais_flin && !current_state = ais_flin then goal_state := ais_lock;
-      (* Phase: animation *)
-      if !dist_to_player < f1_0 * 100
-      then object_animates := 1
-      else (
-        current_state := !goal_state;
-        object_animates := 0);
+      (* Phase: animation — skipped in bridge path.
+         The bridge pre-animation already called do_silly_animation and set
+         object_animates + CS=GS for the far-away case. The packed ai_state
+         already has the correct CURRENT_STATE, and animation_enabled carries
+         the real object_animates value. Nothing to do here. *)
       (* Phase: boss handling *)
       if boss_flag <> 0
       then (
@@ -1985,9 +1993,10 @@ let do_ai_frame_d2
                   (fvx, fvy, fvz, fpx, fpy, fpz, objnum, proximity_id_d2));
              next_fire := f1_0 * 5))
        | m when m = aim_goto_player || m = aim_goto_object ->
+         (* C-only passes player_visibility=2 (hardcoded) for goto modes *)
          let vtpx, vtpy, vtpz = !vec_to_player in
          Effect.perform
-           (Ai_follow_path (!player_visibility, !previous_visibility, vtpx, vtpy, vtpz))
+           (Ai_follow_path (2, !previous_visibility, vtpx, vtpy, vtpz))
        | m when m = aim_follow_path ->
          let anger_level = ref 65 in
          if !behavior = aib_station then anger_level := 64;
