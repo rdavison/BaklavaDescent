@@ -406,20 +406,6 @@ void cd_ox_extract_orient_from_segment(
     int32_t* u1, int32_t* u2, int32_t* u3,
     int32_t* f1, int32_t* f2, int32_t* f3);
 
-/* FVI functions */
-void cd_ox_check_line_to_face(
-    const int32_t* packed, int32_t packed_len,
-    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz);
-void cd_ox_special_check_line_to_face(
-    const int32_t* packed, int32_t packed_len,
-    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz);
-int32_t cd_ox_check_vector_to_sphere_1(
-    int32_t p0x, int32_t p0y, int32_t p0z,
-    int32_t p1x, int32_t p1y, int32_t p1z,
-    int32_t spx, int32_t spy, int32_t spz,
-    int32_t srad,
-    int32_t* ix, int32_t* iy, int32_t* iz);
-
 void cd_ox_physics_turn_towards_vector(
     int32_t gx, int32_t gy, int32_t gz,
     int32_t fx, int32_t fy, int32_t fz,
@@ -572,17 +558,6 @@ void cd_ox_ai_path_set_orient_and_vel(
 void cd_ox_do_silly_animation(
     const int32_t* packed, int packed_len,
     int32_t* out_buf, int out_len);
-
-/* check_vector_to_object: compute intersection with adjusted collision radius.
-   Returns distance (0 = no hit), writes intersection point to out_intp*. */
-int32_t cd_ox_check_vector_to_object(
-    int32_t p0x, int32_t p0y, int32_t p0z,
-    int32_t p1x, int32_t p1y, int32_t p1z,
-    int32_t rad,
-    int32_t opx, int32_t opy, int32_t opz,
-    int32_t obj_size, int obj_type, int attack_type,
-    int otherobj_type, int game_mode_coop, int otherobj_parent_type,
-    int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz);
 
 /* set_next_fire_time D1: compute next fire timing.
    Returns new_rapidfire_count and new_next_fire. */
@@ -796,11 +771,6 @@ void cd_ox_do_firing_stuff(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
-/* object_intersects_wall: check if sphere pokes through any wall.
-   packed layout: header(6) + n_segments × 80 ints per segment.
-   Returns 1 if intersects, 0 if not. */
-int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len);
-
 /* find_point_seg: find segment containing a point.
    packed layout: header(6) + n_segments × 80 ints per segment.
    Header: p.xyz, segnum(hint,-1), n_segments, doing_lighting_hack.
@@ -815,49 +785,6 @@ int cd_ox_find_point_seg(const int32_t* packed, int packed_len);
 void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
                                     int32_t* out_dist, int32_t* out_csd);
 
-/* find_vector_intersection: top-level FVI dispatcher.
-   packed layout: header(18+N) + CollisionResult(256) + n_segments × 87 + n_objects × 14.
-   Header: p0.xyz, startseg, p1.xyz, rad, thisobjnum, flags, n_segments, n_objects,
-           player_objnum, physics_cheat, game_mode_coop, game_time, is_d2,
-           ignore_obj_count, ignore_obj_list[N].
-   out_buf: receives [hit_type, hit_pnt.xyz, hit_seg, hit_side, hit_side_seg,
-                      hit_object, wallnorm.xyz, n_segs, seglist...].
-   out_len: total number of ints written to out_buf. */
-void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
-                                     int32_t* out_buf, int* out_len);
-
-/* find_homing_object_complete: find best homing target from all objects.
-   packed layout: FVI format (header(18) + CollisionResult(256) + segments(n*87) + objects(n*14))
-   + homing header(19) + homing per-object(n*5).
-   Returns best object index or -1. */
-int cd_ox_find_homing_object_complete(const int32_t* packed, int packed_len);
-
-/* find_homing_object: initial target acquisition for homing missiles.
-   Same packed layout as find_homing_object_complete + tracking extension
-   (7 ints + rendered_object_list).
-   Returns best object index or -1. */
-int cd_ox_find_homing_object(const int32_t* packed, int packed_len);
-
-/* track_track_goal: per-frame tracking update.
-   Same packed layout as find_homing_object.
-   Returns track result via out_result and dot product via out_dot. */
-void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_result, int* out_dot);
-
-/* player_is_visible_from_object: AI visibility check.
-   Packed layout: FVI format + 20-int player_vis extension.
-   Returns 11-element result via out array:
-   [result(0/1/2), pos.xyz, need_move_center, sub_flags, hit_type, hit_pos.xyz, hit_seg] */
-void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, int32_t* out);
-
-/* compute_vis_and_vec: AI visibility + vec_to_player computation.
-   Packed layout: FVI format + pv_ext(20) + cvv_ext(19).
-   Returns 28-element result via out array:
-   [player_vis, vtp.xyz, pos.xyz, need_move_center, sub_flags, hit_type, hit_pos.xyz,
-    hit_seg, cloak_last_time, cloak_last_pos.xyz, prand_state, ailp_next_misc_sound_time,
-    ailp_prev_vis, ailp_time_player_seen, ailp_time_player_sound_attacked,
-    aip_GOAL_STATE, aip_CURRENT_STATE, sound_count, sound1_id, sound2_id] */
-void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out);
-
 /* -- FVI check_trans_wall callback ------------------------------------ */
 /* Callback type for pixel-level transparency check on walls.
    Called from OCaml FVI when FQ_TRANSPOINT is set.
@@ -866,6 +793,45 @@ void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out);
 typedef int (*cd_check_trans_wall_fn)(int segnum, int sidenum, int facenum,
                                       int32_t hit_x, int32_t hit_y, int32_t hit_z);
 void cd_ox_register_check_trans_wall(cd_check_trans_wall_fn fn);
+
+/* FVI on-demand data fetch callbacks.
+   These are called from OCaml via effects to fetch segment/object data
+   for only the segments/objects actually visited, instead of pre-packing all data. */
+typedef void (*cd_fvi_fetch_segment_data_fn)(int segnum, int32_t* out87);
+typedef void (*cd_fvi_fetch_object_data_fn)(int objnum, int32_t* out14);
+typedef void (*cd_fvi_fetch_collision_table_fn)(int32_t* out256);
+void cd_ox_register_fvi_data_callbacks(
+    cd_fvi_fetch_segment_data_fn fetch_seg,
+    cd_fvi_fetch_object_data_fn fetch_obj,
+    cd_fvi_fetch_collision_table_fn fetch_ct);
+
+/* find_vector_intersection v2: on-demand data fetching via effects.
+   header is just the 18+N int FVI header (no segments/objects/collision table).
+   The OCaml side fetches data via registered callbacks as needed.
+   Output format is identical to cd_ox_find_vector_intersection. */
+void cd_ox_find_vector_intersection_v2(const int32_t* header, int header_len,
+                                        int32_t* out_buf, int* out_len);
+
+/* object_intersects_wall v2: on-demand segment data via effects.
+   header: [pnt.xyz, rad, segnum, n_segments] (6 ints). */
+int cd_ox_object_intersects_wall_v2(const int32_t* header, int header_len);
+
+/* find_homing_object_complete v2: on-demand data via effects.
+   header: FVI header(18) + homing header(19) + homing per-object(n_objects*5). */
+int cd_ox_find_homing_object_complete_v2(const int32_t* packed, int packed_len);
+
+/* find_homing_object v2: on-demand data via effects. */
+int cd_ox_find_homing_object_v2(const int32_t* packed, int packed_len);
+
+/* track_track_goal v2: on-demand data via effects. */
+void cd_ox_track_track_goal_v2(const int32_t* packed, int packed_len,
+                                int* out_result, int* out_dot);
+
+/* player_is_visible_from_object v2: on-demand data via effects. */
+void cd_ox_player_is_visible_from_object_v2(const int32_t* packed, int packed_len, int32_t* out);
+
+/* compute_vis_and_vec v2: on-demand data via effects. */
+void cd_ox_compute_vis_and_vec_v2(int32_t* packed, int packed_len, int32_t* out);
 
 /* -- Robot animation functions ---------------------------------------- */
 

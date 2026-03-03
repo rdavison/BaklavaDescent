@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <caml/alloc.h>
 #include <caml/callback.h>
@@ -79,13 +80,15 @@ static const value* g_get_seg_masks = NULL;
 static const value* g_get_side_dists = NULL;
 static const value* g_extract_vector_from_segment = NULL;
 static const value* g_extract_orient_from_segment = NULL;
-static const value* g_check_line_to_face = NULL;
-static const value* g_special_check_line_to_face = NULL;
-static const value* g_check_vector_to_sphere_1 = NULL;
 static const value* g_apply_damage_to_robot_d1 = NULL;
 
 /* FVI check_trans_wall callback (set via cd_ox_register_check_trans_wall) */
 static cd_check_trans_wall_fn g_check_trans_wall = NULL;
+
+/* FVI on-demand data fetch callbacks (set via cd_ox_register_fvi_data_callbacks) */
+static cd_fvi_fetch_segment_data_fn g_fvi_fetch_segment_data = NULL;
+static cd_fvi_fetch_object_data_fn g_fvi_fetch_object_data = NULL;
+static cd_fvi_fetch_collision_table_fn g_fvi_fetch_collision_table = NULL;
 
 /* Collide effect function pointers (set via cd_ox_register_collide_effects) */
 static cd_effect_increment_kills_fn g_effect_increment_kills = NULL;
@@ -128,7 +131,6 @@ static const value* g_ai_frame_animation = NULL;
 static const value* g_ai_move_relative_to_player = NULL;
 static const value* g_ai_path_set_orient_and_vel = NULL;
 static const value* g_do_silly_animation = NULL;
-static const value* g_check_vector_to_object = NULL;
 static const value* g_set_next_fire_time_d1 = NULL;
 static const value* g_set_next_fire_time_d2 = NULL;
 static const value* g_compute_headlight_light_d1 = NULL;
@@ -248,15 +250,17 @@ static const value* g_create_all_vertnum_lists = NULL;
 static const value* g_robot_get_anim_state = NULL;
 static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
-static const value* g_object_intersects_wall = NULL;
 static const value* g_find_point_seg = NULL;
 static const value* g_find_connected_distance = NULL;
-static const value* g_find_vector_intersection = NULL;
-static const value* g_find_homing_object_complete = NULL;
-static const value* g_find_homing_object = NULL;
-static const value* g_track_track_goal = NULL;
-static const value* g_player_is_visible_from_object = NULL;
-static const value* g_compute_vis_and_vec = NULL;
+
+/* v2 callbacks (on-demand data fetching via effects) */
+static const value* g_find_vector_intersection_v2 = NULL;
+static const value* g_object_intersects_wall_v2 = NULL;
+static const value* g_find_homing_object_complete_v2 = NULL;
+static const value* g_find_homing_object_v2 = NULL;
+static const value* g_track_track_goal_v2 = NULL;
+static const value* g_player_is_visible_from_object_v2 = NULL;
+static const value* g_compute_vis_and_vec_v2 = NULL;
 
 static void cd_ox_require_ready(const char* fn)
 {
@@ -330,9 +334,6 @@ static void cd_ox_require_ready(const char* fn)
           && g_get_side_dists
           && g_extract_vector_from_segment
           && g_extract_orient_from_segment
-          && g_check_line_to_face
-          && g_special_check_line_to_face
-          && g_check_vector_to_sphere_1
           && g_apply_damage_to_robot_d1
           && g_apply_damage_to_robot_d2
           && g_physics_turn_towards_vector
@@ -349,7 +350,6 @@ static void cd_ox_require_ready(const char* fn)
           && g_lead_player
           && g_homing_missile_turn_towards_velocity
           && g_do_physics_align_object
-          && g_check_vector_to_object
           && g_set_next_fire_time_d1
           && g_set_next_fire_time_d2
           && g_compute_headlight_light_d1
@@ -387,7 +387,6 @@ static void cd_ox_require_ready(const char* fn)
           && g_robot_get_anim_state
           && g_set_robot_state
           && g_robot_set_angles
-          && g_object_intersects_wall
           && g_find_point_seg
           && g_player_has_weapon_d1
           && g_player_has_weapon_d2
@@ -485,9 +484,6 @@ int cd_ox_init_runtime(const char* executable_path)
     g_get_side_dists = caml_named_value("cd_get_side_dists");
     g_extract_vector_from_segment = caml_named_value("cd_extract_vector_from_segment");
     g_extract_orient_from_segment = caml_named_value("cd_extract_orient_from_segment");
-    g_check_line_to_face = caml_named_value("cd_check_line_to_face");
-    g_special_check_line_to_face = caml_named_value("cd_special_check_line_to_face");
-    g_check_vector_to_sphere_1 = caml_named_value("cd_check_vector_to_sphere_1");
     g_apply_damage_to_robot_d1 = caml_named_value("cd_apply_damage_to_robot_d1");
     g_apply_damage_to_robot_d2 = caml_named_value("cd_apply_damage_to_robot_d2");
     g_physics_turn_towards_vector = caml_named_value("cd_physics_turn_towards_vector");
@@ -508,7 +504,6 @@ int cd_ox_init_runtime(const char* executable_path)
     g_ai_move_relative_to_player = caml_named_value("cd_ai_move_relative_to_player");
     g_ai_path_set_orient_and_vel = caml_named_value("cd_ai_path_set_orient_and_vel");
     g_do_silly_animation = caml_named_value("cd_do_silly_animation");
-    g_check_vector_to_object = caml_named_value("cd_check_vector_to_object");
     g_set_next_fire_time_d1 = caml_named_value("cd_set_next_fire_time_d1");
     g_set_next_fire_time_d2 = caml_named_value("cd_set_next_fire_time_d2");
     g_compute_headlight_light_d1 = caml_named_value("cd_compute_headlight_light_d1");
@@ -554,15 +549,17 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_get_anim_state = caml_named_value("cd_robot_get_anim_state");
     g_set_robot_state = caml_named_value("cd_set_robot_state");
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
-    g_object_intersects_wall = caml_named_value("cd_object_intersects_wall");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
-    g_find_vector_intersection = caml_named_value("cd_find_vector_intersection");
-    g_find_homing_object_complete = caml_named_value("cd_find_homing_object_complete");
-    g_find_homing_object = caml_named_value("cd_find_homing_object");
-    g_track_track_goal = caml_named_value("cd_track_track_goal");
-    g_player_is_visible_from_object = caml_named_value("cd_player_is_visible_from_object");
-    g_compute_vis_and_vec = caml_named_value("cd_compute_vis_and_vec");
+
+    /* v2 callbacks (on-demand data fetching) — optional, checked separately */
+    g_find_vector_intersection_v2 = caml_named_value("cd_find_vector_intersection_v2");
+    g_object_intersects_wall_v2 = caml_named_value("cd_object_intersects_wall_v2");
+    g_find_homing_object_complete_v2 = caml_named_value("cd_find_homing_object_complete_v2");
+    g_find_homing_object_v2 = caml_named_value("cd_find_homing_object_v2");
+    g_track_track_goal_v2 = caml_named_value("cd_track_track_goal_v2");
+    g_player_is_visible_from_object_v2 = caml_named_value("cd_player_is_visible_from_object_v2");
+    g_compute_vis_and_vec_v2 = caml_named_value("cd_compute_vis_and_vec_v2");
 
     if (!g_i2f
         || !g_f2i
@@ -633,9 +630,6 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_get_side_dists
         || !g_extract_vector_from_segment
         || !g_extract_orient_from_segment
-        || !g_check_line_to_face
-        || !g_special_check_line_to_face
-        || !g_check_vector_to_sphere_1
         || !g_apply_damage_to_robot_d1
         || !g_apply_damage_to_robot_d2
         || !g_physics_turn_towards_vector
@@ -656,7 +650,6 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_ai_move_relative_to_player
         || !g_ai_path_set_orient_and_vel
         || !g_do_silly_animation
-        || !g_check_vector_to_object
         || !g_set_next_fire_time_d1
         || !g_set_next_fire_time_d2
         || !g_compute_headlight_light_d1
@@ -694,15 +687,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_robot_get_anim_state
         || !g_set_robot_state
         || !g_robot_set_angles
-        || !g_object_intersects_wall
         || !g_find_point_seg
         || !g_find_connected_distance
-        || !g_find_vector_intersection
-        || !g_find_homing_object_complete
-        || !g_find_homing_object
-        || !g_track_track_goal
-        || !g_player_is_visible_from_object
-        || !g_compute_vis_and_vec
         || !g_do_controlcen_frame_d1
         || !g_do_controlcen_frame_d2
         || !g_do_ai_frame_d1
@@ -787,9 +773,6 @@ int cd_ox_is_ready(void)
            && g_get_side_dists
            && g_extract_vector_from_segment
            && g_extract_orient_from_segment
-           && g_check_line_to_face
-           && g_special_check_line_to_face
-           && g_check_vector_to_sphere_1
            && g_apply_damage_to_robot_d1
            && g_apply_damage_to_robot_d2
            && g_physics_turn_towards_vector
@@ -810,7 +793,6 @@ int cd_ox_is_ready(void)
            && g_ai_move_relative_to_player
            && g_ai_path_set_orient_and_vel
            && g_do_silly_animation
-           && g_check_vector_to_object
            && g_set_next_fire_time_d1
            && g_set_next_fire_time_d2
            && g_compute_headlight_light_d1
@@ -836,15 +818,8 @@ int cd_ox_is_ready(void)
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles
-           && g_object_intersects_wall
            && g_find_point_seg
            && g_find_connected_distance
-           && g_find_vector_intersection
-           && g_find_homing_object_complete
-           && g_find_homing_object
-           && g_track_track_goal
-           && g_player_is_visible_from_object
-           && g_compute_vis_and_vec
            && g_do_controlcen_frame_d1
            && g_do_controlcen_frame_d2
            && g_do_ai_frame_d1
@@ -1923,72 +1898,6 @@ void cd_ox_extract_orient_from_segment(
     CAMLreturn0;
 }
 
-/* FVI bridge functions */
-
-void cd_ox_check_line_to_face(
-    const int32_t* packed, int32_t packed_len,
-    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz)
-{
-    cd_ox_require_ready("cd_ox_check_line_to_face");
-
-    CAMLparam0();
-    CAMLlocal2(arr, result);
-
-    arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-
-    result = caml_callback(*g_check_line_to_face, arr);
-    *hit_type = Int_val(Field(result, 0));
-    *npx = Int_val(Field(result, 1));
-    *npy = Int_val(Field(result, 2));
-    *npz = Int_val(Field(result, 3));
-    CAMLreturn0;
-}
-
-void cd_ox_special_check_line_to_face(
-    const int32_t* packed, int32_t packed_len,
-    int32_t* hit_type, int32_t* npx, int32_t* npy, int32_t* npz)
-{
-    cd_ox_require_ready("cd_ox_special_check_line_to_face");
-
-    CAMLparam0();
-    CAMLlocal2(arr, result);
-
-    arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-
-    result = caml_callback(*g_special_check_line_to_face, arr);
-    *hit_type = Int_val(Field(result, 0));
-    *npx = Int_val(Field(result, 1));
-    *npy = Int_val(Field(result, 2));
-    *npz = Int_val(Field(result, 3));
-    CAMLreturn0;
-}
-
-int32_t cd_ox_check_vector_to_sphere_1(
-    int32_t p0x, int32_t p0y, int32_t p0z,
-    int32_t p1x, int32_t p1y, int32_t p1z,
-    int32_t spx, int32_t spy, int32_t spz,
-    int32_t srad,
-    int32_t* ix, int32_t* iy, int32_t* iz)
-{
-    cd_ox_require_ready("cd_ox_check_vector_to_sphere_1");
-    value args[10] = {
-        Val_long(p0x), Val_long(p0y), Val_long(p0z),
-        Val_long(p1x), Val_long(p1y), Val_long(p1z),
-        Val_long(spx), Val_long(spy), Val_long(spz),
-        Val_long(srad)
-    };
-    const value out = caml_callbackN(*g_check_vector_to_sphere_1, 10, args);
-    int32_t dist = Int_val(Field(out, 0));
-    *ix = Int_val(Field(out, 1));
-    *iy = Int_val(Field(out, 2));
-    *iz = Int_val(Field(out, 3));
-    return dist;
-}
-
 /* -- Collide effect registration + CAMLprim wrappers ------------------- */
 
 void cd_ox_register_collide_effects(
@@ -2580,33 +2489,6 @@ void cd_ox_do_silly_animation(
     for (int i = 0; i < out_len; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
-}
-
-int32_t cd_ox_check_vector_to_object(
-    int32_t p0x, int32_t p0y, int32_t p0z,
-    int32_t p1x, int32_t p1y, int32_t p1z,
-    int32_t rad,
-    int32_t opx, int32_t opy, int32_t opz,
-    int32_t obj_size, int obj_type, int attack_type,
-    int otherobj_type, int game_mode_coop, int otherobj_parent_type,
-    int32_t* out_intpx, int32_t* out_intpy, int32_t* out_intpz)
-{
-    cd_ox_require_ready("cd_ox_check_vector_to_object");
-    value args[16] = {
-        Val_long(p0x), Val_long(p0y), Val_long(p0z),
-        Val_long(p1x), Val_long(p1y), Val_long(p1z),
-        Val_long(rad),
-        Val_long(opx), Val_long(opy), Val_long(opz),
-        Val_long(obj_size), Val_long(obj_type), Val_long(attack_type),
-        Val_long(otherobj_type), Val_long(game_mode_coop),
-        Val_long(otherobj_parent_type),
-    };
-    const value out = caml_callbackN(*g_check_vector_to_object, 16, args);
-    int32_t dist = Int_val(Field(out, 0));
-    *out_intpx = Int_val(Field(out, 1));
-    *out_intpy = Int_val(Field(out, 2));
-    *out_intpz = Int_val(Field(out, 3));
-    return dist;
 }
 
 void cd_ox_set_next_fire_time_d1(
@@ -3378,18 +3260,6 @@ void cd_ox_do_homing_weapon_frame(
     CAMLreturn0;
 }
 
-int cd_ox_object_intersects_wall(const int32_t* packed, int packed_len)
-{
-    cd_ox_require_ready("cd_ox_object_intersects_wall");
-    CAMLparam0();
-    CAMLlocal1(arr);
-    arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-    int result = Int_val(caml_callback(*g_object_intersects_wall, arr));
-    CAMLreturnT(int, result);
-}
-
 int cd_ox_find_point_seg(const int32_t* packed, int packed_len)
 {
     cd_ox_require_ready("cd_ox_find_point_seg");
@@ -3442,18 +3312,77 @@ CAMLprim value cd_ox_check_trans_wall_bytecode(value *argv, int argn)
                                   argv[3], argv[4], argv[5]);
 }
 
-void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
-                                     int32_t* out_buf, int* out_len)
+/* -- FVI on-demand data fetch callbacks -------------------------------- */
+
+void cd_ox_register_fvi_data_callbacks(
+    cd_fvi_fetch_segment_data_fn fetch_seg,
+    cd_fvi_fetch_object_data_fn fetch_obj,
+    cd_fvi_fetch_collision_table_fn fetch_ct)
 {
-    cd_ox_require_ready("cd_ox_find_vector_intersection");
+    g_fvi_fetch_segment_data = fetch_seg;
+    g_fvi_fetch_object_data = fetch_obj;
+    g_fvi_fetch_collision_table = fetch_ct;
+}
+
+CAMLprim value cd_ox_fetch_segment_data(value v_segnum)
+{
+    CAMLparam1(v_segnum);
+    CAMLlocal1(v_result);
+    int segnum = Int_val(v_segnum);
+    int32_t buf[87];
+    memset(buf, 0, sizeof(buf));
+    if (g_fvi_fetch_segment_data)
+        g_fvi_fetch_segment_data(segnum, buf);
+    v_result = caml_alloc(87, 0);
+    for (int i = 0; i < 87; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_fetch_object_data(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_result);
+    int objnum = Int_val(v_objnum);
+    int32_t buf[14];
+    memset(buf, 0, sizeof(buf));
+    if (g_fvi_fetch_object_data)
+        g_fvi_fetch_object_data(objnum, buf);
+    v_result = caml_alloc(14, 0);
+    for (int i = 0; i < 14; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_fetch_collision_table(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+    int32_t buf[256];
+    memset(buf, 0, sizeof(buf));
+    if (g_fvi_fetch_collision_table)
+        g_fvi_fetch_collision_table(buf);
+    v_result = caml_alloc(256, 0);
+    for (int i = 0; i < 256; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+/* -- FVI v2 functions (on-demand data via effects) -------------------- */
+
+void cd_ox_find_vector_intersection_v2(const int32_t* header, int header_len,
+                                        int32_t* out_buf, int* out_len)
+{
+    cd_ox_require_ready("cd_ox_find_vector_intersection_v2");
+    if (!g_find_vector_intersection_v2) { *out_len = 0; return; }
     CAMLparam0();
     CAMLlocal2(arr, result);
-    arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-    result = caml_callback_exn(*g_find_vector_intersection, arr);
+    arr = caml_alloc(header_len, 0);
+    for (int i = 0; i < header_len; i++)
+        Store_field(arr, i, Val_long(header[i]));
+    result = caml_callback_exn(*g_find_vector_intersection_v2, arr);
     if (Is_exception_result(result)) {
-        fprintf(stderr, "OX_SHADOW: cd_ox_find_vector_intersection exception, falling back to C\n");
+        fprintf(stderr, "OX_SHADOW: cd_ox_find_vector_intersection_v2 exception\n");
         *out_len = 0;
         CAMLreturn0;
     }
@@ -3464,77 +3393,107 @@ void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
     CAMLreturn0;
 }
 
-int cd_ox_find_homing_object_complete(const int32_t* packed, int packed_len)
+int cd_ox_object_intersects_wall_v2(const int32_t* header, int header_len)
 {
-    cd_ox_require_ready("cd_ox_find_homing_object_complete");
+    cd_ox_require_ready("cd_ox_object_intersects_wall_v2");
+    if (!g_object_intersects_wall_v2) return 0;
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(header_len, 0);
+    for (int i = 0; i < header_len; i++)
+        Store_field(arr, i, Val_long(header[i]));
+    value result = caml_callback_exn(*g_object_intersects_wall_v2, arr);
+    if (Is_exception_result(result))
+        CAMLreturnT(int, 0);
+    CAMLreturnT(int, Int_val(result));
+}
+
+int cd_ox_find_homing_object_complete_v2(const int32_t* packed, int packed_len)
+{
+    cd_ox_require_ready("cd_ox_find_homing_object_complete_v2");
+    if (!g_find_homing_object_complete_v2) return -1;
     CAMLparam0();
     CAMLlocal1(arr);
     arr = caml_alloc(packed_len, 0);
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
-    int result = Int_val(caml_callback(*g_find_homing_object_complete, arr));
-    CAMLreturnT(int, result);
+    value result = caml_callback_exn(*g_find_homing_object_complete_v2, arr);
+    if (Is_exception_result(result))
+        CAMLreturnT(int, -1);
+    CAMLreturnT(int, Int_val(result));
 }
 
-int cd_ox_find_homing_object(const int32_t* packed, int packed_len)
+int cd_ox_find_homing_object_v2(const int32_t* packed, int packed_len)
 {
-    cd_ox_require_ready("cd_ox_find_homing_object");
+    cd_ox_require_ready("cd_ox_find_homing_object_v2");
+    if (!g_find_homing_object_v2) return -1;
     CAMLparam0();
     CAMLlocal1(arr);
     arr = caml_alloc(packed_len, 0);
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
-    int result = Int_val(caml_callback(*g_find_homing_object, arr));
-    CAMLreturnT(int, result);
+    value result = caml_callback_exn(*g_find_homing_object_v2, arr);
+    if (Is_exception_result(result))
+        CAMLreturnT(int, -1);
+    CAMLreturnT(int, Int_val(result));
 }
 
-void cd_ox_track_track_goal(const int32_t* packed, int packed_len, int* out_result, int* out_dot)
+void cd_ox_track_track_goal_v2(const int32_t* packed, int packed_len,
+                                int* out_result, int* out_dot)
 {
-    cd_ox_require_ready("cd_ox_track_track_goal");
+    cd_ox_require_ready("cd_ox_track_track_goal_v2");
+    if (!g_track_track_goal_v2) { *out_result = 0; *out_dot = 0; return; }
     CAMLparam0();
     CAMLlocal1(result);
     value arr = caml_alloc(packed_len, 0);
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
-    result = caml_callback(*g_track_track_goal, arr);
+    result = caml_callback_exn(*g_track_track_goal_v2, arr);
+    if (Is_exception_result(result)) { *out_result = 0; *out_dot = 0; CAMLreturn0; }
     *out_result = Int_val(Field(result, 0));
     *out_dot = Int_val(Field(result, 1));
+    CAMLreturn0;
+}
+
+void cd_ox_player_is_visible_from_object_v2(const int32_t* packed, int packed_len, int32_t* out)
+{
+    cd_ox_require_ready("cd_ox_player_is_visible_from_object_v2");
+    if (!g_player_is_visible_from_object_v2) { for (int i=0;i<11;i++) out[i]=0; return; }
+    CAMLparam0();
+    CAMLlocal1(result);
+    value arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback_exn(*g_player_is_visible_from_object_v2, arr);
+    if (Is_exception_result(result)) { for (int i=0;i<11;i++) out[i]=0; CAMLreturn0; }
+    for (int i = 0; i < 11; i++)
+        out[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_compute_vis_and_vec_v2(int32_t* packed, int packed_len, int32_t* out)
+{
+    cd_ox_require_ready("cd_ox_compute_vis_and_vec_v2");
+    if (!g_compute_vis_and_vec_v2) { for (int i=0;i<28;i++) out[i]=0; return; }
+    CAMLparam0();
+    CAMLlocal1(result);
+    value arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback_exn(*g_compute_vis_and_vec_v2, arr);
+    if (Is_exception_result(result)) { for (int i=0;i<28;i++) out[i]=0; CAMLreturn0; }
+    for (int i = 0; i < 28; i++)
+        out[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }
 
 /* player_is_visible_from_object: returns 11-element result via out array.
    out[0]=result(0/1/2), out[1..3]=pos, out[4]=need_move_center, out[5]=sub_flags,
    out[6]=hit_type, out[7..9]=hit_pos, out[10]=hit_seg */
-void cd_ox_player_is_visible_from_object(const int32_t* packed, int packed_len, int32_t* out)
-{
-    cd_ox_require_ready("cd_ox_player_is_visible_from_object");
-    CAMLparam0();
-    CAMLlocal1(result);
-    value arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-    result = caml_callback(*g_player_is_visible_from_object, arr);
-    for (int i = 0; i < 11; i++)
-        out[i] = Int_val(Field(result, i));
-    CAMLreturn0;
-}
 
 /* compute_vis_and_vec: returns 28-element result via out array.
    Packed layout: FVI format + pv_ext(20) + cvv_ext(19).
    The packed array is mutable (OCaml modifies vec_to_player in pv_ext). */
-void cd_ox_compute_vis_and_vec(int32_t* packed, int packed_len, int32_t* out)
-{
-    cd_ox_require_ready("cd_ox_compute_vis_and_vec");
-    CAMLparam0();
-    CAMLlocal1(result);
-    value arr = caml_alloc(packed_len, 0);
-    for (int i = 0; i < packed_len; i++)
-        Store_field(arr, i, Val_long(packed[i]));
-    result = caml_callback(*g_compute_vis_and_vec, arr);
-    for (int i = 0; i < 28; i++)
-        out[i] = Int_val(Field(result, i));
-    CAMLreturn0;
-}
 
 /* -- Weapon decision logic -------------------------------------------- */
 

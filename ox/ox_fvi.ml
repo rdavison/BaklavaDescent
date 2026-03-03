@@ -1,6 +1,12 @@
 (* FVI (Find Vector Intersection) pure geometry functions.
    Ported from main_d1/fvi.cpp. *)
 
+(* Effects for on-demand data fetching. OCaml FVI fetches segment/object
+   data only for segments actually visited, instead of pre-packing everything. *)
+type _ Effect.t +=
+  | Fetch_object_data : int -> int array Effect.t
+  | Fetch_collision_table : int array Effect.t
+
 type vec3 = int * int * int
 
 let ij_table = [| [| 2; 1 |]; [| 0; 2 |]; [| 1; 0 |] |]
@@ -333,113 +339,6 @@ let obj_weapon = 5
      otherobj_parent_type - otherobj->ctype.laser_info.parent_type
 
    Returns: (distance, intersection_point) — 0 distance means no hit *)
-(* sphere_intersects_wall: check whether a sphere pokes through any wall
-   of its segment, recursing into adjacent connected segments.
-
-   Packed array layout:
-   Header (6 ints): pnt.x, pnt.y, pnt.z, rad, segnum, n_segments
-   Per-segment (80 ints each):
-     [0..5]   children[0..5]
-     [6..11]  side_types[0..5]
-     [12..19] seg_verts[0..7] (absolute vertex indices)
-     [20..55] normals: side 0..5, normals[0].xyz then normals[1].xyz
-     [56..79] vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz
-
-   Returns 1 if sphere intersects a solid wall, 0 otherwise.
-   IS_CHILD(child) = child > -1. *)
-let sphere_intersects_wall (arr : int array) =
-  let pnt = arr.(0), arr.(1), arr.(2) in
-  let rad = arr.(3) in
-  let start_segnum = arr.(4) in
-  let n_segments = arr.(5) in
-  let header = 6 in
-  let per_seg = 80 in
-  (* Build a segnum -> index map. We use a simple scan since segment numbers
-     may be sparse. The C callsite packs segments in order, and we need to
-     map segment numbers to their offset in the packed array. We'll store
-     the segment numbers in an array and do linear lookup, or we can use
-     the children values directly as segment numbers and find them. *)
-  (* Actually, the C callsite packs ALL segments (Highest_segment_index+1),
-     indexed directly by segment number. So segment i's data is at
-     header + i * per_seg. *)
-  let visited = Array.create ~len:n_segments false in
-  let get_seg_base segnum = header + (segnum * per_seg) in
-  let rec walk segnum =
-    if segnum < 0 || segnum >= n_segments
-    then 0
-    else if visited.(segnum)
-    then 0
-    else (
-      visited.(segnum) <- true;
-      let base = get_seg_base segnum in
-      let children = Array.init 6 ~f:(fun i -> arr.(base + i)) in
-      let side_types = Array.init 6 ~f:(fun i -> arr.(base + 6 + i)) in
-      let seg_verts = Array.init 8 ~f:(fun i -> arr.(base + 12 + i)) in
-      let normals =
-        Array.init 12 ~f:(fun i ->
-          let off = base + 20 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
-      let seg_vert_positions =
-        Array.init 8 ~f:(fun i ->
-          let off = base + 56 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
-      (* get_seg_masks to find facemask *)
-      let facemask, _sidemask, _centermask =
-        Ox_gameseg.get_seg_masks
-          ~checkp:pnt
-          ~rad
-          ~seg_verts
-          ~side_types
-          ~normals
-          ~seg_vert_positions
-      in
-      if facemask = 0
-      then 0
-      else (
-        let result = ref 0 in
-        let facebit = ref 1 in
-        let side = ref 0 in
-        while !side < 6 && facemask >= !facebit && !result = 0 do
-          let face = ref 0 in
-          while !face < 2 && !result = 0 do
-            if facemask land !facebit <> 0
-            then (
-              let sn = !side in
-              let fn = !face in
-              let _num_faces, vertex_list =
-                Ox_gameseg.create_abs_vertex_lists
-                  ~side_type:side_types.(sn)
-                  ~seg_verts
-                  ~sidenum:sn
-              in
-              let nv = if _num_faces = 1 then 4 else 3 in
-              let norm = normals.((sn * 2) + fn) in
-              (* Build vertex positions for this face *)
-              let vpos abs_idx =
-                Ox_gameseg.lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx
-              in
-              let face_verts =
-                Array.init nv ~f:(fun i -> vpos vertex_list.((fn * 3) + i))
-              in
-              let face_hit_type =
-                check_sphere_to_face ~pnt ~norm ~nv ~rad ~vertex_positions:face_verts
-              in
-              if face_hit_type <> 0
-              then (
-                let child = children.(sn) in
-                if child <= -1 then result := 1 else if walk child <> 0 then result := 1));
-            facebit := !facebit lsl 1;
-            incr face
-          done;
-          incr side
-        done;
-        !result))
-  in
-  walk start_segnum
-;;
-
 let check_vector_to_object
       ~p0
       ~p1
@@ -500,35 +399,6 @@ let wid_transparent_wall_d1 = 6 (* D1: equality check *)
 
 (* Collision result *)
 let result_nothing = 0
-
-(* Packed array layout offsets *)
-(* Header: *)
-let h_p0x = 0
-let h_p0y = 1
-let h_p0z = 2
-let h_startseg = 3
-let h_p1x = 4
-let h_p1y = 5
-let h_p1z = 6
-let h_rad = 7
-let h_thisobjnum = 8
-let h_flags = 9
-let h_n_segments = 10
-let h_n_objects = 11
-let h_player_objnum = 12
-let h_physics_cheat = 13
-let h_game_mode_coop = 14
-let h_game_time = 15
-let h_is_d2 = 16
-let h_ignore_obj_count = 17
-let h_ignore_obj_list = 18
-
-(* Per-segment block: 87 ints *)
-let seg_block_size = 87
-
-(* Per-object block: 14 ints *)
-let obj_block_size = 14
-
 (* Mutable state threaded through fvi_sub *)
 type fvi_state =
   { mutable n_segs_visited : int
@@ -603,93 +473,70 @@ let unpack_obj (arr : int array) ~obj_base =
   , attack_type )
 ;;
 
-(* Check if objnum is in the ignore list *)
-let obj_in_ignore_list (arr : int array) ~ignore_count ~objnum =
+(* FVI header offsets — used by find_vector_intersection_v2 which still
+   receives the 18-int header from C's find_vector_intersection callsite *)
+let h_p0x = 0
+let h_p0y = 1
+let h_p0z = 2
+let h_startseg = 3
+let h_p1x = 4
+let h_p1y = 5
+let h_p1z = 6
+let h_rad = 7
+let h_thisobjnum = 8
+let h_flags = 9
+let h_n_segments = 10
+let h_n_objects = 11
+let h_player_objnum = 12
+let h_physics_cheat = 13
+let h_game_mode_coop = 14
+let h_game_time = 15
+let h_is_d2 = 16
+let h_ignore_obj_count = 17
+let h_ignore_obj_list = 18
+
+let obj_in_ignore_list_v2 ~(ignore_obj_list : int array) ~objnum =
+  let len = Array.length ignore_obj_list in
   let rec loop i =
-    if i >= ignore_count
-    then false
-    else if arr.(h_ignore_obj_list + i) = objnum
-    then true
+    if i >= len then false
+    else if ignore_obj_list.(i) = objnum then true
     else loop (i + 1)
   in
   loop 0
 ;;
 
-(* Inline laser_are_related using packed object data *)
-let check_laser_related
-      (arr : int array)
-      ~obj_base_a
-      ~objnum_a
-      ~obj_base_b
-      ~objnum_b
-      ~game_time
-      ~is_d2
-  =
-  let o1_type = arr.(obj_base_a) in
-  let o1_id = arr.(obj_base_a + 1) in
-  let o1_sig = arr.(obj_base_a + 12) in
-  let o1_pnum = arr.(obj_base_a + 9) in
-  let o1_psig = arr.(obj_base_a + 10) in
-  let o1_ctime = arr.(obj_base_a + 11) in
-  let o2_type = arr.(obj_base_b) in
-  let o2_id = arr.(obj_base_b + 1) in
-  let o2_sig = arr.(obj_base_b + 12) in
-  let o2_pnum = arr.(obj_base_b + 9) in
-  let o2_psig = arr.(obj_base_b + 10) in
-  let o2_ctime = arr.(obj_base_b + 11) in
+(* check_laser_related using pre-fetched object data arrays *)
+let check_laser_related_v2 ~(obj_a : int array) ~objnum_a ~(obj_b : int array) ~objnum_b ~game_time ~is_d2 =
   let packed =
-    [| objnum_a
-     ; o1_type
-     ; o1_id
-     ; o1_sig
-     ; o1_pnum
-     ; o1_psig
-     ; o1_ctime
-     ; objnum_b
-     ; o2_type
-     ; o2_id
-     ; o2_sig
-     ; o2_pnum
-     ; o2_psig
-     ; o2_ctime
+    [| objnum_a; obj_a.(0); obj_a.(1); obj_a.(12); obj_a.(9); obj_a.(10); obj_a.(11)
+     ; objnum_b; obj_b.(0); obj_b.(1); obj_b.(12); obj_b.(9); obj_b.(10); obj_b.(11)
      ; game_time
     |]
   in
-  if is_d2
-  then Ox_collide.laser_are_related_d2 packed <> 0
+  if is_d2 then Ox_collide.laser_are_related_d2 packed <> 0
   else Ox_collide.laser_are_related_d1 packed <> 0
 ;;
 
-(* Get collision result from packed table.
-   Table starts after header + ignore_obj_list. *)
-let get_collision_table_base (arr : int array) =
-  let ignore_count = arr.(h_ignore_obj_count) in
-  h_ignore_obj_list + ignore_count
-;;
-
-let get_collision_result (arr : int array) ~table_base ~type_a ~type_b =
+(* Get collision result from a pre-fetched 256-element collision table *)
+let get_collision_result_v2 ~(collision_table : int array) ~type_a ~type_b =
   if type_a >= max_object_types || type_b >= max_object_types
      || type_a < 0 || type_b < 0
   then result_nothing
-  else arr.(table_base + (type_a * 16) + type_b)
+  else collision_table.(type_a * 16 + type_b)
 ;;
 
-(* Compute base offsets for segments and objects in packed array *)
-let get_seg_data_base (arr : int array) =
-  let ignore_count = arr.(h_ignore_obj_count) in
-  let table_base = h_ignore_obj_list + ignore_count in
-  table_base + 256 (* 16*16 collision table *)
-;;
-
-let get_obj_data_base (arr : int array) =
-  let n_segments = arr.(h_n_segments) in
-  get_seg_data_base arr + (n_segments * seg_block_size)
-;;
-
-(* fvi_sub: recursive FVI traversal.
-   Returns (hit_type, intp, ints) where ints is the hit segment. *)
-let rec fvi_sub
-          (arr : int array)
+(* fvi_sub_v2: recursive FVI traversal using on-demand effects.
+   Fetches segment/object data via Fetch_segment_data / Fetch_object_data effects
+   instead of reading from a pre-packed array. *)
+let rec fvi_sub_v2
+          ~(collision_table : int array)
+          ~n_objects
+          ~is_d2
+          ~game_time
+          ~(ignore_obj_list : int array)
+          ~game_mode_coop
+          ~player_objnum
+          ~physics_cheat
           (st : fvi_state)
           ~p0
           ~startseg
@@ -700,12 +547,9 @@ let rec fvi_sub
           ~entry_seg
   =
   let open Ox_math in
-  let seg_data_base = get_seg_data_base arr in
-  let obj_data_base = get_obj_data_base arr in
-  let table_base = get_collision_table_base arr in
-  let seg_base = seg_data_base + (startseg * seg_block_size) in
+  let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data startseg) in
   let children, side_types, seg_verts, normals, seg_vert_positions, wid, first_object =
-    unpack_seg arr ~seg_base
+    unpack_seg seg_data ~seg_base:0
   in
   let closest_d = ref 0x7fffffff in
   let closest_hit_point = ref (0, 0, 0) in
@@ -720,22 +564,24 @@ let rec fvi_sub
   if flags land fq_get_seglist <> 0 then seglist.(0) <- startseg;
   st.fvi_nest_count <- st.fvi_nest_count + 1;
   let quit = ref false in
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let game_time = arr.(h_game_time) in
-  let ignore_count = arr.(h_ignore_obj_count) in
-  let game_mode_coop = arr.(h_game_mode_coop) <> 0 in
+  (* Fetch thisobjnum data once for reuse *)
+  let thisobj_data =
+    if thisobjnum > -1 && thisobjnum < n_objects
+    then Some (Effect.perform (Fetch_object_data thisobjnum))
+    else None
+  in
+  let thisobj_type = match thisobj_data with Some d -> d.(0) | None -> 0 in
+  let thisobj_attack = match thisobj_data with Some d -> d.(13) | None -> 0 in
   (* Check objects in this segment *)
-  let n_objects = arr.(h_n_objects) in
   if flags land fq_check_objs <> 0 && not !quit
   then (
     let objnum = ref first_object in
     while !objnum <> -1 && not !quit do
       let ob = !objnum in
-      if ob < 0 || ob >= n_objects then (
-        (* Invalid linked list index — stale/corrupt chain, stop traversal *)
-        objnum := -1)
+      if ob < 0 || ob >= n_objects then
+        objnum := -1
       else
-      let ob_base = obj_data_base + (ob * obj_block_size) in
+      let ob_data = Effect.perform (Fetch_object_data ob) in
       let ( obj_type_ob
           , _obj_id_ob
           , obj_flags_ob
@@ -749,71 +595,53 @@ let rec fvi_sub
           , _signature_ob
           , attack_type_ob )
         =
-        unpack_obj arr ~obj_base:ob_base
+        unpack_obj ob_data ~obj_base:0
       in
-      (* Apply all the skip conditions from C *)
       let skip = ref false in
-      (* Skip OBJ_NONE (type=255) - dead objects shouldn't be checked.
-         In C, the collision table OOB read happens to return RESULT_NOTHING
-         for type=255, but in OCaml it reads segment data instead. *)
       if obj_type_ob = obj_none then skip := true;
-      if obj_flags_ob land 2 <> 0 then skip := true (* OF_SHOULD_BE_DEAD = 2 *);
+      if obj_flags_ob land 2 <> 0 then skip := true;
       if thisobjnum = ob then skip := true;
-      if (not !skip) && obj_in_ignore_list arr ~ignore_count ~objnum:ob then skip := true;
+      if (not !skip) && obj_in_ignore_list_v2 ~ignore_obj_list ~objnum:ob then skip := true;
       if not !skip
-      then
-        if
-          check_laser_related
-            arr
-            ~obj_base_a:ob_base
-            ~objnum_a:ob
-            ~obj_base_b:(obj_data_base + (thisobjnum * obj_block_size))
-            ~objnum_b:thisobjnum
-            ~game_time
-            ~is_d2
-        then skip := true;
+      then (
+        match thisobj_data with
+        | Some td ->
+          if check_laser_related_v2
+               ~obj_a:ob_data ~objnum_a:ob
+               ~obj_b:td ~objnum_b:thisobjnum
+               ~game_time ~is_d2
+          then skip := true
+        | None -> ());
       if (not !skip) && thisobjnum > -1
       then (
-        let thisobj_base = obj_data_base + (thisobjnum * obj_block_size) in
-        let thisobj_type = arr.(thisobj_base) in
         let cr1 =
-          get_collision_result arr ~table_base ~type_a:thisobj_type ~type_b:obj_type_ob
+          get_collision_result_v2 ~collision_table ~type_a:thisobj_type ~type_b:obj_type_ob
         in
         let cr2 =
-          get_collision_result arr ~table_base ~type_a:obj_type_ob ~type_b:thisobj_type
+          get_collision_result_v2 ~collision_table ~type_a:obj_type_ob ~type_b:thisobj_type
         in
         if cr1 = result_nothing && cr2 = result_nothing then skip := true);
-      (* D2: skip powerups if FQ_IGNORE_POWERUPS *)
       if
         (not !skip)
         && is_d2
         && obj_type_ob = obj_powerup
         && flags land fq_ignore_powerups <> 0
       then skip := true;
-      (* Robot-robot collision filter *)
       if (not !skip) && thisobjnum > -1
       then (
-        let thisobj_base = obj_data_base + (thisobjnum * obj_block_size) in
-        let thisobj_type = arr.(thisobj_base) in
-        let thisobj_attack = arr.(thisobj_base + 13) in
         if thisobj_type = obj_robot && obj_type_ob = obj_robot
         then
           if is_d2
-          then skip := true (* D2: skip all robot-robot *)
+          then skip := true
           else if not (attack_type_ob <> 0 && thisobj_attack <> 0)
           then skip := true);
       if not !skip
       then (
         let fudged_rad = ref rad in
-        (* Melee robot fudge *)
         if thisobjnum > -1
         then (
-          let thisobj_base = obj_data_base + (thisobjnum * obj_block_size) in
-          let thisobj_type = arr.(thisobj_base) in
-          let thisobj_attack = arr.(thisobj_base + 13) in
           if thisobj_type = obj_robot && thisobj_attack <> 0
           then fudged_rad := rad * 3 / 4;
-          (* Player-player / player-coop-weapon fudge *)
           if
             thisobj_type = obj_player
             && (obj_type_ob = obj_player
@@ -830,15 +658,10 @@ let rec fvi_sub
             ~obj_size:obj_size_ob
             ~obj_type:obj_type_ob
             ~attack_type:attack_type_ob
-            ~otherobj_type:
-              (if thisobjnum > -1
-               then arr.(obj_data_base + (thisobjnum * obj_block_size))
-               else 0)
+            ~otherobj_type:thisobj_type
             ~game_mode_coop
             ~otherobj_parent_type:
-              (if thisobjnum > -1
-               then arr.(obj_data_base + (thisobjnum * obj_block_size) + 8)
-               else 0)
+              (match thisobj_data with Some d -> d.(8) | None -> 0)
         in
         if d <> 0 && d < !closest_d
         then (
@@ -852,11 +675,8 @@ let rec fvi_sub
   let rad =
     if thisobjnum > -1
     then (
-      let thisobj_base = obj_data_base + (thisobjnum * obj_block_size) in
-      let thisobj_type = arr.(thisobj_base) in
       let cr =
-        get_collision_result arr ~table_base ~type_a:thisobj_type ~type_b:0
-        (* OBJ_WALL *)
+        get_collision_result_v2 ~collision_table ~type_a:thisobj_type ~type_b:0
       in
       if cr = result_nothing then 0 else rad)
     else rad
@@ -865,23 +685,13 @@ let rec fvi_sub
   let startmask =
     let fm, _, _ =
       Ox_gameseg.get_seg_masks
-        ~checkp:p0
-        ~rad
-        ~seg_verts
-        ~side_types
-        ~normals
-        ~seg_vert_positions
+        ~checkp:p0 ~rad ~seg_verts ~side_types ~normals ~seg_vert_positions
     in
     fm
   in
   let endmask, _sidemask, centermask =
     Ox_gameseg.get_seg_masks
-      ~checkp:p1
-      ~rad
-      ~seg_verts
-      ~side_types
-      ~normals
-      ~seg_vert_positions
+      ~checkp:p1 ~rad ~seg_verts ~side_types ~normals ~seg_vert_positions
   in
   if centermask = 0 then hit_none_seg := startseg;
   if endmask <> 0 && not !quit
@@ -898,53 +708,31 @@ let rec fvi_sub
       for face = 0 to 1 do
         if (not !quit) && endmask land !bit <> 0
         then
-          if
-            (* Skip entry seg side *)
-            children.(sn) <> entry_seg
+          if children.(sn) <> entry_seg
           then (
             let nv = if num_faces = 1 then 4 else 3 in
             let _nf, vertex_list =
               Ox_gameseg.create_abs_vertex_lists
-                ~side_type:side_types.(sn)
-                ~seg_verts
-                ~sidenum:sn
+                ~side_type:side_types.(sn) ~seg_verts ~sidenum:sn
             in
             let norm = normals.((sn * 2) + face) in
             let face_hit_type, hit_point =
               if startmask land !bit <> 0
               then
                 special_check_line_to_face
-                  ~p0
-                  ~p1
-                  ~norm
-                  ~rad
-                  ~facenum:face
-                  ~nv
-                  ~num_faces
-                  ~side_type:side_types.(sn)
-                  ~sidenum:sn
-                  ~vertex_list
-                  ~seg_verts
-                  ~seg_vert_positions
+                  ~p0 ~p1 ~norm ~rad ~facenum:face ~nv ~num_faces
+                  ~side_type:side_types.(sn) ~sidenum:sn
+                  ~vertex_list ~seg_verts ~seg_vert_positions
               else
                 check_line_to_face
-                  ~p0
-                  ~p1
-                  ~norm
-                  ~rad
-                  ~facenum:face
-                  ~nv
-                  ~num_faces
-                  ~vertex_list
-                  ~seg_verts
-                  ~seg_vert_positions
+                  ~p0 ~p1 ~norm ~rad ~facenum:face ~nv ~num_faces
+                  ~vertex_list ~seg_verts ~seg_vert_positions
             in
             if face_hit_type <> 0
             then (
-              (* Compute wid_flag *)
               let wid_flag =
                 let base_wid = wid.(sn) in
-                if thisobjnum = arr.(h_player_objnum) && arr.(h_physics_cheat) <> 0
+                if thisobjnum = player_objnum && physics_cheat
                 then (
                   let w = base_wid in
                   if children.(sn) >= 0 then w lor wid_fly_flag else w)
@@ -970,7 +758,6 @@ let rec fvi_sub
               if passable
               then (
                 let newsegnum = children.(sn) in
-                (* Check if already visited *)
                 let already_visited = ref false in
                 for i = 0 to st.n_segs_visited - 1 do
                   if st.segs_visited.(i) = newsegnum then already_visited := true
@@ -990,15 +777,11 @@ let rec fvi_sub
                         , temp_seglist
                         , temp_n_segs )
                       =
-                      fvi_sub
-                        arr
+                      fvi_sub_v2
+                        ~collision_table ~n_objects ~is_d2 ~game_time
+                        ~ignore_obj_list ~game_mode_coop ~player_objnum ~physics_cheat
                         st
-                        ~p0
-                        ~startseg:newsegnum
-                        ~p1
-                        ~rad
-                        ~thisobjnum
-                        ~flags
+                        ~p0 ~startseg:newsegnum ~p1 ~rad ~thisobjnum ~flags
                         ~entry_seg:startseg
                     in
                     if sub_hit_type <> hit_none
@@ -1031,7 +814,6 @@ let rec fvi_sub
                         done;
                       hit_none_n_segs := temp_n_segs))))
               else (
-                (* Wall hit *)
                 let d = vm_vec_dist ~a:hit_point ~b:p0 in
                 if d < !closest_d
                 then (
@@ -1041,12 +823,7 @@ let rec fvi_sub
                   st.wall_norm <- normals.((sn * 2) + face);
                   let _, _, cm =
                     Ox_gameseg.get_seg_masks
-                      ~checkp:hit_point
-                      ~rad
-                      ~seg_verts
-                      ~side_types
-                      ~normals
-                      ~seg_vert_positions
+                      ~checkp:hit_point ~rad ~seg_verts ~side_types ~normals ~seg_vert_positions
                   in
                   if cm = 0 then hit_seg := startseg else st.fvi_hit_seg2 <- startseg;
                   st.fvi_hit_seg <- !hit_seg;
@@ -1056,7 +833,6 @@ let rec fvi_sub
       done;
       incr side
     done);
-  (* Return results *)
   if !hit_type = hit_none
   then (
     let intp = p1 in
@@ -1084,75 +860,100 @@ let rec fvi_sub
     !hit_type, intp, ints, seglist, !n_segs)
 ;;
 
-(* find_vector_intersection: top-level dispatcher.
-   Takes a packed array, returns a result array.
+(* Unpack segment data for centermask check (returns just the fields needed) *)
+let unpack_seg_for_masks seg_data =
+  let seg_verts = Array.init 8 ~f:(fun i -> seg_data.(12 + i)) in
+  let side_types = Array.init 6 ~f:(fun i -> seg_data.(6 + i)) in
+  let normals =
+    Array.init 12 ~f:(fun i ->
+      let off = 20 + (i * 3) in
+      seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+  in
+  let seg_vert_positions =
+    Array.init 8 ~f:(fun i ->
+      let off = 56 + (i * 3) in
+      seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+  in
+  seg_verts, side_types, normals, seg_vert_positions
+;;
 
-   Packed array layout:
-   Header (18+ ints):
-     [0..2]  p0.xyz
-     [3]     startseg
-     [4..6]  p1.xyz
-     [7]     rad
-     [8]     thisobjnum
-     [9]     flags
-     [10]    n_segments
-     [11]    n_objects
-     [12]    player_objnum
-     [13]    physics_cheat_flag (0 or 1)
-     [14]    game_mode_coop (0 or 1)
-     [15]    game_time
-     [16]    is_d2
-     [17]    ignore_obj_count
-     [18..18+N-1] ignore_obj_list[N]
+(* find_point_seg_fvi_v2: uses Fetch_segment_data effects *)
+let find_point_seg_fvi_v2 ~point:(px, py, pz) ~segnum ~n_segments =
+  let fetch s =
+    let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data s) in
+    let children = Array.init 6 ~f:(fun i -> seg_data.(i)) in
+    let side_types = Array.init 6 ~f:(fun i -> seg_data.(6 + i)) in
+    let seg_verts = Array.init 8 ~f:(fun i -> seg_data.(12 + i)) in
+    let normals =
+      Array.init 12 ~f:(fun i ->
+        let off = 20 + (i * 3) in
+        seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+    in
+    let seg_vert_positions =
+      Array.init 8 ~f:(fun i ->
+        let off = 56 + (i * 3) in
+        seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+    in
+    children, side_types, seg_verts, normals, seg_vert_positions
+  in
+  let rec trace s iterations =
+    if s < 0 || s >= n_segments then -1
+    else if iterations > 1024 then s
+    else (
+      let children, side_types, seg_verts, normals, seg_vert_positions = fetch s in
+      let centermask, side_dists =
+        Ox_gameseg.get_side_dists
+          ~checkp:(px, py, pz) ~seg_verts ~side_types ~normals ~seg_vert_positions
+      in
+      if centermask = 0 then s
+      else (
+        let biggest_val = ref 0 in
+        let sidenum = ref (-1) in
+        for i = 0 to 5 do
+          if centermask land (1 lsl i) <> 0
+          then
+            if side_dists.(i) < !biggest_val
+            then (
+              biggest_val := side_dists.(i);
+              sidenum := i)
+        done;
+        if !sidenum <> -1 && children.(!sidenum) >= 0
+        then trace children.(!sidenum) (iterations + 1)
+        else s))
+  in
+  if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
+;;
 
-   Then: CollisionResult[16*16 = 256 ints]
-   Then: n_segments * 87 ints per segment
-   Then: n_objects * 14 ints per object
-
-   Returns array:
-     [0]     hit_type
-     [1..3]  hit_pnt.xyz
-     [4]     hit_seg
-     [5]     hit_side
-     [6]     hit_side_seg
-     [7]     hit_object
-     [8..10] hit_wallnorm.xyz
-     [11]    n_segs
-     [12..]  seglist *)
-let find_vector_intersection (arr : int array) =
+(* find_vector_intersection_v2: top-level FVI using on-demand effects.
+   Takes just the header array (18+N ints), fetches data via effects. *)
+let find_vector_intersection_v2 (arr : int array) =
   let p0 = arr.(h_p0x), arr.(h_p0y), arr.(h_p0z) in
   let startseg = arr.(h_startseg) in
   let p1 = arr.(h_p1x), arr.(h_p1y), arr.(h_p1z) in
   let rad = arr.(h_rad) in
   let thisobjnum = arr.(h_thisobjnum) in
   let flags = arr.(h_flags) in
-  let seg_data_base = get_seg_data_base arr in
-  (* Validate startseg via get_seg_masks *)
-  let seg_base = seg_data_base + (startseg * seg_block_size) in
-  let seg_verts = Array.init 8 ~f:(fun i -> arr.(seg_base + 12 + i)) in
-  let side_types = Array.init 6 ~f:(fun i -> arr.(seg_base + 6 + i)) in
-  let normals =
-    Array.init 12 ~f:(fun i ->
-      let off = seg_base + 20 + (i * 3) in
-      arr.(off), arr.(off + 1), arr.(off + 2))
-  in
-  let seg_vert_positions =
-    Array.init 8 ~f:(fun i ->
-      let off = seg_base + 56 + (i * 3) in
-      arr.(off), arr.(off + 1), arr.(off + 2))
+  let n_segments = arr.(h_n_segments) in
+  let n_objects = arr.(h_n_objects) in
+  let player_objnum = arr.(h_player_objnum) in
+  let physics_cheat = arr.(h_physics_cheat) <> 0 in
+  let game_mode_coop = arr.(h_game_mode_coop) <> 0 in
+  let game_time = arr.(h_game_time) in
+  let is_d2 = arr.(h_is_d2) <> 0 in
+  let ignore_count = arr.(h_ignore_obj_count) in
+  let ignore_obj_list = Array.init ignore_count ~f:(fun i -> arr.(h_ignore_obj_list + i)) in
+  let collision_table = Effect.perform Fetch_collision_table in
+  (* Validate startseg *)
+  let start_seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data startseg) in
+  let seg_verts, side_types, normals, seg_vert_positions =
+    unpack_seg_for_masks start_seg_data
   in
   let _, _, centermask =
     Ox_gameseg.get_seg_masks
-      ~checkp:p0
-      ~rad:0
-      ~seg_verts
-      ~side_types
-      ~normals
-      ~seg_vert_positions
+      ~checkp:p0 ~rad:0 ~seg_verts ~side_types ~normals ~seg_vert_positions
   in
   if centermask <> 0
   then (
-    (* HIT_BAD_P0 *)
     let p0x, p0y, p0z = p0 in
     [| hit_bad_p0; p0x; p0y; p0z; startseg; 0; -1; 0; 0; 0; 0; 0 |])
   else (
@@ -1161,80 +962,34 @@ let find_vector_intersection (arr : int array) =
     st.n_segs_visited <- 1;
     st.fvi_hit_seg2 <- -1;
     let hit_type, hit_pnt, hit_seg2, seglist, n_segs =
-      fvi_sub arr st ~p0 ~startseg ~p1 ~rad ~thisobjnum ~flags ~entry_seg:(-2)
+      fvi_sub_v2
+        ~collision_table ~n_objects ~is_d2 ~game_time ~ignore_obj_list
+        ~game_mode_coop ~player_objnum ~physics_cheat
+        st ~p0 ~startseg ~p1 ~rad ~thisobjnum ~flags ~entry_seg:(-2)
     in
     let hit_pnt_x, hit_pnt_y, hit_pnt_z = hit_pnt in
     (* Resolve hit_seg *)
     let hit_seg = ref (-1) in
     if hit_seg2 <> -1
     then (
-      let sb2 = seg_data_base + (hit_seg2 * seg_block_size) in
-      let sv2 = Array.init 8 ~f:(fun i -> arr.(sb2 + 12 + i)) in
-      let st2 = Array.init 6 ~f:(fun i -> arr.(sb2 + 6 + i)) in
-      let n2 =
-        Array.init 12 ~f:(fun i ->
-          let off = sb2 + 20 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
-      let svp2 =
-        Array.init 8 ~f:(fun i ->
-          let off = sb2 + 56 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
+      let sd2 = Effect.perform (Ox_gameseg.Fetch_segment_data hit_seg2) in
+      let sv2, st2, n2, svp2 = unpack_seg_for_masks sd2 in
       let _, _, cm2 =
         Ox_gameseg.get_seg_masks
-          ~checkp:hit_pnt
-          ~rad:0
-          ~seg_verts:sv2
-          ~side_types:st2
-          ~normals:n2
-          ~seg_vert_positions:svp2
+          ~checkp:hit_pnt ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
       in
       if cm2 = 0 then hit_seg := hit_seg2);
     if !hit_seg = -1
-    then (
-      (* find_point_seg using packed data *)
-      let n_segments = arr.(h_n_segments) in
-      let fps_packed = Array.create ~len:(6 + (n_segments * 80)) 0 in
-      fps_packed.(0) <- hit_pnt_x;
-      fps_packed.(1) <- hit_pnt_y;
-      fps_packed.(2) <- hit_pnt_z;
-      fps_packed.(3) <- startseg;
-      fps_packed.(4) <- n_segments;
-      fps_packed.(5) <- 0;
-      (* Copy 80-int segment data (first 80 of 87) *)
-      for s = 0 to n_segments - 1 do
-        let src = seg_data_base + (s * seg_block_size) in
-        let dst = 6 + (s * 80) in
-        for i = 0 to 79 do
-          fps_packed.(dst + i) <- arr.(src + i)
-        done
-      done;
-      hit_seg := Ox_gameseg.find_point_seg fps_packed);
+    then
+      hit_seg := find_point_seg_fvi_v2 ~point:hit_pnt ~segnum:startseg ~n_segments;
     (* HACK: if HIT_WALL and hit_seg=-1, try fvi_hit_seg2 *)
     if hit_type = hit_wall && !hit_seg = -1 && st.fvi_hit_seg2 <> -1
     then (
-      let sb2 = seg_data_base + (st.fvi_hit_seg2 * seg_block_size) in
-      let sv2 = Array.init 8 ~f:(fun i -> arr.(sb2 + 12 + i)) in
-      let st2 = Array.init 6 ~f:(fun i -> arr.(sb2 + 6 + i)) in
-      let n2 =
-        Array.init 12 ~f:(fun i ->
-          let off = sb2 + 20 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
-      let svp2 =
-        Array.init 8 ~f:(fun i ->
-          let off = sb2 + 56 + (i * 3) in
-          arr.(off), arr.(off + 1), arr.(off + 2))
-      in
+      let sd2 = Effect.perform (Ox_gameseg.Fetch_segment_data st.fvi_hit_seg2) in
+      let sv2, st2, n2, svp2 = unpack_seg_for_masks sd2 in
       let _, _, cm2 =
         Ox_gameseg.get_seg_masks
-          ~checkp:hit_pnt
-          ~rad:0
-          ~seg_verts:sv2
-          ~side_types:st2
-          ~normals:n2
-          ~seg_vert_positions:svp2
+          ~checkp:hit_pnt ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
       in
       if cm2 = 0 then hit_seg := st.fvi_hit_seg2);
     (* Retry with rad=0 if hit_seg still -1 *)
@@ -1244,10 +999,13 @@ let find_vector_intersection (arr : int array) =
       st2.segs_visited.(0) <- startseg;
       st2.n_segs_visited <- 1;
       st2.fvi_hit_seg2 <- -1;
-      let _new_hit_type, new_hit_pnt, new_hit_seg2, _new_seglist, _new_n_segs =
-        fvi_sub arr st2 ~p0 ~startseg ~p1 ~rad:0 ~thisobjnum ~flags ~entry_seg:(-2)
+      let _new_hit_type, _new_hit_pnt, new_hit_seg2, _new_seglist, _new_n_segs =
+        fvi_sub_v2
+          ~collision_table ~n_objects ~is_d2 ~game_time ~ignore_obj_list
+          ~game_mode_coop ~player_objnum ~physics_cheat
+          st2 ~p0 ~startseg ~p1 ~rad:0 ~thisobjnum ~flags ~entry_seg:(-2)
       in
-      ignore new_hit_pnt;
+      ignore _new_hit_pnt;
       if new_hit_seg2 <> -1 then hit_seg := new_hit_seg2);
     (* Trim seglist at hit point *)
     let final_seglist = Array.create ~len:max_fvi_segs 0 in
@@ -1290,6 +1048,98 @@ let find_vector_intersection (arr : int array) =
       result.(12 + i) <- final_seglist.(i)
     done;
     result)
+;;
+
+(* sphere_intersects_wall_v2: uses on-demand effects.
+   Takes header: [pnt.xyz, rad, segnum, n_segments] (6 ints). *)
+let sphere_intersects_wall_v2 (arr : int array) =
+  let pnt = arr.(0), arr.(1), arr.(2) in
+  let rad = arr.(3) in
+  let start_segnum = arr.(4) in
+  let n_segments = arr.(5) in
+  let visited = Array.create ~len:n_segments false in
+  let rec walk segnum =
+    if segnum < 0 || segnum >= n_segments then 0
+    else if visited.(segnum) then 0
+    else (
+      visited.(segnum) <- true;
+      let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+      let children = Array.init 6 ~f:(fun i -> seg_data.(i)) in
+      let side_types = Array.init 6 ~f:(fun i -> seg_data.(6 + i)) in
+      let seg_verts = Array.init 8 ~f:(fun i -> seg_data.(12 + i)) in
+      let normals =
+        Array.init 12 ~f:(fun i ->
+          let off = 20 + (i * 3) in
+          seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+      in
+      let seg_vert_positions =
+        Array.init 8 ~f:(fun i ->
+          let off = 56 + (i * 3) in
+          seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+      in
+      let facemask, _sidemask, _centermask =
+        Ox_gameseg.get_seg_masks ~checkp:pnt ~rad ~seg_verts ~side_types ~normals ~seg_vert_positions
+      in
+      if facemask = 0 then 0
+      else (
+        let result = ref 0 in
+        let facebit = ref 1 in
+        let side = ref 0 in
+        while !side < 6 && facemask >= !facebit && !result = 0 do
+          let face = ref 0 in
+          while !face < 2 && !result = 0 do
+            if facemask land !facebit <> 0
+            then (
+              let sn = !side in
+              let fn = !face in
+              let _num_faces, vertex_list =
+                Ox_gameseg.create_abs_vertex_lists
+                  ~side_type:side_types.(sn) ~seg_verts ~sidenum:sn
+              in
+              let nv = if _num_faces = 1 then 4 else 3 in
+              let norm = normals.((sn * 2) + fn) in
+              let vpos abs_idx =
+                Ox_gameseg.lookup_vpos ~seg_verts ~seg_vert_positions ~abs_idx
+              in
+              let face_verts =
+                Array.init nv ~f:(fun i -> vpos vertex_list.((fn * 3) + i))
+              in
+              let face_hit_type =
+                check_sphere_to_face ~pnt ~norm ~nv ~rad ~vertex_positions:face_verts
+              in
+              if face_hit_type <> 0
+              then (
+                let child = children.(sn) in
+                if child <= -1 then result := 1 else if walk child <> 0 then result := 1));
+            facebit := !facebit lsl 1;
+            incr face
+          done;
+          incr side
+        done;
+        !result))
+  in
+  walk start_segnum
+;;
+
+(* visibility_check_v2: uses on-demand effects *)
+let visibility_check_v2
+      ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+      ~player_objnum ~physics_cheat
+      ~p0 ~startseg ~p1 ~tracker_objnum
+  =
+  let st = make_fvi_state () in
+  st.segs_visited.(0) <- startseg;
+  st.n_segs_visited <- 1;
+  st.fvi_hit_seg2 <- -1;
+  let ht, _, _, _, _ =
+    fvi_sub_v2
+      ~collision_table ~n_objects ~is_d2 ~game_time
+      ~ignore_obj_list:[||] ~game_mode_coop ~player_objnum ~physics_cheat
+      st
+      ~p0 ~startseg ~p1 ~rad:0x10
+      ~thisobjnum:tracker_objnum ~flags:fq_transwall ~entry_seg:(-2)
+  in
+  ht <> hit_wall
 ;;
 
 (* ===== find_homing_object_complete =====
@@ -1373,146 +1223,6 @@ let player_flags_cloaked = 2048
 
 (* Simple visibility check: calls fvi_sub to test line-of-sight.
    Returns true if p0 can see p1 (no wall blocking). *)
-let visibility_check (arr : int array) ~p0 ~startseg ~p1 ~tracker_objnum =
-  let st = make_fvi_state () in
-  st.segs_visited.(0) <- startseg;
-  st.n_segs_visited <- 1;
-  st.fvi_hit_seg2 <- -1;
-  let ht, _, _, _, _ =
-    fvi_sub
-      arr
-      st
-      ~p0
-      ~startseg
-      ~p1
-      ~rad:0x10
-      ~thisobjnum:tracker_objnum
-      ~flags:fq_transwall
-      ~entry_seg:(-2)
-  in
-  ht <> hit_wall
-;;
-
-let find_homing_object_complete (arr : int array) =
-  let open Ox_math in
-  let n_objects = arr.(h_n_objects) in
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let obj_data_base = get_obj_data_base arr in
-  let homing_base = obj_data_base + (n_objects * obj_block_size) in
-  let homing_obj_base = homing_base + homing_header_size in
-  let curpos =
-    ( arr.(homing_base + hh_curpos_x)
-    , arr.(homing_base + hh_curpos_y)
-    , arr.(homing_base + hh_curpos_z) )
-  in
-  let fvec =
-    ( arr.(homing_base + hh_fvec_x)
-    , arr.(homing_base + hh_fvec_y)
-    , arr.(homing_base + hh_fvec_z) )
-  in
-  let tracker_pos =
-    ( arr.(homing_base + hh_tracker_pos_x)
-    , arr.(homing_base + hh_tracker_pos_y)
-    , arr.(homing_base + hh_tracker_pos_z) )
-  in
-  let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
-  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
-  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
-  let tracker_parent_sig = arr.(homing_base + hh_tracker_parent_sig) in
-  let track_obj_type1 = arr.(homing_base + hh_track_obj_type1) in
-  let track_obj_type2 = arr.(homing_base + hh_track_obj_type2) in
-  let highest_object_index = arr.(homing_base + hh_highest_object_index) in
-  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
-  let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
-  let tracker_objnum = arr.(h_thisobjnum) in
-  let max_trackable_dist =
-    if is_d2
-    then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
-    else d1_max_trackable_dist
-  in
-  let min_trackable_dot =
-    if is_d2
-    then if is_omega then d2_omega_min_trackable_dot else d2_min_trackable_dot
-    else d1_min_trackable_dot
-  in
-  let max_dot = ref (-0x20000) in
-  let best_objnum = ref (-1) in
-  for objnum = 0 to highest_object_index do
-    let obj_base = obj_data_base + (objnum * obj_block_size) in
-    let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
-    let obj_type = arr.(obj_base) in
-    let obj_id = arr.(obj_base + 1) in
-    let obj_pos = arr.(obj_base + 3), arr.(obj_base + 4), arr.(obj_base + 5) in
-    let player_flags = arr.(hobj_base) in
-    let team_id = arr.(hobj_base + 1) in
-    let ai_cloaked = arr.(hobj_base + 2) in
-    let robot_companion = arr.(hobj_base + 3) in
-    let is_proximity = ref false in
-    let skip = ref false in
-    (* Type filter *)
-    if obj_type <> track_obj_type1 && obj_type <> track_obj_type2
-    then
-      if
-        is_d2
-        && obj_type = obj_weapon
-        && (obj_id = d2_proximity_id || obj_id = d2_superprox_id)
-      then (
-        let obj_parent_sig = arr.(obj_base + 10) in
-        if obj_parent_sig <> tracker_parent_sig
-        then is_proximity := true
-        else skip := true)
-      else skip := true;
-    (* Don't track shooter *)
-    if (not !skip) && objnum = tracker_parent_num then skip := true;
-    (* Don't track cloaked players *)
-    if (not !skip) && obj_type = obj_player
-    then (
-      if player_flags land player_flags_cloaked <> 0 then skip := true;
-      if
-        (not !skip)
-        && game_mode_flags land gm_team <> 0
-        && tracker_parent_type = obj_player
-      then (
-        let parent_hobj_base =
-          homing_obj_base + (tracker_parent_num * homing_obj_block_size)
-        in
-        let parent_team = arr.(parent_hobj_base + 1) in
-        if parent_team = team_id then skip := true));
-    (* Can't track cloaked robots *)
-    if (not !skip) && obj_type = obj_robot
-    then (
-      if ai_cloaked <> 0 then skip := true;
-      (* D2: don't track companion with player missiles *)
-      if (not !skip) && is_d2 && robot_companion <> 0 && tracker_parent_type = obj_player
-      then skip := true);
-    if not !skip
-    then (
-      let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
-      let dist = vm_vec_mag_quick ~v:vec_to_curobj in
-      if dist < max_trackable_dist
-      then (
-        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
-        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
-        (* D2: proximity mines get dot amplified by 9/8 *)
-        let dot = if is_d2 && !is_proximity then ((dot lsl 3) + dot) asr 3 else dot in
-        if dot > min_trackable_dot
-        then
-          if dot > !max_dot
-          then
-            if
-              visibility_check
-                arr
-                ~p0:tracker_pos
-                ~startseg:tracker_segnum
-                ~p1:obj_pos
-                ~tracker_objnum
-            then (
-              max_dot := dot;
-              best_objnum := objnum)))
-  done;
-  !best_objnum
-;;
-
 (* ===== find_homing_object + track_track_goal + object_is_trackable =====
 
    These extend the homing packed format with a "tracking extension" block
@@ -1542,552 +1252,7 @@ let te_track_goal_obj_type = 6
 let gm_multi = 38
 let gm_multi_coop = 16
 
-let get_tracking_ext_base (arr : int array) =
-  let n_objects = arr.(h_n_objects) in
-  let obj_data_base = get_obj_data_base arr in
-  let homing_base = obj_data_base + (n_objects * obj_block_size) in
-  let homing_obj_base = homing_base + homing_header_size in
-  homing_obj_base + (n_objects * homing_obj_block_size)
-;;
-
-(* object_is_trackable — inlined helper for track_track_goal.
-   Returns (is_trackable, dot) where dot is the computed dot product.
-   For D2, the caller needs dot even on success. *)
-let object_is_trackable (arr : int array) ~track_goal =
-  let open Ox_math in
-  if track_goal = -1
-  then false, 0
-  else (
-    let n_objects = arr.(h_n_objects) in
-    let is_d2 = arr.(h_is_d2) <> 0 in
-    let obj_data_base = get_obj_data_base arr in
-    let homing_base = obj_data_base + (n_objects * obj_block_size) in
-    let homing_obj_base = homing_base + homing_header_size in
-    let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
-    let te_base = get_tracking_ext_base arr in
-    let min_trackable_dot = arr.(te_base + te_min_trackable_dot) in
-    let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
-    (* GM_MULTI_COOP check *)
-    if game_mode_flags land gm_multi_coop <> 0
-    then false, 0
-    else (
-      let player_objnum = arr.(h_player_objnum) in
-      let goal_obj_base = obj_data_base + (track_goal * obj_block_size) in
-      let goal_hobj_base = homing_obj_base + (track_goal * homing_obj_block_size) in
-      let goal_type = arr.(goal_obj_base) in
-      let goal_pos =
-        arr.(goal_obj_base + 3), arr.(goal_obj_base + 4), arr.(goal_obj_base + 5)
-      in
-      let goal_player_flags = arr.(goal_hobj_base) in
-      let goal_ai_cloaked = arr.(goal_hobj_base + 2) in
-      let goal_robot_companion = arr.(goal_hobj_base + 3) in
-      (* Don't track cloaked player *)
-      if track_goal = player_objnum && goal_player_flags land player_flags_cloaked <> 0
-      then false, 0
-      else if goal_type = obj_robot
-      then
-        if goal_ai_cloaked <> 0
-        then false, 0
-        else if is_d2 && goal_robot_companion <> 0 && tracker_parent_type = obj_player
-        then false, 0
-        else (
-          let tracker_pos =
-            ( arr.(homing_base + hh_tracker_pos_x)
-            , arr.(homing_base + hh_tracker_pos_y)
-            , arr.(homing_base + hh_tracker_pos_z) )
-          in
-          let fvec =
-            ( arr.(homing_base + hh_fvec_x)
-            , arr.(homing_base + hh_fvec_y)
-            , arr.(homing_base + hh_fvec_z) )
-          in
-          let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
-          let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
-          let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
-          (* D2: retry with full normalize if close *)
-          let dot =
-            if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
-            then (
-              let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
-              vm_vec_dotprod ~a:vec_full ~b:fvec)
-            else dot
-          in
-          if dot >= min_trackable_dot
-          then (
-            let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
-            let tracker_objnum = arr.(h_thisobjnum) in
-            let vis =
-              visibility_check
-                arr
-                ~p0:tracker_pos
-                ~startseg:tracker_segnum
-                ~p1:goal_pos
-                ~tracker_objnum
-            in
-            if vis then true, dot else false, dot)
-          else false, dot)
-      else (
-        (* Non-robot (player or other) — same logic without companion check *)
-        let tracker_pos =
-          ( arr.(homing_base + hh_tracker_pos_x)
-          , arr.(homing_base + hh_tracker_pos_y)
-          , arr.(homing_base + hh_tracker_pos_z) )
-        in
-        let fvec =
-          ( arr.(homing_base + hh_fvec_x)
-          , arr.(homing_base + hh_fvec_y)
-          , arr.(homing_base + hh_fvec_z) )
-        in
-        let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
-        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
-        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
-        let dot =
-          if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
-          then (
-            let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
-            vm_vec_dotprod ~a:vec_full ~b:fvec)
-          else dot
-        in
-        if dot >= min_trackable_dot
-        then (
-          let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
-          let tracker_objnum = arr.(h_thisobjnum) in
-          let vis =
-            visibility_check
-              arr
-              ~p0:tracker_pos
-              ~startseg:tracker_segnum
-              ~p1:goal_pos
-              ~tracker_objnum
-          in
-          if vis then true, dot else false, dot)
-        else false, dot)))
-;;
-
-(* track_track_goal — per-frame tracking update.
-   Returns [| result; dot |] where dot is from the trackability check. *)
-let track_track_goal (arr : int array) =
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let n_objects = arr.(h_n_objects) in
-  let obj_data_base = get_obj_data_base arr in
-  let homing_base = obj_data_base + (n_objects * obj_block_size) in
-  let homing_obj_base = homing_base + homing_header_size in
-  let te_base = get_tracking_ext_base arr in
-  let track_goal = arr.(te_base + te_track_goal) in
-  let frame_count = arr.(te_base + te_frame_count) in
-  let tracker_objnum = arr.(h_thisobjnum) in
-  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
-  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
-  let trackable, dot = object_is_trackable arr ~track_goal in
-  (* D1: if trackable, return track_goal *)
-  (* D2: if trackable AND not on the 8th-frame full-rescan, return track_goal *)
-  let frame_hash = tracker_objnum lxor frame_count in
-  if trackable && ((not is_d2) || frame_hash mod 8 <> 0)
-  then [| track_goal; dot |]
-  else if frame_hash mod 4 = 0
-  then (
-    let parent_obj_base = obj_data_base + (tracker_parent_num * obj_block_size) in
-    let parent_type = arr.(parent_obj_base) in
-    let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
-    let gm_multi_robots_flag = arr.(te_base + te_gm_multi_robots) in
-    let track_goal_obj_type = arr.(te_base + te_track_goal_obj_type) in
-    let rval =
-      if parent_type = obj_player
-      then
-        if track_goal = -1
-        then (
-          if game_mode_flags land gm_multi <> 0
-          then
-            if game_mode_flags land gm_multi_coop <> 0
-            then (
-              arr.(homing_base + hh_track_obj_type1) <- obj_robot;
-              arr.(homing_base + hh_track_obj_type2) <- -1)
-            else if gm_multi_robots_flag <> 0
-            then (
-              arr.(homing_base + hh_track_obj_type1) <- obj_player;
-              arr.(homing_base + hh_track_obj_type2) <- obj_robot)
-            else (
-              arr.(homing_base + hh_track_obj_type1) <- obj_player;
-              arr.(homing_base + hh_track_obj_type2) <- -1)
-          else (
-            arr.(homing_base + hh_track_obj_type1) <- obj_player;
-            arr.(homing_base + hh_track_obj_type2) <- obj_robot);
-          (* Use tracker pos as curpos for find_homing_object_complete *)
-          let homing_obj_end = homing_obj_base + (n_objects * homing_obj_block_size) in
-          let _ = homing_obj_end in
-          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
-          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
-          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
-          find_homing_object_complete arr)
-        else if track_goal_obj_type = obj_player || track_goal_obj_type = obj_robot
-        then (
-          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
-          arr.(homing_base + hh_track_obj_type2) <- -1;
-          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
-          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
-          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
-          find_homing_object_complete arr)
-        else -1
-      else (
-        let goal2_type =
-          if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1
-        in
-        if track_goal = -1
-        then (
-          arr.(homing_base + hh_track_obj_type1) <- obj_player;
-          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
-          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
-          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
-          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
-          find_homing_object_complete arr)
-        else (
-          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
-          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
-          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
-          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
-          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
-          find_homing_object_complete arr))
-    in
-    [| rval; dot |])
-  else [| -1; dot |]
-;;
-
-(* find_homing_object — initial target acquisition.
-   Returns best_objnum or -1.
-   In multiplayer: dispatches to find_homing_object_complete with computed track types.
-   In singleplayer, not player-fired: returns player if not cloaked.
-   In singleplayer, player-fired: iterates rendered object list. *)
-let find_homing_object (arr : int array) =
-  let open Ox_math in
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let n_objects = arr.(h_n_objects) in
-  let obj_data_base = get_obj_data_base arr in
-  let homing_base = obj_data_base + (n_objects * obj_block_size) in
-  let homing_obj_base = homing_base + homing_header_size in
-  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
-  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
-  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
-  let player_objnum = arr.(h_player_objnum) in
-  let te_base = get_tracking_ext_base arr in
-  let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
-  if game_mode_flags land gm_multi <> 0
-  then (
-    (* Multiplayer — dispatch to find_homing_object_complete *)
-    if tracker_parent_type = obj_player
-    then
-      if game_mode_flags land gm_multi_coop <> 0
-      then (
-        arr.(homing_base + hh_track_obj_type1) <- obj_robot;
-        arr.(homing_base + hh_track_obj_type2) <- -1)
-      else (
-        arr.(homing_base + hh_track_obj_type1) <- obj_player;
-        arr.(homing_base + hh_track_obj_type2) <- obj_robot)
-    else (
-      let goal2_type = if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1 in
-      arr.(homing_base + hh_track_obj_type1) <- obj_player;
-      arr.(homing_base + hh_track_obj_type2) <- goal2_type);
-    find_homing_object_complete arr)
-  else if tracker_parent_num <> player_objnum
-  then (
-    (* Singleplayer, not fired by player — track player if not cloaked *)
-    let player_hobj_base = homing_obj_base + (player_objnum * homing_obj_block_size) in
-    let player_flags = arr.(player_hobj_base) in
-    if player_flags land player_flags_cloaked <> 0 then -1 else player_objnum)
-  else (
-    (* Singleplayer, fired by player — iterate rendered object list *)
-    let n_rendered = arr.(te_base + te_n_rendered_objects) in
-    let rendered_list_base = te_base + tracking_ext_header_size in
-    let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
-    let cur_min_trackable_dot =
-      if is_d2 && is_omega then d2_omega_min_trackable_dot else d1_min_trackable_dot
-    in
-    let max_trackable_dist =
-      if is_d2
-      then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
-      else d1_max_trackable_dist
-    in
-    let curpos =
-      ( arr.(homing_base + hh_curpos_x)
-      , arr.(homing_base + hh_curpos_y)
-      , arr.(homing_base + hh_curpos_z) )
-    in
-    let fvec =
-      ( arr.(homing_base + hh_fvec_x)
-      , arr.(homing_base + hh_fvec_y)
-      , arr.(homing_base + hh_fvec_z) )
-    in
-    let tracker_pos =
-      ( arr.(homing_base + hh_tracker_pos_x)
-      , arr.(homing_base + hh_tracker_pos_y)
-      , arr.(homing_base + hh_tracker_pos_z) )
-    in
-    let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
-    let tracker_objnum = arr.(h_thisobjnum) in
-    let max_dot = ref (-0x20000) in
-    let best_objnum = ref (-1) in
-    for i = n_rendered - 1 downto 0 do
-      let objnum = arr.(rendered_list_base + i) in
-      if objnum <> player_objnum
-      then (
-        let obj_base = obj_data_base + (objnum * obj_block_size) in
-        let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
-        let obj_type = arr.(obj_base) in
-        let ai_cloaked = arr.(hobj_base + 2) in
-        let robot_companion = arr.(hobj_base + 3) in
-        let skip = ref false in
-        if obj_type = obj_robot
-        then (
-          if ai_cloaked <> 0 then skip := true;
-          if
-            (not !skip)
-            && is_d2
-            && robot_companion <> 0
-            && tracker_parent_type = obj_player
-          then skip := true);
-        if not !skip
-        then (
-          let obj_pos = arr.(obj_base + 3), arr.(obj_base + 4), arr.(obj_base + 5) in
-          let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
-          (* D1 uses normalize_quick without distance check;
-             D2 uses normalize_quick and checks distance *)
-          if is_d2
-          then (
-            let dist, vec_norm_q = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
-            if dist < max_trackable_dist
-            then (
-              let dot = vm_vec_dotprod ~a:vec_norm_q ~b:fvec in
-              if dot > cur_min_trackable_dot
-              then (
-                if dot > !max_dot
-                then
-                  if
-                    visibility_check
-                      arr
-                      ~p0:tracker_pos
-                      ~startseg:tracker_segnum
-                      ~p1:obj_pos
-                      ~tracker_objnum
-                  then (
-                    max_dot := dot;
-                    best_objnum := objnum))
-              else if dot > 0x10000 - ((0x10000 - cur_min_trackable_dot) * 2)
-              then (
-                (* D2: retry with full normalize on original vector *)
-                let _, vec_full =
-                  vm_vec_copy_normalize ~v:(vm_vec_sub ~a:obj_pos ~b:curpos)
-                in
-                let dot = vm_vec_dotprod ~a:vec_full ~b:fvec in
-                if dot > cur_min_trackable_dot
-                then
-                  if dot > !max_dot
-                  then
-                    if
-                      visibility_check
-                        arr
-                        ~p0:tracker_pos
-                        ~startseg:tracker_segnum
-                        ~p1:obj_pos
-                        ~tracker_objnum
-                    then (
-                      max_dot := dot;
-                      best_objnum := objnum))))
-          else (
-            (* D1: no distance check, just normalize_quick and dot *)
-            let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
-            let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
-            if dot > cur_min_trackable_dot
-            then
-              if dot > !max_dot
-              then
-                if
-                  visibility_check
-                    arr
-                    ~p0:tracker_pos
-                    ~startseg:tracker_segnum
-                    ~p1:obj_pos
-                    ~tracker_objnum
-                then (
-                  max_dot := dot;
-                  best_objnum := objnum))))
-    done;
-    !best_objnum)
-;;
-
-(* find_point_seg using FVI packed array layout.
-   Same algorithm as Ox_gameseg.find_point_seg but reads from the
-   87-int/segment FVI layout instead of the 80-int/segment layout. *)
-let find_point_seg_fvi (arr : int array) ~point:(px, py, pz) ~segnum =
-  let n_segments = arr.(h_n_segments) in
-  let seg_data_base = get_seg_data_base arr in
-  let unpack_seg_for_fps s =
-    let base = seg_data_base + (s * seg_block_size) in
-    let children = Array.init 6 ~f:(fun i -> arr.(base + i)) in
-    let side_types = Array.init 6 ~f:(fun i -> arr.(base + 6 + i)) in
-    let seg_verts = Array.init 8 ~f:(fun i -> arr.(base + 12 + i)) in
-    let normals =
-      Array.init 12 ~f:(fun i ->
-        let off = base + 20 + (i * 3) in
-        arr.(off), arr.(off + 1), arr.(off + 2))
-    in
-    let seg_vert_positions =
-      Array.init 8 ~f:(fun i ->
-        let off = base + 56 + (i * 3) in
-        arr.(off), arr.(off + 1), arr.(off + 2))
-    in
-    children, side_types, seg_verts, normals, seg_vert_positions
-  in
-  let rec trace s iterations =
-    if s < 0 || s >= n_segments
-    then -1
-    else if iterations > 1024
-    then s
-    else (
-      let children, side_types, seg_verts, normals, seg_vert_positions =
-        unpack_seg_for_fps s
-      in
-      let centermask, side_dists =
-        Ox_gameseg.get_side_dists
-          ~checkp:(px, py, pz)
-          ~seg_verts
-          ~side_types
-          ~normals
-          ~seg_vert_positions
-      in
-      if centermask = 0
-      then s
-      else (
-        let biggest_val = ref 0 in
-        let sidenum = ref (-1) in
-        for i = 0 to 5 do
-          if centermask land (1 lsl i) <> 0
-          then
-            if side_dists.(i) < !biggest_val
-            then (
-              biggest_val := side_dists.(i);
-              sidenum := i)
-        done;
-        if !sidenum <> -1 && children.(!sidenum) >= 0
-        then trace children.(!sidenum) (iterations + 1)
-        else s))
-  in
-  if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
-;;
-
-(* player_is_visible_from_object extension packed layout.
-   Appended after the FVI standard data (header + collision table + segments + objects).
-
-   | Offset | Field |
-   |--------|-------|
-   | 0-2    | pos (gun tip xyz) |
-   | 3-5    | objp_pos (object center xyz) |
-   | 6      | objp_segnum |
-   | 7-9    | objp_orient_fvec (xyz) |
-   | 10     | field_of_view |
-   | 11-13  | vec_to_player (xyz) |
-   | 14-16  | believed_player_pos (xyz) |
-   | 17     | Overall_agitation |
-   | 18     | player_objnum |
-   | 19     | sub_flags (D2) |
-
-   Returns:
-   [| result; pos_x; pos_y; pos_z; need_move_center; gun_segnum;
-      hit_type; hit_pos_x; hit_pos_y; hit_pos_z; hit_seg |]
-*)
 let pv_ext_size = 20
-
-let player_is_visible_from_object (arr : int array) =
-  let open Ox_math in
-  let n_objects = arr.(h_n_objects) in
-  let obj_data_base = get_obj_data_base arr in
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let pv_base = obj_data_base + (n_objects * obj_block_size) in
-  let pos_x = arr.(pv_base + 0) in
-  let pos_y = arr.(pv_base + 1) in
-  let pos_z = arr.(pv_base + 2) in
-  let objp_pos_x = arr.(pv_base + 3) in
-  let objp_pos_y = arr.(pv_base + 4) in
-  let objp_pos_z = arr.(pv_base + 5) in
-  let objp_segnum = arr.(pv_base + 6) in
-  let fvec_x = arr.(pv_base + 7) in
-  let fvec_y = arr.(pv_base + 8) in
-  let fvec_z = arr.(pv_base + 9) in
-  let field_of_view = arr.(pv_base + 10) in
-  let vec_to_player = arr.(pv_base + 11), arr.(pv_base + 12), arr.(pv_base + 13) in
-  let believed_player_pos = arr.(pv_base + 14), arr.(pv_base + 15), arr.(pv_base + 16) in
-  let overall_agitation = arr.(pv_base + 17) in
-  let player_objnum = arr.(pv_base + 18) in
-  let sub_flags = arr.(pv_base + 19) in
-  let objp_objnum = arr.(h_thisobjnum) in
-  (* D2: clear SUB_FLAGS_GUNSEG (0x01) *)
-  let sub_flags = if is_d2 then sub_flags land lnot 0x01 else sub_flags in
-  (* Determine start segment *)
-  let pos_equals_objp = pos_x = objp_pos_x && pos_y = objp_pos_y && pos_z = objp_pos_z in
-  let startseg, final_pos, need_move_center, sub_flags =
-    if pos_equals_objp
-    then objp_segnum, (pos_x, pos_y, pos_z), 0, sub_flags
-    else (
-      let segnum =
-        find_point_seg_fvi arr ~point:(pos_x, pos_y, pos_z) ~segnum:objp_segnum
-      in
-      if segnum = -1
-      then
-        (* Gun tip outside mine — use objp pos, signal C to move_towards_segment_center *)
-        objp_segnum, (objp_pos_x, objp_pos_y, objp_pos_z), 1, sub_flags
-      else (
-        (* D2: set SUB_FLAGS_GUNSEG if gun in different segment *)
-        let sub_flags =
-          if is_d2 && segnum <> objp_segnum then sub_flags lor 0x01 else sub_flags
-        in
-        segnum, (pos_x, pos_y, pos_z), 0, sub_flags))
-  in
-  let final_pos_x, final_pos_y, final_pos_z = final_pos in
-  (* Do FVI ray cast from pos to believed_player_pos *)
-  let fvi_flags = if is_d2 then fq_transwall else fq_transwall lor fq_check_objs in
-  let st = make_fvi_state () in
-  st.segs_visited.(0) <- startseg;
-  st.n_segs_visited <- 1;
-  st.fvi_hit_seg2 <- -1;
-  let hit_type, hit_point, hit_seg, _, _ =
-    fvi_sub
-      arr
-      st
-      ~p0:final_pos
-      ~startseg
-      ~p1:believed_player_pos
-      ~rad:(0x10000 / 4)
-      ~thisobjnum:objp_objnum
-      ~flags:fvi_flags
-      ~entry_seg:(-2)
-  in
-  let hit_px, hit_py, hit_pz = hit_point in
-  (* Determine visibility result *)
-  let result =
-    let visible =
-      if is_d2
-      then hit_type = hit_none
-      else
-        (* D1: visible if no hit, or if we hit the player object *)
-        hit_type = hit_none || (hit_type = hit_object && st.fvi_hit_object = player_objnum)
-    in
-    if visible
-    then (
-      let dot = vm_vec_dotprod ~a:vec_to_player ~b:(fvec_x, fvec_y, fvec_z) in
-      if dot > field_of_view - (overall_agitation lsl 9) then 2 else 1)
-    else 0
-  in
-  [| result
-   ; final_pos_x
-   ; final_pos_y
-   ; final_pos_z
-   ; need_move_center
-   ; sub_flags
-   ; hit_type
-   ; hit_px
-   ; hit_py
-   ; hit_pz
-   ; hit_seg
-  |]
-;;
 
 (* ===== compute_vis_and_vec =====
 
@@ -2134,7 +1299,6 @@ let player_is_visible_from_object (arr : int array) =
      [26]   sound_event1_id
      [27]   sound_event2_id *)
 
-let cvv_ext_size = 19
 
 (* P_Rand step: advance LCG state, return (value, new_state).
    Replicates C unsigned 32-bit arithmetic. *)
@@ -2163,15 +1327,631 @@ let ais_rest = 1
 let ais_fire = 5
 let pa_nearby_robot_fired = 1
 
-let compute_vis_and_vec (arr : int array) =
+(* ===== v2 consumer functions: on-demand data via effects ===== *)
+
+(* v2 packed array header — compact header for consumer functions.
+   No collision table, segment data, or object data in the array.
+   All segment/object data is fetched on demand via effects.
+
+   [0] n_objects
+   [1] is_d2
+   [2] thisobjnum
+   [3] player_objnum
+   [4] game_time
+   [5] game_mode_coop (0 or 1)
+   [6] physics_cheat (0 or 1)
+   [7] n_segments *)
+let v2_n_objects = 0
+let v2_is_d2 = 1
+let v2_thisobjnum = 2
+let v2_player_objnum = 3
+let v2_game_time = 4
+let v2_game_mode_coop = 5
+let v2_physics_cheat = 6
+let v2_n_segments = 7
+let v2_header_size = 8
+
+(* ---- find_homing_object_complete_v2 ----
+   v2 packed layout:
+     [0..7]   v2 header (8 ints)
+     [8..26]  homing header (19 ints)
+     [27 + i*5 .. 27 + i*5 + 4]  homing per-object (n_objects * 5 ints) *)
+
+let find_homing_object_complete_v2 (arr : int array) =
   let open Ox_math in
-  let n_objects = arr.(h_n_objects) in
-  let obj_data_base = get_obj_data_base arr in
-  let is_d2 = arr.(h_is_d2) <> 0 in
-  let pv_base = obj_data_base + (n_objects * obj_block_size) in
+  let n_objects = arr.(v2_n_objects) in
+  let is_d2 = arr.(v2_is_d2) <> 0 in
+  let game_time = arr.(v2_game_time) in
+  let game_mode_coop = arr.(v2_game_mode_coop) <> 0 in
+  let physics_cheat = arr.(v2_physics_cheat) <> 0 in
+  let player_objnum = arr.(v2_player_objnum) in
+  let tracker_objnum = arr.(v2_thisobjnum) in
+  let collision_table = Effect.perform Fetch_collision_table in
+  let homing_base = v2_header_size in
+  let homing_obj_base = homing_base + homing_header_size in
+  let curpos =
+    ( arr.(homing_base + hh_curpos_x)
+    , arr.(homing_base + hh_curpos_y)
+    , arr.(homing_base + hh_curpos_z) )
+  in
+  let fvec =
+    ( arr.(homing_base + hh_fvec_x)
+    , arr.(homing_base + hh_fvec_y)
+    , arr.(homing_base + hh_fvec_z) )
+  in
+  let tracker_pos =
+    ( arr.(homing_base + hh_tracker_pos_x)
+    , arr.(homing_base + hh_tracker_pos_y)
+    , arr.(homing_base + hh_tracker_pos_z) )
+  in
+  let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+  let tracker_parent_sig = arr.(homing_base + hh_tracker_parent_sig) in
+  let track_obj_type1 = arr.(homing_base + hh_track_obj_type1) in
+  let track_obj_type2 = arr.(homing_base + hh_track_obj_type2) in
+  let highest_object_index = arr.(homing_base + hh_highest_object_index) in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
+  let max_trackable_dist =
+    if is_d2
+    then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
+    else d1_max_trackable_dist
+  in
+  let min_trackable_dot =
+    if is_d2
+    then if is_omega then d2_omega_min_trackable_dot else d2_min_trackable_dot
+    else d1_min_trackable_dot
+  in
+  let max_dot = ref (-0x20000) in
+  let best_objnum = ref (-1) in
+  for objnum = 0 to highest_object_index do
+    let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
+    let obj_data = Effect.perform (Fetch_object_data objnum) in
+    let obj_type = obj_data.(0) in
+    let obj_id = obj_data.(1) in
+    let obj_pos = obj_data.(3), obj_data.(4), obj_data.(5) in
+    let player_flags = arr.(hobj_base) in
+    let team_id = arr.(hobj_base + 1) in
+    let ai_cloaked = arr.(hobj_base + 2) in
+    let robot_companion = arr.(hobj_base + 3) in
+    let is_proximity = ref false in
+    let skip = ref false in
+    if obj_type <> track_obj_type1 && obj_type <> track_obj_type2
+    then
+      if
+        is_d2
+        && obj_type = obj_weapon
+        && (obj_id = d2_proximity_id || obj_id = d2_superprox_id)
+      then (
+        let obj_parent_sig = obj_data.(10) in
+        if obj_parent_sig <> tracker_parent_sig
+        then is_proximity := true
+        else skip := true)
+      else skip := true;
+    if (not !skip) && objnum = tracker_parent_num then skip := true;
+    if (not !skip) && obj_type = obj_player
+    then (
+      if player_flags land player_flags_cloaked <> 0 then skip := true;
+      if
+        (not !skip)
+        && game_mode_flags land gm_team <> 0
+        && tracker_parent_type = obj_player
+      then (
+        let parent_hobj_base =
+          homing_obj_base + (tracker_parent_num * homing_obj_block_size)
+        in
+        let parent_team = arr.(parent_hobj_base + 1) in
+        if parent_team = team_id then skip := true));
+    if (not !skip) && obj_type = obj_robot
+    then (
+      if ai_cloaked <> 0 then skip := true;
+      if (not !skip) && is_d2 && robot_companion <> 0 && tracker_parent_type = obj_player
+      then skip := true);
+    if not !skip
+    then (
+      let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
+      let dist = vm_vec_mag_quick ~v:vec_to_curobj in
+      if dist < max_trackable_dist
+      then (
+        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+        let dot = if is_d2 && !is_proximity then ((dot lsl 3) + dot) asr 3 else dot in
+        if dot > min_trackable_dot
+        then
+          if dot > !max_dot
+          then
+            if
+              visibility_check_v2
+                ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+                ~player_objnum ~physics_cheat
+                ~p0:tracker_pos
+                ~startseg:tracker_segnum
+                ~p1:obj_pos
+                ~tracker_objnum
+            then (
+              max_dot := dot;
+              best_objnum := objnum)))
+  done;
+  !best_objnum
+;;
+
+(* ---- object_is_trackable_v2 ----
+   Same logic as object_is_trackable but uses effects for object data
+   and visibility_check_v2 for LOS checks.
+   Reads from v2 homing packed format. *)
+
+let object_is_trackable_v2 (arr : int array) ~collision_table ~track_goal =
+  let open Ox_math in
+  if track_goal = -1
+  then false, 0
+  else (
+    let n_objects = arr.(v2_n_objects) in
+    let is_d2 = arr.(v2_is_d2) <> 0 in
+    let game_time = arr.(v2_game_time) in
+    let game_mode_coop = arr.(v2_game_mode_coop) <> 0 in
+    let physics_cheat = arr.(v2_physics_cheat) <> 0 in
+    let player_objnum = arr.(v2_player_objnum) in
+    let tracker_objnum = arr.(v2_thisobjnum) in
+    let homing_base = v2_header_size in
+    let homing_obj_base = homing_base + homing_header_size in
+    let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+    let te_base = homing_obj_base + (n_objects * homing_obj_block_size) in
+    let min_trackable_dot = arr.(te_base + te_min_trackable_dot) in
+    let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+    if game_mode_flags land gm_multi_coop <> 0
+    then false, 0
+    else (
+      let goal_hobj_base = homing_obj_base + (track_goal * homing_obj_block_size) in
+      let goal_obj_data = Effect.perform (Fetch_object_data track_goal) in
+      let goal_type = goal_obj_data.(0) in
+      let goal_pos = goal_obj_data.(3), goal_obj_data.(4), goal_obj_data.(5) in
+      let goal_player_flags = arr.(goal_hobj_base) in
+      let goal_ai_cloaked = arr.(goal_hobj_base + 2) in
+      let goal_robot_companion = arr.(goal_hobj_base + 3) in
+      if track_goal = player_objnum && goal_player_flags land player_flags_cloaked <> 0
+      then false, 0
+      else if goal_type = obj_robot
+      then
+        if goal_ai_cloaked <> 0
+        then false, 0
+        else if is_d2 && goal_robot_companion <> 0 && tracker_parent_type = obj_player
+        then false, 0
+        else (
+          let tracker_pos =
+            ( arr.(homing_base + hh_tracker_pos_x)
+            , arr.(homing_base + hh_tracker_pos_y)
+            , arr.(homing_base + hh_tracker_pos_z) )
+          in
+          let fvec =
+            ( arr.(homing_base + hh_fvec_x)
+            , arr.(homing_base + hh_fvec_y)
+            , arr.(homing_base + hh_fvec_z) )
+          in
+          let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
+          let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
+          let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+          let dot =
+            if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
+            then (
+              let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
+              vm_vec_dotprod ~a:vec_full ~b:fvec)
+            else dot
+          in
+          if dot >= min_trackable_dot
+          then (
+            let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+            let vis =
+              visibility_check_v2
+                ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+                ~player_objnum ~physics_cheat
+                ~p0:tracker_pos
+                ~startseg:tracker_segnum
+                ~p1:goal_pos
+                ~tracker_objnum
+            in
+            if vis then true, dot else false, dot)
+          else false, dot)
+      else (
+        let tracker_pos =
+          ( arr.(homing_base + hh_tracker_pos_x)
+          , arr.(homing_base + hh_tracker_pos_y)
+          , arr.(homing_base + hh_tracker_pos_z) )
+        in
+        let fvec =
+          ( arr.(homing_base + hh_fvec_x)
+          , arr.(homing_base + hh_fvec_y)
+          , arr.(homing_base + hh_fvec_z) )
+        in
+        let vec_to_goal = vm_vec_sub ~a:goal_pos ~b:tracker_pos in
+        let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_goal in
+        let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+        let dot =
+          if is_d2 && dot < min_trackable_dot && dot > 0x10000 * 9 / 10
+          then (
+            let _, vec_full = vm_vec_copy_normalize ~v:vec_to_goal in
+            vm_vec_dotprod ~a:vec_full ~b:fvec)
+          else dot
+        in
+        if dot >= min_trackable_dot
+        then (
+          let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+          let vis =
+            visibility_check_v2
+              ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+              ~player_objnum ~physics_cheat
+              ~p0:tracker_pos
+              ~startseg:tracker_segnum
+              ~p1:goal_pos
+              ~tracker_objnum
+          in
+          if vis then true, dot else false, dot)
+        else false, dot)))
+;;
+
+(* ---- track_track_goal_v2 ----
+   v2 packed layout:
+     [0..7]   v2 header
+     [8..26]  homing header (19 ints)
+     [27 + i*5 .. 27 + i*5 + 4]  homing per-object
+     [27 + n_objects*5 .. 27 + n_objects*5 + 6]  tracking ext header (7 ints) *)
+
+let track_track_goal_v2 (arr : int array) =
+  let is_d2 = arr.(v2_is_d2) <> 0 in
+  let n_objects = arr.(v2_n_objects) in
+  let homing_base = v2_header_size in
+  let homing_obj_base = homing_base + homing_header_size in
+  let te_base = homing_obj_base + (n_objects * homing_obj_block_size) in
+  let track_goal = arr.(te_base + te_track_goal) in
+  let frame_count = arr.(te_base + te_frame_count) in
+  let tracker_objnum = arr.(v2_thisobjnum) in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let collision_table = Effect.perform Fetch_collision_table in
+  let trackable, dot = object_is_trackable_v2 arr ~collision_table ~track_goal in
+  let frame_hash = tracker_objnum lxor frame_count in
+  if trackable && ((not is_d2) || frame_hash mod 8 <> 0)
+  then [| track_goal; dot |]
+  else if frame_hash mod 4 = 0
+  then (
+    let parent_obj_data = Effect.perform (Fetch_object_data tracker_parent_num) in
+    let parent_type = parent_obj_data.(0) in
+    let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
+    let gm_multi_robots_flag = arr.(te_base + te_gm_multi_robots) in
+    let track_goal_obj_type = arr.(te_base + te_track_goal_obj_type) in
+    let rval =
+      if parent_type = obj_player
+      then
+        if track_goal = -1
+        then (
+          if game_mode_flags land gm_multi <> 0
+          then
+            if game_mode_flags land gm_multi_coop <> 0
+            then (
+              arr.(homing_base + hh_track_obj_type1) <- obj_robot;
+              arr.(homing_base + hh_track_obj_type2) <- -1)
+            else if gm_multi_robots_flag <> 0
+            then (
+              arr.(homing_base + hh_track_obj_type1) <- obj_player;
+              arr.(homing_base + hh_track_obj_type2) <- obj_robot)
+            else (
+              arr.(homing_base + hh_track_obj_type1) <- obj_player;
+              arr.(homing_base + hh_track_obj_type2) <- -1)
+          else (
+            arr.(homing_base + hh_track_obj_type1) <- obj_player;
+            arr.(homing_base + hh_track_obj_type2) <- obj_robot);
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete_v2 arr)
+        else if track_goal_obj_type = obj_player || track_goal_obj_type = obj_robot
+        then (
+          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
+          arr.(homing_base + hh_track_obj_type2) <- -1;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete_v2 arr)
+        else -1
+      else (
+        let goal2_type =
+          if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1
+        in
+        if track_goal = -1
+        then (
+          arr.(homing_base + hh_track_obj_type1) <- obj_player;
+          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete_v2 arr)
+        else (
+          arr.(homing_base + hh_track_obj_type1) <- track_goal_obj_type;
+          arr.(homing_base + hh_track_obj_type2) <- goal2_type;
+          arr.(homing_base + hh_curpos_x) <- arr.(homing_base + hh_tracker_pos_x);
+          arr.(homing_base + hh_curpos_y) <- arr.(homing_base + hh_tracker_pos_y);
+          arr.(homing_base + hh_curpos_z) <- arr.(homing_base + hh_tracker_pos_z);
+          find_homing_object_complete_v2 arr))
+    in
+    [| rval; dot |])
+  else [| -1; dot |]
+;;
+
+(* ---- find_homing_object_v2 ----
+   v2 packed layout:
+     [0..7]   v2 header
+     [8..26]  homing header (19 ints)
+     [27 + i*5 ..]  homing per-object (n_objects * 5)
+     [27 + n_objects*5 .. + 6]  tracking ext header (7 ints)
+     [27 + n_objects*5 + 7 ..]  rendered object list (n_rendered ints) *)
+
+let find_homing_object_v2 (arr : int array) =
+  let open Ox_math in
+  let is_d2 = arr.(v2_is_d2) <> 0 in
+  let n_objects = arr.(v2_n_objects) in
+  let game_time = arr.(v2_game_time) in
+  let game_mode_coop = arr.(v2_game_mode_coop) <> 0 in
+  let physics_cheat = arr.(v2_physics_cheat) <> 0 in
+  let homing_base = v2_header_size in
+  let homing_obj_base = homing_base + homing_header_size in
+  let game_mode_flags = arr.(homing_base + hh_game_mode_flags) in
+  let tracker_parent_num = arr.(homing_base + hh_tracker_parent_num) in
+  let tracker_parent_type = arr.(homing_base + hh_tracker_parent_type) in
+  let player_objnum = arr.(v2_player_objnum) in
+  let te_base = homing_obj_base + (n_objects * homing_obj_block_size) in
+  let robots_kill_robots_cheat = arr.(te_base + te_robots_kill_robots_cheat) in
+  let collision_table = Effect.perform Fetch_collision_table in
+  if game_mode_flags land gm_multi <> 0
+  then (
+    if tracker_parent_type = obj_player
+    then
+      if game_mode_flags land gm_multi_coop <> 0
+      then (
+        arr.(homing_base + hh_track_obj_type1) <- obj_robot;
+        arr.(homing_base + hh_track_obj_type2) <- -1)
+      else (
+        arr.(homing_base + hh_track_obj_type1) <- obj_player;
+        arr.(homing_base + hh_track_obj_type2) <- obj_robot)
+    else (
+      let goal2_type = if is_d2 && robots_kill_robots_cheat <> 0 then obj_robot else -1 in
+      arr.(homing_base + hh_track_obj_type1) <- obj_player;
+      arr.(homing_base + hh_track_obj_type2) <- goal2_type);
+    find_homing_object_complete_v2 arr)
+  else if tracker_parent_num <> player_objnum
+  then (
+    let player_hobj_base = homing_obj_base + (player_objnum * homing_obj_block_size) in
+    let player_flags = arr.(player_hobj_base) in
+    if player_flags land player_flags_cloaked <> 0 then -1 else player_objnum)
+  else (
+    let n_rendered = arr.(te_base + te_n_rendered_objects) in
+    let rendered_list_base = te_base + tracking_ext_header_size in
+    let is_omega = arr.(homing_base + hh_is_omega) <> 0 in
+    let cur_min_trackable_dot =
+      if is_d2 && is_omega then d2_omega_min_trackable_dot else d1_min_trackable_dot
+    in
+    let max_trackable_dist =
+      if is_d2
+      then if is_omega then d2_omega_max_trackable_dist else d2_max_trackable_dist
+      else d1_max_trackable_dist
+    in
+    let curpos =
+      ( arr.(homing_base + hh_curpos_x)
+      , arr.(homing_base + hh_curpos_y)
+      , arr.(homing_base + hh_curpos_z) )
+    in
+    let fvec =
+      ( arr.(homing_base + hh_fvec_x)
+      , arr.(homing_base + hh_fvec_y)
+      , arr.(homing_base + hh_fvec_z) )
+    in
+    let tracker_pos =
+      ( arr.(homing_base + hh_tracker_pos_x)
+      , arr.(homing_base + hh_tracker_pos_y)
+      , arr.(homing_base + hh_tracker_pos_z) )
+    in
+    let tracker_segnum = arr.(homing_base + hh_tracker_segnum) in
+    let tracker_objnum = arr.(v2_thisobjnum) in
+    let max_dot = ref (-0x20000) in
+    let best_objnum = ref (-1) in
+    for i = n_rendered - 1 downto 0 do
+      let objnum = arr.(rendered_list_base + i) in
+      if objnum <> player_objnum
+      then (
+        let hobj_base = homing_obj_base + (objnum * homing_obj_block_size) in
+        let obj_data = Effect.perform (Fetch_object_data objnum) in
+        let obj_type = obj_data.(0) in
+        let ai_cloaked = arr.(hobj_base + 2) in
+        let robot_companion = arr.(hobj_base + 3) in
+        let skip = ref false in
+        if obj_type = obj_robot
+        then (
+          if ai_cloaked <> 0 then skip := true;
+          if
+            (not !skip)
+            && is_d2
+            && robot_companion <> 0
+            && tracker_parent_type = obj_player
+          then skip := true);
+        if not !skip
+        then (
+          let obj_pos = obj_data.(3), obj_data.(4), obj_data.(5) in
+          let vec_to_curobj = vm_vec_sub ~a:obj_pos ~b:curpos in
+          if is_d2
+          then (
+            let dist, vec_norm_q = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+            if dist < max_trackable_dist
+            then (
+              let dot = vm_vec_dotprod ~a:vec_norm_q ~b:fvec in
+              if dot > cur_min_trackable_dot
+              then (
+                if dot > !max_dot
+                then
+                  if
+                    visibility_check_v2
+                      ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+                      ~player_objnum ~physics_cheat
+                      ~p0:tracker_pos
+                      ~startseg:tracker_segnum
+                      ~p1:obj_pos
+                      ~tracker_objnum
+                  then (
+                    max_dot := dot;
+                    best_objnum := objnum))
+              else if dot > 0x10000 - ((0x10000 - cur_min_trackable_dot) * 2)
+              then (
+                let _, vec_full =
+                  vm_vec_copy_normalize ~v:(vm_vec_sub ~a:obj_pos ~b:curpos)
+                in
+                let dot = vm_vec_dotprod ~a:vec_full ~b:fvec in
+                if dot > cur_min_trackable_dot
+                then
+                  if dot > !max_dot
+                  then
+                    if
+                      visibility_check_v2
+                        ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+                        ~player_objnum ~physics_cheat
+                        ~p0:tracker_pos
+                        ~startseg:tracker_segnum
+                        ~p1:obj_pos
+                        ~tracker_objnum
+                    then (
+                      max_dot := dot;
+                      best_objnum := objnum))))
+          else (
+            let _, vec_norm = vm_vec_copy_normalize_quick ~v:vec_to_curobj in
+            let dot = vm_vec_dotprod ~a:vec_norm ~b:fvec in
+            if dot > cur_min_trackable_dot
+            then
+              if dot > !max_dot
+              then
+                if
+                  visibility_check_v2
+                    ~collision_table ~n_objects ~is_d2 ~game_time ~game_mode_coop
+                    ~player_objnum ~physics_cheat
+                    ~p0:tracker_pos
+                    ~startseg:tracker_segnum
+                    ~p1:obj_pos
+                    ~tracker_objnum
+                then (
+                  max_dot := dot;
+                  best_objnum := objnum))))
+    done;
+    !best_objnum)
+;;
+
+(* ---- player_is_visible_from_object_v2 ----
+   v2 packed layout:
+     [0..7]   v2 header (8 ints)
+     [8..27]  pv extension (20 ints) *)
+
+let player_is_visible_from_object_v2 (arr : int array) =
+  let open Ox_math in
+  let n_objects = arr.(v2_n_objects) in
+  let is_d2 = arr.(v2_is_d2) <> 0 in
+  let game_time = arr.(v2_game_time) in
+  let game_mode_coop = arr.(v2_game_mode_coop) <> 0 in
+  let physics_cheat = arr.(v2_physics_cheat) <> 0 in
+  let player_objnum = arr.(v2_player_objnum) in
+  let n_segments = arr.(v2_n_segments) in
+  let objp_objnum = arr.(v2_thisobjnum) in
+  let collision_table = Effect.perform Fetch_collision_table in
+  let pv_base = v2_header_size in
+  let pos_x = arr.(pv_base + 0) in
+  let pos_y = arr.(pv_base + 1) in
+  let pos_z = arr.(pv_base + 2) in
+  let objp_pos_x = arr.(pv_base + 3) in
+  let objp_pos_y = arr.(pv_base + 4) in
+  let objp_pos_z = arr.(pv_base + 5) in
+  let objp_segnum = arr.(pv_base + 6) in
+  let fvec_x = arr.(pv_base + 7) in
+  let fvec_y = arr.(pv_base + 8) in
+  let fvec_z = arr.(pv_base + 9) in
+  let field_of_view = arr.(pv_base + 10) in
+  let vec_to_player = arr.(pv_base + 11), arr.(pv_base + 12), arr.(pv_base + 13) in
+  let believed_player_pos = arr.(pv_base + 14), arr.(pv_base + 15), arr.(pv_base + 16) in
+  let overall_agitation = arr.(pv_base + 17) in
+  let _player_objnum_pv = arr.(pv_base + 18) in
+  let sub_flags = arr.(pv_base + 19) in
+  let sub_flags = if is_d2 then sub_flags land lnot 0x01 else sub_flags in
+  let pos_equals_objp = pos_x = objp_pos_x && pos_y = objp_pos_y && pos_z = objp_pos_z in
+  let startseg, final_pos, need_move_center, sub_flags =
+    if pos_equals_objp
+    then objp_segnum, (pos_x, pos_y, pos_z), 0, sub_flags
+    else (
+      let segnum =
+        find_point_seg_fvi_v2 ~point:(pos_x, pos_y, pos_z) ~segnum:objp_segnum ~n_segments
+      in
+      if segnum = -1
+      then objp_segnum, (objp_pos_x, objp_pos_y, objp_pos_z), 1, sub_flags
+      else (
+        let sub_flags =
+          if is_d2 && segnum <> objp_segnum then sub_flags lor 0x01 else sub_flags
+        in
+        segnum, (pos_x, pos_y, pos_z), 0, sub_flags))
+  in
+  let final_pos_x, final_pos_y, final_pos_z = final_pos in
+  let fvi_flags = if is_d2 then fq_transwall else fq_transwall lor fq_check_objs in
+  let st = make_fvi_state () in
+  st.segs_visited.(0) <- startseg;
+  st.n_segs_visited <- 1;
+  st.fvi_hit_seg2 <- -1;
+  let hit_type, hit_point, hit_seg, _, _ =
+    fvi_sub_v2
+      ~collision_table ~n_objects ~is_d2 ~game_time
+      ~ignore_obj_list:[||] ~game_mode_coop ~player_objnum ~physics_cheat
+      st
+      ~p0:final_pos
+      ~startseg
+      ~p1:believed_player_pos
+      ~rad:(0x10000 / 4)
+      ~thisobjnum:objp_objnum
+      ~flags:fvi_flags
+      ~entry_seg:(-2)
+  in
+  let hit_px, hit_py, hit_pz = hit_point in
+  let result =
+    let visible =
+      if is_d2
+      then hit_type = hit_none
+      else hit_type = hit_none || (hit_type = hit_object && st.fvi_hit_object = player_objnum)
+    in
+    if visible
+    then (
+      let dot = vm_vec_dotprod ~a:vec_to_player ~b:(fvec_x, fvec_y, fvec_z) in
+      if dot > field_of_view - (overall_agitation lsl 9) then 2 else 1)
+    else 0
+  in
+  [| result
+   ; final_pos_x
+   ; final_pos_y
+   ; final_pos_z
+   ; need_move_center
+   ; sub_flags
+   ; hit_type
+   ; hit_px
+   ; hit_py
+   ; hit_pz
+   ; hit_seg
+  |]
+;;
+
+(* ---- compute_vis_and_vec_v2 ----
+   v2 packed layout:
+     [0..7]   v2 header (8 ints)
+     [8..27]  pv extension (20 ints)
+     [28..46] cvv extension (19 ints) *)
+
+let compute_vis_and_vec_v2 (arr : int array) =
+  let open Ox_math in
+  let is_d2 = arr.(v2_is_d2) <> 0 in
+  let game_time = arr.(v2_game_time) in
+  let pv_base = v2_header_size in
   let cvv_base = pv_base + pv_ext_size in
-  let game_time = arr.(h_game_time) in
-  (* Read CVV extension *)
+  let pos_x = arr.(pv_base + 0) in
+  let pos_y = arr.(pv_base + 1) in
+  let pos_z = arr.(pv_base + 2) in
+  let pos = pos_x, pos_y, pos_z in
   let player_cloaked = arr.(cvv_base + 0) <> 0 in
   let difficulty_level = arr.(cvv_base + 1) in
   let cloak_last_time = ref arr.(cvv_base + 2) in
@@ -2191,11 +1971,6 @@ let compute_vis_and_vec (arr : int array) =
   let player_exploded = arr.(cvv_base + 16) <> 0 in
   let next_fire2 = arr.(cvv_base + 17) in
   let player_awareness_type = arr.(cvv_base + 18) in
-  (* Read pos from pv_ext *)
-  let pos_x = arr.(pv_base + 0) in
-  let pos_y = arr.(pv_base + 1) in
-  let pos_z = arr.(pv_base + 2) in
-  let pos = pos_x, pos_y, pos_z in
   let sound_events = Array.create ~len:4 0 in
   let sound_count = ref 0 in
   let add_sound sid =
@@ -2233,7 +2008,7 @@ let compute_vis_and_vec (arr : int array) =
     arr.(pv_base + 11) <- vtpx;
     arr.(pv_base + 12) <- vtpy;
     arr.(pv_base + 13) <- vtpz;
-    pvis_result := player_is_visible_from_object arr;
+    pvis_result := player_is_visible_from_object_v2 arr;
     player_visibility := !pvis_result.(0);
     let fire_ok =
       if is_d2 then next_fire < f1_0 || next_fire2 < f1_0 else next_fire < f1_0
@@ -2259,7 +2034,7 @@ let compute_vis_and_vec (arr : int array) =
     arr.(pv_base + 11) <- vtpx;
     arr.(pv_base + 12) <- vtpy;
     arr.(pv_base + 13) <- vtpz;
-    pvis_result := player_is_visible_from_object arr;
+    pvis_result := player_is_visible_from_object_v2 arr;
     player_visibility := !pvis_result.(0);
     if !player_visibility = 2 && !previous_visibility <> 2
     then
@@ -2293,7 +2068,6 @@ let compute_vis_and_vec (arr : int array) =
       next_misc_sound_time := game_time + ((rv + f1_0) * (7 - difficulty_level) / 2);
       add_sound attack_sound);
     previous_visibility := !player_visibility);
-  (* D2: awareness-based visibility upgrade *)
   let player_visibility =
     if is_d2 && player_awareness_type >= pa_nearby_robot_fired && !player_visibility = 1
     then 2

@@ -553,133 +553,62 @@ int find_homing_object(vms_vector* curpos, object* tracker)
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{
-			fprintf(stderr, "[OX] find_homing_object using cd_ox_find_homing_object.\n");
+			fprintf(stderr, "[OX] find_homing_object (D1) using cd_ox_find_homing_object_v2.\n");
 			ox_bridge_logged = 1;
 		}
 
-		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int tracker_objnum = (int)(tracker - Objects);
 		int n_rendered = Num_rendered_objects;
-
-		int header_len = 18;
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
 		int homing_header_len = 19;
+
+		// v2 header (8) + homing_header (19) + homing_per_obj (n*5) + tracking_ext (7) + rendered_list
+		int homing_obj_base = 8 + homing_header_len;
 		int homing_obj_len = n_objects * 5;
+		int tracking_ext_base = homing_obj_base + homing_obj_len;
 		int tracking_ext_header_len = 7;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len
-		                 + homing_header_len + homing_obj_len + tracking_ext_header_len + n_rendered;
+		int packed_len = tracking_ext_base + tracking_ext_header_len + n_rendered;
 
 		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
 		if (!packed)
 			return -1;
 
-		// Pack FVI header
-		packed[0] = 0; packed[1] = 0; packed[2] = 0;
-		packed[3] = 0;
-		packed[4] = 0; packed[5] = 0; packed[6] = 0;
-		packed[7] = 0x10;
-		packed[8] = tracker_objnum;
-		packed[9] = FQ_TRANSWALL;
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = 0;
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 0;  // is_d2 = 0
-		packed[17] = 0;  // ignore_count = 0
+		// v2 header (8 ints)
+		packed[0] = n_objects;
+		packed[1] = 0;  // is_d2 = 0
+		packed[2] = tracker_objnum;
+		packed[3] = Players[Player_num].objnum;
+		packed[4] = GameTime;
+		packed[5] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[6] = 0;  // physics_cheat
+		packed[7] = Highest_segment_index + 1;  // n_segments
 
-		// Pack collision table
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
+		// Homing header (19 ints at offset 8)
+		packed[8 + 0] = curpos->x;
+		packed[8 + 1] = curpos->y;
+		packed[8 + 2] = curpos->z;
+		packed[8 + 3] = tracker->orient.fvec.x;
+		packed[8 + 4] = tracker->orient.fvec.y;
+		packed[8 + 5] = tracker->orient.fvec.z;
+		packed[8 + 6] = tracker->pos.x;
+		packed[8 + 7] = tracker->pos.y;
+		packed[8 + 8] = tracker->pos.z;
+		packed[8 + 9] = tracker->segnum;
+		packed[8 + 10] = tracker->ctype.laser_info.parent_num;
+		packed[8 + 11] = tracker->ctype.laser_info.parent_type;
+		packed[8 + 12] = tracker->ctype.laser_info.parent_signature;
+		packed[8 + 13] = tracker->id;
+		packed[8 + 14] = -1;  // track_obj_type1 (set by OCaml)
+		packed[8 + 15] = -1;  // track_obj_type2 (set by OCaml)
+		packed[8 + 16] = Highest_object_index;
+		packed[8 + 17] = Game_mode;
+		packed[8 + 18] = 0;  // is_omega = 0 (D1)
 
-		// Pack per-segment data (87 ints each)
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		// Pack per-object data (14 ints each)
-		int od_base = sd_base + seg_data_len;
+		// Homing per-object data (5 ints each)
 		for (int o = 0; o < n_objects; o++)
 		{
 			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
-
-		// Pack homing header (19 ints)
-		int hh_base = od_base + obj_data_len;
-		packed[hh_base + 0] = curpos->x;
-		packed[hh_base + 1] = curpos->y;
-		packed[hh_base + 2] = curpos->z;
-		packed[hh_base + 3] = tracker->orient.fvec.x;
-		packed[hh_base + 4] = tracker->orient.fvec.y;
-		packed[hh_base + 5] = tracker->orient.fvec.z;
-		packed[hh_base + 6] = tracker->pos.x;
-		packed[hh_base + 7] = tracker->pos.y;
-		packed[hh_base + 8] = tracker->pos.z;
-		packed[hh_base + 9] = tracker->segnum;
-		packed[hh_base + 10] = tracker->ctype.laser_info.parent_num;
-		packed[hh_base + 11] = tracker->ctype.laser_info.parent_type;
-		packed[hh_base + 12] = tracker->ctype.laser_info.parent_signature;
-		packed[hh_base + 13] = tracker->id;
-		packed[hh_base + 14] = -1;  // track_obj_type1 (set by OCaml)
-		packed[hh_base + 15] = -1;  // track_obj_type2 (set by OCaml)
-		packed[hh_base + 16] = Highest_object_index;
-		packed[hh_base + 17] = Game_mode;
-		packed[hh_base + 18] = 0;  // is_omega = 0 (D1)
-
-		// Pack homing per-object data (5 ints each)
-		int ho_base = hh_base + homing_header_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int hob = ho_base + o * 5;
+			int hob = homing_obj_base + o * 5;
 			packed[hob + 0] = (obj->type == OBJ_PLAYER) ? Players[obj->id].flags : 0;
 #ifdef NETWORK
 			packed[hob + 1] = (obj->type == OBJ_PLAYER) ? get_team(obj->id) : -1;
@@ -691,26 +620,27 @@ int find_homing_object(vms_vector* curpos, object* tracker)
 			packed[hob + 4] = obj->segnum;
 		}
 
-		// Pack tracking extension header (7 ints)
-		int te_base = ho_base + homing_obj_len;
-		packed[te_base + 0] = Min_trackable_dot;
-		packed[te_base + 1] = FrameCount;
-		packed[te_base + 2] = 0;  // robots_kill_robots_cheat = 0 (D1)
-		packed[te_base + 3] = (Game_mode & GM_MULTI_ROBOTS) ? 1 : 0;
-		packed[te_base + 4] = -1;  // track_goal (unused for find_homing_object)
-		packed[te_base + 5] = n_rendered;
-		packed[te_base + 6] = -1;  // track_goal_obj_type (unused)
+		// Tracking extension (7 ints)
+		int te = tracking_ext_base;
+		packed[te + 0] = Min_trackable_dot;
+		packed[te + 1] = FrameCount;
+		packed[te + 2] = 0;  // robots_kill_robots_cheat = 0 (D1)
+		packed[te + 3] = (Game_mode & GM_MULTI_ROBOTS) ? 1 : 0;
+		packed[te + 4] = -1;  // track_goal (unused for find_homing_object)
+		packed[te + 5] = n_rendered;
+		packed[te + 6] = -1;  // track_goal_obj_type (unused)
 
-		// Pack rendered object list
-		int rl_base = te_base + tracking_ext_header_len;
+		// Rendered object list
+		int rl_base = te + tracking_ext_header_len;
 		for (int i = 0; i < n_rendered; i++)
 			packed[rl_base + i] = Ordered_rendered_object_list[i];
 
-		int result = cd_ox_find_homing_object(packed, packed_len);
+		int result = cd_ox_find_homing_object_v2(packed, packed_len);
 		free(packed);
 		return result;
 	}
 #else
+
 	int	i;
 	fix	max_dot = -F1_0 * 2;
 	int	best_objnum = -1;
@@ -788,131 +718,59 @@ int find_homing_object_complete(vms_vector* curpos, object* tracker, int track_o
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{
-			fprintf(stderr, "[OX] find_homing_object_complete using cd_ox_find_homing_object_complete.\n");
+			fprintf(stderr, "[OX] find_homing_object_complete (D1) using cd_ox_find_homing_object_complete_v2.\n");
 			ox_bridge_logged = 1;
 		}
 
-		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int tracker_objnum = (int)(tracker - Objects);
-
-		int header_len = 18;  // ignore_count = 0
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
 		int homing_header_len = 19;
-		int homing_obj_len = n_objects * 5;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len
-		                 + homing_header_len + homing_obj_len;
+		int n_segments = Highest_segment_index + 1;
+
+		// v2 header (8) + homing_header (19) + homing_per_obj (n*5)
+		int homing_obj_base = 8 + homing_header_len;
+		int packed_len = homing_obj_base + n_objects * 5;
 
 		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
 		if (!packed)
 			return -1;
 
-		// Pack FVI header (used by fvi_sub for visibility checks)
-		packed[0] = 0; packed[1] = 0; packed[2] = 0;  // p0 placeholder
-		packed[3] = 0;  // startseg placeholder
-		packed[4] = 0; packed[5] = 0; packed[6] = 0;  // p1 placeholder
-		packed[7] = 0x10;  // rad for visibility
-		packed[8] = tracker_objnum;  // thisobjnum
-		packed[9] = FQ_TRANSWALL;  // flags
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = 0;  // physics_cheat off
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 0;  // is_d2 = 0 for D1
-		packed[17] = 0;  // ignore_count = 0
+		// v2 header (8 ints)
+		packed[0] = n_objects;
+		packed[1] = 0;  // is_d2 = 0
+		packed[2] = tracker_objnum;
+		packed[3] = Players[Player_num].objnum;
+		packed[4] = GameTime;
+		packed[5] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[6] = 0;  // physics_cheat
+		packed[7] = n_segments;
 
-		// Pack collision table
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
+		// Homing header (19 ints at offset 8)
+		packed[8 + 0] = curpos->x;
+		packed[8 + 1] = curpos->y;
+		packed[8 + 2] = curpos->z;
+		packed[8 + 3] = tracker->orient.fvec.x;
+		packed[8 + 4] = tracker->orient.fvec.y;
+		packed[8 + 5] = tracker->orient.fvec.z;
+		packed[8 + 6] = tracker->pos.x;
+		packed[8 + 7] = tracker->pos.y;
+		packed[8 + 8] = tracker->pos.z;
+		packed[8 + 9] = tracker->segnum;
+		packed[8 + 10] = tracker->ctype.laser_info.parent_num;
+		packed[8 + 11] = tracker->ctype.laser_info.parent_type;
+		packed[8 + 12] = tracker->ctype.laser_info.parent_signature;
+		packed[8 + 13] = tracker->id;
+		packed[8 + 14] = track_obj_type1;
+		packed[8 + 15] = track_obj_type2;
+		packed[8 + 16] = Highest_object_index;
+		packed[8 + 17] = Game_mode;
+		packed[8 + 18] = 0;  // is_omega = 0 (D1)
 
-		// Pack per-segment data (87 ints each) — same as FVI
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		// Pack per-object data (14 ints each) — same as FVI
-		int od_base = sd_base + seg_data_len;
+		// Homing per-object data (5 ints each)
 		for (int o = 0; o < n_objects; o++)
 		{
 			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
-
-		// Pack homing header (19 ints)
-		int hh_base = od_base + obj_data_len;
-		packed[hh_base + 0] = curpos->x;
-		packed[hh_base + 1] = curpos->y;
-		packed[hh_base + 2] = curpos->z;
-		packed[hh_base + 3] = tracker->orient.fvec.x;
-		packed[hh_base + 4] = tracker->orient.fvec.y;
-		packed[hh_base + 5] = tracker->orient.fvec.z;
-		packed[hh_base + 6] = tracker->pos.x;
-		packed[hh_base + 7] = tracker->pos.y;
-		packed[hh_base + 8] = tracker->pos.z;
-		packed[hh_base + 9] = tracker->segnum;
-		packed[hh_base + 10] = tracker->ctype.laser_info.parent_num;
-		packed[hh_base + 11] = tracker->ctype.laser_info.parent_type;
-		packed[hh_base + 12] = tracker->ctype.laser_info.parent_signature;
-		packed[hh_base + 13] = tracker->id;
-		packed[hh_base + 14] = track_obj_type1;
-		packed[hh_base + 15] = track_obj_type2;
-		packed[hh_base + 16] = Highest_object_index;
-		packed[hh_base + 17] = Game_mode;
-		packed[hh_base + 18] = 0;  // is_omega = 0 (D1 has no omega)
-
-		// Pack homing per-object data (5 ints each)
-		int ho_base = hh_base + homing_header_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int hob = ho_base + o * 5;
+			int hob = homing_obj_base + o * 5;
 			packed[hob + 0] = (obj->type == OBJ_PLAYER) ? Players[obj->id].flags : 0;
 #ifdef NETWORK
 			packed[hob + 1] = (obj->type == OBJ_PLAYER) ? get_team(obj->id) : -1;
@@ -920,15 +778,16 @@ int find_homing_object_complete(vms_vector* curpos, object* tracker, int track_o
 			packed[hob + 1] = -1;
 #endif
 			packed[hob + 2] = (obj->type == OBJ_ROBOT) ? obj->ctype.ai_info.CLOAKED : 0;
-			packed[hob + 3] = 0;  // robot_companion = 0 (D1 has no companions)
+			packed[hob + 3] = 0;  // robot_companion = 0 (D1)
 			packed[hob + 4] = obj->segnum;
 		}
 
-		int result = cd_ox_find_homing_object_complete(packed, packed_len);
+		int result = cd_ox_find_homing_object_complete_v2(packed, packed_len);
 		free(packed);
 		return result;
 	}
 #else
+
 	int	objnum;
 	fix	max_dot = -F1_0 * 2;
 	int	best_objnum = -1;
@@ -1005,132 +864,59 @@ int track_track_goal(int track_goal, object* tracker)
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{
-			fprintf(stderr, "[OX] track_track_goal using cd_ox_track_track_goal.\n");
+			fprintf(stderr, "[OX] track_track_goal (D1) using cd_ox_track_track_goal_v2.\n");
 			ox_bridge_logged = 1;
 		}
 
-		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int tracker_objnum = (int)(tracker - Objects);
-
-		int header_len = 18;
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
 		int homing_header_len = 19;
-		int homing_obj_len = n_objects * 5;
-		int tracking_ext_header_len = 7;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len
-		                 + homing_header_len + homing_obj_len + tracking_ext_header_len;
+
+		// v2 header (8) + homing_header (19) + homing_per_obj (n*5) + tracking_ext (7)
+		int homing_obj_base = 8 + homing_header_len;
+		int tracking_ext_base = homing_obj_base + n_objects * 5;
+		int packed_len = tracking_ext_base + 7;
 
 		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
 		if (!packed)
 			return -1;
 
-		// Pack FVI header
-		packed[0] = 0; packed[1] = 0; packed[2] = 0;
-		packed[3] = 0;
-		packed[4] = 0; packed[5] = 0; packed[6] = 0;
-		packed[7] = 0x10;
-		packed[8] = tracker_objnum;
-		packed[9] = FQ_TRANSWALL;
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = 0;
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 0;  // is_d2 = 0
-		packed[17] = 0;  // ignore_count = 0
+		// v2 header (8 ints)
+		packed[0] = n_objects;
+		packed[1] = 0;  // is_d2 = 0
+		packed[2] = tracker_objnum;
+		packed[3] = Players[Player_num].objnum;
+		packed[4] = GameTime;
+		packed[5] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[6] = 0;  // physics_cheat
+		packed[7] = Highest_segment_index + 1;  // n_segments
 
-		// Pack collision table
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
+		// Homing header (19 ints at offset 8)
+		packed[8 + 0] = tracker->pos.x;
+		packed[8 + 1] = tracker->pos.y;
+		packed[8 + 2] = tracker->pos.z;
+		packed[8 + 3] = tracker->orient.fvec.x;
+		packed[8 + 4] = tracker->orient.fvec.y;
+		packed[8 + 5] = tracker->orient.fvec.z;
+		packed[8 + 6] = tracker->pos.x;
+		packed[8 + 7] = tracker->pos.y;
+		packed[8 + 8] = tracker->pos.z;
+		packed[8 + 9] = tracker->segnum;
+		packed[8 + 10] = tracker->ctype.laser_info.parent_num;
+		packed[8 + 11] = tracker->ctype.laser_info.parent_type;
+		packed[8 + 12] = tracker->ctype.laser_info.parent_signature;
+		packed[8 + 13] = tracker->id;
+		packed[8 + 14] = -1;  // track_obj_type1 (set by OCaml)
+		packed[8 + 15] = -1;  // track_obj_type2 (set by OCaml)
+		packed[8 + 16] = Highest_object_index;
+		packed[8 + 17] = Game_mode;
+		packed[8 + 18] = 0;  // is_omega = 0 (D1)
 
-		// Pack per-segment data (87 ints each)
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		// Pack per-object data (14 ints each)
-		int od_base = sd_base + seg_data_len;
+		// Homing per-object data (5 ints each)
 		for (int o = 0; o < n_objects; o++)
 		{
 			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
-
-		// Pack homing header (19 ints) — curpos = tracker->pos for track_track_goal
-		int hh_base = od_base + obj_data_len;
-		packed[hh_base + 0] = tracker->pos.x;  // curpos = tracker pos
-		packed[hh_base + 1] = tracker->pos.y;
-		packed[hh_base + 2] = tracker->pos.z;
-		packed[hh_base + 3] = tracker->orient.fvec.x;
-		packed[hh_base + 4] = tracker->orient.fvec.y;
-		packed[hh_base + 5] = tracker->orient.fvec.z;
-		packed[hh_base + 6] = tracker->pos.x;
-		packed[hh_base + 7] = tracker->pos.y;
-		packed[hh_base + 8] = tracker->pos.z;
-		packed[hh_base + 9] = tracker->segnum;
-		packed[hh_base + 10] = tracker->ctype.laser_info.parent_num;
-		packed[hh_base + 11] = tracker->ctype.laser_info.parent_type;
-		packed[hh_base + 12] = tracker->ctype.laser_info.parent_signature;
-		packed[hh_base + 13] = tracker->id;
-		packed[hh_base + 14] = -1;  // track_obj_type1 (set by OCaml)
-		packed[hh_base + 15] = -1;  // track_obj_type2 (set by OCaml)
-		packed[hh_base + 16] = Highest_object_index;
-		packed[hh_base + 17] = Game_mode;
-		packed[hh_base + 18] = 0;  // is_omega = 0 (D1)
-
-		// Pack homing per-object data (5 ints each)
-		int ho_base = hh_base + homing_header_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int hob = ho_base + o * 5;
+			int hob = homing_obj_base + o * 5;
 			packed[hob + 0] = (obj->type == OBJ_PLAYER) ? Players[obj->id].flags : 0;
 #ifdef NETWORK
 			packed[hob + 1] = (obj->type == OBJ_PLAYER) ? get_team(obj->id) : -1;
@@ -1142,23 +928,24 @@ int track_track_goal(int track_goal, object* tracker)
 			packed[hob + 4] = obj->segnum;
 		}
 
-		// Pack tracking extension header (7 ints)
-		int te_base = ho_base + homing_obj_len;
-		packed[te_base + 0] = Min_trackable_dot;
-		packed[te_base + 1] = FrameCount;
-		packed[te_base + 2] = 0;  // robots_kill_robots_cheat = 0 (D1)
-		packed[te_base + 3] = (Game_mode & GM_MULTI_ROBOTS) ? 1 : 0;
-		packed[te_base + 4] = track_goal;
-		packed[te_base + 5] = 0;  // n_rendered = 0 (not used for track_track_goal)
-		packed[te_base + 6] = (track_goal >= 0 && track_goal <= Highest_object_index)
-		                      ? Objects[tracker->ctype.laser_info.track_goal].type : -1;
+		// Tracking extension (7 ints)
+		int te = tracking_ext_base;
+		packed[te + 0] = Min_trackable_dot;
+		packed[te + 1] = FrameCount;
+		packed[te + 2] = 0;  // robots_kill_robots_cheat = 0 (D1)
+		packed[te + 3] = (Game_mode & GM_MULTI_ROBOTS) ? 1 : 0;
+		packed[te + 4] = track_goal;
+		packed[te + 5] = 0;  // n_rendered = 0 (not used for track_track_goal)
+		packed[te + 6] = (track_goal >= 0 && track_goal <= Highest_object_index)
+		                 ? Objects[tracker->ctype.laser_info.track_goal].type : -1;
 
 		int out_result, out_dot;
-		cd_ox_track_track_goal(packed, packed_len, &out_result, &out_dot);
+		cd_ox_track_track_goal_v2(packed, packed_len, &out_result, &out_dot);
 		free(packed);
 		return out_result;
 	}
 #else
+
 	if (object_is_trackable(track_goal, tracker))
 		return track_goal;
 	else if ((((tracker - Objects) ^ FrameCount) % 4) == 0) {

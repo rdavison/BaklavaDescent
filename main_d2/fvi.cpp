@@ -43,6 +43,12 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 extern int Physics_cheat_flag;
 
+#ifdef USE_OX_BRIDGE
+// When true, sub-functions (check_line_to_face, etc.) use C paths instead of OCaml.
+// Set during the C FVI comparison run in find_vector_intersection.
+static bool fvi_force_c_path = false;
+#endif
+
 #define face_type_num(nfaces,face_num,tri_edge) ((nfaces==1)?0:(tri_edge*2 + face_num))
 
 int oflow_check(fix a,fix b);
@@ -299,37 +305,7 @@ int check_line_to_face(vms_vector *newp,vms_vector *p0,vms_vector *p1,segment *s
 	if ((seg-Segments)==-1)
 		Error("segnum == -1 in check_line_to_face()");
 
-#ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
 	{
-		fprintf(stderr, "[OX] check_line_to_face using cd_ox_check_line_to_face.\n");
-		ox_bridge_logged = 1;
-	}
-	int32_t packed[46];
-	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
-	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
-	packed[6] = seg->sides[side].normals[facenum].x;
-	packed[7] = seg->sides[side].normals[facenum].y;
-	packed[8] = seg->sides[side].normals[facenum].z;
-	packed[9] = rad;
-	packed[10] = facenum;
-	packed[11] = nv;
-	packed[12] = seg->sides[side].type;
-	packed[13] = side;
-	for (int i = 0; i < 8; i++)
-		packed[14 + i] = seg->verts[i];
-	for (int i = 0; i < 8; i++)
-	{
-		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-	}
-	int32_t hit_type, npx, npy, npz;
-	cd_ox_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
-	newp->x = npx; newp->y = npy; newp->z = npz;
-	return hit_type;
-#else
 	vms_vector checkp;
 	int pli;
 	struct side *s=&seg->sides[side];
@@ -372,7 +348,7 @@ int check_line_to_face(vms_vector *newp,vms_vector *p0,vms_vector *p1,segment *s
 		vm_vec_scale_add2(&checkp,&norm,-rad);
 
 	return check_sphere_to_face(&checkp,s,facenum,nv,rad,vertex_list);
-#endif
+	}
 }
 
 //returns the value of a determinant
@@ -434,37 +410,7 @@ int special_check_line_to_face(vms_vector *newp,vms_vector *p0,vms_vector *p1,se
 	if ((seg-Segments)==-1)
 		Error("segnum == -1 in special_check_line_to_face()");
 
-#ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
 	{
-		fprintf(stderr, "[OX] special_check_line_to_face using cd_ox_special_check_line_to_face.\n");
-		ox_bridge_logged = 1;
-	}
-	int32_t packed[46];
-	packed[0] = p0->x; packed[1] = p0->y; packed[2] = p0->z;
-	packed[3] = p1->x; packed[4] = p1->y; packed[5] = p1->z;
-	packed[6] = seg->sides[side].normals[facenum].x;
-	packed[7] = seg->sides[side].normals[facenum].y;
-	packed[8] = seg->sides[side].normals[facenum].z;
-	packed[9] = rad;
-	packed[10] = facenum;
-	packed[11] = nv;
-	packed[12] = seg->sides[side].type;
-	packed[13] = side;
-	for (int i = 0; i < 8; i++)
-		packed[14 + i] = seg->verts[i];
-	for (int i = 0; i < 8; i++)
-	{
-		packed[22 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-		packed[22 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-		packed[22 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-	}
-	int32_t hit_type, npx, npy, npz;
-	cd_ox_special_check_line_to_face(packed, 46, &hit_type, &npx, &npy, &npz);
-	newp->x = npx; newp->y = npy; newp->z = npz;
-	return hit_type;
-#else
 	vms_vector move_vec;
 	fix edge_t,move_t,edge_t2,move_t2,closest_dist;
 	fix edge_len,move_len;
@@ -547,7 +493,7 @@ int special_check_line_to_face(vms_vector *newp,vms_vector *p0,vms_vector *p1,se
 	}
 	else
 		return IT_NONE;			//no hit
-#endif
+	}
 }
 
 //maybe this routine should just return the distance and let the caller
@@ -558,22 +504,7 @@ int special_check_line_to_face(vms_vector *newp,vms_vector *p0,vms_vector *p1,se
 //else returns 0
 int check_vector_to_sphere_1(vms_vector *intp,vms_vector *p0,vms_vector *p1,vms_vector *sphere_pos,fix sphere_rad)
 {
-#ifdef USE_OX_BRIDGE
-	static int ox_bridge_logged = 0;
-	if (!ox_bridge_logged)
 	{
-		fprintf(stderr, "[OX] check_vector_to_sphere_1 using cd_ox_check_vector_to_sphere_1.\n");
-		ox_bridge_logged = 1;
-	}
-	int32_t ix, iy, iz;
-	int32_t dist = cd_ox_check_vector_to_sphere_1(
-		p0->x, p0->y, p0->z,
-		p1->x, p1->y, p1->z,
-		sphere_pos->x, sphere_pos->y, sphere_pos->z,
-		sphere_rad, &ix, &iy, &iz);
-	intp->x = ix; intp->y = iy; intp->z = iz;
-	return dist;
-#else
 	vms_vector d,dn,w,closest_point;
 	fix mag_d,dist,w_dist,int_dist;
 
@@ -632,7 +563,7 @@ int check_vector_to_sphere_1(vms_vector *intp,vms_vector *p0,vms_vector *p1,vms_
 	}
 	else
 		return 0;
-#endif
+	}
 }
 
 /*
@@ -748,19 +679,7 @@ int check_vector_to_sphere_1(vms_vector *intp,vms_vector *p0,vms_vector *p1,vms_
 //if no intersects, returns 0, else fills in intp and returns dist
 fix check_vector_to_object(vms_vector *intp,vms_vector *p0,vms_vector *p1,fix rad,object *obj,object *otherobj)
 {
-#ifdef USE_OX_BRIDGE
-	return cd_ox_check_vector_to_object(
-		p0->x, p0->y, p0->z,
-		p1->x, p1->y, p1->z,
-		rad,
-		obj->pos.x, obj->pos.y, obj->pos.z,
-		obj->size, obj->type,
-		(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0,
-		otherobj->type,
-		(Game_mode & GM_MULTI_COOP) ? 1 : 0,
-		otherobj->ctype.laser_info.parent_type,
-		&intp->x, &intp->y, &intp->z);
-#else
+	{
 	fix size = obj->size;
 
 	if (obj->type == OBJ_ROBOT && Robot_info[obj->id].attack_type)
@@ -773,7 +692,7 @@ fix check_vector_to_object(vms_vector *intp,vms_vector *p0,vms_vector *p1,fix ra
 		size = size/2;
 
 	return check_vector_to_sphere_1(intp,p0,p1,&obj->pos,size+rad);
-#endif
+	}
 }
 
 
@@ -812,11 +731,19 @@ int check_trans_wall(vms_vector *pnt,segment *seg,int sidenum,int facenum);
 int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 {
 #ifdef USE_OX_BRIDGE
+	// --- OCaml FVI path (v2: on-demand data via effects) ---
+	fvi_info ox_hit_data;
+	int ox_valid = 0;
+	static int fvi_call_count = 0;
+	static int fvi_div_count = 0;
+	fvi_call_count++;
+	// Only run OCaml every 64th call, stop after 50 divergences found
+	if ((fvi_call_count & 63) == 0 && fvi_div_count < 50)
 	{
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{
-			fprintf(stderr, "[OX] find_vector_intersection (D2) using cd_ox_find_vector_intersection.\n");
+			fprintf(stderr, "[OX] find_vector_intersection (D2) v2 on-demand mode.\n");
 			ox_bridge_logged = 1;
 			cd_ox_register_check_trans_wall(
 				[](int segnum, int sidenum, int facenum,
@@ -826,6 +753,59 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 					pnt.y = hit_y;
 					pnt.z = hit_z;
 					return check_trans_wall(&pnt, &Segments[segnum], sidenum, facenum);
+				});
+			cd_ox_register_fvi_data_callbacks(
+				// fetch_segment_data: pack one segment's 87 ints
+				[](int segnum, int32_t* out) {
+					segment* seg = &Segments[segnum];
+					for (int i = 0; i < 6; i++)
+						out[i] = seg->children[i];
+					for (int i = 0; i < 6; i++)
+						out[6 + i] = seg->sides[i].type;
+					for (int i = 0; i < 8; i++)
+						out[12 + i] = seg->verts[i];
+					for (int sn = 0; sn < 6; sn++)
+					{
+						out[20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
+						out[20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
+						out[20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
+						out[20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
+						out[20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
+						out[20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
+					}
+					for (int i = 0; i < 8; i++)
+					{
+						out[56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
+						out[56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
+						out[56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
+					}
+					for (int i = 0; i < 6; i++)
+						out[80 + i] = WALL_IS_DOORWAY(seg, i);
+					out[86] = seg->objects;
+				},
+				// fetch_object_data: pack one object's 14 ints
+				[](int objnum, int32_t* out) {
+					object* obj = &Objects[objnum];
+					out[0] = obj->type;
+					out[1] = obj->id;
+					out[2] = obj->flags;
+					out[3] = obj->pos.x;
+					out[4] = obj->pos.y;
+					out[5] = obj->pos.z;
+					out[6] = obj->size;
+					out[7] = obj->next;
+					out[8] = obj->ctype.laser_info.parent_type;
+					out[9] = obj->ctype.laser_info.parent_num;
+					out[10] = obj->ctype.laser_info.parent_signature;
+					out[11] = obj->ctype.laser_info.creation_time;
+					out[12] = obj->signature;
+					out[13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
+				},
+				// fetch_collision_table: pack 16x16 collision result table
+				[](int32_t* out) {
+					for (int a = 0; a < 16; a++)
+						for (int b = 0; b < 16; b++)
+							out[a * 16 + b] = CollisionResult[a][b];
 				});
 		}
 
@@ -840,206 +820,61 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 			while (*p != -1) { ignore_count++; p++; }
 		}
 
+		// v2: just pass the header — no segments, objects, or collision table
 		int header_len = 18 + ignore_count;
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len;
-
-		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
-		if (!packed)
-		{
-			hit_data->hit_type = HIT_BAD_P0;
-			hit_data->hit_pnt = *fq->p0;
-			hit_data->hit_seg = fq->startseg;
-			hit_data->hit_side = hit_data->hit_object = 0;
-			hit_data->hit_side_seg = -1;
-			return HIT_BAD_P0;
-		}
-
-		// Pack header
-		packed[0] = fq->p0->x; packed[1] = fq->p0->y; packed[2] = fq->p0->z;
-		packed[3] = fq->startseg;
-		packed[4] = fq->p1->x; packed[5] = fq->p1->y; packed[6] = fq->p1->z;
-		packed[7] = fq->rad;
-		packed[8] = fq->thisobjnum;
-		packed[9] = fq->flags;
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = (Physics_cheat_flag == 0xBADA55) ? 1 : 0;
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 1;  // is_d2 = 1 for D2
-		packed[17] = ignore_count;
+		int32_t header[512];
+		header[0] = fq->p0->x; header[1] = fq->p0->y; header[2] = fq->p0->z;
+		header[3] = fq->startseg;
+		header[4] = fq->p1->x; header[5] = fq->p1->y; header[6] = fq->p1->z;
+		header[7] = fq->rad;
+		header[8] = fq->thisobjnum;
+		header[9] = fq->flags;
+		header[10] = n_segments;
+		header[11] = n_objects;
+		header[12] = Players[Player_num].objnum;
+		header[13] = (Physics_cheat_flag == 0xBADA55) ? 1 : 0;
+		header[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		header[15] = GameTime;
+		header[16] = 1;  // is_d2 = 1 for D2
+		header[17] = ignore_count;
 		for (int i = 0; i < ignore_count; i++)
-			packed[18 + i] = fq->ignore_obj_list[i];
-
-		// Pack collision table
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
-
-		// Pack per-segment data (87 ints each)
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		// Pack per-object data (14 ints each)
-		int od_base = sd_base + seg_data_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
+			header[18 + i] = fq->ignore_obj_list[i];
 
 		int32_t out_buf[512];
 		int out_len = 0;
-		cd_ox_find_vector_intersection(packed, packed_len, out_buf, &out_len);
-		free(packed);
+		cd_ox_find_vector_intersection_v2(header, header_len, out_buf, &out_len);
 
-		if (out_len < 12) {
-			// OCaml FVI failed (exception), return HIT_BAD_P0
-			hit_data->hit_type = HIT_BAD_P0;
-			hit_data->hit_pnt = *fq->p0;
-			hit_data->hit_seg = fq->startseg;
-			hit_data->hit_side = 0;
-			hit_data->hit_object = 0;
-			hit_data->hit_side_seg = -1;
-			hit_data->n_segs = 0;
-			return hit_data->hit_type;
+		if (out_len >= 12) {
+			ox_hit_data.hit_type = out_buf[0];
+			ox_hit_data.hit_pnt.x = out_buf[1];
+			ox_hit_data.hit_pnt.y = out_buf[2];
+			ox_hit_data.hit_pnt.z = out_buf[3];
+			ox_hit_data.hit_seg = out_buf[4];
+			ox_hit_data.hit_side = out_buf[5];
+			ox_hit_data.hit_side_seg = out_buf[6];
+			ox_hit_data.hit_object = out_buf[7];
+			ox_hit_data.hit_wallnorm.x = out_buf[8];
+			ox_hit_data.hit_wallnorm.y = out_buf[9];
+			ox_hit_data.hit_wallnorm.z = out_buf[10];
+			ox_hit_data.n_segs = out_buf[11];
+			for (int i = 0; i < ox_hit_data.n_segs && i < MAX_FVI_SEGS; i++)
+				ox_hit_data.seglist[i] = out_buf[12 + i];
+			ox_valid = 1;
 		}
-
-		hit_data->hit_type = out_buf[0];
-		hit_data->hit_pnt.x = out_buf[1];
-		hit_data->hit_pnt.y = out_buf[2];
-		hit_data->hit_pnt.z = out_buf[3];
-		hit_data->hit_seg = out_buf[4];
-		hit_data->hit_side = out_buf[5];
-		hit_data->hit_side_seg = out_buf[6];
-		hit_data->hit_object = out_buf[7];
-		hit_data->hit_wallnorm.x = out_buf[8];
-		hit_data->hit_wallnorm.y = out_buf[9];
-		hit_data->hit_wallnorm.z = out_buf[10];
-		hit_data->n_segs = out_buf[11];
-		for (int i = 0; i < hit_data->n_segs && i < MAX_FVI_SEGS; i++)
-			hit_data->seglist[i] = out_buf[12 + i];
-
-		// DEBUG: cross-check OCaml HIT_BAD_P0 against C centermask
-		if (hit_data->hit_type == HIT_BAD_P0 && fq->thisobjnum == 50) {
-			// Compute C centermask inline
-			segment* dbg_seg = &Segments[fq->startseg];
-			int c_centermask = 0;
-			for (int sn = 0, sidebit = 1; sn < 6; sn++, sidebit <<= 1) {
-				side *s = &dbg_seg->sides[sn];
-				int num_faces, vertex_list[6];
-				create_abs_vertex_lists(&num_faces, vertex_list, fq->startseg, sn);
-				if (num_faces == 2) {
-					int vertnum = std::min(vertex_list[0], vertex_list[2]);
-					fix dist;
-					if (vertex_list[4] < vertex_list[1])
-						dist = vm_dist_to_plane(&Vertices[vertex_list[4]], &s->normals[0], &Vertices[vertnum]);
-					else
-						dist = vm_dist_to_plane(&Vertices[vertex_list[1]], &s->normals[1], &Vertices[vertnum]);
-					int side_pokes_out = (dist > 250);
-					int center_count = 0;
-					for (int fn = 0; fn < 2; fn++) {
-						dist = vm_dist_to_plane(fq->p0, &s->normals[fn], &Vertices[vertnum]);
-						if (dist < -250) center_count++;
-					}
-					if (!side_pokes_out) {
-						if (center_count == 2) c_centermask |= sidebit;
-					} else {
-						if (center_count) c_centermask |= sidebit;
-					}
-				} else {
-					int vertnum = vertex_list[0];
-					for (int i = 1; i < 4; i++)
-						if (vertex_list[i] < vertnum) vertnum = vertex_list[i];
-					fix dist = vm_dist_to_plane(fq->p0, &s->normals[0], &Vertices[vertnum]);
-					if (dist < -250) c_centermask |= sidebit;
-				}
-			}
-			static int dbg50_count = 0;
-			if (dbg50_count < 5) {
-				fprintf(stderr, "OXFVI_BAD_P0_CHECK obj50: p0=(%d,%d,%d) seg=%d ox_says=BAD_P0 c_centermask=%d\n",
-					fq->p0->x, fq->p0->y, fq->p0->z, fq->startseg, c_centermask);
-				// Also print per-side distances
-				for (int sn = 0; sn < 6; sn++) {
-					side *s = &dbg_seg->sides[sn];
-					int num_faces, vertex_list[6];
-					create_abs_vertex_lists(&num_faces, vertex_list, fq->startseg, sn);
-					if (num_faces == 2) {
-						int vertnum = std::min(vertex_list[0], vertex_list[2]);
-						for (int fn = 0; fn < 2; fn++) {
-							fix dist = vm_dist_to_plane(fq->p0, &s->normals[fn], &Vertices[vertnum]);
-							fprintf(stderr, "  side %d face %d: dist=%d (tol=%d) nf=%d vn=%d n=(%d,%d,%d)\n",
-								sn, fn, dist, 250, num_faces, vertnum,
-								s->normals[fn].x, s->normals[fn].y, s->normals[fn].z);
-						}
-					} else {
-						int vertnum = vertex_list[0];
-						for (int i = 1; i < 4; i++)
-							if (vertex_list[i] < vertnum) vertnum = vertex_list[i];
-						fix dist = vm_dist_to_plane(fq->p0, &s->normals[0], &Vertices[vertnum]);
-						fprintf(stderr, "  side %d face 0: dist=%d (tol=%d) nf=%d vn=%d n=(%d,%d,%d)\n",
-							sn, dist, 250, num_faces, vertnum,
-							s->normals[0].x, s->normals[0].y, s->normals[0].z);
-					}
-				}
-			}
-			dbg50_count++;
-		}
-
-		return hit_data->hit_type;
 	}
-#else
+#endif
+	// --- C FVI path (authoritative) ---
+	{
 	int hit_type,hit_seg,hit_seg2;
 	vms_vector hit_pnt;
 	int i;
+
+#ifdef USE_OX_BRIDGE
+	// Force sub-functions (check_line_to_face, etc.) to use C paths
+	// so the C FVI comparison is truly pure-C.
+	bool saved_force = fvi_force_c_path;
+	fvi_force_c_path = true;
+#endif
 
 	Assert(fq->ignore_obj_list != (int *)(-1));
 	Assert((fq->startseg <= Highest_segment_index) && (fq->startseg >= 0));
@@ -1048,9 +883,6 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 	fvi_hit_side = -1;
 
 	fvi_hit_object = -1;
-
-	//check to make sure start point is in seg its supposed to be in
-	//Assert(check_point_in_seg(p0,startseg,0).centermask==0);	//start point not in seg
 
 	// Viewer is not in segment as claimed, so say there is no hit.
 	if(!(get_seg_masks(fq->p0,fq->startseg,0).centermask==0)) {
@@ -1061,6 +893,17 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		hit_data->hit_side = hit_data->hit_object = 0;
 		hit_data->hit_side_seg = -1;
 
+#ifdef USE_OX_BRIDGE
+		// Compare even for HIT_BAD_P0 early return
+		if (ox_valid && ox_hit_data.hit_type != HIT_BAD_P0) {
+			static int fvi_divs_badp0 = 0;
+			if (fvi_divs_badp0 < 20)
+				fprintf(stderr, "FVI_PARITY obj=%d seg=%d: C=BAD_P0 but OCaml hit=%d seg=%d\n",
+					fq->thisobjnum, fq->startseg, ox_hit_data.hit_type, ox_hit_data.hit_seg);
+			fvi_divs_badp0++;
+		}
+		fvi_force_c_path = saved_force;
+#endif
 		return hit_data->hit_type;
 	}
 
@@ -1073,13 +916,11 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 	hit_seg2 = fvi_hit_seg2 = -1;
 
 	hit_type = fvi_sub(&hit_pnt,&hit_seg2,fq->p0,fq->startseg,fq->p1,fq->rad,fq->thisobjnum,fq->ignore_obj_list,fq->flags,hit_data->seglist,&hit_data->n_segs,-2);
-	//!!hit_seg = find_point_seg(&hit_pnt,fq->startseg);
 	if (hit_seg2!=-1 && !get_seg_masks(&hit_pnt,hit_seg2,0).centermask)
 		hit_seg = hit_seg2;
 	else
 		hit_seg = find_point_seg(&hit_pnt,fq->startseg);
 
-//MATT: TAKE OUT THIS HACK AND FIX THE BUGS!
 	if (hit_type == HIT_WALL && hit_seg==-1)
 		if (fvi_hit_seg2!=-1 && get_seg_masks(&hit_pnt,fvi_hit_seg2,0).centermask==0)
 			hit_seg = fvi_hit_seg2;
@@ -1089,9 +930,6 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		int new_hit_seg2=-1;
 		vms_vector new_hit_pnt;
 
-		//because of code that deal with object with non-zero radius has
-		//problems, try using zero radius and see if we hit a wall
-
 		new_hit_type = fvi_sub(&new_hit_pnt,&new_hit_seg2,fq->p0,fq->startseg,fq->p1,0,fq->thisobjnum,fq->ignore_obj_list,fq->flags,hit_data->seglist,&hit_data->n_segs,-2);
 
 		if (new_hit_seg2 != -1) {
@@ -1100,63 +938,65 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		}
 	}
 
+	if (hit_seg!=-1 && fq->flags&FQ_GET_SEGLIST)
+		if (hit_seg != hit_data->seglist[hit_data->n_segs-1] && hit_data->n_segs<MAX_FVI_SEGS-1)
+			hit_data->seglist[hit_data->n_segs++] = hit_seg;
 
-if (hit_seg!=-1 && fq->flags&FQ_GET_SEGLIST)
-	if (hit_seg != hit_data->seglist[hit_data->n_segs-1] && hit_data->n_segs<MAX_FVI_SEGS-1)
-		hit_data->seglist[hit_data->n_segs++] = hit_seg;
-
-if (hit_seg!=-1 && fq->flags&FQ_GET_SEGLIST)
-	for (i=0;i<hit_data->n_segs && i<MAX_FVI_SEGS-1;i++)
-		if (hit_data->seglist[i] == hit_seg) {
-			hit_data->n_segs = i+1;
-			break;
-		}
-
-//I'm sorry to say that sometimes the seglist isn't correct.  I did my
-//best.  Really.
-
-
-//{	//verify hit list
-//
-//	int i,ch;
-//
-//	Assert(hit_data->seglist[0] == startseg);
-//
-//	for (i=0;i<hit_data->n_segs-1;i++) {
-//		for (ch=0;ch<6;ch++)
-//			if (Segments[hit_data->seglist[i]].children[ch] == hit_data->seglist[i+1])
-//				break;
-//		Assert(ch<6);
-//	}
-//
-//	Assert(hit_data->seglist[hit_data->n_segs-1] == hit_seg);
-//}
-	
-
-//MATT: PUT THESE ASSERTS BACK IN AND FIX THE BUGS!
-//!!	Assert(hit_seg!=-1);
-//!!	Assert(!((hit_type==HIT_WALL) && (hit_seg == -1)));
-	//When this assert happens, get Matt.  Matt:  Look at hit_seg2 & 
-	//fvi_hit_seg.  At least one of these should be set.  Why didn't 
-	//find_new_seg() find something?
-
-//	Assert(fvi_hit_seg==-1 || fvi_hit_seg == hit_seg);
+	if (hit_seg!=-1 && fq->flags&FQ_GET_SEGLIST)
+		for (i=0;i<hit_data->n_segs && i<MAX_FVI_SEGS-1;i++)
+			if (hit_data->seglist[i] == hit_seg) {
+				hit_data->n_segs = i+1;
+				break;
+			}
 
 	Assert(!(hit_type==HIT_OBJECT && fvi_hit_object==-1));
 
 	hit_data->hit_type		= hit_type;
 	hit_data->hit_pnt 		= hit_pnt;
 	hit_data->hit_seg 		= hit_seg;
-	hit_data->hit_side 		= fvi_hit_side;	//looks at global
-	hit_data->hit_side_seg	= fvi_hit_side_seg;	//looks at global
-	hit_data->hit_object		= fvi_hit_object;	//looks at global
-	hit_data->hit_wallnorm	= wall_norm;		//looks at global
+	hit_data->hit_side 		= fvi_hit_side;
+	hit_data->hit_side_seg	= fvi_hit_side_seg;
+	hit_data->hit_object	= fvi_hit_object;
+	hit_data->hit_wallnorm	= wall_norm;
 
-//	if(hit_seg!=-1 && get_seg_masks(&hit_data->hit_pnt,hit_data->hit_seg,0).centermask!=0)
-//		Int3();
+#ifdef USE_OX_BRIDGE
+	// Restore force flag so other OCaml paths work normally
+	fvi_force_c_path = saved_force;
+
+	// --- Compare OCaml vs C results ---
+	if (ox_valid) {
+		int differs = 0;
+		if (ox_hit_data.hit_type != hit_data->hit_type) differs = 1;
+		else if (ox_hit_data.hit_seg != hit_data->hit_seg) differs = 2;
+		else if (ox_hit_data.hit_pnt.x != hit_data->hit_pnt.x ||
+		         ox_hit_data.hit_pnt.y != hit_data->hit_pnt.y ||
+		         ox_hit_data.hit_pnt.z != hit_data->hit_pnt.z) differs = 3;
+		else if (ox_hit_data.hit_side != hit_data->hit_side) differs = 4;
+		else if (ox_hit_data.hit_object != hit_data->hit_object) differs = 5;
+		else if (ox_hit_data.hit_wallnorm.x != hit_data->hit_wallnorm.x ||
+		         ox_hit_data.hit_wallnorm.y != hit_data->hit_wallnorm.y ||
+		         ox_hit_data.hit_wallnorm.z != hit_data->hit_wallnorm.z) differs = 6;
+		else if (ox_hit_data.n_segs != hit_data->n_segs) differs = 7;
+
+		if (differs) {
+			fvi_div_count++;
+			if (fvi_div_count <= 50)
+				fprintf(stderr, "FVI_PARITY[%d] obj=%d seg=%d flags=0x%x rad=%d: "
+					"OCaml hit=%d seg=%d pnt=(%d,%d,%d) side=%d obj=%d nsegs=%d | "
+					"C hit=%d seg=%d pnt=(%d,%d,%d) side=%d obj=%d nsegs=%d\n",
+					differs, fq->thisobjnum, fq->startseg, fq->flags, fq->rad,
+					ox_hit_data.hit_type, ox_hit_data.hit_seg,
+					ox_hit_data.hit_pnt.x, ox_hit_data.hit_pnt.y, ox_hit_data.hit_pnt.z,
+					ox_hit_data.hit_side, ox_hit_data.hit_object, ox_hit_data.n_segs,
+					hit_data->hit_type, hit_data->hit_seg,
+					hit_data->hit_pnt.x, hit_data->hit_pnt.y, hit_data->hit_pnt.z,
+					hit_data->hit_side, hit_data->hit_object, hit_data->n_segs);
+		}
+	}
+#endif
 
 	return hit_type;
-#endif
+	}
 }
 
 //--unused-- fix check_dist(vms_vector *v0,vms_vector *v1)
@@ -1719,65 +1559,23 @@ int sphere_intersects_wall(vms_vector *pnt,int segnum,fix rad)
 int object_intersects_wall(object *objp)
 {
 #ifdef USE_OX_BRIDGE
-	int n_segments = Highest_segment_index + 1;
-	int packed_len = 6 + n_segments * 80;
-	int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
-	if (!packed) return 0;
+	if (!fvi_force_c_path) {
+	// v2: just pass the 6-int header, fetch segment data on demand via effects
+	int32_t header[6];
+	header[0] = objp->pos.x;
+	header[1] = objp->pos.y;
+	header[2] = objp->pos.z;
+	header[3] = objp->size;
+	header[4] = objp->segnum;
+	header[5] = Highest_segment_index + 1;
 
-	// Header
-	packed[0] = objp->pos.x;
-	packed[1] = objp->pos.y;
-	packed[2] = objp->pos.z;
-	packed[3] = objp->size;
-	packed[4] = objp->segnum;
-	packed[5] = n_segments;
-
-	// Per-segment data (80 ints each)
-	for (int s = 0; s < n_segments; s++)
-	{
-		segment* seg = &Segments[s];
-		int base = 6 + s * 80;
-
-		// children[0..5]
-		for (int i = 0; i < 6; i++)
-			packed[base + i] = seg->children[i];
-
-		// side_types[0..5]
-		for (int i = 0; i < 6; i++)
-			packed[base + 6 + i] = seg->sides[i].type;
-
-		// seg_verts[0..7]
-		for (int i = 0; i < 8; i++)
-			packed[base + 12 + i] = seg->verts[i];
-
-		// normals: side 0..5, normals[0].xyz then normals[1].xyz = 36 ints
-		for (int i = 0; i < 6; i++)
-		{
-			packed[base + 20 + i * 6 + 0] = seg->sides[i].normals[0].x;
-			packed[base + 20 + i * 6 + 1] = seg->sides[i].normals[0].y;
-			packed[base + 20 + i * 6 + 2] = seg->sides[i].normals[0].z;
-			packed[base + 20 + i * 6 + 3] = seg->sides[i].normals[1].x;
-			packed[base + 20 + i * 6 + 4] = seg->sides[i].normals[1].y;
-			packed[base + 20 + i * 6 + 5] = seg->sides[i].normals[1].z;
-		}
-
-		// vertex_positions: vert 0..7, Vertices[seg->verts[i]].xyz = 24 ints
-		for (int i = 0; i < 8; i++)
-		{
-			packed[base + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-			packed[base + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-			packed[base + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-		}
-	}
-
-	int result = cd_ox_object_intersects_wall(packed, packed_len);
-	free(packed);
+	int result = cd_ox_object_intersects_wall_v2(header, 6);
 	return result;
-#else
+	}
+#endif
 	n_segs_visited = 0;
 
 	return sphere_intersects_wall(&objp->pos,objp->segnum,objp->size);
-#endif
 }
 
 

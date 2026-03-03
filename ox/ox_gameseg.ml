@@ -1,3 +1,8 @@
+(* Effect: fetch 87-int segment data array for a given segment number.
+   Used by FVI and find_point_seg to access segment data on demand
+   instead of pre-packing all segments upfront. *)
+type _ Effect.t += Fetch_segment_data : int -> int array Effect.t
+
 let side_to_verts =
   [| [| 7; 6; 2; 3 |]
    ; [| 0; 4; 7; 3 |]
@@ -846,5 +851,107 @@ let find_point_seg (arr : int array) =
       incr s
     done;
     !found)
+  else -1
+;;
+
+(* find_point_seg_v2: same algorithm as find_point_seg but fetches segment
+   data on demand via Fetch_segment_data effects instead of a pre-packed array.
+   The 87-int segment data uses the same layout as FVI packed segments:
+     [0..5] children, [6..11] side_types, [12..19] seg_verts,
+     [20..55] normals (side*2, xyz each), [56..79] vert positions (8 verts, xyz each),
+     [80..85] wid, [86] first_object.
+   We only need the first 80 ints (same as the old find_point_seg format). *)
+let unpack_seg_from_fetch (seg_data : int array) =
+  let children = Array.init 6 ~f:(fun i -> seg_data.(i)) in
+  let side_types = Array.init 6 ~f:(fun i -> seg_data.(6 + i)) in
+  let seg_verts = Array.init 8 ~f:(fun i -> seg_data.(12 + i)) in
+  let normals =
+    Array.init 12 ~f:(fun i ->
+      let off = 20 + (i * 3) in
+      seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+  in
+  let seg_vert_positions =
+    Array.init 8 ~f:(fun i ->
+      let off = 56 + (i * 3) in
+      seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+  in
+  children, side_types, seg_verts, normals, seg_vert_positions
+;;
+
+let find_point_seg_v2 ~point:(px, py, pz) ~segnum ~n_segments ~doing_lighting_hack =
+  let fetch s = Effect.perform (Fetch_segment_data s) |> unpack_seg_from_fetch in
+  let rec trace s iterations =
+    if s < 0 || s >= n_segments
+    then -1
+    else if iterations > 1024
+    then s
+    else (
+      let children, side_types, seg_verts, normals, seg_vert_positions = fetch s in
+      let centermask, side_dists =
+        get_side_dists
+          ~checkp:(px, py, pz)
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if centermask = 0
+      then s
+      else (
+        let sd = Array.copy side_dists in
+        let result = ref (-1) in
+        let continue_ = ref true in
+        while !continue_ do
+          let biggest_side = ref (-1) in
+          let biggest_val = ref 0 in
+          let bit = ref 1 in
+          for sn = 0 to 5 do
+            if centermask land !bit <> 0 && children.(sn) > -1 && sd.(sn) < !biggest_val
+            then (
+              biggest_val := sd.(sn);
+              biggest_side := sn);
+            bit := !bit lsl 1
+          done;
+          if !biggest_side <> -1
+          then (
+            sd.(!biggest_side) <- 0;
+            let check = trace children.(!biggest_side) (iterations + 1) in
+            if check <> -1
+            then (
+              result := check;
+              continue_ := false))
+          else continue_ := false
+        done;
+        !result))
+  in
+  let exhaustive_scan () =
+    let found = ref (-1) in
+    let s = ref 0 in
+    while !s < n_segments && !found = -1 do
+      let _children, side_types, seg_verts, normals, seg_vert_positions = fetch !s in
+      let _facemask, _sidemask, centermask =
+        get_seg_masks
+          ~checkp:(px, py, pz)
+          ~rad:0
+          ~seg_verts
+          ~side_types
+          ~normals
+          ~seg_vert_positions
+      in
+      if centermask = 0 then found := !s;
+      incr s
+    done;
+    !found
+  in
+  if segnum >= 0 && segnum < n_segments
+  then (
+    let newseg = trace segnum 0 in
+    if newseg <> -1
+    then newseg
+    else if doing_lighting_hack = 0
+    then exhaustive_scan ()
+    else -1)
+  else if doing_lighting_hack = 0
+  then exhaustive_scan ()
   else -1
 ;;

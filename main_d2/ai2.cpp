@@ -603,141 +603,56 @@ int player_is_visible_from_object(object *objp, vms_vector *pos, fix field_of_vi
 {
 #ifdef USE_OX_BRIDGE
 	{
-		static int ox_bridge_logged = 0;
-		if (!ox_bridge_logged)
-		{
-			fprintf(stderr, "[OX] player_is_visible_from_object (D2) using cd_ox_player_is_visible_from_object.\n");
-			ox_bridge_logged = 1;
-		}
-
 		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int objp_objnum = (int)(objp - Objects);
 
-		int header_len = 18;
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
-		int pv_ext_len = 20;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len + pv_ext_len;
+		// v2 packed format: header(8) + pv_ext(20) = 28 ints
+		int packed_len = 8 + 20;
+		int32_t packed[28];
 
-		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
-		if (!packed)
-			return 0;
+		// v2 header
+		packed[0] = n_objects;
+		packed[1] = 1;  // is_d2
+		packed[2] = objp_objnum;
+		packed[3] = Players[Player_num].objnum;
+		packed[4] = GameTime;
+		packed[5] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[6] = 0;  // physics_cheat
+		packed[7] = n_segments;
 
-		// Pack FVI header
-		packed[0] = 0; packed[1] = 0; packed[2] = 0;
-		packed[3] = 0;
-		packed[4] = 0; packed[5] = 0; packed[6] = 0;
-		packed[7] = F1_0 / 4;
-		packed[8] = objp_objnum;
-		packed[9] = FQ_TRANSWALL;  // D2 does NOT use FQ_CHECK_OBJS
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = 0;
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 1;  // is_d2 = 1
-		packed[17] = 0;
-
-		// Pack collision table
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
-
-		// Pack per-segment data (87 ints each)
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		// Pack per-object data (14 ints each)
-		int od_base = sd_base + seg_data_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
-
-		// Pack player_vis extension (20 ints)
-		int pv_base = od_base + obj_data_len;
-		packed[pv_base + 0] = pos->x;
-		packed[pv_base + 1] = pos->y;
-		packed[pv_base + 2] = pos->z;
-		packed[pv_base + 3] = objp->pos.x;
-		packed[pv_base + 4] = objp->pos.y;
-		packed[pv_base + 5] = objp->pos.z;
-		packed[pv_base + 6] = objp->segnum;
-		packed[pv_base + 7] = objp->orient.fvec.x;
-		packed[pv_base + 8] = objp->orient.fvec.y;
-		packed[pv_base + 9] = objp->orient.fvec.z;
-		packed[pv_base + 10] = field_of_view;
-		packed[pv_base + 11] = vec_to_player->x;
-		packed[pv_base + 12] = vec_to_player->y;
-		packed[pv_base + 13] = vec_to_player->z;
-		packed[pv_base + 14] = Believed_player_pos.x;
-		packed[pv_base + 15] = Believed_player_pos.y;
-		packed[pv_base + 16] = Believed_player_pos.z;
-		packed[pv_base + 17] = Overall_agitation;
-		packed[pv_base + 18] = Players[Player_num].objnum;
-		packed[pv_base + 19] = objp->ctype.ai_info.SUB_FLAGS;
+		// pv extension (20 ints at offset 8)
+		packed[8 + 0] = pos->x;
+		packed[8 + 1] = pos->y;
+		packed[8 + 2] = pos->z;
+		packed[8 + 3] = objp->pos.x;
+		packed[8 + 4] = objp->pos.y;
+		packed[8 + 5] = objp->pos.z;
+		packed[8 + 6] = objp->segnum;
+		packed[8 + 7] = objp->orient.fvec.x;
+		packed[8 + 8] = objp->orient.fvec.y;
+		packed[8 + 9] = objp->orient.fvec.z;
+		packed[8 + 10] = field_of_view;
+		packed[8 + 11] = vec_to_player->x;
+		packed[8 + 12] = vec_to_player->y;
+		packed[8 + 13] = vec_to_player->z;
+		packed[8 + 14] = Believed_player_pos.x;
+		packed[8 + 15] = Believed_player_pos.y;
+		packed[8 + 16] = Believed_player_pos.z;
+		packed[8 + 17] = Overall_agitation;
+		packed[8 + 18] = Players[Player_num].objnum;
+		packed[8 + 19] = objp->ctype.ai_info.SUB_FLAGS;
 
 		int32_t out[11];
-		cd_ox_player_is_visible_from_object(packed, packed_len, out);
-		free(packed);
+		cd_ox_player_is_visible_from_object_v2(packed, packed_len, out);
 
 		int result = out[0];
-		// Apply sub_flags modification from OCaml
 		objp->ctype.ai_info.SUB_FLAGS = out[5];
-		// Update pos if OCaml modified it (gun tip outside mine)
 		if (out[4])  // need_move_towards_center
 		{
 			pos->x = out[1]; pos->y = out[2]; pos->z = out[3];
 			move_towards_segment_center(objp);
 		}
-		// Update hit globals
 		Hit_type = out[6];
 		Hit_pos.x = out[7]; Hit_pos.y = out[8]; Hit_pos.z = out[9];
 		Hit_seg = out[10];
@@ -2061,149 +1976,70 @@ void compute_vis_and_vec(object *objp, vms_vector *pos, ai_local *ailp, vms_vect
 {
 #ifdef USE_OX_BRIDGE
 	if (!*flag) {
-		static int ox_bridge_logged = 0;
-		if (!ox_bridge_logged)
-		{
-			fprintf(stderr, "[OX] compute_vis_and_vec (D2) using cd_ox_compute_vis_and_vec.\n");
-			ox_bridge_logged = 1;
-		}
-
 		int n_segments = Highest_segment_index + 1;
 		int n_objects = Highest_object_index + 1;
 		int objp_objnum = (int)(objp - Objects);
 
-		int header_len = 18;
-		int collision_table_len = 16 * 16;
-		int seg_data_len = n_segments * 87;
-		int obj_data_len = n_objects * 14;
-		int pv_ext_len = 20;
-		int cvv_ext_len = 19;
-		int packed_len = header_len + collision_table_len + seg_data_len + obj_data_len + pv_ext_len + cvv_ext_len;
+		// v2 packed format: header(8) + pv_ext(20) + cvv_ext(19) = 47 ints
+		int packed_len = 8 + 20 + 19;
+		int32_t packed[47];
 
-		int32_t* packed = (int32_t*)malloc(packed_len * sizeof(int32_t));
-		if (!packed)
-			return;
+		// v2 header
+		packed[0] = n_objects;
+		packed[1] = 1;  // is_d2
+		packed[2] = objp_objnum;
+		packed[3] = Players[Player_num].objnum;
+		packed[4] = GameTime;
+		packed[5] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
+		packed[6] = 0;  // physics_cheat
+		packed[7] = n_segments;
 
-		// Pack FVI header
-		packed[0] = 0; packed[1] = 0; packed[2] = 0;
-		packed[3] = 0;
-		packed[4] = 0; packed[5] = 0; packed[6] = 0;
-		packed[7] = F1_0 / 4;
-		packed[8] = objp_objnum;
-		packed[9] = FQ_TRANSWALL;  // D2: no FQ_CHECK_OBJS
-		packed[10] = n_segments;
-		packed[11] = n_objects;
-		packed[12] = Players[Player_num].objnum;
-		packed[13] = 0;
-		packed[14] = (Game_mode & GM_MULTI_COOP) ? 1 : 0;
-		packed[15] = GameTime;
-		packed[16] = 1;  // is_d2 = 1
-		packed[17] = 0;
+		// pv extension (20 ints at offset 8)
+		packed[8 + 0] = pos->x;
+		packed[8 + 1] = pos->y;
+		packed[8 + 2] = pos->z;
+		packed[8 + 3] = objp->pos.x;
+		packed[8 + 4] = objp->pos.y;
+		packed[8 + 5] = objp->pos.z;
+		packed[8 + 6] = objp->segnum;
+		packed[8 + 7] = objp->orient.fvec.x;
+		packed[8 + 8] = objp->orient.fvec.y;
+		packed[8 + 9] = objp->orient.fvec.z;
+		packed[8 + 10] = robptr->field_of_view[Difficulty_level];
+		packed[8 + 11] = 0;  // vec_to_player (computed by OCaml)
+		packed[8 + 12] = 0;
+		packed[8 + 13] = 0;
+		packed[8 + 14] = Believed_player_pos.x;
+		packed[8 + 15] = Believed_player_pos.y;
+		packed[8 + 16] = Believed_player_pos.z;
+		packed[8 + 17] = Overall_agitation;
+		packed[8 + 18] = Players[Player_num].objnum;
+		packed[8 + 19] = objp->ctype.ai_info.SUB_FLAGS;
 
-		int ct_base = header_len;
-		for (int a = 0; a < 16; a++)
-			for (int b = 0; b < 16; b++)
-				packed[ct_base + a * 16 + b] = CollisionResult[a][b];
-
-		int sd_base = ct_base + collision_table_len;
-		for (int s = 0; s < n_segments; s++)
-		{
-			segment* seg = &Segments[s];
-			int sb = sd_base + s * 87;
-			for (int i = 0; i < 6; i++)
-				packed[sb + i] = seg->children[i];
-			for (int i = 0; i < 6; i++)
-				packed[sb + 6 + i] = seg->sides[i].type;
-			for (int i = 0; i < 8; i++)
-				packed[sb + 12 + i] = seg->verts[i];
-			for (int sn = 0; sn < 6; sn++)
-			{
-				packed[sb + 20 + sn * 6 + 0] = seg->sides[sn].normals[0].x;
-				packed[sb + 20 + sn * 6 + 1] = seg->sides[sn].normals[0].y;
-				packed[sb + 20 + sn * 6 + 2] = seg->sides[sn].normals[0].z;
-				packed[sb + 20 + sn * 6 + 3] = seg->sides[sn].normals[1].x;
-				packed[sb + 20 + sn * 6 + 4] = seg->sides[sn].normals[1].y;
-				packed[sb + 20 + sn * 6 + 5] = seg->sides[sn].normals[1].z;
-			}
-			for (int i = 0; i < 8; i++)
-			{
-				packed[sb + 56 + i * 3 + 0] = Vertices[seg->verts[i]].x;
-				packed[sb + 56 + i * 3 + 1] = Vertices[seg->verts[i]].y;
-				packed[sb + 56 + i * 3 + 2] = Vertices[seg->verts[i]].z;
-			}
-			for (int i = 0; i < 6; i++)
-				packed[sb + 80 + i] = WALL_IS_DOORWAY(seg, i);
-			packed[sb + 86] = seg->objects;
-		}
-
-		int od_base = sd_base + seg_data_len;
-		for (int o = 0; o < n_objects; o++)
-		{
-			object* obj = &Objects[o];
-			int ob = od_base + o * 14;
-			packed[ob + 0] = obj->type;
-			packed[ob + 1] = obj->id;
-			packed[ob + 2] = obj->flags;
-			packed[ob + 3] = obj->pos.x;
-			packed[ob + 4] = obj->pos.y;
-			packed[ob + 5] = obj->pos.z;
-			packed[ob + 6] = obj->size;
-			packed[ob + 7] = obj->next;
-			packed[ob + 8] = obj->ctype.laser_info.parent_type;
-			packed[ob + 9] = obj->ctype.laser_info.parent_num;
-			packed[ob + 10] = obj->ctype.laser_info.parent_signature;
-			packed[ob + 11] = obj->ctype.laser_info.creation_time;
-			packed[ob + 12] = obj->signature;
-			packed[ob + 13] = (obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0;
-		}
-
-		int pv_base = od_base + obj_data_len;
-		packed[pv_base + 0] = pos->x;
-		packed[pv_base + 1] = pos->y;
-		packed[pv_base + 2] = pos->z;
-		packed[pv_base + 3] = objp->pos.x;
-		packed[pv_base + 4] = objp->pos.y;
-		packed[pv_base + 5] = objp->pos.z;
-		packed[pv_base + 6] = objp->segnum;
-		packed[pv_base + 7] = objp->orient.fvec.x;
-		packed[pv_base + 8] = objp->orient.fvec.y;
-		packed[pv_base + 9] = objp->orient.fvec.z;
-		packed[pv_base + 10] = robptr->field_of_view[Difficulty_level];
-		packed[pv_base + 11] = 0;  // vec_to_player (computed by OCaml)
-		packed[pv_base + 12] = 0;
-		packed[pv_base + 13] = 0;
-		packed[pv_base + 14] = Believed_player_pos.x;
-		packed[pv_base + 15] = Believed_player_pos.y;
-		packed[pv_base + 16] = Believed_player_pos.z;
-		packed[pv_base + 17] = Overall_agitation;
-		packed[pv_base + 18] = Players[Player_num].objnum;
-		packed[pv_base + 19] = objp->ctype.ai_info.SUB_FLAGS;
-
-		int cvv_base = pv_base + pv_ext_len;
+		// cvv extension (19 ints at offset 28)
 		int cloak_index = objp_objnum % MAX_AI_CLOAK_INFO;
-		packed[cvv_base + 0] = (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0;
-		packed[cvv_base + 1] = Difficulty_level;
-		packed[cvv_base + 2] = Ai_cloak_info[cloak_index].last_time;
-		packed[cvv_base + 3] = Ai_cloak_info[cloak_index].last_position.x;
-		packed[cvv_base + 4] = Ai_cloak_info[cloak_index].last_position.y;
-		packed[cvv_base + 5] = Ai_cloak_info[cloak_index].last_position.z;
-		packed[cvv_base + 6] = (int32_t)P_Rand_get_state();
-		packed[cvv_base + 7] = ailp->next_misc_sound_time;
-		packed[cvv_base + 8] = ailp->next_fire;
-		packed[cvv_base + 9] = ailp->previous_visibility;
-		packed[cvv_base + 10] = ailp->time_player_seen;
-		packed[cvv_base + 11] = ailp->time_player_sound_attacked;
-		packed[cvv_base + 12] = objp->ctype.ai_info.GOAL_STATE;
-		packed[cvv_base + 13] = objp->ctype.ai_info.CURRENT_STATE;
-		packed[cvv_base + 14] = robptr->see_sound;
-		packed[cvv_base + 15] = robptr->attack_sound;
-		packed[cvv_base + 16] = 0;  // Player_exploded (D2 doesn't use it)
-		packed[cvv_base + 17] = ailp->next_fire2;
-		packed[cvv_base + 18] = ailp->player_awareness_type;
+		packed[28 + 0] = (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) ? 1 : 0;
+		packed[28 + 1] = Difficulty_level;
+		packed[28 + 2] = Ai_cloak_info[cloak_index].last_time;
+		packed[28 + 3] = Ai_cloak_info[cloak_index].last_position.x;
+		packed[28 + 4] = Ai_cloak_info[cloak_index].last_position.y;
+		packed[28 + 5] = Ai_cloak_info[cloak_index].last_position.z;
+		packed[28 + 6] = (int32_t)P_Rand_get_state();
+		packed[28 + 7] = ailp->next_misc_sound_time;
+		packed[28 + 8] = ailp->next_fire;
+		packed[28 + 9] = ailp->previous_visibility;
+		packed[28 + 10] = ailp->time_player_seen;
+		packed[28 + 11] = ailp->time_player_sound_attacked;
+		packed[28 + 12] = objp->ctype.ai_info.GOAL_STATE;
+		packed[28 + 13] = objp->ctype.ai_info.CURRENT_STATE;
+		packed[28 + 14] = robptr->see_sound;
+		packed[28 + 15] = robptr->attack_sound;
+		packed[28 + 16] = 0;  // Player_exploded (D2 doesn't use it)
+		packed[28 + 17] = ailp->next_fire2;
+		packed[28 + 18] = ailp->player_awareness_type;
 
 		int32_t out[28];
-		cd_ox_compute_vis_and_vec(packed, packed_len, out);
-		free(packed);
+		cd_ox_compute_vis_and_vec_v2(packed, packed_len, out);
 
 		*player_visibility = out[0];
 		vec_to_player->x = out[1]; vec_to_player->y = out[2]; vec_to_player->z = out[3];

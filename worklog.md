@@ -2144,6 +2144,58 @@ First AI system function ported. Determines whether a robot can open a door on a
 
 - **Diagnostic approach used:** Added per-object P_Rand call counting to identify that obj28 (escort, id=33, behavior=AIB_FOLLOW=0x81) was making 308 extra P_Rand calls in C-only at the frame where random state diverges.
 
+### Session 29: Convert FVI from upfront world-packing to on-demand effects
+
+- **Goal:** Eliminate O(all_segments + all_objects) malloc/copy per OCaml FVI call by fetching data on demand via algebraic effects, paying only for segments/objects actually visited (~10-50 per call).
+
+#### Phase 1: Effects infrastructure
+
+- Added `Fetch_segment_data : int -> int array Effect.t` in `ox_gameseg.ml`
+- Added `Fetch_object_data : int -> int array Effect.t` and `Fetch_collision_table : int array Effect.t` in `ox_fvi.ml`
+- Added three `CAMLprim` C externals in `bridge.c` (`cd_ox_fetch_segment_data`, `cd_ox_fetch_object_data`, `cd_ox_fetch_collision_table`) that fill OCaml arrays from registered C callbacks
+- Registered callbacks from `main_d2/fvi.cpp` and `main_d1/fvi.cpp` (lambdas indexing `Segments[]`, `Objects[]`, `CollisionResult[][]`)
+- Added `run_with_fvi_effects` in `fvi_bridge.ml` — `Effect.Deep.match_with` handler for all three fetch effects
+
+#### Phase 2: Convert core FVI
+
+- Wrote `fvi_sub_v2` taking explicit params instead of packed array, using `Effect.perform (Fetch_segment_data segnum)` per segment visited
+- Wrote `find_vector_intersection_v2` — top-level dispatcher using effects
+- Wrote `sphere_intersects_wall_v2` — wall intersection check using effects
+- Wrote `find_point_seg_fvi_v2` in `ox_fvi.ml` and `find_point_seg_v2` in `ox_gameseg.ml` — both using effects instead of pre-packed arrays
+- Wrote helper functions: `obj_in_ignore_list_v2`, `check_laser_related_v2`, `get_collision_result_v2`, `visibility_check_v2`
+
+#### Phase 3: Convert remaining consumers
+
+All 5 consumer functions converted to v2 compact format in both D1 and D2:
+
+| Function | C callsite (D2) | C callsite (D1) |
+|----------|-----------------|-----------------|
+| `find_homing_object_complete_v2` | `main_d2/laser.cpp` | `main_d1/laser.cpp` |
+| `find_homing_object_v2` | `main_d2/laser.cpp` | `main_d1/laser.cpp` |
+| `track_track_goal_v2` | `main_d2/laser.cpp` | `main_d1/laser.cpp` |
+| `player_is_visible_from_object_v2` | `main_d2/ai2.cpp` | `main_d1/ai.cpp` |
+| `compute_vis_and_vec_v2` | `main_d2/ai2.cpp` | `main_d1/ai.cpp` |
+
+v2 compact header (8 ints): `[n_objects, is_d2, thisobjnum, player_objnum, game_time, game_mode_coop, physics_cheat, n_segments]` — replaces old 18-int FVI header + 256-int collision table + N×87 segments + N×14 objects.
+
+#### Phase 4: Cleanup
+
+Removed ~2,000 lines of dead v1 packed-array code:
+
+| File | Lines removed | Description |
+|------|--------------|-------------|
+| `ox/ox_fvi.ml` | -1,668 | All v1 functions (`fvi_sub`, `find_vector_intersection`, `sphere_intersects_wall`, `find_homing_object_complete`, `object_is_trackable`, `track_track_goal`, `find_homing_object`, `find_point_seg_fvi`, `player_is_visible_from_object`, `compute_vis_and_vec`, `visibility_check`), v1 helper functions, unused constants |
+| `ox/fvi_bridge.ml` | -181 | Rewrote: removed all v1 wrappers and callback registrations |
+| `ox/bridge.c` | -229 | v1 globals, `caml_named_value` lookups, readiness checks, function bodies; sub-function bridge code (`check_line_to_face`, `special_check_line_to_face`, `check_vector_to_sphere_1`, `check_vector_to_object`) |
+| `ox/bridge.h` | -54 | v1 function declarations, sub-function declarations |
+| `main_d2/fvi.cpp` | -98 | Sub-function `USE_OX_BRIDGE` hooks (C's fvi_sub now uses pure C sub-functions) |
+| `main_d1/fvi.cpp` | -103 | Same |
+| `ox/math_bridge.ml` | -12 | Updated module init reference |
+
+#### Build verification
+- All targets build: D1, D2, headless_replay
+- Headless replay completes with identical behavior (46 pre-existing "Illegal side type" exceptions from `compute_vis_and_vec_v2`, unchanged from before conversion)
+
 ### Session 28: Migrate from effect-wins to shadow mode
 
 - **Goal:** Replace the error-prone "effect-wins" write-back architecture with shadow mode, where C is always authoritative and OCaml runs in parallel for validation only.
