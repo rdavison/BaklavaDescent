@@ -725,11 +725,16 @@ let rec fvi_sub
   let ignore_count = arr.(h_ignore_obj_count) in
   let game_mode_coop = arr.(h_game_mode_coop) <> 0 in
   (* Check objects in this segment *)
+  let n_objects = arr.(h_n_objects) in
   if flags land fq_check_objs <> 0 && not !quit
   then (
     let objnum = ref first_object in
     while !objnum <> -1 && not !quit do
       let ob = !objnum in
+      if ob < 0 || ob >= n_objects then (
+        (* Invalid linked list index — stale/corrupt chain, stop traversal *)
+        objnum := -1)
+      else
       let ob_base = obj_data_base + (ob * obj_block_size) in
       let ( obj_type_ob
           , _obj_id_ob
