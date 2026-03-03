@@ -55,8 +55,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "misc/rand.h"
 #include "ox/bridge.h"
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 #include "ox/parity.h"
+static bool g_shadow_dry_run = false;
 #endif
 
 #ifdef EDITOR
@@ -77,6 +78,7 @@ point_seg		Point_segs[MAX_POINT_SEGS];
 point_seg* Point_segs_free_ptr = Point_segs;
 ai_cloak_info	Ai_cloak_info[MAX_AI_CLOAK_INFO];
 fix				Boss_cloak_start_time = 0;
+int8_t			New_awareness[MAX_SEGMENTS];
 fix				Boss_cloak_end_time = 0;
 fix				Last_teleport_time = 0;
 fix				Boss_teleport_interval = F1_0 * 8;
@@ -331,11 +333,13 @@ void do_ai_frame(object* obj)
 				},
 				// robot_hit_attack
 				[]() {
+					if (g_shadow_dry_run) return;
 					do_ai_robot_hit_attack(af_obj, ConsoleObject, &af_obj->pos);
 				},
 				// fire_laser (D2: 4 args)
 				[](int gpx, int gpy, int gpz, int gun_num,
 				   int fpx, int fpy, int fpz) {
+					if (g_shadow_dry_run) return;
 					vms_vector gp = {gpx, gpy, gpz};
 					vms_vector fp = {fpx, fpy, fpz};
 					ai_fire_laser_at_player(af_obj, &gp, gun_num, &fp);
@@ -348,29 +352,35 @@ void do_ai_frame(object* obj)
 				},
 				// create_path_to_player
 				[](int max_length, int safety_flag) {
+					if (g_shadow_dry_run) return;
 					create_path_to_player(af_obj, max_length, safety_flag);
 				},
 				// create_path_to_station
 				[](int max_time) {
+					if (g_shadow_dry_run) return;
 					create_path_to_station(af_obj, max_time);
 				},
 				// create_n_segment_path
 				[](int length, int avoid_seg) {
+					if (g_shadow_dry_run) return;
 					create_n_segment_path(af_obj, length, avoid_seg);
 				},
 				// create_n_segment_path_to_door (D2: noop, D1 only)
 				[](int length, int avoid_seg) {},
 				// attempt_to_resume_path
 				[]() {
+					if (g_shadow_dry_run) return;
 					attempt_to_resume_path(af_obj);
 				},
 				// ai_follow_path (D2: 4 args on C side)
 				[](int vis, int prev_vis, int vtpx, int vtpy, int vtpz) {
+					if (g_shadow_dry_run) return;
 					vms_vector vtp = {vtpx, vtpy, vtpz};
 					ai_follow_path(af_obj, vis, prev_vis, &vtp);
 				},
 				// move_towards_segment_center
 				[]() {
+					if (g_shadow_dry_run) return;
 					move_towards_segment_center(af_obj);
 				},
 				// compute_vis_and_vec
@@ -393,12 +403,14 @@ void do_ai_frame(object* obj)
 				},
 				// multi_send_robot_position
 				[](int flag) {
+					if (g_shadow_dry_run) return;
 #ifdef NETWORK
 					multi_send_robot_position(af_obj - Objects, flag);
 #endif
 				},
 				// do_boss_stuff (D2: 2 args)
 				[](int pv) {
+					if (g_shadow_dry_run) return;
 					do_boss_stuff(af_obj, pv);
 				},
 				// p_rand
@@ -415,6 +427,7 @@ void do_ai_frame(object* obj)
 				},
 				// do_snipe_frame
 				[](int dist, int vis, int vtpx, int vtpy, int vtpz, int mode) {
+					if (g_shadow_dry_run) return;
 					// Write back mode from OCaml so do_snipe_frame sees
 					// the AIM_STILL→AIM_SNIPE_ATTACK transition
 					int objnum = af_obj - Objects;
@@ -424,6 +437,7 @@ void do_ai_frame(object* obj)
 				},
 				// do_escort_frame — returns updated mode since escort can change ailp->mode
 				[](int dist, int vis) -> int {
+					if (g_shadow_dry_run) return Ai_local_info[af_obj - Objects].mode;
 					int objnum = af_obj - Objects;
 					do_escort_frame(af_obj, dist, vis);
 					return Ai_local_info[objnum].mode;
@@ -431,6 +445,7 @@ void do_ai_frame(object* obj)
 				// do_thief_frame
 				[](int dist, int vis, int vtpx, int vtpy, int vtpz,
 				   int pat, int pat_time) {
+					if (g_shadow_dry_run) return;
 					// Write back awareness from OCaml before calling do_thief_frame,
 					// which reads ailp->player_awareness_type directly from C memory
 					int objnum = af_obj - Objects;
@@ -445,28 +460,106 @@ void do_ai_frame(object* obj)
 				},
 				// make_nearby_robot_snipe
 				[]() {
+					if (g_shadow_dry_run) return;
 					make_nearby_robot_snipe();
 				},
 				// move_away_from_player
 				[]() {
+					if (g_shadow_dry_run) return;
 					vms_vector vec_to_player;
 					vm_vec_sub(&vec_to_player, &Believed_player_pos, &af_obj->pos);
 					move_away_from_player(af_obj, &vec_to_player, 0);
 				},
+				// invalidate_escort_goal
+				[]() {
+					if (g_shadow_dry_run) return;
+					extern void invalidate_escort_goal(void);
+					invalidate_escort_goal();
+				},
 				// laser_create_new_easy
 				[](int fvx, int fvy, int fvz, int fpx, int fpy, int fpz,
 				   int objnum, int weapon_id) {
+					if (g_shadow_dry_run) return;
 					vms_vector fv = {fvx, fvy, fvz};
 					vms_vector fp = {fpx, fpy, fpz};
 					Laser_create_new_easy(&fv, &fp, objnum, weapon_id, 1);
+				},
+				// do_companion_extras: danger laser evasion + flare firing
+				[](int dist_to_player, int player_visibility,
+				   int vtpx, int vtpy, int vtpz, int mode) -> int {
+					if (g_shadow_dry_run) return Ai_local_info[af_obj - Objects].next_fire;
+					int objnum = af_obj - Objects;
+					ai_static* aip = &af_obj->ctype.ai_info;
+					ai_local* ailp = &Ai_local_info[objnum];
+					robot_info* robptr = &Robot_info[af_obj->id];
+					vms_vector vec_to_player = {vtpx, vtpy, vtpz};
+
+					// Danger laser evasion (C lines 1433-1442)
+					if (af_obj->ctype.ai_info.danger_laser_num != -1) {
+						object* dobjp = &Objects[af_obj->ctype.ai_info.danger_laser_num];
+						if ((dobjp->type == OBJ_WEAPON) && (dobjp->signature == af_obj->ctype.ai_info.danger_laser_signature)) {
+							fix circle_distance = robptr->circle_distance[Difficulty_level] + ConsoleObject->size;
+							ai_move_relative_to_player(af_obj, ailp, dist_to_player, &vec_to_player, circle_distance, 1, player_visibility);
+						}
+					}
+
+					// Flare firing (C lines 1444-1466)
+					if (ready_to_fire(robptr, ailp)) {
+						int do_stuff = 0;
+						if (openable_doors_in_segment(af_obj->segnum) != -1)
+							do_stuff = 1;
+						else if (openable_doors_in_segment(Point_segs[aip->hide_index + aip->cur_path_index + aip->PATH_DIR].segnum) != -1)
+							do_stuff = 1;
+						else if (openable_doors_in_segment(Point_segs[aip->hide_index + aip->cur_path_index + 2 * aip->PATH_DIR].segnum) != -1)
+							do_stuff = 1;
+						else if ((mode == AIM_GOTO_PLAYER) && (dist_to_player < 3 * MIN_ESCORT_DISTANCE / 2) && (vm_vec_dot(&ConsoleObject->orient.fvec, &vec_to_player) > -F1_0 / 4))
+							do_stuff = 1;
+
+						if (do_stuff) {
+							Laser_create_new_easy(&af_obj->orient.fvec, &af_obj->pos, objnum, FLARE_ID, 1);
+							ailp->next_fire = F1_0 / 2;
+							if (!Buddy_allowed_to_talk && CurrentLogicVersion > LogicVer::SHAREWARE)
+								ailp->next_fire += P_Rand() * 4;
+						}
+					}
+					return ailp->next_fire;
+				},
+				// do_thief_extras: flare firing for thief
+				[](int dist_to_player, int player_visibility,
+				   int vtpx, int vtpy, int vtpz) -> int {
+					if (g_shadow_dry_run) return Ai_local_info[af_obj - Objects].next_fire;
+					(void)dist_to_player; (void)player_visibility;
+					(void)vtpx; (void)vtpy; (void)vtpz;
+					int objnum = af_obj - Objects;
+					ai_static* aip = &af_obj->ctype.ai_info;
+					ai_local* ailp = &Ai_local_info[objnum];
+					robot_info* robptr = &Robot_info[af_obj->id];
+
+					// Flare firing (C lines 1478-1494)
+					if (ready_to_fire(robptr, ailp)) {
+						int do_stuff = 0;
+						if (openable_doors_in_segment(af_obj->segnum) != -1)
+							do_stuff = 1;
+						else if (openable_doors_in_segment(Point_segs[aip->hide_index + aip->cur_path_index + aip->PATH_DIR].segnum) != -1)
+							do_stuff = 1;
+						else if (openable_doors_in_segment(Point_segs[aip->hide_index + aip->cur_path_index + 2 * aip->PATH_DIR].segnum) != -1)
+							do_stuff = 1;
+
+						if (do_stuff) {
+							Laser_create_new_easy(&af_obj->orient.fvec, &af_obj->pos, objnum, FLARE_ID, 1);
+							ailp->next_fire = F1_0 / 2;
+							if (Stolen_item_index == 0 && CurrentLogicVersion > LogicVer::SHAREWARE)
+								ailp->next_fire += P_Rand() * 4;
+						}
+					}
+					return ailp->next_fire;
 				}
 			);
 		}
 	}
 	af_obj = obj;
 
-	// Set Believed_player_pos for this robot (matches C-only path lines 848-889)
-	// Must happen before animation so dist_to_player is available.
+	// Set Believed_player_pos for this robot (OCaml needs it as input)
 	if (Game_mode & GM_MULTI)
 		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
 	else if ((aip->SUB_FLAGS & SUB_FLAGS_CAMERA_AWAKE) && (Ai_last_missile_camera != -1))
@@ -478,14 +571,7 @@ void do_ai_frame(object* obj)
 			Believed_player_pos = Ai_cloak_info[objnum & (MAX_AI_CLOAK_INFO - 1)].last_position;
 	}
 
-	// Pack gun_point (3 ints) — compute BEFORE animation to match C-only timing.
-	// In C-only (do_ai_frame2), calc_gun_point runs at lines 928-935 BEFORE
-	// do_silly_animation at line 1127. Using post-animation joint positions
-	// gives slightly different vis_vec_pos, causing orientation drift over frames.
-	//
-	// Match C-only gun selection (lines 942-945): after decrementing next_fire,
-	// use CURRENT_GUN if next_fire <= 0, else gun 0 (secondary weapon ready).
-	// Pre-decrement equivalent: next_fire <= FrameTime → post-decrement next_fire <= 0.
+	// Pack gun_point (3 ints)
 	vms_vector gun_point_vec;
 	{
 		int gun_for_vis = (ailp->next_fire <= FrameTime) ? aip->CURRENT_GUN : 0;
@@ -493,48 +579,12 @@ void do_ai_frame(object* obj)
 	}
 	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
 
-	// Compute seg_station_enabled early (used for matcen skip and passed to OCaml)
+	// Compute seg_station_enabled (passed to OCaml)
 	int seg_station_enabled = 0;
 	if (Segment2s[obj->segnum].special == SEGMENT_IS_ROBOTMAKER)
 		seg_station_enabled = Station[Segment2s[obj->segnum].value].Enabled ? 1 : 0;
 
-	// Pre-OCaml animation: In C-only, do_silly_animation runs BEFORE the mode
-	// dispatch (line 1105), so CURRENT_STATE is updated before do_firing_stuff
-	// and state transition logic sees it. We must replicate this ordering.
-	// But we must also replicate the C-only early returns and awareness decay
-	// that happen before animation.
-	robot_info* robptr_pre = &Robot_info[obj->id];
-	int object_animates;
-	{
-		fix dist_pre = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
-
-		// Matcen early return (C-only lines 1066-1071): robots in active matcen
-		// segments return early without animation in C-only.
-		bool matcen_skip = (!(Game_mode & GM_MULTI) && seg_station_enabled);
-
-		// Awareness decay effect on GOAL_STATE (C-only line 1101):
-		// When player_awareness_type is 0, C sets GOAL_STATE=AIS_REST before animation.
-		if (!ailp->player_awareness_type)
-			aip->GOAL_STATE = AIS_REST;
-
-		// Unflinch hack (C-only line 803)
-		if ((aip->GOAL_STATE == AIS_FLIN) && ready_to_fire(robptr_pre, ailp))
-			aip->GOAL_STATE = AIS_FIRE;
-		// FLIN→LOCK (C-only line 1099)
-		if ((aip->GOAL_STATE == AIS_FLIN) && (aip->CURRENT_STATE == AIS_FLIN))
-			aip->GOAL_STATE = AIS_LOCK;
-		// Animation (C-only lines 1104-1115)
-		if (!matcen_skip && dist_pre < F1_0 * 100) {
-			object_animates = do_silly_animation(obj);
-			if (object_animates)
-				ai_frame_animation(obj);
-		} else {
-			aip->CURRENT_STATE = aip->GOAL_STATE;
-			object_animates = 0;
-		}
-	}
-
-	// Pack ai_state array (43 ints) — post-animation values
+	// Pack ai_state array (43 ints)
 	int32_t ai_state[43];
 	ai_state[0]  = aip->SKIP_AI_COUNT;
 	ai_state[1]  = aip->GOAL_STATE;
@@ -611,17 +661,12 @@ void do_ai_frame(object* obj)
 		Ai_cloak_info[cloak_idx].last_position.z
 	};
 
-	// Snapshot C state before OCaml call, so we can detect effect modifications
-	ai_static aip_before = *aip;
-	ai_local ailp_before = *ailp;
-	int32_t phys_flags_before = obj->mtype.phys_info.flags;
-	vms_vector rotthrust_before = obj->mtype.phys_info.rotthrust;
-
-#ifdef OX_PARITY_CHECK
+	// Shadow mode: snapshot → dry-run OCaml → snapshot result → restore
+	int object_animates = 0; // placeholder for OCaml input
 	parity_snapshot(&parity_snap_before);
-#endif
 
-	int32_t result[49]; // 43 + 4 D2 extras + object_animates + early_return_flag
+	g_shadow_dry_run = true;
+	int32_t result[50];
 	cd_ox_do_ai_frame_d2(
 		ai_state, 43,
 		rinfo, 30,
@@ -635,198 +680,17 @@ void do_ai_frame(object* obj)
 		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, Believed_player_seg,
 		orient, gun_point, Segment2s[obj->segnum].special,
 		cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
-		object_animates /* animation_enabled carries pre-computed object_animates */, Current_level_num, 0 /* last_missile_camera */,
+		object_animates, Current_level_num, 0 /* last_missile_camera */,
 		Robots_kill_robots_cheat, (robptr->boss_flag) ? aip->dying_start_time : 0,
 		obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
 		Dist_to_last_fired_upon_player_pos, F1_0 * 40, // FIRE_AT_NEARBY_PLAYER_THRESHOLD
 		seg_station_enabled,
 		result);
+	g_shadow_dry_run = false;
 
-	// Write back AI state using "effect-wins" policy:
-	// If a C effect modified a field during the OCaml call (current != snapshot),
-	// keep the C effect's value. Otherwise, use OCaml's result.
-#define WRITEBACK_AIP(field, idx) \
-	if (aip->field == aip_before.field) aip->field = result[idx]
-#define WRITEBACK_AILP(field, idx) \
-	if (ailp->field == ailp_before.field) ailp->field = result[idx]
-
-	WRITEBACK_AIP(SKIP_AI_COUNT, 0);
-	WRITEBACK_AIP(GOAL_STATE, 1);
-	WRITEBACK_AIP(CURRENT_STATE, 2);
-	WRITEBACK_AIP(CLOAKED, 3);
-	WRITEBACK_AIP(CURRENT_GUN, 4);
-	WRITEBACK_AIP(cur_path_index, 5);
-	WRITEBACK_AIP(behavior, 6);
-	WRITEBACK_AIP(hide_index, 7);
-	WRITEBACK_AIP(path_length, 8);
-	WRITEBACK_AIP(SUB_FLAGS, 9);
-	WRITEBACK_AIP(GOALSIDE, 12);
-	WRITEBACK_AILP(next_fire, 14);
-	WRITEBACK_AILP(next_fire2, 15);
-	WRITEBACK_AILP(player_awareness_type, 16);
-	WRITEBACK_AILP(player_awareness_time, 17);
-	WRITEBACK_AILP(mode, 18);
-	WRITEBACK_AILP(time_since_processed, 19);
-	WRITEBACK_AILP(consecutive_retries, 20);
-	WRITEBACK_AILP(retry_count, 21);
-	for (int i = 0; i < 8; i++)
-		if (ailp->goal_state[i] == ailp_before.goal_state[i])
-			ailp->goal_state[i] = result[22 + i];
-	WRITEBACK_AILP(time_player_seen, 30);
-	WRITEBACK_AILP(goal_segment, 31);
-	WRITEBACK_AILP(rapidfire_count, 32);
-	for (int i = 0; i < 8; i++)
-		if (ailp->achieved_state[i] == ailp_before.achieved_state[i])
-			ailp->achieved_state[i] = result[33 + i];
-	// NOTE: previous_visibility is NOT written back from OCaml.
-	// C's compute_vis_and_vec updates ailp->previous_visibility directly.
-	WRITEBACK_AILP(next_action_time, 42);
-	// D2 extras
-	if (obj->mtype.phys_info.flags == phys_flags_before)
-		obj->mtype.phys_info.flags = result[43];
-	if (obj->mtype.phys_info.rotthrust.x == rotthrust_before.x)
-		obj->mtype.phys_info.rotthrust.x = result[44];
-	if (obj->mtype.phys_info.rotthrust.y == rotthrust_before.y)
-		obj->mtype.phys_info.rotthrust.y = result[45];
-	if (obj->mtype.phys_info.rotthrust.z == rotthrust_before.z)
-		obj->mtype.phys_info.rotthrust.z = result[46];
-
-#undef WRITEBACK_AIP
-#undef WRITEBACK_AILP
-
-	// If OCaml raised Early_return (time-slice, agitation, snipe), skip movement code.
-	// C-only exits before mode dispatch and secondary state machine in these cases.
-	bool ox_early_return = (result[48] != 0);
-	if (!ox_early_return) {
-	// Movement calls that OCaml defers to C side
-	{
-		robot_info* robptr = &Robot_info[obj->id];
-		fix dist_to_player = vm_vec_dist_quick(&Believed_player_pos, &obj->pos);
-		int obj_ref = objnum ^ FrameCount;
-		vms_vector vis_vec_pos_mv;
-		// Use pre-OCaml ready_to_fire equivalent (matching C-only timing where
-		// vis_vec_pos is computed before firing, not after OCaml may have fired).
-		// Pre-decrement equivalent: ailp_before.next_fire <= FrameTime → post-decrement <= 0.
-		bool rtf_before = (ailp_before.next_fire <= FrameTime ||
-		    (robptr->weapon_type2 != -1 && ailp_before.next_fire2 <= FrameTime));
-		if ((ailp_before.previous_visibility || !(obj_ref & 3)) &&
-		    rtf_before &&
-		    (dist_to_player < F1_0 * 200) && (robptr->n_guns) && !(robptr->attack_type)) {
-			vis_vec_pos_mv = gun_point_vec;
-		} else {
-			vis_vec_pos_mv = obj->pos;
-		}
-		vms_vector vec_to_player;
-		vm_vec_sub(&vec_to_player, &Believed_player_pos, &vis_vec_pos_mv);
-		vm_vec_normalize_quick(&vec_to_player);
-		// ailp->previous_visibility has been updated to current frame's raw visibility
-		// by compute_vis_and_vec called during OCaml execution.
-		// Apply D2 awareness-based bump (matches C-only compute_vis_and_vec lines 2317-2319).
-		int player_visibility = ailp->previous_visibility;
-		if (player_visibility == 1 && ailp->player_awareness_type >= PA_NEARBY_ROBOT_FIRED)
-			player_visibility = 2;
-		// Previous frame's visibility (C-only "previous_visibility" local saved at line 873).
-		int prev_frame_visibility = ailp_before.previous_visibility;
-
-		if (ailp->mode == AIM_CHASE_OBJECT) {
-			if (aip->CURRENT_STATE != AIS_REST && aip->GOAL_STATE != AIS_REST) {
-				fix circle_distance = robptr->circle_distance[Difficulty_level] + ConsoleObject->size;
-				if (robptr->attack_type != 1)
-					circle_distance += (objnum & 0xf) * F1_0 / 2;
-				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0, player_visibility);
-
-				if ((obj_ref & 1) && (aip_before.GOAL_STATE == AIS_SRCH || aip_before.GOAL_STATE == AIS_LOCK)) {
-					if (player_visibility)
-						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				}
-			}
-		} else if (ailp->mode == AIM_STILL) {
-			if ((player_visibility == 2) || (prev_frame_visibility == 2)) {
-				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-			}
-			if (player_visibility == 2) {
-				if (robptr->attack_type == 1) {
-					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
-				} else {
-					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 1, player_visibility);
-				}
-			}
-		} else if (ailp->mode == AIM_BEHIND) {
-			if (player_visibility == 2) {
-				vms_vector goal_point, goal_vector, vec_to_goal, rand_vec;
-				fix dot = vm_vec_dot(&ConsoleObject->orient.fvec, &vec_to_player);
-				if (dot > 0) {
-					goal_vector = ConsoleObject->orient.fvec;
-					vm_vec_negate(&goal_vector);
-				} else {
-					dot = vm_vec_dot(&ConsoleObject->orient.rvec, &vec_to_player);
-					goal_vector = ConsoleObject->orient.rvec;
-					if (dot > 0)
-						vm_vec_negate(&goal_vector);
-				}
-				vm_vec_scale(&goal_vector, 2 * (ConsoleObject->size + obj->size + (((objnum * 4 + FrameCount) & 63) << 12)));
-				vm_vec_add(&goal_point, &ConsoleObject->pos, &goal_vector);
-				make_random_vector(&rand_vec);
-				vm_vec_scale_add2(&goal_point, &rand_vec, F1_0 * 8);
-				vm_vec_sub(&vec_to_goal, &goal_point, &obj->pos);
-				vm_vec_normalize_quick(&vec_to_goal);
-				move_towards_vector(obj, &vec_to_goal, 0);
-				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, object_animates, aip->CURRENT_GUN);
-			}
-		} else if (ailp->mode == AIM_OPEN_DOOR) {
-			vms_vector center_point, goal_vector;
-			compute_center_point_on_side(&center_point, &Segments[obj->segnum], aip->GOALSIDE);
-			vm_vec_sub(&goal_vector, &center_point, &obj->pos);
-			vm_vec_normalize_quick(&goal_vector);
-			ai_turn_towards_vector(&goal_vector, obj, robptr->turn_time[Difficulty_level]);
-			move_towards_vector(obj, &goal_vector, 0);
-		} else if (ailp->mode == AIM_SNIPE_ATTACK || ailp->mode == AIM_SNIPE_FIRE ||
-		           ailp->mode == AIM_SNIPE_RETREAT_BACKWARDS) {
-			ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point_vec, player_visibility, object_animates, aip->CURRENT_GUN);
-			if (robptr->thief)
-				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0, player_visibility);
-		} else if (ailp->mode == AIM_FOLLOW_PATH) {
-			// do_firing_stuff handled by OCaml AI frame
-		}
-
-		// Secondary state machine: turning based on CURRENT_STATE
-		// OCaml handles state transitions but defers turning to C side
-		// D2 only turns towards player when player_visibility == 2 (no ai_turn_randomly)
-		if (aip->GOAL_STATE != AIS_FLIN && obj->id != ROBOT_BRAIN) {
-			switch (aip->CURRENT_STATE) {
-			case AIS_SRCH:
-				if (player_visibility == 2)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				break;
-			case AIS_LOCK:
-				if (player_visibility == 2)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				break;
-			case AIS_FIRE:
-				if (player_visibility == 2)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				break;
-			case AIS_RECO:
-				if (!((objnum ^ FrameCount) & 3)) {
-					if (player_visibility == 2)
-						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				}
-				break;
-			}
-		}
-	}
-	} // end if (!ox_early_return)
-
-	// Animation already done pre-OCaml (matching C-only ordering).
-
-#ifdef OX_PARITY_CHECK
 	parity_snapshot(&parity_snap_after_ocaml);
 	parity_restore(&parity_snap_before);
-	// Fall through to C reference path below
-#else
-	return;
-#endif
+	// Fall through to C reference path — C is always authoritative
 	}
 #endif
 	int			objnum = obj - Objects;
@@ -839,6 +703,7 @@ void do_ai_frame(object* obj)
 	int			player_visibility = -1;
 	int			obj_ref;
 	int			object_animates;
+
 	int			new_goal_state;
 	int			visibility_and_vec_computed = 0;
 	int			previous_visibility;
@@ -1107,6 +972,8 @@ void do_ai_frame(object* obj)
 	else
 		aip->GOAL_STATE = AIS_REST;							//new: 12/13/94
 
+
+
 	if (Player_is_dead && (ailp->player_awareness_type == 0))
 		if ((dist_to_player < F1_0 * 200) && (P_Rand() < FrameTime / 8)) {
 			if ((aip->behavior != AIB_STILL) && (aip->behavior != AIB_RUN_FROM)) {
@@ -1147,6 +1014,8 @@ void do_ai_frame(object* obj)
 		rval = P_Rand();
 		sval = (dist_to_player * (Difficulty_level + 1)) / 64;
 
+		if (objnum == 28) {
+		}
 		// -- mprintf((0, "Object #%3i: dist = %7.3f, rval = %8x, sval = %8x", obj-Objects, f2fl(dist_to_player), rval, sval));
 		if ((fixmul(rval, sval) < FrameTime) || (Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT_ON)) {
 			ailp->player_awareness_type = PA_PLAYER_COLLISION;
@@ -1316,7 +1185,13 @@ void do_ai_frame(object* obj)
 	if (robptr->companion) {
 
 		compute_vis_and_vec(obj, &vis_vec_pos, ailp, &vec_to_player, &player_visibility, robptr, &visibility_and_vec_computed);
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "CESCORT28 dist=%d vis=%d pat=%d gt=%d\n",
+				dist_to_player, player_visibility, ailp->player_awareness_type, GameTime);
 		do_escort_frame(obj, dist_to_player, player_visibility);
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "CESCORT28_AFTER pat=%d mode=%d gt=%d\n",
+				ailp->player_awareness_type, ailp->mode, GameTime);
 
 		if (obj->ctype.ai_info.danger_laser_num != -1) {
 			object* dobjp = &Objects[obj->ctype.ai_info.danger_laser_num];
@@ -1650,6 +1525,8 @@ void do_ai_frame(object* obj)
 		if ((dist_to_player < F1_0 * 120 + Difficulty_level * F1_0 * 20) || (ailp->player_awareness_type >= PA_WEAPON_ROBOT_COLLISION - 1)) {
 			compute_vis_and_vec(obj, &vis_vec_pos, ailp, &vec_to_player, &player_visibility, robptr, &visibility_and_vec_computed);
 
+
+
 			//	turn towards vector if visible this time or last time, or P_Rand
 			// new!
 			if ((player_visibility == 2) || (previous_visibility == 2)) { // -- MK, 06/09/95:  || ((P_Rand() > 0x4000) && !(Game_mode & GM_MULTI))) {
@@ -1902,7 +1779,7 @@ void do_ai_frame(object* obj)
 				aip->CURRENT_GUN = 1;
 	}
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 	parity_snapshot(&parity_snap_after_c);
 	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
 		"do_ai_frame", FrameCount, obj - Objects);
@@ -1969,8 +1846,6 @@ void create_awareness_event(object* objp, int type)
 		}
 	}
 }
-
-int8_t	New_awareness[MAX_SEGMENTS];
 
 // ----------------------------------------------------------------------------------
 void pae_aux(int segnum, int type, int level)

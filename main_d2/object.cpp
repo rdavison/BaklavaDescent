@@ -1852,7 +1852,7 @@ void object_move_one(object* obj)
 
 	Drop_afterburner_blob_flag = 0;
 
-	switch (obj->control_type) 
+	switch (obj->control_type)
 	{
 
 	case CT_NONE: break;
@@ -1873,7 +1873,7 @@ void object_move_one(object* obj)
 #if !defined(NDEBUG) && !defined(NMONO)
 		if (print_object_info > 1) mprintf((0, "AI: Moving robot object #%d\n", obj - Objects));
 #endif
-		do_ai_frame(obj);
+			do_ai_frame(obj);
 		break;
 
 	case CT_WEAPON:		Laser_do_weapon_sequence(obj); break;

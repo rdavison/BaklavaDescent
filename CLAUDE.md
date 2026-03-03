@@ -6,6 +6,19 @@ A source port of Descent 1 & 2 with an incremental OCaml rewrite of game logic v
 
 Port all C game logic to OCaml incrementally, function by function, while maintaining identical behavior verified through parity testing. The OCaml code uses algebraic effects to call back into C for side effects (sound, rendering, object creation, etc.).
 
+## Porting Strategy: Shadow Mode
+
+Port functions at **whole-function granularity** using a shadow/validate/swap workflow:
+
+1. **Shadow**: OCaml runs the function with the same inputs as C, but C remains authoritative. The game always uses C's results. OCaml's output is compared against C's for validation only — no write-back into game state.
+2. **Validate**: Use headless replay + state log comparison to verify OCaml produces identical outputs across full test recordings. Fix divergences until parity is perfect.
+3. **Swap**: Once a function achieves frame-perfect parity, flip it to OCaml-authoritative (OCaml's results drive the game, C path removed or kept as fallback).
+
+**Key principles:**
+- Never partially port a function. If OCaml handles `do_ai_frame`, it handles *all* of it for that robot type — from skip_ai_count through flare firing. No mid-function C↔OCaml handoffs.
+- No "effect-wins" write-back during shadow phase. C is always the source of truth until the swap.
+- Effects still call into C for side effects (path creation, sound, etc.), but during shadow mode these are dry-runs or the C path handles them authoritatively.
+
 ## Architecture
 
 ```
@@ -17,9 +30,8 @@ main_d2/*.cpp              #ifdef USE_OX_BRIDGE callsites
 
 - All game values are 32-bit fixed-point integers (`F1_0 = 0x10000 = 1.0`)
 - OCaml performs algebraic effects → bridge handler calls C external → C calls registered callback
-- "Effect-wins" write-back: after OCaml returns, fields modified by C effects during the call keep their C values; unmodified fields get OCaml's values
 
-**Important pattern:** Effects that call C functions reading `Ai_local_info` (or other global state) must write back any OCaml modifications first. For example, `Do_thief_frame` writes back `player_awareness_type` and `Do_snipe_frame` writes back `mode` before calling the C function.
+All ported functions (`do_ai_frame` D1/D2, `do_physics_sim` D1/D2) use shadow mode. Parity checking (snapshot/restore/compare) is always enabled when `USE_OX_BRIDGE` is on — no separate flag needed.
 
 ## Building
 
@@ -44,8 +56,7 @@ cmake --build build-c-ref -j8
 ### CMake flags
 | Flag | Description |
 |------|-------------|
-| `USE_OX_BRIDGE` | Enable OCaml bridge |
-| `OX_PARITY_CHECK` | Dual-execution parity checking (requires USE_OX_BRIDGE) |
+| `USE_OX_BRIDGE` | Enable OCaml bridge (includes shadow-mode parity checking) |
 | `OX_REPLAY` | Input record/replay for parity testing |
 
 ## Running

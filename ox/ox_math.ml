@@ -62,6 +62,8 @@ let quad_sqrt q =
   let module I64 = Stdlib.Int64 in
   if I64.compare q I64.zero <= 0
   then 0L
+  else if I64.compare q 0x7FFFFFFFL <= 0
+  then I64.of_int (long_sqrt (I64.to_int q))
   else (
     let rec floor_loop lo hi best =
       if I64.compare lo hi > 0

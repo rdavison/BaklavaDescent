@@ -52,15 +52,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "misc/rand.h"
 #include "ox/bridge.h"
 
-// Uncomment to enable parity testing: C runs as primary, OCaml runs in shadow, mismatches logged
-// #define OX_PARITY_TEST
-
 #ifdef USE_OX_BRIDGE
-static bool g_parity_dry_run = false;
+#include "ox/parity.h"
+static bool g_shadow_dry_run = false;
 bool g_ox_nested_ocaml_guard = false;  // When true, skip OCaml paths to avoid nested OCaml calls
-#ifdef OX_PARITY_TEST
-static int parity_total_logged = 0;
-#endif
 #endif
 
 #ifdef EDITOR
@@ -3239,7 +3234,7 @@ void ai_do_actual_firing_stuff(object* obj, ai_static* aip, ai_local* ailp, robo
 // --------------------------------------------------------------------------------------------------------------------
 void do_ai_frame(object* obj)
 {
-#if defined(USE_OX_BRIDGE) && !defined(OX_PARITY_TEST)
+#ifdef USE_OX_BRIDGE
 	{
 	int objnum = obj - Objects;
 	ai_static* aip = &obj->ctype.ai_info;
@@ -3258,13 +3253,13 @@ void do_ai_frame(object* obj)
 				},
 				// robot_hit_attack
 				[]() {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					do_ai_robot_hit_attack(af_obj, ConsoleObject, &af_obj->pos);
 				},
 				// fire_laser
 				[](int gpx, int gpy, int gpz, int gun_num,
 				   int fpx, int fpy, int fpz) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					vms_vector gp = {gpx, gpy, gpz};
 					ai_fire_laser_at_player(af_obj, &gp);
 				},
@@ -3276,37 +3271,37 @@ void do_ai_frame(object* obj)
 				},
 				// create_path_to_player
 				[](int max_length, int safety_flag) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					create_path_to_player(af_obj, max_length, safety_flag);
 				},
 				// create_path_to_station
 				[](int max_time) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					create_path_to_station(af_obj, max_time);
 				},
 				// create_n_segment_path
 				[](int length, int avoid_seg) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					create_n_segment_path(af_obj, length, avoid_seg);
 				},
 				// create_n_segment_path_to_door
 				[](int length, int avoid_seg) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					create_n_segment_path_to_door(af_obj, length, avoid_seg);
 				},
 				// attempt_to_resume_path
 				[]() {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					attempt_to_resume_path(af_obj);
 				},
 				// ai_follow_path (D1: only uses vis arg)
 				[](int vis, int prev_vis, int vtpx, int vtpy, int vtpz) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					ai_follow_path(af_obj, vis);
 				},
 				// move_towards_segment_center
 				[]() {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					move_towards_segment_center(af_obj);
 				},
 				// compute_vis_and_vec
@@ -3329,14 +3324,14 @@ void do_ai_frame(object* obj)
 				},
 				// multi_send_robot_position
 				[](int flag) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 #ifdef NETWORK
 					multi_send_robot_position(af_obj - Objects, flag);
 #endif
 				},
 				// do_boss_stuff (D1: 1 arg)
 				[](int pv) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					do_boss_stuff(af_obj);
 				},
 				// p_rand
@@ -3361,19 +3356,25 @@ void do_ai_frame(object* obj)
 				[]() {},
 				// move_away_from_player
 				[]() {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					vms_vector vec_to_player;
 					vm_vec_sub(&vec_to_player, &Believed_player_pos, &af_obj->pos);
 					move_away_from_player(af_obj, &vec_to_player, 0);
 				},
+				// invalidate_escort_goal (D1: no-op, no escort in D1)
+				[]() {},
 				// laser_create_new_easy
 				[](int fvx, int fvy, int fvz, int fpx, int fpy, int fpz,
 				   int objnum, int weapon_id) {
-					if (g_parity_dry_run) return;
+					if (g_shadow_dry_run) return;
 					vms_vector fv = {fvx, fvy, fvz};
 					vms_vector fp = {fpx, fpy, fpz};
 					Laser_create_new_easy(&fv, &fp, objnum, weapon_id, 1);
-				}
+				},
+				// do_companion_extras (D1: no companion)
+				[](int, int, int, int, int, int) -> int { return 0; },
+				// do_thief_extras (D1: no thief)
+				[](int, int, int, int, int) -> int { return 0; }
 			);
 		}
 	}
@@ -3390,7 +3391,7 @@ void do_ai_frame(object* obj)
 	ai_state[6]  = aip->behavior;
 	ai_state[7]  = aip->hide_index;
 	ai_state[8]  = aip->path_length;
-	ai_state[9]  = aip->SUBMODE;      // flags[4]
+	ai_state[9]  = aip->SUBMODE;
 	ai_state[10] = aip->danger_laser_num;
 	ai_state[11] = aip->danger_laser_signature;
 	ai_state[12] = aip->GOALSIDE;
@@ -3411,7 +3412,7 @@ void do_ai_frame(object* obj)
 	for (int i = 0; i < 8; i++)
 		ai_state[33 + i] = ailp->achieved_state[i];
 	ai_state[41] = ailp->previous_visibility;
-	ai_state[42] = ailp->wait_time;   // D1: wait_time maps to next_action_time slot
+	ai_state[42] = ailp->wait_time;
 
 	// Pack robot info (29 ints)
 	robot_info* robptr = &Robot_info[obj->id];
@@ -3447,7 +3448,7 @@ void do_ai_frame(object* obj)
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
 
-	// Pack gun_point (3 ints) - initial gun point
+	// Pack gun_point (3 ints)
 	vms_vector gun_point_vec;
 	calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
 	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
@@ -3460,16 +3461,16 @@ void do_ai_frame(object* obj)
 		Ai_cloak_info[cloak_idx].last_position.z
 	};
 
-	// Update Believed_player_pos (matches C do_ai_frame logic)
+	// Update Believed_player_pos (OCaml needs it as input)
 	if (!(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED))
 		Believed_player_pos = ConsoleObject->pos;
 	else if (Game_mode & GM_MULTI)
 		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
 
-	// Snapshot C state before OCaml call, so we can detect effect modifications
-	ai_static aip_before = *aip;
-	ai_local ailp_before = *ailp;
+	// Shadow mode: snapshot → dry-run OCaml → snapshot result → restore
+	parity_snapshot(&parity_snap_before);
 
+	g_shadow_dry_run = true;
 	int32_t result[43];
 	cd_ox_do_ai_frame_d1(
 		ai_state, 43,
@@ -3485,448 +3486,12 @@ void do_ai_frame(object* obj)
 		orient, gun_point, Segments[obj->segnum].special,
 		cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
 		result);
+	g_shadow_dry_run = false;
 
-	// Write back AI state using "effect-wins" policy:
-	// For each field, if a C effect modified it during the OCaml call (current != snapshot),
-	// keep the C effect's value. Otherwise, use OCaml's result.
-#define WRITEBACK_AIP(field, idx) \
-	if (aip->field == aip_before.field) aip->field = result[idx]
-#define WRITEBACK_AILP(field, idx) \
-	if (ailp->field == ailp_before.field) ailp->field = result[idx]
-
-	WRITEBACK_AIP(SKIP_AI_COUNT, 0);
-	WRITEBACK_AIP(GOAL_STATE, 1);
-	WRITEBACK_AIP(CURRENT_STATE, 2);
-	WRITEBACK_AIP(CLOAKED, 3);
-	WRITEBACK_AIP(CURRENT_GUN, 4);
-	WRITEBACK_AIP(cur_path_index, 5);
-	WRITEBACK_AIP(behavior, 6);
-	WRITEBACK_AIP(hide_index, 7);
-	WRITEBACK_AIP(path_length, 8);
-	WRITEBACK_AIP(SUBMODE, 9);
-	WRITEBACK_AIP(GOALSIDE, 12);
-	WRITEBACK_AILP(next_fire, 14);
-	WRITEBACK_AILP(player_awareness_type, 16);
-	WRITEBACK_AILP(player_awareness_time, 17);
-	WRITEBACK_AILP(mode, 18);
-	WRITEBACK_AILP(time_since_processed, 19);
-	WRITEBACK_AILP(consecutive_retries, 20);
-	WRITEBACK_AILP(retry_count, 21);
-	for (int i = 0; i < 8; i++)
-		if (ailp->goal_state[i] == ailp_before.goal_state[i])
-			ailp->goal_state[i] = result[22 + i];
-	WRITEBACK_AILP(time_player_seen, 30);
-	WRITEBACK_AILP(goal_segment, 31);
-	WRITEBACK_AILP(rapidfire_count, 32);
-	for (int i = 0; i < 8; i++)
-		if (ailp->achieved_state[i] == ailp_before.achieved_state[i])
-			ailp->achieved_state[i] = result[33 + i];
-	// NOTE: previous_visibility is NOT written back from OCaml.
-	// C's compute_vis_and_vec updates ailp->previous_visibility directly.
-
-#undef WRITEBACK_AIP
-#undef WRITEBACK_AILP
-
-	// Movement calls that OCaml defers to C side
-	{
-		robot_info* robptr = &Robot_info[obj->id];
-		vms_vector vec_to_player;
-		vm_vec_sub(&vec_to_player, &Believed_player_pos, &obj->pos);
-		fix dist_to_player = vm_vec_normalize_quick(&vec_to_player);
-
-		int player_visibility = ailp->previous_visibility;
-
-		if (ailp->mode == AIM_CHASE_OBJECT) {
-			if (aip->CURRENT_STATE != AIS_REST && aip->GOAL_STATE != AIS_REST) {
-				fix circle_distance = robptr->circle_distance[Difficulty_level] + ConsoleObject->size;
-				if (robptr->attack_type != 1)
-					circle_distance += (objnum & 0xf) * F1_0 / 2;
-				ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, circle_distance, 0);
-
-				int obj_ref = objnum ^ FrameCount;
-				if ((obj_ref & 1) && (aip->GOAL_STATE == AIS_SRCH || aip->GOAL_STATE == AIS_LOCK)) {
-					if (player_visibility)
-						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				}
-			}
-			// do_firing_stuff now handled in OCaml
-		} else if (ailp->mode == AIM_STILL) {
-			if ((player_visibility == 2) || (ailp->previous_visibility == 2)) {
-				ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-			}
-			// do_firing_stuff now handled in OCaml
-			if (player_visibility == 2) {
-				if (robptr->attack_type == 1) {
-					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 0);
-				} else {
-					ai_move_relative_to_player(obj, ailp, dist_to_player, &vec_to_player, 0, 1);
-				}
-			}
-		} else if (ailp->mode == AIM_FOLLOW_PATH) {
-			// do_firing_stuff now handled in OCaml
-		} else if (ailp->mode == AIM_HIDE) {
-			// ai_follow_path already handled via effects
-		} else if (ailp->mode == AIM_OPEN_DOOR) {
-			vms_vector center_point, goal_vector;
-			compute_center_point_on_side(&center_point, &Segments[obj->segnum], aip->GOALSIDE);
-			vm_vec_sub(&goal_vector, &center_point, &obj->pos);
-			vm_vec_normalize_quick(&goal_vector);
-			move_towards_vector(obj, &goal_vector);
-			ai_turn_towards_vector(&goal_vector, obj, robptr->turn_time[Difficulty_level]);
-		}
-
-		// Secondary state machine: turning based on CURRENT_STATE
-		// OCaml handles state transitions but defers turning to C side
-		int previous_vis_saved = ailp->previous_visibility;
-		if (aip->GOAL_STATE != AIS_FLIN && obj->id != ROBOT_BRAIN) {
-			switch (aip->CURRENT_STATE) {
-			case AIS_SRCH:
-				if (player_visibility)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				else if (!(Game_mode & GM_MULTI))
-					ai_turn_randomly(&vec_to_player, obj, robptr->turn_time[Difficulty_level], previous_vis_saved);
-				break;
-			case AIS_LOCK:
-				if (player_visibility)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				else if (!(Game_mode & GM_MULTI))
-					ai_turn_randomly(&vec_to_player, obj, robptr->turn_time[Difficulty_level], previous_vis_saved);
-				break;
-			case AIS_FIRE:
-				if (player_visibility)
-					ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-				else if (!(Game_mode & GM_MULTI))
-					ai_turn_randomly(&vec_to_player, obj, robptr->turn_time[Difficulty_level], previous_vis_saved);
-				break;
-			case AIS_RECO:
-				if (!((objnum ^ FrameCount) & 3)) {
-					if (player_visibility)
-						ai_turn_towards_vector(&vec_to_player, obj, robptr->turn_time[Difficulty_level]);
-					else if (!(Game_mode & GM_MULTI))
-						ai_turn_randomly(&vec_to_player, obj, robptr->turn_time[Difficulty_level], previous_vis_saved);
-				}
-				break;
-			}
-		}
+	parity_snapshot(&parity_snap_after_ocaml);
+	parity_restore(&parity_snap_before);
+	// Fall through to C reference path — C is always authoritative
 	}
-
-	// Animation (done on C side after OCaml state update)
-	if (do_silly_animation(obj))
-		ai_frame_animation(obj);
-	else
-		// do_silly_animation returns 0 for 0-gun robots.
-		// C-only path sets object_animates from do_silly_animation, then
-		// syncs CURRENT_STATE = GOAL_STATE when !object_animates.
-		// Replicate that here.
-		aip->CURRENT_STATE = aip->GOAL_STATE;
-
-	return;
-	}
-#endif
-
-#if defined(USE_OX_BRIDGE) && defined(OX_PARITY_TEST)
-	// --- Parity test: RAII guard runs OCaml in destructor, compares with C result ---
-	struct ParityGuard {
-		object* obj;
-		int objnum;
-		ai_static saved_aip;
-		ai_local saved_ailp;
-		physics_info saved_pi;
-		// total_logged is file-scope: parity_total_logged
-		ParityGuard(object* o) : obj(o) {
-			objnum = o - Objects;
-			saved_aip = o->ctype.ai_info;
-			saved_ailp = Ai_local_info[objnum];
-			saved_pi = o->mtype.phys_info;
-		}
-
-		~ParityGuard() {
-			if (parity_total_logged > 1000) return;
-
-			// Snapshot C's final state
-			ai_static c_aip = obj->ctype.ai_info;
-			ai_local c_ailp = Ai_local_info[objnum];
-
-			// Restore initial state for OCaml run
-			obj->ctype.ai_info = saved_aip;
-			Ai_local_info[objnum] = saved_ailp;
-			obj->mtype.phys_info = saved_pi;
-
-			// Register effect callbacks if needed (same static block as normal path)
-			static object* af_obj = nullptr;
-			{
-				static int reg = 0;
-				if (!reg) {
-					reg = 1;
-					cd_ox_register_ai_frame_effects(
-						[](int agitation) -> int {
-							return ai_multiplayer_awareness(af_obj, agitation);
-						},
-						[]() {
-							if (g_parity_dry_run) return;
-							do_ai_robot_hit_attack(af_obj, ConsoleObject, &af_obj->pos);
-						},
-						[](int gpx, int gpy, int gpz, int gun_num,
-						   int fpx, int fpy, int fpz) {
-							if (g_parity_dry_run) return;
-							vms_vector gp = {gpx, gpy, gpz};
-							ai_fire_laser_at_player(af_obj, &gp);
-						},
-						[](int gun_num, int32_t* gx, int32_t* gy, int32_t* gz) {
-							vms_vector gp;
-							calc_gun_point(&gp, af_obj, gun_num);
-							*gx = gp.x; *gy = gp.y; *gz = gp.z;
-						},
-						[](int max_length, int safety_flag) {
-							if (g_parity_dry_run) return;
-							create_path_to_player(af_obj, max_length, safety_flag);
-						},
-						[](int max_time) {
-							if (g_parity_dry_run) return;
-							create_path_to_station(af_obj, max_time);
-						},
-						[](int length, int avoid_seg) {
-							if (g_parity_dry_run) return;
-							create_n_segment_path(af_obj, length, avoid_seg);
-						},
-						[](int length, int avoid_seg) {
-							if (g_parity_dry_run) return;
-							create_n_segment_path_to_door(af_obj, length, avoid_seg);
-						},
-						[]() {
-							if (g_parity_dry_run) return;
-							attempt_to_resume_path(af_obj);
-						},
-						[](int vis, int prev_vis, int vtpx, int vtpy, int vtpz) {
-							if (g_parity_dry_run) return;
-							ai_follow_path(af_obj, vis);
-						},
-						[]() {
-							if (g_parity_dry_run) return;
-							move_towards_segment_center(af_obj);
-						},
-						[](int gpx, int gpy, int gpz,
-						   int32_t* pv, int32_t* vtpx, int32_t* vtpy, int32_t* vtpz,
-						   int32_t* sound_flag) {
-							vms_vector vis_pos = {gpx, gpy, gpz};
-							vms_vector vec_to_player;
-							int player_visibility;
-							int vis_computed = 0;
-							robot_info* robptr = &Robot_info[af_obj->id];
-							ai_local* ailp = &Ai_local_info[af_obj - Objects];
-							compute_vis_and_vec(af_obj, &vis_pos, ailp, &vec_to_player,
-								&player_visibility, robptr, &vis_computed);
-							*pv = player_visibility;
-							*vtpx = vec_to_player.x;
-							*vtpy = vec_to_player.y;
-							*vtpz = vec_to_player.z;
-							*sound_flag = vis_computed;
-						},
-						[](int flag) {
-							if (g_parity_dry_run) return;
-#ifdef NETWORK
-							multi_send_robot_position(af_obj - Objects, flag);
-#endif
-						},
-						[](int pv) {
-							if (g_parity_dry_run) return;
-							do_boss_stuff(af_obj);
-						},
-						[]() -> int { return P_Rand(); },
-						[](int32_t* rx, int32_t* ry, int32_t* rz) {
-							vms_vector v;
-							make_random_vector(&v);
-							*rx = v.x; *ry = v.y; *rz = v.z;
-						},
-						[]() -> int { return 0; },
-						[](int dist, int vis, int vtpx, int vtpy, int vtpz) {},
-						[](int dist, int vis) {},
-						[](int dist, int vis, int vtpx, int vtpy, int vtpz) {},
-						[]() -> int { return 0; },
-						[]() {},
-						[]() {
-							if (g_parity_dry_run) return;
-							vms_vector vec_to_player;
-							vm_vec_sub(&vec_to_player, &Believed_player_pos, &af_obj->pos);
-							move_away_from_player(af_obj, &vec_to_player, 0);
-						},
-						[](int fvx, int fvy, int fvz, int fpx, int fpy, int fpz,
-						   int objnum, int weapon_id) {
-							if (g_parity_dry_run) return;
-							vms_vector fv = {fvx, fvy, fvz};
-							vms_vector fp = {fpx, fpy, fpz};
-							Laser_create_new_easy(&fv, &fp, objnum, weapon_id, 1);
-						}
-					);
-				}
-			}
-			af_obj = obj;
-
-			// Pack inputs from saved (initial) state
-			ai_static* aip = &obj->ctype.ai_info;
-			ai_local* ailp = &Ai_local_info[objnum];
-
-			int32_t ai_state[43];
-			ai_state[0]  = aip->SKIP_AI_COUNT;
-			ai_state[1]  = aip->GOAL_STATE;
-			ai_state[2]  = aip->CURRENT_STATE;
-			ai_state[3]  = aip->CLOAKED;
-			ai_state[4]  = aip->CURRENT_GUN;
-			ai_state[5]  = aip->cur_path_index;
-			ai_state[6]  = aip->behavior;
-			ai_state[7]  = aip->hide_index;
-			ai_state[8]  = aip->path_length;
-			ai_state[9]  = aip->SUBMODE;
-			ai_state[10] = aip->danger_laser_num;
-			ai_state[11] = aip->danger_laser_signature;
-			ai_state[12] = aip->GOALSIDE;
-			ai_state[13] = aip->hide_segment;
-			ai_state[14] = ailp->next_fire;
-			ai_state[15] = 0;
-			ai_state[16] = ailp->player_awareness_type;
-			ai_state[17] = ailp->player_awareness_time;
-			ai_state[18] = ailp->mode;
-			ai_state[19] = ailp->time_since_processed;
-			ai_state[20] = ailp->consecutive_retries;
-			ai_state[21] = ailp->retry_count;
-			for (int i = 0; i < 8; i++)
-				ai_state[22 + i] = ailp->goal_state[i];
-			ai_state[30] = ailp->time_player_seen;
-			ai_state[31] = ailp->goal_segment;
-			ai_state[32] = ailp->rapidfire_count;
-			for (int i = 0; i < 8; i++)
-				ai_state[33 + i] = ailp->achieved_state[i];
-			ai_state[41] = ailp->previous_visibility;
-			ai_state[42] = ailp->wait_time;
-
-			robot_info* robptr = &Robot_info[obj->id];
-			int32_t rinfo[29];
-			rinfo[0]  = robptr->attack_type;
-			rinfo[1]  = robptr->weapon_type;
-			rinfo[2]  = -1;
-			rinfo[3]  = robptr->n_guns;
-			rinfo[4]  = robptr->boss_flag;
-			rinfo[5]  = 0;
-			rinfo[6]  = 0;
-			rinfo[7]  = 0;
-			rinfo[8]  = robptr->field_of_view[Difficulty_level];
-			rinfo[9]  = robptr->max_speed[Difficulty_level];
-			rinfo[10] = robptr->firing_wait[Difficulty_level];
-			rinfo[11] = 0;
-			rinfo[12] = robptr->see_sound;
-			rinfo[13] = robptr->attack_sound;
-			rinfo[14] = robptr->cloak_type;
-			rinfo[15] = 0;
-			rinfo[16] = 0;
-			rinfo[17] = Weapon_info[robptr->weapon_type].homing_flag;
-			rinfo[18] = 0;
-			for (int i = 0; i < 5; i++)
-				rinfo[19 + i] = robptr->circle_distance[i];
-			for (int i = 0; i < 5; i++)
-				rinfo[24 + i] = robptr->turn_time[i];
-
-			int32_t orient[9] = {
-				obj->orient.rvec.x, obj->orient.rvec.y, obj->orient.rvec.z,
-				obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
-				obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
-			};
-
-			vms_vector gun_point_vec;
-			calc_gun_point(&gun_point_vec, obj, aip->CURRENT_GUN);
-			int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
-
-			int cloak_idx = objnum % MAX_AI_CLOAK_INFO;
-			int32_t cloak_last_pos[3] = {
-				Ai_cloak_info[cloak_idx].last_position.x,
-				Ai_cloak_info[cloak_idx].last_position.y,
-				Ai_cloak_info[cloak_idx].last_position.z
-			};
-
-			// Run OCaml in dry-run mode
-			g_parity_dry_run = true;
-			int32_t ox_result[43];
-			cd_ox_do_ai_frame_d1(
-				ai_state, 43,
-				rinfo, 29,
-				FrameTime, FrameCount, GameTime,
-				Game_mode, Difficulty_level,
-				Overall_agitation, Player_is_dead, Player_exploded,
-				Players[Player_num].flags,
-				obj->pos.x, obj->pos.y, obj->pos.z,
-				obj->segnum, obj->size, obj->id, objnum,
-				ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z, ConsoleObject->size,
-				Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, ConsoleObject->segnum,
-				orient, gun_point, Segments[obj->segnum].special,
-				cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0,
-				ox_result);
-			g_parity_dry_run = false;
-
-			// Restore C's final results (the ones the game will actually use)
-			obj->ctype.ai_info = c_aip;
-			Ai_local_info[objnum] = c_ailp;
-			// Note: don't restore phys_info — C's movement calls already ran
-
-			// Pack C state into same 43-int format for comparison
-			int32_t c_result[43];
-			c_result[0]  = c_aip.SKIP_AI_COUNT;
-			c_result[1]  = c_aip.GOAL_STATE;
-			c_result[2]  = c_aip.CURRENT_STATE;
-			c_result[3]  = c_aip.CLOAKED;
-			c_result[4]  = c_aip.CURRENT_GUN;
-			c_result[5]  = c_aip.cur_path_index;
-			c_result[6]  = c_aip.behavior;
-			c_result[7]  = c_aip.hide_index;
-			c_result[8]  = c_aip.path_length;
-			c_result[9]  = c_aip.SUBMODE;
-			c_result[10] = c_aip.danger_laser_num;
-			c_result[11] = c_aip.danger_laser_signature;
-			c_result[12] = c_aip.GOALSIDE;
-			c_result[13] = c_aip.hide_segment;
-			c_result[14] = c_ailp.next_fire;
-			c_result[15] = 0;
-			c_result[16] = c_ailp.player_awareness_type;
-			c_result[17] = c_ailp.player_awareness_time;
-			c_result[18] = c_ailp.mode;
-			c_result[19] = c_ailp.time_since_processed;
-			c_result[20] = c_ailp.consecutive_retries;
-			c_result[21] = c_ailp.retry_count;
-			for (int i = 0; i < 8; i++)
-				c_result[22 + i] = c_ailp.goal_state[i];
-			c_result[30] = c_ailp.time_player_seen;
-			c_result[31] = c_ailp.goal_segment;
-			c_result[32] = c_ailp.rapidfire_count;
-			for (int i = 0; i < 8; i++)
-				c_result[33 + i] = c_ailp.achieved_state[i];
-			c_result[41] = c_ailp.previous_visibility;
-			c_result[42] = c_ailp.wait_time;
-
-			// Compare field by field
-			static const char* names[43] = {
-				"SKIP_AI_COUNT", "GOAL_STATE", "CURRENT_STATE", "CLOAKED",
-				"CURRENT_GUN", "cur_path_index", "behavior", "hide_index",
-				"path_length", "SUBMODE", "danger_laser_num", "danger_laser_sig",
-				"GOALSIDE", "hide_segment", "next_fire", "next_fire2",
-				"awareness_type", "awareness_time", "mode", "time_since_processed",
-				"consecutive_retries", "retry_count",
-				"goal_state[0]", "goal_state[1]", "goal_state[2]", "goal_state[3]",
-				"goal_state[4]", "goal_state[5]", "goal_state[6]", "goal_state[7]",
-				"time_player_seen", "goal_segment", "rapidfire_count",
-				"achieved_state[0]", "achieved_state[1]", "achieved_state[2]", "achieved_state[3]",
-				"achieved_state[4]", "achieved_state[5]", "achieved_state[6]", "achieved_state[7]",
-				"previous_visibility", "wait_time"
-			};
-			int mismatches = 0;
-			for (int i = 0; i < 43 && mismatches < 5; i++) {
-				if (ox_result[i] != c_result[i]) {
-					fprintf(stderr, "[PARITY obj %d frame %d] field[%d] %s: c=%d ox=%d\n",
-						objnum, FrameCount, i, names[i], c_result[i], ox_result[i]);
-					mismatches++;
-					parity_total_logged++;
-				}
-			}
-		}
-	};
-	ParityGuard parity_guard(obj);
 #endif
 
 	int			objnum = obj - Objects;
@@ -4778,6 +4343,12 @@ void do_ai_frame(object* obj)
 			aip->CURRENT_GUN = 0;
 	}
 
+#ifdef USE_OX_BRIDGE
+	parity_snapshot(&parity_snap_after_c);
+	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
+		"do_ai_frame", FrameCount, obj - Objects);
+	// C result is canonical (already in place)
+#endif
 }
 
 //--mk, 121094 -- // ----------------------------------------------------------------------------------

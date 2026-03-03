@@ -2143,3 +2143,69 @@ First AI system function ported. Determines whether a robot can open a door on a
   - The escort robot is the single remaining source of pre-random divergence. Fixing the frame 13 CS divergence would likely eliminate the P_Rand divergence and most subsequent divergences.
 
 - **Diagnostic approach used:** Added per-object P_Rand call counting to identify that obj28 (escort, id=33, behavior=AIB_FOLLOW=0x81) was making 308 extra P_Rand calls in C-only at the frame where random state diverges.
+
+### Session 28: Migrate from effect-wins to shadow mode
+
+- **Goal:** Replace the error-prone "effect-wins" write-back architecture with shadow mode, where C is always authoritative and OCaml runs in parallel for validation only.
+
+#### Architecture change
+
+**Before (effect-wins):** OCaml runs a function → effects call into C with real side effects → on return, a per-field merge policy decides whether to keep C's or OCaml's value. This caused subtle bugs (companion flare firing, next_fire write-back conflicts, P_Rand state drift).
+
+**After (shadow mode):** `parity_snapshot` → OCaml runs (effects dry-run for AI, normal for physics) → `parity_snapshot` → `parity_restore` → C runs authoritatively → `parity_snapshot` → `parity_compare`. No write-back, no merge policy. C result is always canonical.
+
+#### Changes by file
+
+**D2 AI (`main_d2/ai.cpp`):**
+- Added `g_shadow_dry_run` flag, guarded 19 side-effect lambdas (fire_laser, create_path, escort/thief frame, etc.) — pure queries (P_Rand, compute_vis_and_vec, calc_gun_point) not guarded
+- Removed all `WRITEBACK_AIP`/`WRITEBACK_AILP` macros and ~28 field write-back calls
+- Removed pre-OCaml animation block and post-OCaml movement dispatch (~140 lines)
+- Restructured to shadow mode pattern
+
+**D1 AI (`main_d1/ai.cpp`):**
+- Renamed `g_parity_dry_run` → `g_shadow_dry_run`
+- Removed `OX_PARITY_TEST` define and ParityGuard RAII struct (~300 lines)
+- Removed effect-wins write-back, restructured to shadow mode
+
+**D2 Physics (`main_d2/physics.cpp`):**
+- Removed result write-back of 25+ fields (pos, velocity, orient, segnum, flags, etc.)
+- Effects fire normally (physics needs collisions for correct computation)
+- Fixed stray `}` scope issue from removed OCaml drag computation block
+
+**D1 Physics (`main_d1/physics.cpp`):**
+- Added parity include, removed write-back + return, restructured to shadow mode
+
+**Parity infrastructure (`ox/parity.h`, `ox/parity.cpp`):**
+- Changed guard from `OX_PARITY_CHECK` to `USE_OX_BRIDGE`
+- Added per-segment object list heads (`Segments[].objects`) to snapshot/restore — fixes crash where `obj_relink` during OCaml physics corrupted linked list state that `parity_restore` didn't cover
+- Added `segment.h`/`gameseg.h` includes
+
+**OCaml bridge (`ox/ai_frame_bridge.ml`, `ox/physics_sim_bridge.ml`):**
+- Changed `exnc = raise` to exception handlers returning dummy arrays (prevents process crash from OCaml exceptions during shadow execution)
+- Added try/with in FVI effect handler for `Invalid_argument` (returns HIT_NONE on failure)
+- Core library fixes: `Exn.to_string` not `Printexc.to_string`, `Array.create ~len:n v` not `Array.make n v`
+
+**C bridge (`ox/bridge.c`):**
+- Changed `caml_callback` to `caml_callback_exn` for FVI with exception fallback
+
+**FVI fallback (`main_d2/fvi.cpp`):**
+- Added `out_len < 12` check — returns `HIT_BAD_P0` when OCaml FVI throws exception
+
+**Build (`CMakeLists.txt`):**
+- Removed `OX_PARITY_CHECK` option entirely
+- `parity.cpp` always included when `USE_OX_BRIDGE` is on
+
+**Documentation (`CLAUDE.md`):**
+- Removed `OX_PARITY_CHECK` from flags table
+- Updated porting strategy to document shadow mode as current architecture
+
+#### Build verification
+- Both `build-ox` (USE_OX_BRIDGE=ON) and `build-c-ref` (USE_OX_BRIDGE=OFF) compile cleanly
+- OCaml bridge builds successfully
+- D1 launches and runs interactively with shadow mode active
+- Headless replay runs without crash (previously crashed on assertion in obj_relink and OCaml FVI exception)
+
+#### Known issues
+- **OCaml FVI crash:** `Ox_fvi.unpack_obj` throws `Invalid_argument "index out of bounds"` — pre-existing bug. Falls back to `HIT_BAD_P0`, causing state divergence vs C-ref at frame 32. Needs OCaml FVI fix.
+- **State log divergence:** OX build diverges from C-ref at frame 32 due to OCaml FVI exception fallback affecting C's physics path (FVI is OCaml-authoritative, not shadow mode).
+- **Parity logging volume:** Shadow mode parity comparisons produce heavy stderr output, slowing headless replay significantly.

@@ -37,6 +37,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "fireball.h"
 #include "hostage.h"
 #include "ox/bridge.h"
+#ifdef USE_OX_BRIDGE
+#include "ox/parity.h"
+#endif
 #include "multibot.h"
 #include <stdio.h>
 #endif
@@ -816,6 +819,9 @@ void do_physics_sim(object* obj)
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
 
+	// Shadow mode: snapshot → OCaml (effects fire normally) → snapshot result → restore
+	parity_snapshot(&parity_snap_before);
+
 	int32_t result[25 + MAX_FVI_SEGS];
 	cd_ox_do_physics_sim_d1(
 		obj->pos.x, obj->pos.y, obj->pos.z,
@@ -831,26 +837,11 @@ void do_physics_sim(object* obj)
 		FrameTime, Physics_cheat_flag,
 		result);
 
-	// Write back results
-	obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
-	pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
-	obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
-	obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
-	obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
-	obj->segnum = result[15];
-	obj->flags = result[16];
-	pi->flags = result[17];
-	pi->turnroll = result[18];
-	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
-	// result[22] = retry_count (informational)
-	n_phys_segs = result[23];
-	// result[24] = needs_levelling (already handled inside OCaml via PF_LEVELLING flag)
-	// result[25..25+n_phys_segs-1] = phys_seglist values
-	for (int i = 0; i < n_phys_segs && i < MAX_FVI_SEGS; i++)
-		phys_seglist[i] = (short)result[25 + i];
-
-	return;
-#else
+	parity_snapshot(&parity_snap_after_ocaml);
+	parity_restore(&parity_snap_before);
+	// Fall through to C reference path — C is always authoritative
+#endif // USE_OX_BRIDGE
+	{
 	int ignore_obj_list[MAX_IGNORE_OBJS], n_ignore_objs;
 	int iseg;
 	int try_again;
@@ -1449,7 +1440,14 @@ void do_physics_sim(object* obj)
 		}
 	}
 	//--WE ALWYS WANT THIS IN, MATT AND MIKE DECISION ON 12/10/94, TWO MONTHS AFTER FINAL 	#endif
-#endif // USE_OX_BRIDGE
+
+	} // end C reference path scope
+
+#ifdef USE_OX_BRIDGE
+	parity_snapshot(&parity_snap_after_c);
+	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
+		"do_physics_sim", FrameCount, obj - Objects);
+#endif
 }
 
 //--unused-- //tell us what the given object will do (as far as hiting walls) in

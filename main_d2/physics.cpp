@@ -50,7 +50,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 int do_boss_weapon_collision(object* robot, object* weapon, vms_vector* collision_point);
 #endif
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 #include "ox/parity.h"
 #endif
 
@@ -880,9 +880,8 @@ void do_physics_sim(object *obj)
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
 
-#ifdef OX_PARITY_CHECK
+	// Shadow mode: snapshot → OCaml (effects fire normally) → snapshot result → restore
 	parity_snapshot(&parity_snap_before);
-#endif
 
 	int32_t result[25 + MAX_FVI_SEGS];
 	cd_ox_do_physics_sim_d2(
@@ -901,37 +900,11 @@ void do_physics_sim(object *obj)
 		FrameTime, Physics_cheat_flag,
 		result);
 
-	// Write back results
-	obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
-	pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
-	obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
-	obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
-	obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
-	obj->segnum = result[15];
-	obj->flags = result[16];
-	pi->flags = result[17];
-	pi->turnroll = result[18];
-	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
-	// Pass retry count info to AI (mirrors C-only path at end of physics loop)
-	if (obj->control_type == CT_AI && result[22] > 0) {
-		Ai_local_info[objnum].retry_count = result[22];
-	}
-	n_phys_segs = result[23];
-	// result[24] = needs_levelling (already handled inside OCaml via PF_LEVELLING flag)
-	// result[25..25+n_phys_segs-1] = phys_seglist values
-	for (int i = 0; i < n_phys_segs && i < MAX_FVI_SEGS; i++)
-		phys_seglist[i] = (short)result[25 + i];
-
-#ifdef OX_PARITY_CHECK
 	parity_snapshot(&parity_snap_after_ocaml);
 	parity_restore(&parity_snap_before);
-	// Fall through to C reference path below
-#else
-	return;
-#endif
+	// Fall through to C reference path — C is always authoritative
 #endif // USE_OX_BRIDGE
 
-#if !defined(USE_OX_BRIDGE) || defined(OX_PARITY_CHECK)
 	{ // C reference path (scoped to avoid variable conflicts with OCaml path)
 	int ignore_obj_list[MAX_IGNORE_OBJS],n_ignore_objs;
 	int iseg;
@@ -1021,24 +994,6 @@ if (Dont_move_ai_objects)
 	//do thrust & drag
 	
 	if ((drag = obj->mtype.phys_info.drag) != 0) {
-#if defined(USE_OX_BRIDGE) && !defined(OX_PARITY_CHECK)
-		int32_t packed[10];
-		packed[0] = obj->mtype.phys_info.velocity.x;
-		packed[1] = obj->mtype.phys_info.velocity.y;
-		packed[2] = obj->mtype.phys_info.velocity.z;
-		packed[3] = obj->mtype.phys_info.thrust.x;
-		packed[4] = obj->mtype.phys_info.thrust.y;
-		packed[5] = obj->mtype.phys_info.thrust.z;
-		packed[6] = drag;
-		packed[7] = obj->mtype.phys_info.mass;
-		packed[8] = obj->mtype.phys_info.flags;
-		packed[9] = sim_time;
-		int32_t out[3];
-		cd_ox_do_physics_drag(packed, 10, out);
-		obj->mtype.phys_info.velocity.x = out[0];
-		obj->mtype.phys_info.velocity.y = out[1];
-		obj->mtype.phys_info.velocity.z = out[2];
-#else
 		int count;
 		vms_vector accel;
 		fix r,k;
@@ -1076,7 +1031,6 @@ if (Dont_move_ai_objects)
 
 			vm_vec_scale(&obj->mtype.phys_info.velocity,total_drag);
 		}
-#endif
 	}
 
 	#ifdef EXTRA_DEBUG
@@ -1147,6 +1101,16 @@ save_p1 = *fq.p1;
 
 
 		fate = find_vector_intersection(&fq,&hit_info);
+		if (objnum == 50) {
+			static int cfvi50_count = 0;
+			if (cfvi50_count < 120) {
+				fprintf(stderr, "CFVI50 c=%d p0=(%d,%d,%d) p1=(%d,%d,%d) seg=%d rad=%d -> fate=%d hit=(%d,%d,%d) hseg=%d wn=(%d,%d,%d)\n",
+					cfvi50_count, fq.p0->x, fq.p0->y, fq.p0->z, fq.p1->x, fq.p1->y, fq.p1->z, fq.startseg, fq.rad,
+					fate, hit_info.hit_pnt.x, hit_info.hit_pnt.y, hit_info.hit_pnt.z, hit_info.hit_seg,
+					hit_info.hit_wallnorm.x, hit_info.hit_wallnorm.y, hit_info.hit_wallnorm.z);
+			}
+			cfvi50_count++;
+		}
 		//	Matt: Mike's hack.
 		if (fate == HIT_OBJECT) {
 			object	*objp = &Objects[hit_info.hit_object];
@@ -1504,7 +1468,6 @@ save_p1 = *fq.p1;
 	if (obj->mtype.phys_info.flags & PF_LEVELLING)
 		do_physics_align_object( obj );
 
-
 	//hack to keep player from going through closed doors
 	if (obj->type==OBJ_PLAYER && obj->segnum!=orig_segnum && (Physics_cheat_flag!=0xBADA55) ) {
 		int sidenum;
@@ -1572,14 +1535,13 @@ save_p1 = *fq.p1;
 	}
 //--WE ALWYS WANT THIS IN, MATT AND MIKE DECISION ON 12/10/94, TWO MONTHS AFTER FINAL 	#endif
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 	parity_snapshot(&parity_snap_after_c);
 	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
 		"do_physics_sim", FrameCount, obj - Objects);
 	// C result is canonical (already in place)
 #endif
 	} // end C reference path scope
-#endif // !USE_OX_BRIDGE || OX_PARITY_CHECK
 
 }
 

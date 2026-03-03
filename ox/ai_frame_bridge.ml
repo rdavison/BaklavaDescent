@@ -127,6 +127,11 @@ external effect_move_away_from_player
   -> unit
   = "cd_ox_effect_af_move_away_from_player"
 
+external effect_invalidate_escort_goal
+  :  unit
+  -> unit
+  = "cd_ox_effect_af_invalidate_escort_goal"
+
 external effect_laser_create_new_easy
   :  int
   -> int
@@ -139,6 +144,16 @@ external effect_laser_create_new_easy
   -> unit
   = "cd_ox_effect_af_laser_create_new_easy_bytecode"
     "cd_ox_effect_af_laser_create_new_easy"
+
+external effect_do_companion_extras
+  :  int -> int -> int -> int -> int -> int -> int
+  = "cd_ox_effect_af_do_companion_extras_bytecode"
+    "cd_ox_effect_af_do_companion_extras"
+
+external effect_do_thief_extras
+  :  int -> int -> int -> int -> int -> int
+  = "cd_ox_effect_af_do_thief_extras_bytecode"
+    "cd_ox_effect_af_do_thief_extras"
 
 (* Effect handler *)
 let ai_frame_effect_handler
@@ -261,11 +276,26 @@ let ai_frame_effect_handler
       (fun k ->
         effect_move_away_from_player ();
         Effect.Deep.continue k ())
+  | Ox_ai_frame.Invalidate_escort_goal ->
+    Some
+      (fun k ->
+        effect_invalidate_escort_goal ();
+        Effect.Deep.continue k ())
   | Ox_ai_frame.Laser_create_new_easy (fvx, fvy, fvz, fpx, fpy, fpz, objnum, weapon_id) ->
     Some
       (fun k ->
         effect_laser_create_new_easy fvx fvy fvz fpx fpy fpz objnum weapon_id;
         Effect.Deep.continue k ())
+  | Ox_ai_frame.Do_companion_extras (dist, vis, vtpx, vtpy, vtpz, mode) ->
+    Some
+      (fun k ->
+        let nf = effect_do_companion_extras dist vis vtpx vtpy vtpz mode in
+        Effect.Deep.continue k nf)
+  | Ox_ai_frame.Do_thief_extras (dist, vis, vtpx, vtpy, vtpz) ->
+    Some
+      (fun k ->
+        let nf = effect_do_thief_extras dist vis vtpx vtpy vtpz in
+        Effect.Deep.continue k nf)
   | _ -> None
 ;;
 
@@ -341,7 +371,10 @@ let cd_do_ai_frame_d1
          ~ai_evaded_in)
     ()
     { retc = (fun x -> x)
-    ; exnc = raise
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX_SHADOW: D1 ai_frame exception: %s\n" (Exn.to_string exn);
+        Out_channel.flush stderr;
+        Array.create ~len:50 0)
     ; effc = (fun (type a) (eff : a Effect.t) -> ai_frame_effect_handler eff)
     }
 ;;
@@ -438,7 +471,10 @@ let cd_do_ai_frame_d2
          ~seg_station_enabled)
     ()
     { retc = (fun x -> x)
-    ; exnc = raise
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX_SHADOW: D2 ai_frame exception: %s\n" (Exn.to_string exn);
+        Out_channel.flush stderr;
+        Array.create ~len:50 0)
     ; effc = (fun (type a) (eff : a Effect.t) -> ai_frame_effect_handler eff)
     }
 ;;

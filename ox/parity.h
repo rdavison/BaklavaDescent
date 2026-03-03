@@ -4,7 +4,7 @@
  * Snapshots full game state before/after OCaml and C execution paths,
  * compares field-by-field, and logs divergences. C path is canonical.
  *
- * Compile with OX_PARITY_CHECK to enable. Zero overhead when disabled.
+ * Compile with USE_OX_BRIDGE to enable. Zero overhead when disabled.
  *
  * Runtime control:
  *   OX_PARITY_ASSERT=1  - crash on first divergence
@@ -14,7 +14,7 @@
 #ifndef OX_PARITY_H
 #define OX_PARITY_H
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +31,7 @@ struct wall;
 #define PARITY_MAX_OBJECTS  350
 #define PARITY_MAX_PLAYERS  8
 #define PARITY_MAX_WALLS    254
+#define PARITY_MAX_SEGMENTS 900
 
 typedef struct game_state_snapshot {
 	/* Object array - only up to Highest_object_index+1 are meaningful */
@@ -38,6 +39,10 @@ typedef struct game_state_snapshot {
 	struct ai_local ai_local_info[PARITY_MAX_OBJECTS];
 	struct player   players[PARITY_MAX_PLAYERS];
 	struct wall     walls[PARITY_MAX_WALLS];
+
+	/* Per-segment object list heads (obj_relink modifies these) */
+	short           seg_objects[PARITY_MAX_SEGMENTS];
+	int             highest_segment_index;
 
 	/* Key globals */
 	unsigned int    rand_state;
@@ -91,6 +96,6 @@ extern game_state_snapshot parity_snap_after_c;
 }
 #endif
 
-#endif /* OX_PARITY_CHECK */
+#endif /* USE_OX_BRIDGE */
 
 #endif /* OX_PARITY_H */

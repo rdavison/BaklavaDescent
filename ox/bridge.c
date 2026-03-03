@@ -194,7 +194,10 @@ static cd_effect_af_do_thief_frame_fn g_effect_af_do_thief_frame = NULL;
 static cd_effect_af_do_any_robot_dying_frame_fn g_effect_af_do_any_robot_dying_frame = NULL;
 static cd_effect_af_make_nearby_robot_snipe_fn g_effect_af_make_nearby_robot_snipe = NULL;
 static cd_effect_af_move_away_from_player_fn g_effect_af_move_away_from_player_af = NULL;
+static cd_effect_af_invalidate_escort_goal_fn g_effect_af_invalidate_escort_goal_af = NULL;
 static cd_effect_af_laser_create_new_easy_fn g_effect_af_laser_create_new_easy = NULL;
+static cd_effect_af_do_companion_extras_fn g_effect_af_do_companion_extras = NULL;
+static cd_effect_af_do_thief_extras_fn g_effect_af_do_thief_extras = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
 
@@ -3448,7 +3451,12 @@ void cd_ox_find_vector_intersection(const int32_t* packed, int packed_len,
     arr = caml_alloc(packed_len, 0);
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
-    result = caml_callback(*g_find_vector_intersection, arr);
+    result = caml_callback_exn(*g_find_vector_intersection, arr);
+    if (Is_exception_result(result)) {
+        fprintf(stderr, "OX_SHADOW: cd_ox_find_vector_intersection exception, falling back to C\n");
+        *out_len = 0;
+        CAMLreturn0;
+    }
     int result_len = Wosize_val(result);
     *out_len = result_len;
     for (int i = 0; i < result_len; i++)
@@ -3766,7 +3774,10 @@ void cd_ox_register_ai_frame_effects(
     cd_effect_af_do_any_robot_dying_frame_fn do_any_robot_dying_frame,
     cd_effect_af_make_nearby_robot_snipe_fn make_nearby_robot_snipe,
     cd_effect_af_move_away_from_player_fn move_away_from_player,
-    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy)
+    cd_effect_af_invalidate_escort_goal_fn invalidate_escort_goal,
+    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy,
+    cd_effect_af_do_companion_extras_fn do_companion_extras,
+    cd_effect_af_do_thief_extras_fn do_thief_extras)
 {
     g_effect_af_multiplayer_awareness = multiplayer_awareness;
     g_effect_af_robot_hit_attack = robot_hit_attack;
@@ -3791,7 +3802,10 @@ void cd_ox_register_ai_frame_effects(
     g_effect_af_do_any_robot_dying_frame = do_any_robot_dying_frame;
     g_effect_af_make_nearby_robot_snipe = make_nearby_robot_snipe;
     g_effect_af_move_away_from_player_af = move_away_from_player;
+    g_effect_af_invalidate_escort_goal_af = invalidate_escort_goal;
     g_effect_af_laser_create_new_easy = laser_create_new_easy;
+    g_effect_af_do_companion_extras = do_companion_extras;
+    g_effect_af_do_thief_extras = do_thief_extras;
 }
 
 CAMLprim value cd_ox_effect_af_multiplayer_awareness(value v_agitation)
@@ -4038,6 +4052,14 @@ CAMLprim value cd_ox_effect_af_move_away_from_player(value unit)
     return Val_unit;
 }
 
+CAMLprim value cd_ox_effect_af_invalidate_escort_goal(value unit)
+{
+    (void)unit;
+    if (g_effect_af_invalidate_escort_goal_af)
+        g_effect_af_invalidate_escort_goal_af();
+    return Val_unit;
+}
+
 CAMLprim value cd_ox_effect_af_laser_create_new_easy(
     value v_fvx, value v_fvy, value v_fvz,
     value v_fpx, value v_fpy, value v_fpz,
@@ -4056,6 +4078,36 @@ CAMLprim value cd_ox_effect_af_laser_create_new_easy_bytecode(value* argv, int a
     (void)argn;
     return cd_ox_effect_af_laser_create_new_easy(
         argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
+}
+
+CAMLprim value cd_ox_effect_af_do_companion_extras(
+    value v_dist, value v_vis, value v_vtpx, value v_vtpy, value v_vtpz, value v_mode)
+{
+    int result = 0;
+    if (g_effect_af_do_companion_extras)
+        result = g_effect_af_do_companion_extras(
+            Int_val(v_dist), Int_val(v_vis),
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz),
+            Int_val(v_mode));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_af_do_companion_extras_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_af_do_companion_extras(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+CAMLprim value cd_ox_effect_af_do_thief_extras(
+    value v_dist, value v_vis, value v_vtpx, value v_vtpy, value v_vtpz)
+{
+    int result = 0;
+    if (g_effect_af_do_thief_extras)
+        result = g_effect_af_do_thief_extras(
+            Int_val(v_dist), Int_val(v_vis),
+            Int_val(v_vtpx), Int_val(v_vtpy), Int_val(v_vtpz));
+    return Val_int(result);
 }
 
 /* AI frame entry points */

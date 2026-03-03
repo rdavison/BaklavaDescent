@@ -1068,6 +1068,13 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 
 	Buddy_objnum = objp-Objects;
 
+	if (objnum == 28) {
+		int ttv = time_to_visit_player(objp, ailp, aip);
+		fprintf(stderr, "ESCORT28_DETAIL mode=%d ego=%d elpc=%d blsp=%d blppc=%d ttv=%d gt=%d\n",
+			ailp->mode, Escort_goal_object, Escort_last_path_created, Buddy_last_seen_player,
+			Buddy_last_player_path_created, ttv, GameTime);
+	}
+
 	if (player_visibility) {
 		Buddy_last_seen_player = GameTime;
 		if (Players[Player_num].flags & PLAYER_FLAGS_HEADLIGHT_ON)	//	DAMN! MK, stupid bug, fixed 12/08/95, changed PLAYER_FLAGS_HEADLIGHT to PLAYER_FLAGS_HEADLIGHT_ON
@@ -1121,6 +1128,7 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 	//	Force checking for new goal every 5 seconds, and create new path, if necessary.
 	if (((Escort_special_goal != ESCORT_GOAL_SCRAM) && ((Escort_last_path_created + F1_0*5) < GameTime)) ||
 		((Escort_special_goal == ESCORT_GOAL_SCRAM) && ((Escort_last_path_created + F1_0*15) < GameTime))) {
+		fprintf(stderr, "ESCORT28_TIMER_RESET ego_was=%d gt=%d\n", Escort_goal_object, GameTime);
 		Escort_goal_object = ESCORT_GOAL_UNSPECIFIED;
 		Escort_last_path_created = GameTime;
 	}
@@ -1128,6 +1136,8 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 	if ((Escort_special_goal != ESCORT_GOAL_SCRAM) && time_to_visit_player(objp, ailp, aip)) {
 		int	max_len;
 
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "ESCORT28_BRANCH=visit_player gt=%d\n", GameTime);
 		Buddy_last_player_path_created = GameTime;
 		ailp->mode = AIM_GOTO_PLAYER;
 		if (!player_visibility) {
@@ -1146,8 +1156,12 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 		ailp->mode = AIM_GOTO_PLAYER;
 	}	else if (GameTime - Buddy_last_seen_player > MAX_ESCORT_TIME_AWAY) {
 		//	This is to prevent buddy from looking for a goal, which he will do because we only allow path creation once/second.
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "ESCORT28_BRANCH=time_away gt=%d\n", GameTime);
 		return;
 	} else if ((ailp->mode == AIM_GOTO_PLAYER) && (dist_to_player < MIN_ESCORT_DISTANCE)) {
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "ESCORT28_BRANCH=goto_object gt=%d\n", GameTime);
 		Escort_goal_object = escort_set_goal_object();
 		ailp->mode = AIM_GOTO_OBJECT;		//	May look stupid to be before path creation, but ai_door_is_openable uses mode to determine what doors can be got through
 		escort_create_path_to_goal(objp);
@@ -1159,6 +1173,8 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 		}
 		ailp->mode = AIM_GOTO_OBJECT;
 	} else if (Escort_goal_object == ESCORT_GOAL_UNSPECIFIED) {
+		if (objnum == 28 && GameTime > 253000 && GameTime < 255000)
+			fprintf(stderr, "ESCORT28_BRANCH=unspecified gt=%d\n", GameTime);
 		if ((ailp->mode != AIM_GOTO_PLAYER) || (dist_to_player < MIN_ESCORT_DISTANCE)) {
 			Escort_goal_object = escort_set_goal_object();
 			ailp->mode = AIM_GOTO_OBJECT;		//	May look stupid to be before path creation, but ai_door_is_openable uses mode to determine what doors can be got through
@@ -1178,6 +1194,7 @@ void do_escort_frame(object *objp, fix dist_to_player, int player_visibility)
 
 void invalidate_escort_goal(void)
 {
+	fprintf(stderr, "INVALIDATE_ESCORT_GOAL ego_was=%d gt=%d\n", Escort_goal_object, GameTime);
 	Escort_goal_object = -1;
 }
 

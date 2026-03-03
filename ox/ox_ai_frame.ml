@@ -152,9 +152,18 @@ type _ Effect.t +=
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
   | Move_away_from_player : unit Effect.t
+  | Invalidate_escort_goal : unit Effect.t
   | Laser_create_new_easy :
       (int * int * int * int * int * int * int * int)
       -> unit Effect.t
+  (* Do_companion_extras: danger laser evasion + flare firing for companion robot.
+     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, mode)
+     Returns: updated next_fire *)
+  | Do_companion_extras : (int * int * int * int * int * int) -> int Effect.t
+  (* Do_thief_extras: flare firing for thief robot.
+     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz)
+     Returns: updated next_fire *)
+  | Do_thief_extras : (int * int * int * int * int) -> int Effect.t
 
 (* Ai_fire_laser_at_player args: gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz
    D1: gun_num=0, fire_pos=(0,0,0) ignored on C side
@@ -1489,6 +1498,7 @@ let do_ai_frame_d2
   let believed_player_pos = ref (believed_x, believed_y, believed_z) in
   let obj_ref = objnum lxor frame_count in
   let early_return_flag = ref 0 in
+  let mode_case_vis = ref (-1) in
   (* Helper: compute visibility *)
   let compute_vis () =
     if !visibility_and_vec_computed = 0
@@ -1506,7 +1516,7 @@ let do_ai_frame_d2
   in
   (* Helper: pack result *)
   let pack_result () =
-    let r = Array.create ~len:(ai_state_size + 6) 0 in
+    let r = Array.create ~len:(ai_state_size + 7) 0 in
     r.(idx_skip_ai_count) <- !skip_ai_count;
     r.(idx_goal_state) <- !goal_state;
     r.(idx_current_state) <- !current_state;
@@ -1545,6 +1555,7 @@ let do_ai_frame_d2
     r.(ai_state_size + 3) <- rotthrust.(2);
     r.(ai_state_size + 4) <- !object_animates;
     r.(ai_state_size + 5) <- !early_return_flag;
+    r.(ai_state_size + 6) <- !mode_case_vis;
     r
   in
   (* Helper: fire actual D2 *)
@@ -1653,6 +1664,10 @@ let do_ai_frame_d2
     else (
       let exception Early_return in
       (try
+      if objnum = 28 && game_time > 274000 && game_time < 278000 then (
+        Printf.eprintf "OX28_D2_ENTRY gt=%d pat=%d mode=%d\n"
+          game_time !player_awareness_type !mode;
+        flush stderr);
       (* Phase: unflinch (D2 uses ready_to_fire) *)
       if
         !goal_state = ais_flin
@@ -1737,11 +1752,16 @@ let do_ai_frame_d2
         if !consecutive_retries > 3
         then (
           (match !mode with
+           | m when m = aim_goto_player ->
+             Effect.perform Move_towards_segment_center;
+             Effect.perform (Create_path_to_player (100, 1))
+           | m when m = aim_goto_object ->
+             Effect.perform Invalidate_escort_goal
            | m when m = aim_chase_object ->
              Effect.perform
                (Create_path_to_player (4 + (overall_agitation / 8) + difficulty_level, 1))
            | m when m = aim_still ->
-             if not (!behavior = aib_still || !behavior = aib_station)
+             if not (!behavior = aib_still || !behavior = aib_station || !behavior = aib_follow)
              then Effect.perform Attempt_to_resume_path
            | m when m = aim_follow_path ->
              if game_mode land gm_multi <> 0
@@ -1752,15 +1772,9 @@ let do_ai_frame_d2
              Effect.perform (Create_n_segment_path (5, -1));
              mode := aim_run_from_object
            | m when m = aim_behind ->
-             Effect.perform Move_towards_segment_center;
-             Effect.perform (Create_n_segment_path (5, -1));
-             mode := aim_behind
-           | m when m = aim_behind ->
-             Effect.perform Move_towards_segment_center;
-             if overall_agitation > 50 - (difficulty_level * 4)
-             then Effect.perform (Create_path_to_player (4 + (overall_agitation / 8), 1))
-             else Effect.perform (Create_n_segment_path (5, -1))
-           | m when m = aim_open_door -> Effect.perform (Create_n_segment_path (5, -1))
+             Effect.perform Move_towards_segment_center
+           | m when m = aim_open_door ->
+             Effect.perform (Create_n_segment_path_to_door (5, -1))
            | _ -> ());
           consecutive_retries := 0))
       else consecutive_retries := !consecutive_retries / 2;
@@ -1769,6 +1783,8 @@ let do_ai_frame_d2
       if game_mode land gm_multi = 0 && seg_special = segment_is_robotmaker
          && seg_station_enabled <> 0
       then (
+        if objnum = 28 && game_time > 270000 && game_time < 280000 then (
+          Printf.eprintf "OX28_ROBOTMAKER_EXIT gt=%d\n" game_time; flush stderr);
         Effect.perform (Ai_follow_path (1, 1, 0, 0, 0));
         raise Early_return);
       (* Phase: awareness decay *)
@@ -1805,6 +1821,10 @@ let do_ai_frame_d2
                   then Effect.perform (Create_n_segment_path (5, 1))
                   else Effect.perform (Create_path_to_player (20, 1)))));
       (* Phase: collision awareness + visibility agitation *)
+      if objnum = 28 && game_time > 270000 && game_time < 280000 then (
+        Printf.eprintf "OX28_VISAGIT pat=%d prev_vis=%d obj_ref=%d dist=%d gt=%d\n"
+          !player_awareness_type !previous_visibility obj_ref !dist_to_player game_time;
+        flush stderr);
       if
         !player_awareness_type = pa_weapon_robot_collision
         || !player_awareness_type >= pa_player_collision
@@ -1818,6 +1838,11 @@ let do_ai_frame_d2
       then (
         let rval = Effect.perform P_Rand in
         let sval = !dist_to_player * (difficulty_level + 1) / 64 in
+        if objnum = 28 && game_time > 270000 && game_time < 280000 then (
+          Printf.eprintf "OX28_RAND rval=%d sval=%d fm=%d dist=%d prev=%d result=%d headlight=%d gt=%d\n"
+            rval sval frame_time !dist_to_player !previous_visibility
+            (Ox_math.fixmul ~a:rval ~b:sval) (player_flags land player_flags_headlight_on) game_time;
+          flush stderr);
         if Ox_math.fixmul ~a:rval ~b:sval < frame_time
            || player_flags land player_flags_headlight_on <> 0
         then (
@@ -1880,7 +1905,12 @@ let do_ai_frame_d2
       then (
         compute_vis ();
         let new_mode = Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)) in
-        mode := new_mode);
+        mode := new_mode;
+        (* Companion extras: danger laser evasion + flare firing (C lines 1433-1466) *)
+        let vtpx, vtpy, vtpz = !vec_to_player in
+        let new_nf = Effect.perform
+          (Do_companion_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode)) in
+        next_fire := new_nf);
       (* Thief section: runs independently of snipe (thief has AIB_SNIPE behavior) *)
       if thief <> 0
       then (
@@ -1888,7 +1918,11 @@ let do_ai_frame_d2
         let vtpx, vtpy, vtpz = !vec_to_player in
         Effect.perform
           (Do_thief_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz,
-                           !player_awareness_type, !player_awareness_time)));
+                           !player_awareness_type, !player_awareness_time));
+        (* Thief extras: flare firing (C lines 1478-1494) *)
+        let new_nf = Effect.perform
+          (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz)) in
+        next_fire := new_nf);
       (* Phase: mode dispatch (D2) *)
       (match !mode with
        | m when m = aim_chase_object ->
@@ -2126,6 +2160,11 @@ let do_ai_frame_d2
          (* Thief modes handled by Do_thief_frame effect above *)
          ()
        | _ -> mode := aim_chase_object);
+      (* Save mode-case visibility before catch-all compute_vis.
+         C-only's movement code runs within the mode case, using player_visibility
+         as set by compute_vis_and_vec in that mode case (or -1 if not called).
+         The bridge needs this value for movement dispatch, not the catch-all result. *)
+      mode_case_vis := !player_visibility;
       (* Phase: final visibility *)
       compute_vis ();
       if !player_visibility = 2 && !behavior <> aib_follow && thief = 0

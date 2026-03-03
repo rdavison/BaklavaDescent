@@ -24,7 +24,13 @@ type vec3 = int * int * int
 let compute_center_point_on_side ~(v0 : vec3) ~(v1 : vec3) ~(v2 : vec3) ~(v3 : vec3)
   : vec3
   =
-  Ox_math.vm_vec_avg4 ~a:v0 ~b:v1 ~c:v2 ~d:v3
+  (* C uses vm_vec_add2 loop + vm_vec_scale(F1_0/4), NOT vm_vec_avg4.
+     fixmul rounds toward -inf for negatives, / 4 rounds toward zero. *)
+  let open Ox_math in
+  let s = vm_vec_add2 ~a:(vm_vec_add2 ~a:(vm_vec_add2 ~a:v0 ~b:v1) ~b:v2) ~b:v3 in
+  let sx, sy, sz = s in
+  let scale = 0x10000 / 4 in
+  fixmul ~a:sx ~b:scale, fixmul ~a:sy ~b:scale, fixmul ~a:sz ~b:scale
 ;;
 
 let compute_segment_center
@@ -57,7 +63,8 @@ let compute_segment_center
       ~b:v7
   in
   let sx, sy, sz = s in
-  sx / 8, sy / 8, sz / 8
+  let scale = 0x10000 / 8 in
+  Ox_math.fixmul ~a:sx ~b:scale, Ox_math.fixmul ~a:sy ~b:scale, Ox_math.fixmul ~a:sz ~b:scale
 ;;
 
 let get_verts_for_normal ~va ~vb ~vc ~vd =

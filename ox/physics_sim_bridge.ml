@@ -553,6 +553,7 @@ let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
       (p0x, p0y, p0z, p1x, p1y, p1z, rad, thisobjnum, ignore_list, flags, startseg) ->
     Some
       (fun k ->
+        try
         let query =
           [| p0x
            ; p0y
@@ -598,7 +599,12 @@ let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
           , wn_y
           , wn_z
           , n_segs
-          , seglist ))
+          , seglist )
+        with Invalid_argument _ ->
+          Printf.eprintf "OX_SHADOW: FVI exception, returning HIT_NONE\n";
+          Out_channel.flush stderr;
+          (* Return HIT_NONE with dummy values *)
+          Effect.Deep.continue k (0, p0x, p0y, p0z, startseg, 0, -1, -1, 0, 0, 0, 0, [||]))
   | Ox_physics_sim.Collide_object_with_wall
       (hit_speed, wall_seg, wall_side, hit_px, hit_py, hit_pz, obj_flags) ->
     Some
@@ -784,7 +790,10 @@ let cd_do_physics_sim_d1
          ~physics_cheat_flag)
     ()
     { retc = (fun x -> x)
-    ; exnc = raise
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX_SHADOW: D1 physics_sim exception: %s\n" (Exn.to_string exn);
+        Out_channel.flush stderr;
+        Array.create ~len:25 0)
     ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler ~is_d2:false eff)
     }
 ;;
@@ -867,7 +876,10 @@ let cd_do_physics_sim_d2
          ~physics_cheat_flag)
     ()
     { retc = (fun x -> x)
-    ; exnc = raise
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX_SHADOW: D2 physics_sim exception: %s\n" (Exn.to_string exn);
+        Out_channel.flush stderr;
+        Array.create ~len:25 0)
     ; effc = (fun (type a) (eff : a Effect.t) -> physics_sim_effect_handler ~is_d2:true eff)
     }
 ;;

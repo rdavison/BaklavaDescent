@@ -758,6 +758,8 @@ void create_path_to_player(object *objp, int max_length, int safety_flag)
 		aip->PATH_DIR = 1;		//	Initialize to moving forward.
 		// -- UNUSED! aip->SUBMODE = AISM_GOHIDE;		//	This forces immediate movement.
 		ailp->mode = AIM_FOLLOW_PATH;
+		if ((objp - Objects) == 28 && GameTime > 240000 && GameTime < 270000)
+			fprintf(stderr, "CTP_ZERO28 pat_before=%d gt=%d\n", ailp->player_awareness_type, GameTime);
 		ailp->player_awareness_type = 0;		//	If robot too aware of player, will set mode to chase
 		// mprintf((0, "Created %i segment path to player.\n", aip->path_length));
 	}
@@ -797,6 +799,8 @@ void create_path_to_segment(object *objp, int goalseg, int max_length, int safet
 
 		aip->PATH_DIR = 1;		//	Initialize to moving forward.
 		// -- UNUSED! aip->SUBMODE = AISM_GOHIDE;		//	This forces immediate movement.
+		if ((objp - Objects) == 28 && GameTime > 240000 && GameTime < 270000)
+			fprintf(stderr, "CTS_ZERO28 pat_before=%d gt=%d\n", ailp->player_awareness_type, GameTime);
 		ailp->player_awareness_type = 0;		//	If robot too aware of player, will set mode to chase
 	}
 
@@ -845,6 +849,8 @@ void create_path_to_station(object *objp, int max_length)
 		aip->PATH_DIR = 1;		//	Initialize to moving forward.
 		// aip->SUBMODE = AISM_GOHIDE;		//	This forces immediate movement.
 		ailp->mode = AIM_FOLLOW_PATH;
+		if ((objp - Objects) == 28 && GameTime > 240000 && GameTime < 270000)
+			fprintf(stderr, "CTST_ZERO28 pat_before=%d gt=%d\n", ailp->player_awareness_type, GameTime);
 		ailp->player_awareness_type = 0;
 	}
 
@@ -1360,7 +1366,15 @@ void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player
 		vec_to_player ? vec_to_player->z : 0,                             // 26
 	};
 	int32_t out[12];
+	if ((objp - Objects) == 50) {
+		fprintf(stderr, "OX_APSOV50 IN vel=(%d,%d,%d) pos=(%d,%d,%d) fvec=(%d,%d,%d) goal=(%d,%d,%d) maxspd=%d\n",
+			packed[0],packed[1],packed[2], packed[3],packed[4],packed[5],
+			packed[6],packed[7],packed[8], packed[12],packed[13],packed[14], packed[15]);
+	}
 	cd_ox_ai_path_set_orient_and_vel(packed, 27, out);
+	if ((objp - Objects) == 50) {
+		fprintf(stderr, "OX_APSOV50 OUT vel=(%d,%d,%d)\n", out[0], out[1], out[2]);
+	}
 	objp->mtype.phys_info.velocity.x = out[0];
 	objp->mtype.phys_info.velocity.y = out[1];
 	objp->mtype.phys_info.velocity.z = out[2];
@@ -1389,6 +1403,14 @@ void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player
 	if ((Ai_local_info[objp-Objects].mode == AIM_RUN_FROM_OBJECT) || (objp->ctype.ai_info.behavior == AIB_SNIPE))
 		max_speed = max_speed*3/2;
 
+	if ((objp - Objects) == 50) {
+		fprintf(stderr, "C_APSOV50 IN vel=(%d,%d,%d) pos=(%d,%d,%d) fvec=(%d,%d,%d) goal=(%d,%d,%d) maxspd=%d\n",
+			cur_vel.x, cur_vel.y, cur_vel.z,
+			cur_pos.x, cur_pos.y, cur_pos.z,
+			objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+			goal_point->x, goal_point->y, goal_point->z, max_speed);
+	}
+
 	vm_vec_sub(&norm_vec_to_goal, goal_point, &cur_pos);
 	vm_vec_normalize_quick(&norm_vec_to_goal);
 
@@ -1399,6 +1421,13 @@ void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player
 	vm_vec_normalize_quick(&norm_fvec);
 
 	dot = vm_vec_dot(&norm_vec_to_goal, &norm_fvec);
+
+	if ((objp - Objects) == 50) {
+		fprintf(stderr, "C_APSOV50 norms: nvg=(%d,%d,%d) ncv=(%d,%d,%d) nf=(%d,%d,%d) dot=%d\n",
+			norm_vec_to_goal.x, norm_vec_to_goal.y, norm_vec_to_goal.z,
+			norm_cur_vel.x, norm_cur_vel.y, norm_cur_vel.z,
+			norm_fvec.x, norm_fvec.y, norm_fvec.z, dot);
+	}
 
 	//	If very close to facing opposite desired vector, perturb vector
 	if (dot < -15*F1_0/16) {
@@ -1427,6 +1456,12 @@ void ai_path_set_orient_and_vel(object *objp, vms_vector *goal_point, int player
 
 	speed_scale = fixmul(max_speed, dot);
 	vm_vec_scale(&norm_cur_vel, speed_scale);
+
+	if ((objp - Objects) == 50) {
+		fprintf(stderr, "C_APSOV50 final: ncv=(%d,%d,%d) spd=%d dot=%d\n",
+			norm_cur_vel.x, norm_cur_vel.y, norm_cur_vel.z, speed_scale, dot);
+	}
+
 	objp->mtype.phys_info.velocity = norm_cur_vel;
 
 	if ((Ai_local_info[objp-Objects].mode == AIM_RUN_FROM_OBJECT) || (robptr->companion == 1) || (objp->ctype.ai_info.behavior == AIB_SNIPE)) {

@@ -5,7 +5,7 @@
  * Used to detect divergences between OCaml and C execution paths.
  */
 
-#ifdef OX_PARITY_CHECK
+#ifdef USE_OX_BRIDGE
 
 #include <cstdio>
 #include <cstdlib>
@@ -18,6 +18,8 @@
 #include "main_d2/aistruct.h"
 #include "main_d2/player.h"
 #include "main_d2/wall.h"
+#include "main_d2/segment.h"
+#include "main_d2/gameseg.h"
 #include "main_shared/game_shared.h"
 #include "misc/rand.h"
 #else
@@ -26,6 +28,8 @@
 #include "main_d1/aistruct.h"
 #include "main_d1/player.h"
 #include "main_d1/wall.h"
+#include "main_d1/segment.h"
+#include "main_d1/gameseg.h"
 #include "main_shared/game_shared.h"
 #include "misc/rand.h"
 #endif
@@ -98,6 +102,14 @@ void parity_snapshot(game_state_snapshot *dst)
 	if (n_walls > 0)
 		memcpy(dst->walls, Walls, n_walls * sizeof(wall));
 
+	/* Save per-segment object list heads */
+	int n_segs = Highest_segment_index + 1;
+	if (n_segs > PARITY_MAX_SEGMENTS)
+		n_segs = PARITY_MAX_SEGMENTS;
+	for (int i = 0; i < n_segs; i++)
+		dst->seg_objects[i] = Segments[i].objects;
+	dst->highest_segment_index = Highest_segment_index;
+
 	dst->rand_state = P_Rand_get_state();
 	dst->highest_object_index = Highest_object_index;
 	dst->player_is_dead = Player_is_dead;
@@ -137,6 +149,13 @@ void parity_restore(const game_state_snapshot *src)
 	FrameCount = src->frame_count;
 
 	P_Rand_set_state(src->rand_state);
+
+	/* Restore per-segment object list heads */
+	int n_segs = src->highest_segment_index + 1;
+	if (n_segs > PARITY_MAX_SEGMENTS)
+		n_segs = PARITY_MAX_SEGMENTS;
+	for (int i = 0; i < n_segs; i++)
+		Segments[i].objects = src->seg_objects[i];
 }
 
 /* ---- Field-by-field comparison ---- */
@@ -436,4 +455,4 @@ int parity_compare(const game_state_snapshot *a, const game_state_snapshot *b,
 	return divergences;
 }
 
-#endif /* OX_PARITY_CHECK */
+#endif /* USE_OX_BRIDGE */

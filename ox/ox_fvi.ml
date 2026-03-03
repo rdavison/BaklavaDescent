@@ -473,7 +473,9 @@ let hit_object = 2
 let hit_bad_p0 = 3
 let max_fvi_segs = 100
 let max_segs_visited = 100
+let obj_none = 255
 let obj_powerup = 7
+let max_object_types = 16
 
 (* FQ flags *)
 let fq_check_objs = 1
@@ -666,7 +668,10 @@ let get_collision_table_base (arr : int array) =
 ;;
 
 let get_collision_result (arr : int array) ~table_base ~type_a ~type_b =
-  arr.(table_base + (type_a * 16) + type_b)
+  if type_a >= max_object_types || type_b >= max_object_types
+     || type_a < 0 || type_b < 0
+  then result_nothing
+  else arr.(table_base + (type_a * 16) + type_b)
 ;;
 
 (* Compute base offsets for segments and objects in packed array *)
@@ -743,6 +748,10 @@ let rec fvi_sub
       in
       (* Apply all the skip conditions from C *)
       let skip = ref false in
+      (* Skip OBJ_NONE (type=255) - dead objects shouldn't be checked.
+         In C, the collision table OOB read happens to return RESULT_NOTHING
+         for type=255, but in OCaml it reads segment data instead. *)
+      if obj_type_ob = obj_none then skip := true;
       if obj_flags_ob land 2 <> 0 then skip := true (* OF_SHOULD_BE_DEAD = 2 *);
       if thisobjnum = ob then skip := true;
       if (not !skip) && obj_in_ignore_list arr ~ignore_count ~objnum:ob then skip := true;

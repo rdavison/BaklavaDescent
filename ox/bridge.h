@@ -992,9 +992,19 @@ typedef void (*cd_effect_af_do_thief_frame_fn)(int dist, int vis,
 typedef int  (*cd_effect_af_do_any_robot_dying_frame_fn)(void);
 typedef void (*cd_effect_af_make_nearby_robot_snipe_fn)(void);
 typedef void (*cd_effect_af_move_away_from_player_fn)(void);
+typedef void (*cd_effect_af_invalidate_escort_goal_fn)(void);
 typedef void (*cd_effect_af_laser_create_new_easy_fn)(int fvx, int fvy, int fvz,
                                                        int fpx, int fpy, int fpz,
                                                        int objnum, int weapon_id);
+/* Do_companion_extras: danger laser evasion + flare firing for companion.
+   Returns updated next_fire. */
+typedef int (*cd_effect_af_do_companion_extras_fn)(int dist, int vis,
+                                                    int vtpx, int vtpy, int vtpz,
+                                                    int mode);
+/* Do_thief_extras: flare firing for thief.
+   Returns updated next_fire. */
+typedef int (*cd_effect_af_do_thief_extras_fn)(int dist, int vis,
+                                                int vtpx, int vtpy, int vtpz);
 
 void cd_ox_register_ai_frame_effects(
     cd_effect_af_multiplayer_awareness_fn multiplayer_awareness,
@@ -1020,7 +1030,10 @@ void cd_ox_register_ai_frame_effects(
     cd_effect_af_do_any_robot_dying_frame_fn do_any_robot_dying_frame,
     cd_effect_af_make_nearby_robot_snipe_fn make_nearby_robot_snipe,
     cd_effect_af_move_away_from_player_fn move_away_from_player,
-    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy);
+    cd_effect_af_invalidate_escort_goal_fn invalidate_escort_goal,
+    cd_effect_af_laser_create_new_easy_fn laser_create_new_easy,
+    cd_effect_af_do_companion_extras_fn do_companion_extras,
+    cd_effect_af_do_thief_extras_fn do_thief_extras);
 
 /* D1: do_ai_frame.
    ai_state is packed array (~43 ints), rinfo is packed array (~29 ints).

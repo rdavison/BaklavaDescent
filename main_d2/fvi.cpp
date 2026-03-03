@@ -941,6 +941,18 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		cd_ox_find_vector_intersection(packed, packed_len, out_buf, &out_len);
 		free(packed);
 
+		if (out_len < 12) {
+			// OCaml FVI failed (exception), return HIT_BAD_P0
+			hit_data->hit_type = HIT_BAD_P0;
+			hit_data->hit_pnt = *fq->p0;
+			hit_data->hit_seg = fq->startseg;
+			hit_data->hit_side = 0;
+			hit_data->hit_object = 0;
+			hit_data->hit_side_seg = -1;
+			hit_data->n_segs = 0;
+			return hit_data->hit_type;
+		}
+
 		hit_data->hit_type = out_buf[0];
 		hit_data->hit_pnt.x = out_buf[1];
 		hit_data->hit_pnt.y = out_buf[2];
@@ -955,6 +967,72 @@ int find_vector_intersection(fvi_query *fq,fvi_info *hit_data)
 		hit_data->n_segs = out_buf[11];
 		for (int i = 0; i < hit_data->n_segs && i < MAX_FVI_SEGS; i++)
 			hit_data->seglist[i] = out_buf[12 + i];
+
+		// DEBUG: cross-check OCaml HIT_BAD_P0 against C centermask
+		if (hit_data->hit_type == HIT_BAD_P0 && fq->thisobjnum == 50) {
+			// Compute C centermask inline
+			segment* dbg_seg = &Segments[fq->startseg];
+			int c_centermask = 0;
+			for (int sn = 0, sidebit = 1; sn < 6; sn++, sidebit <<= 1) {
+				side *s = &dbg_seg->sides[sn];
+				int num_faces, vertex_list[6];
+				create_abs_vertex_lists(&num_faces, vertex_list, fq->startseg, sn);
+				if (num_faces == 2) {
+					int vertnum = std::min(vertex_list[0], vertex_list[2]);
+					fix dist;
+					if (vertex_list[4] < vertex_list[1])
+						dist = vm_dist_to_plane(&Vertices[vertex_list[4]], &s->normals[0], &Vertices[vertnum]);
+					else
+						dist = vm_dist_to_plane(&Vertices[vertex_list[1]], &s->normals[1], &Vertices[vertnum]);
+					int side_pokes_out = (dist > 250);
+					int center_count = 0;
+					for (int fn = 0; fn < 2; fn++) {
+						dist = vm_dist_to_plane(fq->p0, &s->normals[fn], &Vertices[vertnum]);
+						if (dist < -250) center_count++;
+					}
+					if (!side_pokes_out) {
+						if (center_count == 2) c_centermask |= sidebit;
+					} else {
+						if (center_count) c_centermask |= sidebit;
+					}
+				} else {
+					int vertnum = vertex_list[0];
+					for (int i = 1; i < 4; i++)
+						if (vertex_list[i] < vertnum) vertnum = vertex_list[i];
+					fix dist = vm_dist_to_plane(fq->p0, &s->normals[0], &Vertices[vertnum]);
+					if (dist < -250) c_centermask |= sidebit;
+				}
+			}
+			static int dbg50_count = 0;
+			if (dbg50_count < 5) {
+				fprintf(stderr, "OXFVI_BAD_P0_CHECK obj50: p0=(%d,%d,%d) seg=%d ox_says=BAD_P0 c_centermask=%d\n",
+					fq->p0->x, fq->p0->y, fq->p0->z, fq->startseg, c_centermask);
+				// Also print per-side distances
+				for (int sn = 0; sn < 6; sn++) {
+					side *s = &dbg_seg->sides[sn];
+					int num_faces, vertex_list[6];
+					create_abs_vertex_lists(&num_faces, vertex_list, fq->startseg, sn);
+					if (num_faces == 2) {
+						int vertnum = std::min(vertex_list[0], vertex_list[2]);
+						for (int fn = 0; fn < 2; fn++) {
+							fix dist = vm_dist_to_plane(fq->p0, &s->normals[fn], &Vertices[vertnum]);
+							fprintf(stderr, "  side %d face %d: dist=%d (tol=%d) nf=%d vn=%d n=(%d,%d,%d)\n",
+								sn, fn, dist, 250, num_faces, vertnum,
+								s->normals[fn].x, s->normals[fn].y, s->normals[fn].z);
+						}
+					} else {
+						int vertnum = vertex_list[0];
+						for (int i = 1; i < 4; i++)
+							if (vertex_list[i] < vertnum) vertnum = vertex_list[i];
+						fix dist = vm_dist_to_plane(fq->p0, &s->normals[0], &Vertices[vertnum]);
+						fprintf(stderr, "  side %d face 0: dist=%d (tol=%d) nf=%d vn=%d n=(%d,%d,%d)\n",
+							sn, dist, 250, num_faces, vertnum,
+							s->normals[0].x, s->normals[0].y, s->normals[0].z);
+					}
+				}
+			}
+			dbg50_count++;
+		}
 
 		return hit_data->hit_type;
 	}
