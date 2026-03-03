@@ -200,6 +200,7 @@ static cd_effect_af_invalidate_escort_goal_fn g_effect_af_invalidate_escort_goal
 static cd_effect_af_laser_create_new_easy_fn g_effect_af_laser_create_new_easy = NULL;
 static cd_effect_af_do_companion_extras_fn g_effect_af_do_companion_extras = NULL;
 static cd_effect_af_do_thief_extras_fn g_effect_af_do_thief_extras = NULL;
+static cd_effect_af_read_path_state_fn g_read_path_state = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
 
@@ -3765,6 +3766,25 @@ void cd_ox_register_ai_frame_effects(
     g_effect_af_laser_create_new_easy = laser_create_new_easy;
     g_effect_af_do_companion_extras = do_companion_extras;
     g_effect_af_do_thief_extras = do_thief_extras;
+}
+
+void cd_ox_register_read_path_state(cd_effect_af_read_path_state_fn fn)
+{
+    g_read_path_state = fn;
+}
+
+CAMLprim value cd_ox_read_af_path_state(value unit)
+{
+    CAMLparam1(unit);
+    CAMLlocal1(v_result);
+    int32_t buf[11];
+    memset(buf, 0, sizeof(buf));
+    if (g_read_path_state)
+        g_read_path_state(buf);
+    v_result = caml_alloc(11, 0);
+    for (int i = 0; i < 11; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
 }
 
 CAMLprim value cd_ox_effect_af_multiplayer_awareness(value v_agitation)

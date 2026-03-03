@@ -3288,6 +3288,21 @@ void do_ai_frame(object* obj)
 				// do_thief_extras (D1: no thief)
 				[](int, int, int, int, int) -> int { return 0; }
 			);
+			cd_ox_register_read_path_state([](int32_t* out) {
+				ai_static* aip = &af_obj->ctype.ai_info;
+				ai_local* ailp = &Ai_local_info[af_obj - Objects];
+				out[0] = aip->hide_index;
+				out[1] = aip->path_length;
+				out[2] = aip->cur_path_index;
+				out[3] = aip->PATH_DIR;
+				out[4] = ailp->mode;
+				out[5] = ailp->goal_segment;
+				out[6] = ailp->time_player_seen;
+				out[7] = ailp->player_awareness_type;
+				out[8] = aip->behavior;
+				out[9] = aip->hide_segment;
+			out[10] = aip->SKIP_AI_COUNT;
+			});
 		}
 	}
 	af_obj = obj;

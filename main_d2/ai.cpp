@@ -556,6 +556,28 @@ void do_ai_frame(object* obj)
 				}
 			);
 		}
+		// Register read-back for path state (used by OCaml to get state after path effects)
+		{
+			static int reg_ps = 0;
+			if (!reg_ps) {
+				reg_ps = 1;
+				cd_ox_register_read_path_state([](int32_t* out) {
+					ai_static* aip = &af_obj->ctype.ai_info;
+					ai_local* ailp = &Ai_local_info[af_obj - Objects];
+					out[0] = aip->hide_index;
+					out[1] = aip->path_length;
+					out[2] = aip->cur_path_index;
+					out[3] = aip->PATH_DIR;
+					out[4] = ailp->mode;
+					out[5] = ailp->goal_segment;
+					out[6] = ailp->time_player_seen;
+					out[7] = ailp->player_awareness_type;
+					out[8] = aip->behavior;
+					out[9] = aip->hide_segment;
+				out[10] = aip->SKIP_AI_COUNT;
+				});
+			}
+		}
 	}
 	af_obj = obj;
 

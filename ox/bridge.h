@@ -1001,6 +1001,14 @@ void cd_ox_register_ai_frame_effects(
     cd_effect_af_do_companion_extras_fn do_companion_extras,
     cd_effect_af_do_thief_extras_fn do_thief_extras);
 
+/* Read-back for path state after effect callbacks.
+   Packs 10 ints: hide_index, path_length, cur_path_index, path_dir,
+   mode, goal_segment, time_player_seen, player_awareness_type,
+   behavior, hide_segment */
+typedef void (*cd_effect_af_read_path_state_fn)(int32_t* out);  /* out[11] */
+
+void cd_ox_register_read_path_state(cd_effect_af_read_path_state_fn fn);
+
 /* D1: do_ai_frame.
    ai_state is packed array (~43 ints), rinfo is packed array (~29 ints).
    result receives updated ai_state. */

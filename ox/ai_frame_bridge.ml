@@ -155,6 +155,8 @@ external effect_do_thief_extras
   = "cd_ox_effect_af_do_thief_extras_bytecode"
     "cd_ox_effect_af_do_thief_extras"
 
+external read_af_path_state : unit -> int array = "cd_ox_read_af_path_state"
+
 (* Effect handler *)
 let ai_frame_effect_handler
   : type a. a Effect.t -> ((a, _) Effect.Deep.continuation -> _) option
@@ -185,32 +187,38 @@ let ai_frame_effect_handler
     Some
       (fun k ->
         effect_create_path_to_player max_length safety_flag;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Create_path_to_station max_time ->
     Some
       (fun k ->
         effect_create_path_to_station max_time;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Create_n_segment_path (length, avoid_seg) ->
     Some
       (fun k ->
         effect_create_n_segment_path length avoid_seg;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Create_n_segment_path_to_door (length, avoid_seg) ->
     Some
       (fun k ->
         effect_create_n_segment_path_to_door length avoid_seg;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Attempt_to_resume_path ->
     Some
       (fun k ->
         effect_attempt_to_resume_path ();
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Ai_follow_path (vis, prev_vis, vtpx, vtpy, vtpz) ->
     Some
       (fun k ->
         effect_ai_follow_path vis prev_vis vtpx vtpy vtpz;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Move_towards_segment_center ->
     Some
       (fun k ->
@@ -250,17 +258,20 @@ let ai_frame_effect_handler
     Some
       (fun k ->
         effect_do_snipe_frame dist vis vtpx vtpy vtpz mode;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps.(4))
   | Ox_ai_frame.Do_escort_frame (dist, vis) ->
     Some
       (fun k ->
-        let new_mode = effect_do_escort_frame dist vis in
-        Effect.Deep.continue k new_mode)
+        let _new_mode = effect_do_escort_frame dist vis in
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Do_thief_frame (dist, vis, vtpx, vtpy, vtpz, pat, pat_time) ->
     Some
       (fun k ->
         effect_do_thief_frame dist vis vtpx vtpy vtpz pat pat_time;
-        Effect.Deep.continue k ())
+        let ps = read_af_path_state () in
+        Effect.Deep.continue k ps.(4))
   | Ox_ai_frame.Do_any_robot_dying_frame ->
     Some
       (fun k ->
