@@ -3400,6 +3400,39 @@ void do_ai_frame(object* obj)
 		result);
 	g_shadow_dry_run = false;
 
+	// Write back OCaml result to C state so parity snapshot captures it
+	{
+		int objnum = obj - Objects;
+		ai_static* aip2 = &obj->ctype.ai_info;
+		ai_local* ailp2 = &Ai_local_info[objnum];
+		aip2->SKIP_AI_COUNT = result[0];
+		aip2->GOAL_STATE = result[1];
+		aip2->CURRENT_STATE = result[2];
+		aip2->CURRENT_GUN = result[4];
+		aip2->cur_path_index = result[5];
+		aip2->behavior = result[6];
+		aip2->hide_index = result[7];
+		aip2->path_length = result[8];
+		aip2->danger_laser_num = result[10];
+		aip2->danger_laser_signature = result[11];
+		aip2->hide_segment = result[13];
+		ailp2->next_fire = result[14];
+		ailp2->player_awareness_type = result[16];
+		ailp2->player_awareness_time = result[17];
+		ailp2->mode = result[18];
+		ailp2->time_since_processed = result[19];
+		ailp2->consecutive_retries = result[20];
+		ailp2->retry_count = result[21];
+		for (int i = 0; i < 8; i++)
+			ailp2->goal_state[i] = result[22 + i];
+		ailp2->time_player_seen = result[30];
+		ailp2->goal_segment = result[31];
+		ailp2->rapidfire_count = result[32];
+		for (int i = 0; i < 8; i++)
+			ailp2->achieved_state[i] = result[33 + i];
+		ailp2->previous_visibility = result[41];
+	}
+
 	parity_snapshot(&parity_snap_after_ocaml);
 	parity_restore(&parity_snap_before);
 	// Fall through to C reference path — C is always authoritative

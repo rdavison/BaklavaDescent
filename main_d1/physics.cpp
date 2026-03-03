@@ -837,6 +837,20 @@ void do_physics_sim(object* obj)
 		FrameTime, Physics_cheat_flag,
 		result);
 
+	// Write back OCaml result to C object so parity snapshot captures it
+	obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
+	pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
+	obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
+	obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
+	obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
+	if (result[15] != obj->segnum) obj_relink(objnum, result[15]);
+	obj->flags = result[16];
+	pi->flags = result[17];
+	pi->turnroll = result[18];
+	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
+	if (obj->control_type == CT_AI && result[22] > 0)
+		Ai_local_info[objnum].retry_count = result[22];
+
 	parity_snapshot(&parity_snap_after_ocaml);
 	parity_restore(&parity_snap_before);
 	// Fall through to C reference path — C is always authoritative
