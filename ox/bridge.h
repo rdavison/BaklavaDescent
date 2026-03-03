@@ -1009,6 +1009,9 @@ typedef void (*cd_effect_af_read_path_state_fn)(int32_t* out);  /* out[11] */
 
 void cd_ox_register_read_path_state(cd_effect_af_read_path_state_fn fn);
 
+/* openable_doors_in_segment effect: returns side index or -1 */
+void cd_ox_register_af_openable_doors(int (*fn)(void));
+
 /* D1: do_ai_frame.
    ai_state is packed array (~43 ints), rinfo is packed array (~29 ints).
    result receives updated ai_state. */
@@ -1047,6 +1050,7 @@ void cd_ox_do_ai_frame_d2(
     int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t seg_station_enabled,
+    int32_t console_segnum,
     int32_t* result);
 
 /* -- Physics sim logic ------------------------------------------------ */

@@ -55,6 +55,7 @@ let pa_weapon_wall_collision = 2
 let pa_player_collision = 3
 let pa_weapon_robot_collision = 4
 let robot_brain = 7
+let ndl = 5
 let robot_fire_agitation = 94
 let gm_multi = 38
 let segment_is_robotmaker = 2
@@ -152,6 +153,7 @@ type _ Effect.t +=
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
   | Move_away_from_player : unit Effect.t
+  | Openable_doors_in_segment : int Effect.t  (* returns side index or -1 *)
   | Invalidate_escort_goal : unit Effect.t
   | Laser_create_new_easy :
       (int * int * int * int * int * int * int * int)
@@ -1451,6 +1453,7 @@ let do_ai_frame_d2
       ~dist_to_last_fired_upon
       ~fire_at_nearby_threshold
       ~seg_station_enabled
+      ~console_segnum
   =
   (* Unpack AI state into refs *)
   let skip_ai_count = ref ai_state.(idx_skip_ai_count) in
@@ -1914,10 +1917,41 @@ let do_ai_frame_d2
       (* Phase: brain robot (D2) *)
       if obj_id = robot_brain
       then
-        if
-          obj_segnum
-          = obj_segnum (* same segment: console_seg = obj_seg check on C side *)
-        then () (* Brain robot logic handled on C side for D2 *);
+        if console_segnum = obj_segnum
+        then (
+          let ok = Effect.perform (Ai_multiplayer_awareness 97) in
+          if not ok then raise Early_return;
+          compute_vis ();
+          Effect.perform Move_away_from_player;
+          Effect.perform (Ai_multi_send_robot_position (-1)))
+        else if !mode <> aim_still
+        then (
+          let r = Effect.perform Openable_doors_in_segment in
+          if r <> -1
+          then (
+            mode := aim_open_door;
+            goalside := r)
+          else if !mode <> aim_follow_path
+          then (
+            let ok = Effect.perform (Ai_multiplayer_awareness 50) in
+            if not ok then raise Early_return;
+            unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+            Effect.perform (Ai_multi_send_robot_position (-1)));
+          if !next_action_time < 0
+          then (
+            compute_vis ();
+            if !player_visibility > 0
+            then (
+              Effect.perform Make_nearby_robot_snipe;
+              next_action_time := (ndl - difficulty_level) * 2 * f1_0)))
+        else (
+          compute_vis ();
+          if !player_visibility > 0
+          then (
+            let ok = Effect.perform (Ai_multiplayer_awareness 50) in
+            if not ok then raise Early_return;
+            unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+            Effect.perform (Ai_multi_send_robot_position (-1))));
       (* Phase: D2 specials: snipe, escort, thief *)
       if !behavior = aib_snipe
       then (

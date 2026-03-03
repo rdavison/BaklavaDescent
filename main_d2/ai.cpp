@@ -556,6 +556,16 @@ void do_ai_frame(object* obj)
 				}
 			);
 		}
+		// Register openable_doors_in_segment effect
+		{
+			static int reg_od = 0;
+			if (!reg_od) {
+				reg_od = 1;
+				cd_ox_register_af_openable_doors([]() -> int {
+					return openable_doors_in_segment(af_obj->segnum);
+				});
+			}
+		}
 		// Register read-back for path state (used by OCaml to get state after path effects)
 		{
 			static int reg_ps = 0;
@@ -711,6 +721,7 @@ void do_ai_frame(object* obj)
 			obj->mtype.phys_info.flags, (int32_t[]){ obj->mtype.phys_info.rotthrust.x, obj->mtype.phys_info.rotthrust.y, obj->mtype.phys_info.rotthrust.z },
 			Dist_to_last_fired_upon_player_pos, F1_0 * 40, // FIRE_AT_NEARBY_PLAYER_THRESHOLD
 			seg_station_enabled,
+			ConsoleObject->segnum,
 			result);
 
 		// Write back OCaml result to C state

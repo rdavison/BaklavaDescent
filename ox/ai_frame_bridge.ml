@@ -122,6 +122,11 @@ external effect_make_nearby_robot_snipe
   -> unit
   = "cd_ox_effect_af_make_nearby_robot_snipe"
 
+external effect_openable_doors_in_segment
+  :  unit
+  -> int
+  = "cd_ox_effect_af_openable_doors_in_segment"
+
 external effect_move_away_from_player
   :  unit
   -> unit
@@ -287,6 +292,11 @@ let ai_frame_effect_handler
       (fun k ->
         effect_move_away_from_player ();
         Effect.Deep.continue k ())
+  | Ox_ai_frame.Openable_doors_in_segment ->
+    Some
+      (fun k ->
+        let result = effect_openable_doors_in_segment () in
+        Effect.Deep.continue k result)
   | Ox_ai_frame.Invalidate_escort_goal ->
     Some
       (fun k ->
@@ -434,6 +444,7 @@ let cd_do_ai_frame_d2
       dist_to_last_fired_upon
       fire_at_nearby_threshold
       seg_station_enabled
+      console_segnum
   =
   Effect.Deep.match_with
     (fun () ->
@@ -479,7 +490,8 @@ let cd_do_ai_frame_d2
          ~rotthrust_in
          ~dist_to_last_fired_upon
          ~fire_at_nearby_threshold
-         ~seg_station_enabled)
+         ~seg_station_enabled
+         ~console_segnum)
     ()
     { retc = (fun x -> x)
     ; exnc = (fun exn ->

@@ -201,6 +201,7 @@ static cd_effect_af_laser_create_new_easy_fn g_effect_af_laser_create_new_easy =
 static cd_effect_af_do_companion_extras_fn g_effect_af_do_companion_extras = NULL;
 static cd_effect_af_do_thief_extras_fn g_effect_af_do_thief_extras = NULL;
 static cd_effect_af_read_path_state_fn g_read_path_state = NULL;
+static int (*g_effect_af_openable_doors_in_segment)(void) = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
 
@@ -4031,6 +4032,20 @@ CAMLprim value cd_ox_effect_af_move_away_from_player(value unit)
     return Val_unit;
 }
 
+CAMLprim value cd_ox_effect_af_openable_doors_in_segment(value unit)
+{
+    (void)unit;
+    int result = -1;
+    if (g_effect_af_openable_doors_in_segment)
+        result = g_effect_af_openable_doors_in_segment();
+    return Val_long(result);
+}
+
+void cd_ox_register_af_openable_doors(int (*fn)(void))
+{
+    g_effect_af_openable_doors_in_segment = fn;
+}
+
 CAMLprim value cd_ox_effect_af_invalidate_escort_goal(value unit)
 {
     (void)unit;
@@ -4177,6 +4192,7 @@ void cd_ox_do_ai_frame_d2(
     int32_t phys_flags_in, const int32_t* rotthrust_in,
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t seg_station_enabled,
+    int32_t console_segnum,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_ai_frame_d2");
@@ -4211,7 +4227,7 @@ void cd_ox_do_ai_frame_d2(
     Store_field(v_rotthrust, 1, Val_long(rotthrust_in[1]));
     Store_field(v_rotthrust, 2, Val_long(rotthrust_in[2]));
 
-    value args[42] = {
+    value args[43] = {
         v_ai_state, v_rinfo,
         Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
         Val_long(game_mode), Val_long(difficulty_level),
@@ -4228,9 +4244,10 @@ void cd_ox_do_ai_frame_d2(
         Val_long(robots_kill_robots_cheat), Val_long(boss_dying_start_time),
         Val_long(phys_flags_in), v_rotthrust,
         Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold),
-        Val_long(seg_station_enabled)
+        Val_long(seg_station_enabled),
+        Val_long(console_segnum)
     };
-    v_result = caml_callbackN(*g_do_ai_frame_d2, 42, args);
+    v_result = caml_callbackN(*g_do_ai_frame_d2, 43, args);
 
     int result_len = Wosize_val(v_result);
     for (int i = 0; i < result_len; i++)
