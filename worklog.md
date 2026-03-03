@@ -2330,3 +2330,50 @@ Net: -121 lines across both files.
 
 #### Performance note
 OCaml-authoritative FVI is significantly slower than C due to per-segment/per-object FFI effect callbacks (~30-40 FVI calls/sec). Headless replay of 636 frames takes much longer than with C FVI. Performance optimization (caching, batching, or reducing FFI round-trips) is a separate effort.
+
+### Session 32: Swap do_ai_frame and do_physics_sim to OCaml-authoritative
+
+#### Context
+With FVI already OCaml-authoritative, the remaining shadow-mode functions were `do_ai_frame` and `do_physics_sim` (both D1 and D2). Shadow mode ran both OCaml and C, with C authoritative and parity comparison. However, parity comparison was fundamentally broken — OCaml's computed results were never written back to C objects before snapshot, so all comparisons were meaningless (comparing original state vs C-modified state).
+
+#### Phase 1: Fix parity comparison
+Added write-back code to copy OCaml result arrays into C objects/AI state before `parity_snapshot(&parity_snap_after_ocaml)`:
+- `main_d2/physics.cpp`: Write result[0-22] to obj pos/vel/orient/segnum/flags/phys_flags/turnroll/rotvel/retry_count
+- `main_d1/physics.cpp`: Same
+- `main_d2/ai.cpp`: Write result[0-46] to aip/ailp AI state fields
+- `main_d1/ai.cpp`: Write result[0-41] to aip/ailp AI state fields (no D2-only fields like SUB_FLAGS)
+
+Results: 665 → 217 divergences. Zero AI state divergences. Zero player physics divergences. Remaining 217 all escort robot velocity/orient (artifact of `g_shadow_dry_run` suppressing effects).
+
+#### Phase 2: Swap to OCaml-authoritative
+Converted all four functions from shadow mode to OCaml-authoritative:
+
+**do_physics_sim** (D1 + D2):
+- OCaml runs, result written back to C object (pos, vel, orient, segnum, flags, phys_flags, turnroll, rotvel, retry_count, n_phys_segs, phys_seglist, do_physics_align_object)
+- `return;` skips C path
+- Removed parity_snapshot/restore/compare
+
+**do_ai_frame** (D1 + D2):
+- Removed `g_shadow_dry_run = true` — all effects (fire_laser, create_path, ai_follow_path, etc.) now fire normally
+- OCaml runs, result written back to C AI state (aip fields: SKIP_AI_COUNT, GOAL_STATE, CURRENT_STATE, CURRENT_GUN, behavior, hide_index, path_length, danger_laser_num/sig, hide_segment; ailp fields: next_fire, player_awareness_type/time, mode, time_since_processed, consecutive_retries, retry_count, goal_state[8], time_player_seen, goal_segment, rapidfire_count, achieved_state[8], previous_visibility; D2 extras: SUB_FLAGS, next_fire2, next_action_time, phys_flags, rotthrust)
+- `return;` skips C path
+- `g_shadow_dry_run` variable and all guards now dead code (never set to true)
+- Removed parity_snapshot/restore/compare
+
+#### Build fixes
+- D1 ai.cpp: Missing closing brace for inner scope in OCaml block
+- D1 ai.cpp: Restored C fallback path variable declarations (objnum, aip, ailp) after #endif
+
+#### Files changed
+| File | Changes |
+|------|---------|
+| `main_d2/physics.cpp` | OCaml-authoritative physics, removed parity |
+| `main_d1/physics.cpp` | Same for D1 |
+| `main_d2/ai.cpp` | OCaml-authoritative AI, removed dry-run + parity |
+| `main_d1/ai.cpp` | Same for D1 |
+
+#### Verification
+- Build succeeds
+- Headless replay completes 636 frames, no crashes or exceptions
+- All three systems log OCaml-authoritative: `do_physics_sim`, `do_ai_frame`, `find_vector_intersection`
+- State divergences vs C-ref expected: escort robot (obj 28) behavioral differences cascade through all frames since OCaml is now driving game state

@@ -3379,69 +3379,66 @@ void do_ai_frame(object* obj)
 	else if (Game_mode & GM_MULTI)
 		Believed_player_pos = Objects[Players[Player_num].objnum].pos;
 
-	// Shadow mode: snapshot → dry-run OCaml → snapshot result → restore
-	parity_snapshot(&parity_snap_before);
-
-	g_shadow_dry_run = true;
-	int32_t result[43];
-	cd_ox_do_ai_frame_d1(
-		ai_state, 43,
-		rinfo, 29,
-		FrameTime, FrameCount, GameTime,
-		Game_mode, Difficulty_level,
-		Overall_agitation, Player_is_dead, Player_exploded,
-		Players[Player_num].flags,
-		obj->pos.x, obj->pos.y, obj->pos.z,
-		obj->segnum, obj->size, obj->id, objnum,
-		ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z, ConsoleObject->size,
-		Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, ConsoleObject->segnum,
-		orient, gun_point, Segments[obj->segnum].special,
-		cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
-		result);
-	g_shadow_dry_run = false;
-
-	// Write back OCaml result to C state so parity snapshot captures it
+	// OCaml-authoritative: effects fire normally, write back result, skip C path
 	{
-		int objnum = obj - Objects;
-		ai_static* aip2 = &obj->ctype.ai_info;
-		ai_local* ailp2 = &Ai_local_info[objnum];
-		aip2->SKIP_AI_COUNT = result[0];
-		aip2->GOAL_STATE = result[1];
-		aip2->CURRENT_STATE = result[2];
-		aip2->CURRENT_GUN = result[4];
-		aip2->cur_path_index = result[5];
-		aip2->behavior = result[6];
-		aip2->hide_index = result[7];
-		aip2->path_length = result[8];
-		aip2->danger_laser_num = result[10];
-		aip2->danger_laser_signature = result[11];
-		aip2->hide_segment = result[13];
-		ailp2->next_fire = result[14];
-		ailp2->player_awareness_type = result[16];
-		ailp2->player_awareness_time = result[17];
-		ailp2->mode = result[18];
-		ailp2->time_since_processed = result[19];
-		ailp2->consecutive_retries = result[20];
-		ailp2->retry_count = result[21];
-		for (int i = 0; i < 8; i++)
-			ailp2->goal_state[i] = result[22 + i];
-		ailp2->time_player_seen = result[30];
-		ailp2->goal_segment = result[31];
-		ailp2->rapidfire_count = result[32];
-		for (int i = 0; i < 8; i++)
-			ailp2->achieved_state[i] = result[33 + i];
-		ailp2->previous_visibility = result[41];
-	}
+		static int ox_logged = 0;
+		if (!ox_logged) {
+			fprintf(stderr, "[OX] do_ai_frame (D1) OCaml-authoritative.\n");
+			ox_logged = 1;
+		}
 
-	parity_snapshot(&parity_snap_after_ocaml);
-	parity_restore(&parity_snap_before);
-	// Fall through to C reference path — C is always authoritative
+		int32_t result[43];
+		cd_ox_do_ai_frame_d1(
+			ai_state, 43,
+			rinfo, 29,
+			FrameTime, FrameCount, GameTime,
+			Game_mode, Difficulty_level,
+			Overall_agitation, Player_is_dead, Player_exploded,
+			Players[Player_num].flags,
+			obj->pos.x, obj->pos.y, obj->pos.z,
+			obj->segnum, obj->size, obj->id, objnum,
+			ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z, ConsoleObject->size,
+			Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, ConsoleObject->segnum,
+			orient, gun_point, Segments[obj->segnum].special,
+			cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
+			result);
+
+		// Write back OCaml result to C state
+		aip->SKIP_AI_COUNT = result[0];
+		aip->GOAL_STATE = result[1];
+		aip->CURRENT_STATE = result[2];
+		aip->CURRENT_GUN = result[4];
+		aip->cur_path_index = result[5];
+		aip->behavior = result[6];
+		aip->hide_index = result[7];
+		aip->path_length = result[8];
+		aip->danger_laser_num = result[10];
+		aip->danger_laser_signature = result[11];
+		aip->hide_segment = result[13];
+		ailp->next_fire = result[14];
+		ailp->player_awareness_type = result[16];
+		ailp->player_awareness_time = result[17];
+		ailp->mode = result[18];
+		ailp->time_since_processed = result[19];
+		ailp->consecutive_retries = result[20];
+		ailp->retry_count = result[21];
+		for (int i = 0; i < 8; i++)
+			ailp->goal_state[i] = result[22 + i];
+		ailp->time_player_seen = result[30];
+		ailp->goal_segment = result[31];
+		ailp->rapidfire_count = result[32];
+		for (int i = 0; i < 8; i++)
+			ailp->achieved_state[i] = result[33 + i];
+		ailp->previous_visibility = result[41];
+
+		return;
+	}
 	}
 #endif
 
 	int			objnum = obj - Objects;
-	ai_static* aip = &obj->ctype.ai_info;
-	ai_local* ailp = &Ai_local_info[objnum];
+	ai_static*	aip = &obj->ctype.ai_info;
+	ai_local*	ailp = &Ai_local_info[objnum];
 	fix			dist_to_player;
 	vms_vector	vec_to_player;
 	fix			dot;
@@ -4288,12 +4285,6 @@ void do_ai_frame(object* obj)
 			aip->CURRENT_GUN = 0;
 	}
 
-#ifdef USE_OX_BRIDGE
-	parity_snapshot(&parity_snap_after_c);
-	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
-		"do_ai_frame", FrameCount, obj - Objects);
-	// C result is canonical (already in place)
-#endif
 }
 
 //--mk, 121094 -- // ----------------------------------------------------------------------------------

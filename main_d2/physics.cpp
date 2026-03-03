@@ -880,46 +880,59 @@ void do_physics_sim(object *obj)
 		obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z
 	};
 
-	// Shadow mode: snapshot → OCaml (effects fire normally) → snapshot result → restore
-	parity_snapshot(&parity_snap_before);
+	// OCaml-authoritative: run OCaml, write results to C objects, skip C path
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) {
+			fprintf(stderr, "[OX] do_physics_sim (D2) OCaml-authoritative.\n");
+			ox_logged = 1;
+		}
 
-	int32_t result[25 + MAX_FVI_SEGS];
-	cd_ox_do_physics_sim_d2(
-		obj->pos.x, obj->pos.y, obj->pos.z,
-		pi->velocity.x, pi->velocity.y, pi->velocity.z,
-		pi->thrust.x, pi->thrust.y, pi->thrust.z,
-		orient,
-		pi->rotvel.x, pi->rotvel.y, pi->rotvel.z,
-		pi->rotthrust.x, pi->rotthrust.y, pi->rotthrust.z,
-		obj->size, pi->mass, pi->drag,
-		pi->flags, obj->flags, obj->type, obj->id,
-		obj->segnum, objnum, pi->turnroll,
-		obj->last_pos.x, obj->last_pos.y, obj->last_pos.z,
-		obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
-		Segment2s[obj->segnum].special,
-		FrameTime, Physics_cheat_flag,
-		result);
+		int32_t result[25 + MAX_FVI_SEGS];
+		cd_ox_do_physics_sim_d2(
+			obj->pos.x, obj->pos.y, obj->pos.z,
+			pi->velocity.x, pi->velocity.y, pi->velocity.z,
+			pi->thrust.x, pi->thrust.y, pi->thrust.z,
+			orient,
+			pi->rotvel.x, pi->rotvel.y, pi->rotvel.z,
+			pi->rotthrust.x, pi->rotthrust.y, pi->rotthrust.z,
+			obj->size, pi->mass, pi->drag,
+			pi->flags, obj->flags, obj->type, obj->id,
+			obj->segnum, objnum, pi->turnroll,
+			obj->last_pos.x, obj->last_pos.y, obj->last_pos.z,
+			obj->orient.uvec.x, obj->orient.uvec.y, obj->orient.uvec.z,
+			Segment2s[obj->segnum].special,
+			FrameTime, Physics_cheat_flag,
+			result);
 
-	// Write back OCaml result to C object so parity snapshot captures it
-	obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
-	pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
-	obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
-	obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
-	obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
-	if (result[15] != obj->segnum) obj_relink(objnum, result[15]);
-	obj->flags = result[16];
-	pi->flags = result[17];
-	pi->turnroll = result[18];
-	pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
-	if (obj->control_type == CT_AI && result[22] > 0)
-		Ai_local_info[objnum].retry_count = result[22];
+		// Write back OCaml result to C object
+		obj->pos.x = result[0]; obj->pos.y = result[1]; obj->pos.z = result[2];
+		pi->velocity.x = result[3]; pi->velocity.y = result[4]; pi->velocity.z = result[5];
+		obj->orient.rvec.x = result[6]; obj->orient.rvec.y = result[7]; obj->orient.rvec.z = result[8];
+		obj->orient.uvec.x = result[9]; obj->orient.uvec.y = result[10]; obj->orient.uvec.z = result[11];
+		obj->orient.fvec.x = result[12]; obj->orient.fvec.y = result[13]; obj->orient.fvec.z = result[14];
+		if (result[15] != obj->segnum) obj_relink(objnum, result[15]);
+		obj->flags = result[16];
+		pi->flags = result[17];
+		pi->turnroll = result[18];
+		pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
+		if (obj->control_type == CT_AI && result[22] > 0)
+			Ai_local_info[objnum].retry_count = result[22];
 
-	parity_snapshot(&parity_snap_after_ocaml);
-	parity_restore(&parity_snap_before);
-	// Fall through to C reference path — C is always authoritative
+		// Write phys_seglist for player
+		n_phys_segs = result[23];
+		for (int i = 0; i < n_phys_segs && i < MAX_FVI_SEGS; i++)
+			phys_seglist[i] = result[25 + i];
+
+		// do_physics_align_object (already OCaml-ported)
+		if (result[24]) // needs_levelling
+			do_physics_align_object(obj);
+
+		return;
+	}
 #endif // USE_OX_BRIDGE
 
-	{ // C reference path (scoped to avoid variable conflicts with OCaml path)
+	{ // C reference path (fallback for non-OX builds)
 	int ignore_obj_list[MAX_IGNORE_OBJS],n_ignore_objs;
 	int iseg;
 	int try_again;
@@ -1549,12 +1562,6 @@ save_p1 = *fq.p1;
 	}
 //--WE ALWYS WANT THIS IN, MATT AND MIKE DECISION ON 12/10/94, TWO MONTHS AFTER FINAL 	#endif
 
-#ifdef USE_OX_BRIDGE
-	parity_snapshot(&parity_snap_after_c);
-	parity_compare(&parity_snap_after_ocaml, &parity_snap_after_c,
-		"do_physics_sim", FrameCount, obj - Objects);
-	// C result is canonical (already in place)
-#endif
 	} // end C reference path scope
 
 }
