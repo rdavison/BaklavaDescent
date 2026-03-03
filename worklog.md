@@ -2295,3 +2295,38 @@ Added `ensure_fvi_data_callbacks_registered()` static helper functions in both D
 
 #### Performance note
 With the fix, OCaml FVI functions now do real computation in shadow mode. This makes headless replay significantly slower (~37 `compute_vis_and_vec_v2` calls/sec, ~57 min for 636-frame replay vs previous near-instant exception-based skip). This is expected — the previous "fast" behavior masked the bug.
+
+### 31) Swap find_vector_intersection to OCaml-authoritative
+
+#### Context
+FVI parity testing showed 13/13 sampled `find_vector_intersection` calls matching perfectly between OCaml and C. All other FVI callsites (`object_intersects_wall`, `find_homing_object`, `find_homing_object_complete`, `track_track_goal`, `player_is_visible_from_object`, `compute_vis_and_vec`) were already OCaml-authoritative. Only `find_vector_intersection` itself was still parity-sampled with C authoritative.
+
+#### Changes
+Converted `find_vector_intersection` from parity-sampled (C authoritative) to OCaml-authoritative in both D1 and D2:
+
+**Before**: OCaml ran on sampled calls, result stored in `ox_hit_data` for comparison; C always ran and its result was returned; parity comparison code logged divergences.
+
+**After**: OCaml runs on every call and its result is returned directly via `hit_data`. C path kept as fallback only — executes if OCaml throws an exception (out_len < 12).
+
+Removed:
+- Parity sampling counters (`fvi_call_count`, `fvi_div_count` in D2)
+- `fvi_force_c_path` save/restore in D2's `find_vector_intersection` (variable still exists for `object_intersects_wall` but is never set to true)
+- `g_ox_nested_ocaml_guard` check in D1's `find_vector_intersection` (guard still used by `object_intersects_wall`)
+- All parity comparison code (divergence logging, BAD_P0 comparison)
+
+Net: -121 lines across both files.
+
+#### Files changed
+| File | Changes |
+|------|---------|
+| `main_d2/fvi.cpp` | OCaml-authoritative FVI, removed parity comparison |
+| `main_d1/fvi.cpp` | Same for D1 |
+
+#### Verification
+- Build succeeds (OCaml bridge + cmake)
+- Headless replay runs without FVI exceptions or crashes
+- D2 logs `[OX] find_vector_intersection (D2) OCaml-authoritative.`
+- Remaining parity divergences are pre-existing `do_ai_frame`/`do_physics_sim` (not FVI-related)
+
+#### Performance note
+OCaml-authoritative FVI is significantly slower than C due to per-segment/per-object FFI effect callbacks (~30-40 FVI calls/sec). Headless replay of 636 frames takes much longer than with C FVI. Performance optimization (caching, batching, or reducing FFI round-trips) is a separate effort.

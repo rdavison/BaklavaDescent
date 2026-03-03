@@ -593,15 +593,12 @@ int check_trans_wall(vms_vector* pnt, segment* seg, int sidenum, int facenum);
 int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 {
 #ifdef USE_OX_BRIDGE
-	// --- OCaml FVI path (v2: on-demand data via effects) ---
-	fvi_info ox_hit_data;
-	int ox_valid = 0;
-	if (!g_ox_nested_ocaml_guard)
+	// --- OCaml FVI path (authoritative) ---
 	{
 		static int ox_bridge_logged = 0;
 		if (!ox_bridge_logged)
 		{
-			fprintf(stderr, "[OX] find_vector_intersection (D1) v2 on-demand mode.\n");
+			fprintf(stderr, "[OX] find_vector_intersection (D1) OCaml-authoritative.\n");
 			ox_bridge_logged = 1;
 			cd_ox_register_check_trans_wall(
 				[](int segnum, int sidenum, int facenum,
@@ -698,36 +695,30 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 		cd_ox_find_vector_intersection_v2(header, header_len, out_buf, &out_len);
 
 		if (out_len >= 12) {
-			ox_hit_data.hit_type = out_buf[0];
-			ox_hit_data.hit_pnt.x = out_buf[1];
-			ox_hit_data.hit_pnt.y = out_buf[2];
-			ox_hit_data.hit_pnt.z = out_buf[3];
-			ox_hit_data.hit_seg = out_buf[4];
-			ox_hit_data.hit_side = out_buf[5];
-			ox_hit_data.hit_side_seg = out_buf[6];
-			ox_hit_data.hit_object = out_buf[7];
-			ox_hit_data.hit_wallnorm.x = out_buf[8];
-			ox_hit_data.hit_wallnorm.y = out_buf[9];
-			ox_hit_data.hit_wallnorm.z = out_buf[10];
-			ox_hit_data.n_segs = out_buf[11];
-			for (int i = 0; i < ox_hit_data.n_segs && i < MAX_FVI_SEGS; i++)
-				ox_hit_data.seglist[i] = out_buf[12 + i];
-			ox_valid = 1;
+			hit_data->hit_type = out_buf[0];
+			hit_data->hit_pnt.x = out_buf[1];
+			hit_data->hit_pnt.y = out_buf[2];
+			hit_data->hit_pnt.z = out_buf[3];
+			hit_data->hit_seg = out_buf[4];
+			hit_data->hit_side = out_buf[5];
+			hit_data->hit_side_seg = out_buf[6];
+			hit_data->hit_object = out_buf[7];
+			hit_data->hit_wallnorm.x = out_buf[8];
+			hit_data->hit_wallnorm.y = out_buf[9];
+			hit_data->hit_wallnorm.z = out_buf[10];
+			hit_data->n_segs = out_buf[11];
+			for (int i = 0; i < hit_data->n_segs && i < MAX_FVI_SEGS; i++)
+				hit_data->seglist[i] = out_buf[12 + i];
+			return hit_data->hit_type;
 		}
+		// OCaml threw exception — fall through to C path
 	}
 #endif
-	// --- C FVI path (authoritative) ---
+	// --- C FVI path (fallback when OCaml fails, or non-OX build) ---
 	{
 	int hit_type, hit_seg, hit_seg2;
 	vms_vector hit_pnt;
 	int i;
-
-#ifdef USE_OX_BRIDGE
-	// Force sub-functions (check_line_to_face, check_vector_to_object, etc.)
-	// to use their C paths, not OCaml, so the C FVI is truly pure-C.
-	bool saved_guard = g_ox_nested_ocaml_guard;
-	g_ox_nested_ocaml_guard = true;
-#endif
 
 	Assert((ptrdiff_t)fq->ignore_obj_list != -1);
 	Assert((fq->startseg <= Highest_segment_index) && (fq->startseg >= 0));
@@ -746,16 +737,6 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 		hit_data->hit_side = hit_data->hit_object = 0;
 		hit_data->hit_side_seg = -1;
 
-#ifdef USE_OX_BRIDGE
-		if (ox_valid && ox_hit_data.hit_type != HIT_BAD_P0) {
-			static int fvi_divs_badp0 = 0;
-			if (fvi_divs_badp0 < 20)
-				fprintf(stderr, "FVI_PARITY obj=%d seg=%d: C=BAD_P0 but OCaml hit=%d seg=%d\n",
-					fq->thisobjnum, fq->startseg, ox_hit_data.hit_type, ox_hit_data.hit_seg);
-			fvi_divs_badp0++;
-		}
-		g_ox_nested_ocaml_guard = saved_guard;
-#endif
 		return hit_data->hit_type;
 	}
 
@@ -813,43 +794,6 @@ int find_vector_intersection(fvi_query* fq, fvi_info* hit_data)
 	hit_data->hit_side_seg = fvi_hit_side_seg;
 	hit_data->hit_object = fvi_hit_object;
 	hit_data->hit_wallnorm = wall_norm;
-
-#ifdef USE_OX_BRIDGE
-	// Restore guard so other OCaml paths work normally
-	g_ox_nested_ocaml_guard = saved_guard;
-
-	// --- Compare OCaml vs C results ---
-	if (ox_valid) {
-		int differs = 0;
-		if (ox_hit_data.hit_type != hit_data->hit_type) differs = 1;
-		else if (ox_hit_data.hit_seg != hit_data->hit_seg) differs = 2;
-		else if (ox_hit_data.hit_pnt.x != hit_data->hit_pnt.x ||
-		         ox_hit_data.hit_pnt.y != hit_data->hit_pnt.y ||
-		         ox_hit_data.hit_pnt.z != hit_data->hit_pnt.z) differs = 3;
-		else if (ox_hit_data.hit_side != hit_data->hit_side) differs = 4;
-		else if (ox_hit_data.hit_object != hit_data->hit_object) differs = 5;
-		else if (ox_hit_data.hit_wallnorm.x != hit_data->hit_wallnorm.x ||
-		         ox_hit_data.hit_wallnorm.y != hit_data->hit_wallnorm.y ||
-		         ox_hit_data.hit_wallnorm.z != hit_data->hit_wallnorm.z) differs = 6;
-		else if (ox_hit_data.n_segs != hit_data->n_segs) differs = 7;
-
-		if (differs) {
-			static int fvi_divs = 0;
-			if (fvi_divs < 50)
-				fprintf(stderr, "FVI_PARITY[%d] obj=%d seg=%d flags=0x%x rad=%d: "
-					"OCaml hit=%d seg=%d pnt=(%d,%d,%d) side=%d obj=%d nsegs=%d | "
-					"C hit=%d seg=%d pnt=(%d,%d,%d) side=%d obj=%d nsegs=%d\n",
-					differs, fq->thisobjnum, fq->startseg, fq->flags, fq->rad,
-					ox_hit_data.hit_type, ox_hit_data.hit_seg,
-					ox_hit_data.hit_pnt.x, ox_hit_data.hit_pnt.y, ox_hit_data.hit_pnt.z,
-					ox_hit_data.hit_side, ox_hit_data.hit_object, ox_hit_data.n_segs,
-					hit_data->hit_type, hit_data->hit_seg,
-					hit_data->hit_pnt.x, hit_data->hit_pnt.y, hit_data->hit_pnt.z,
-					hit_data->hit_side, hit_data->hit_object, hit_data->n_segs);
-			fvi_divs++;
-		}
-	}
-#endif
 
 	return hit_type;
 	}
