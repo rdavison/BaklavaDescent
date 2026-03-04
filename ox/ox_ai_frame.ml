@@ -1759,10 +1759,10 @@ let do_ai_frame_d2
          && n_guns > 0
          && attack_type = 0
       then (
-          (* Always use pre-animation gun_point passed from C. The bridge now selects
-           the correct gun before calling us: CURRENT_GUN if next_fire <= FrameTime
+          (* Always use pre-animation gun_point passed from C. The bridge selects
+           the correct gun before calling us: CURRENT_GUN if next_fire <= 0
            (primary ready), else gun 0 (secondary ready). This matches C-only lines
-           942-945 where gun selection depends on which weapon is ready to fire. *)
+           937-940 where gun selection depends on which weapon is ready to fire. *)
         let gpx, gpy, gpz =
           gun_point_in.(0), gun_point_in.(1), gun_point_in.(2)
         in

@@ -628,7 +628,7 @@ void do_ai_frame(object* obj)
 	// Pack gun_point (3 ints)
 	vms_vector gun_point_vec;
 	{
-		int gun_for_vis = (ailp->next_fire <= FrameTime) ? aip->CURRENT_GUN : 0;
+		int gun_for_vis = (ailp->next_fire <= 0) ? aip->CURRENT_GUN : 0;
 		calc_gun_point(&gun_point_vec, obj, gun_for_vis);
 	}
 	int32_t gun_point[3] = { gun_point_vec.x, gun_point_vec.y, gun_point_vec.z };
