@@ -325,34 +325,36 @@ let ai_do_actual_firing_stuff_d1
       in
       if dot >= 7 * f1_0 / 8
       then (
-        if !current_gun < n_guns
-        then (
-          if attack_type = 1
-          then
-            if player_exploded = 0 && dist_to_player < obj_size + console_size + (f1_0 * 2)
+        let exception Fire_return in
+        (try
+          if !current_gun < n_guns
+          then (
+            if attack_type = 1
             then (
-              let ok =
-                Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
-              in
-              if not ok then ();
-              if ok then Effect.perform Do_ai_robot_hit_attack)
-            else ()
-          else if gpx = 0 && gpy = 0 && gpz = 0
-          then ()
-          else (
-            let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
-            if not ok then ();
-            if ok
-            then fire_laser (gpx, gpy, gpz, 0, 0, 0, 0));
-          if
-            behavior <> aib_run_from
-            && behavior <> aib_still
-            && behavior <> aib_snipe
-            && (!mode = aim_follow_path || !mode = aim_still)
-          then mode := aim_chase_object);
-        goal_state := ais_reco;
-        goal_state_arr.(!current_gun) <- ais_reco;
-        advance_gun ())))
+              if player_exploded = 0 && dist_to_player < obj_size + console_size + (f1_0 * 2)
+              then (
+                let ok =
+                  Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
+                in
+                if not ok then raise Fire_return;
+                Effect.perform Do_ai_robot_hit_attack)
+              else raise Fire_return)
+            else if gpx = 0 && gpy = 0 && gpz = 0
+            then ()
+            else (
+              let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
+              if not ok then raise Fire_return;
+              fire_laser (gpx, gpy, gpz, 0, 0, 0, 0));
+            if
+              behavior <> aib_run_from
+              && behavior <> aib_still
+              && behavior <> aib_snipe
+              && (!mode = aim_follow_path || !mode = aim_still)
+            then mode := aim_chase_object);
+          goal_state := ais_reco;
+          goal_state_arr.(!current_gun) <- ais_reco;
+          advance_gun ()
+        with Fire_return -> ()))))
   else if homing_flag = 1
   then
     if
@@ -369,8 +371,7 @@ let ai_do_actual_firing_stuff_d1
           fire_laser (gpx, gpy, gpz, 0, 0, 0, 0);
           goal_state := ais_reco;
           goal_state_arr.(!current_gun) <- ais_reco;
-          advance_gun ())
-        else advance_gun ())
+          advance_gun ()))
       else advance_gun ())
     else advance_gun ();
   [| !goal_state
@@ -449,12 +450,12 @@ let ai_do_actual_firing_stuff_d2
   in
   let do_ranged_fire ~fire_px ~fire_py ~fire_pz =
     if gpx = 0 && gpy = 0 && gpz = 0
-    then ()
+    then true (* gun_point is zero: C falls through to goal_state/advance *)
     else (
       let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
       if ok
-      then
-        if gun_num <> 0
+      then (
+        (if gun_num <> 0
         then (
           if !next_fire <= 0
           then
@@ -465,7 +466,9 @@ let ai_do_actual_firing_stuff_d2
             fire_laser (gp2x, gp2y, gp2z, 0, fire_px, fire_py, fire_pz)))
         else if !next_fire <= 0
         then
-          fire_laser (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz))
+          fire_laser (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz));
+        true)
+      else false (* C returns: skip goal_state/advance *))
   in
   if player_visibility = 2 || dist_to_last_fired_upon < fire_at_nearby_threshold
   then (
@@ -487,28 +490,35 @@ let ai_do_actual_firing_stuff_d2
       in
       if dot >= 7 * f1_0 / 8 || (dot > f1_0 / 4 && boss_flag <> 0)
       then (
-        if gun_num < n_guns
-        then (
-          if attack_type = 1
+        let exception Fire_return in
+        (try
+          if gun_num < n_guns
           then (
-            if player_exploded = 0 && dist_to_player < obj_size + console_size + (f1_0 * 2)
+            if attack_type = 1
             then (
-              let ok =
-                Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
-              in
-              if ok then Effect.perform Do_ai_robot_hit_attack))
-          else do_ranged_fire ~fire_px:!fire_px ~fire_py:!fire_py ~fire_pz:!fire_pz;
-          if
-            behavior <> aib_run_from
-            && behavior <> aib_still
-            && behavior <> aib_snipe
-            && behavior <> aib_follow
-            && attack_type = 0
-            && (!mode = aim_follow_path || !mode = aim_still)
-          then mode := aim_chase_object);
-        goal_state := ais_reco;
-        goal_state_arr.(!current_gun) <- ais_reco;
-        advance_gun ())))
+              if player_exploded = 0 && dist_to_player < obj_size + console_size + (f1_0 * 2)
+              then (
+                let ok =
+                  Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
+                in
+                if not ok then raise Fire_return;
+                Effect.perform Do_ai_robot_hit_attack)
+              else raise Fire_return)
+            else (
+              if not (do_ranged_fire ~fire_px:!fire_px ~fire_py:!fire_py ~fire_pz:!fire_pz)
+              then raise Fire_return);
+            if
+              behavior <> aib_run_from
+              && behavior <> aib_still
+              && behavior <> aib_snipe
+              && behavior <> aib_follow
+              && attack_type = 0
+              && (!mode = aim_follow_path || !mode = aim_still)
+            then mode := aim_chase_object);
+          goal_state := ais_reco;
+          goal_state_arr.(!current_gun) <- ais_reco;
+          advance_gun ()
+        with Fire_return -> ()))))
   else if attack_type = 0 && (homing_flag = 1 || (weapon_type2 <> -1 && homing_flag2 = 1))
   then
     if
@@ -556,24 +566,27 @@ let ai_do_actual_firing_stuff_d2
           in
           if dot >= 7 * f1_0 / 8
           then (
-            if !current_gun < n_guns
-            then (
-              if attack_type = 1
+            let exception Fire_return in
+            (try
+              if !current_gun < n_guns
               then (
-                if
-                  player_exploded = 0
-                  && dist_to_player < obj_size + console_size + (f1_0 * 2)
+                if attack_type = 1
                 then (
-                  let ok =
-                    Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
-                  in
-                  if ok then Effect.perform Do_ai_robot_hit_attack))
-              else if gpx = 0 && gpy = 0 && gpz = 0
-              then ()
-              else (
-                let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
-                if ok
-                then
+                  if
+                    player_exploded = 0
+                    && dist_to_player < obj_size + console_size + (f1_0 * 2)
+                  then (
+                    let ok =
+                      Effect.perform (Ai_multiplayer_awareness (robot_fire_agitation - 2))
+                    in
+                    if not ok then raise Fire_return;
+                    Effect.perform Do_ai_robot_hit_attack)
+                  else raise Fire_return)
+                else if gpx = 0 && gpy = 0 && gpz = 0
+                then ()
+                else (
+                  let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
+                  if not ok then raise Fire_return;
                   if gun_num <> 0
                   then (
                     if !next_fire <= 0
@@ -589,21 +602,19 @@ let ai_do_actual_firing_stuff_d2
                   then
                     fire_laser
                       (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
-              if
-                behavior <> aib_run_from
-                && behavior <> aib_still
-                && behavior <> aib_snipe
-                && behavior <> aib_follow
-                && (!mode = aim_follow_path || !mode = aim_still)
-              then mode := aim_chase_object);
-            goal_state := ais_reco;
-            goal_state_arr.(!current_gun) <- ais_reco;
-            let () =
+                if
+                  behavior <> aib_run_from
+                  && behavior <> aib_still
+                  && behavior <> aib_snipe
+                  && behavior <> aib_follow
+                  && (!mode = aim_follow_path || !mode = aim_still)
+                then mode := aim_chase_object);
+              goal_state := ais_reco;
+              goal_state_arr.(!current_gun) <- ais_reco;
               current_gun := !current_gun + 1;
               if !current_gun >= n_guns
               then if n_guns = 1 then current_gun := 0 else current_gun := 1
-            in
-            ())
+            with Fire_return -> ()))
           else advance_gun ())
         else advance_gun ());
   [| !goal_state
