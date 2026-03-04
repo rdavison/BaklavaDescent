@@ -266,7 +266,7 @@ let ai_frame_effect_handler
       (fun k ->
         effect_do_snipe_frame dist vis vtpx vtpy vtpz mode;
         let ps = read_af_path_state () in
-        Effect.Deep.continue k ps.(4))
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Do_escort_frame (dist, vis) ->
     Some
       (fun k ->
@@ -278,7 +278,7 @@ let ai_frame_effect_handler
       (fun k ->
         effect_do_thief_frame dist vis vtpx vtpy vtpz pat pat_time;
         let ps = read_af_path_state () in
-        Effect.Deep.continue k ps.(4))
+        Effect.Deep.continue k ps)
   | Ox_ai_frame.Do_any_robot_dying_frame ->
     Some
       (fun k ->

@@ -147,9 +147,9 @@ type _ Effect.t +=
   | P_Rand : int Effect.t
   | Make_random_vector : (int * int * int) Effect.t
   | Object_to_object_visibility : int Effect.t
-  | Do_snipe_frame : (int * int * int * int * int * int) -> int Effect.t  (* returns updated mode *)
+  | Do_snipe_frame : (int * int * int * int * int * int) -> int array Effect.t  (* returns path state *)
   | Do_escort_frame : (int * int) -> int array Effect.t  (* returns path state *)
-  | Do_thief_frame : (int * int * int * int * int * int * int) -> int Effect.t  (* returns updated mode *)
+  | Do_thief_frame : (int * int * int * int * int * int * int) -> int array Effect.t  (* returns path state *)
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
   | Move_away_from_player : unit Effect.t
@@ -1976,9 +1976,8 @@ let do_ai_frame_d2
              then mode := aim_snipe_attack);
           if thief = 0 && !mode <> aim_still then (
             let vtpx, vtpy, vtpz = !vec_to_player in
-            let new_mode = Effect.perform
-              (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode)) in
-            mode := new_mode))
+            unpack_path_state (Effect.perform
+              (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode)))))
         else if thief = 0 && companion = 0
         then (early_return_flag := 1; raise Early_return))
       else if companion <> 0
@@ -1995,10 +1994,9 @@ let do_ai_frame_d2
       then (
         compute_vis ();
         let vtpx, vtpy, vtpz = !vec_to_player in
-        let new_mode = Effect.perform
+        unpack_path_state (Effect.perform
           (Do_thief_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz,
-                           !player_awareness_type, !player_awareness_time)) in
-        mode := new_mode;
+                           !player_awareness_type, !player_awareness_time)));
         (* Thief extras: flare firing (C lines 1478-1494) *)
         let new_nf = Effect.perform
           (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz)) in
