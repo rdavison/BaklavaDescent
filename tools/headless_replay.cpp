@@ -28,6 +28,7 @@
 #include "main_d2/cntrlcen.h"
 #include "main_d2/inferno.h"
 #include "main_shared/effects.h"
+#include "main_shared/texmerge.h"
 #include "2d/gr.h"
 #include "main_d2/gamepal.h"
 #include "main_d2/gamefont.h"
@@ -159,6 +160,7 @@ int main(int argc, char *argv[])
 	reset_special_effects();
 	copy_defaults_to_robot_all();
 	init_controlcen_for_level();
+	texmerge_init(10);
 
 	/* Restore exact snapshot from recording */
 	ox_replayer_restore_initial_state();
