@@ -526,10 +526,18 @@ let ai_do_actual_firing_stuff_d2
           fire_laser (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz);
           goal_state := ais_reco;
           goal_state_arr.(!current_gun) <- ais_reco;
-          advance_gun ())
-        else advance_gun ())
-      else advance_gun ())
-    else advance_gun ()
+          (* Path 2 gun advance: C always wraps to 0, unlike advance_gun which wraps to 1 for dual-weapon robots *)
+          current_gun := !current_gun + 1;
+          if !current_gun >= n_guns then current_gun := 0)
+        else (
+          current_gun := !current_gun + 1;
+          if !current_gun >= n_guns then current_gun := 0))
+      else (
+        current_gun := !current_gun + 1;
+        if !current_gun >= n_guns then current_gun := 0))
+    else (
+      current_gun := !current_gun + 1;
+      if !current_gun >= n_guns then current_gun := 0)
   else (
     (* Path 3: blind fire at recently-seen position *)
     let prand = Effect.perform P_Rand in
