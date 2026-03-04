@@ -1782,6 +1782,10 @@ let do_ai_frame_d2
       if !time_since_processed < f1_0 * 256
       then time_since_processed := !time_since_processed + frame_time;
       previous_visibility := ai_state.(idx_previous_visibility);
+      (* Save original previous_visibility before compute_vis updates it.
+         C saves this as a local: "Must get this before we toast the master copy!"
+         The saved value is used in mode dispatch; the ref is used for time-slicing. *)
+      let saved_prev_vis = !previous_visibility in
       (* Phase: cloaking *)
       if cloak_type = ri_cloaked_except_firing
       then if !next_fire < f1_0 / 2 then cloaked := 1 else cloaked := 0;
@@ -2023,7 +2027,7 @@ let do_ai_frame_d2
       (* Phase: D2 specials: snipe, escort, thief *)
       if !behavior = aib_snipe
       then (
-        if obj_ref land 3 = 0 || !previous_visibility <> 0
+        if obj_ref land 3 = 0 || saved_prev_vis <> 0
         then (
           compute_vis ();
           (* If sniper is in still mode, switch to snipe mode if visible or hit *)
@@ -2200,7 +2204,7 @@ let do_ai_frame_d2
          in
          compute_vis ();
          let chase_break = ref false in
-         if !player_visibility < 2 && !previous_visibility = 2
+         if !player_visibility < 2 && saved_prev_vis = 2
          then (
            let ok = Effect.perform (Ai_multiplayer_awareness 53) in
            if not ok
@@ -2271,7 +2275,7 @@ let do_ai_frame_d2
            then (
              let vtpx, vtpy, vtpz = !vec_to_player in
              unpack_path_state (Effect.perform
-               (Ai_follow_path (!player_visibility, !previous_visibility, vtpx, vtpy, vtpz)));
+               (Ai_follow_path (!player_visibility, saved_prev_vis, vtpx, vtpy, vtpz)));
              Effect.perform (Ai_multi_send_robot_position (-1))));
          if !goal_state <> ais_flin
          then goal_state := ais_lock
@@ -2301,7 +2305,7 @@ let do_ai_frame_d2
          (* C-only passes player_visibility=2 (hardcoded) for goto modes *)
          let vtpx, vtpy, vtpz = !vec_to_player in
          unpack_path_state (Effect.perform
-           (Ai_follow_path (2, !previous_visibility, vtpx, vtpy, vtpz)))
+           (Ai_follow_path (2, saved_prev_vis, vtpx, vtpy, vtpz)))
        | m when m = aim_follow_path ->
          let anger_level = ref 65 in
          if !behavior = aib_station then anger_level := 64;
@@ -2321,7 +2325,7 @@ let do_ai_frame_d2
          else (
            let vtpx, vtpy, vtpz = !vec_to_player in
            unpack_path_state (Effect.perform
-             (Ai_follow_path (!player_visibility, !previous_visibility, vtpx, vtpy, vtpz)));
+             (Ai_follow_path (!player_visibility, saved_prev_vis, vtpx, vtpy, vtpz)));
            if !goal_state <> ais_flin
            then goal_state := ais_lock
            else if !current_state = ais_flin
@@ -2378,7 +2382,7 @@ let do_ai_frame_d2
            compute_vis ();
            if
              !player_visibility = 2
-             || !previous_visibility = 2
+             || saved_prev_vis = 2
            then (
              let ok = Effect.perform (Ai_multiplayer_awareness 71) in
              if not ok
