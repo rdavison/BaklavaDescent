@@ -1028,7 +1028,7 @@ let do_ai_frame_d1
     if !dist_to_player < f1_0 * 100
     then
       (* do_silly_animation + ai_frame_animation done on C side *)
-      object_animates := 1
+      object_animates := (if n_guns > 0 then 1 else 0)
     else (
       current_state := !goal_state;
       object_animates := 0);
@@ -1962,7 +1962,7 @@ let do_ai_frame_d2
          handled on the C side; here we just set the object_animates flag
          so that firing logic and state sync behave correctly. *)
       if !dist_to_player < f1_0 * 100
-      then object_animates := 1
+      then object_animates := (if n_guns > 0 then 1 else 0)
       else (
         current_state := !goal_state;
         object_animates := 0);
