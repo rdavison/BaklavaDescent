@@ -1009,6 +1009,12 @@ typedef void (*cd_effect_af_read_path_state_fn)(int32_t* out);  /* out[11] */
 
 void cd_ox_register_read_path_state(cd_effect_af_read_path_state_fn fn);
 
+/* Read-back for fire timer state after Ai_fire_laser_at_player effect.
+   Packs 3 ints: next_fire, next_fire2, rapidfire_count */
+typedef void (*cd_effect_af_read_fire_state_fn)(int32_t* out);  /* out[3] */
+
+void cd_ox_register_read_fire_state(cd_effect_af_read_fire_state_fn fn);
+
 /* openable_doors_in_segment effect: returns side index or -1 */
 void cd_ox_register_af_openable_doors(int (*fn)(void));
 

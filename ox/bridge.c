@@ -201,6 +201,7 @@ static cd_effect_af_laser_create_new_easy_fn g_effect_af_laser_create_new_easy =
 static cd_effect_af_do_companion_extras_fn g_effect_af_do_companion_extras = NULL;
 static cd_effect_af_do_thief_extras_fn g_effect_af_do_thief_extras = NULL;
 static cd_effect_af_read_path_state_fn g_read_path_state = NULL;
+static cd_effect_af_read_fire_state_fn g_read_fire_state = NULL;
 static int (*g_effect_af_openable_doors_in_segment)(void) = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
@@ -3784,6 +3785,25 @@ CAMLprim value cd_ox_read_af_path_state(value unit)
         g_read_path_state(buf);
     v_result = caml_alloc(11, 0);
     for (int i = 0; i < 11; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+void cd_ox_register_read_fire_state(cd_effect_af_read_fire_state_fn fn)
+{
+    g_read_fire_state = fn;
+}
+
+CAMLprim value cd_ox_read_af_fire_state(value unit)
+{
+    CAMLparam1(unit);
+    CAMLlocal1(v_result);
+    int32_t buf[3];
+    memset(buf, 0, sizeof(buf));
+    if (g_read_fire_state)
+        g_read_fire_state(buf);
+    v_result = caml_alloc(3, 0);
+    for (int i = 0; i < 3; i++)
         Store_field(v_result, i, Val_long(buf[i]));
     CAMLreturn(v_result);
 }

@@ -161,6 +161,7 @@ external effect_do_thief_extras
     "cd_ox_effect_af_do_thief_extras"
 
 external read_af_path_state : unit -> int array = "cd_ox_read_af_path_state"
+external read_af_fire_state : unit -> int array = "cd_ox_read_af_fire_state"
 
 (* Effect handler *)
 let ai_frame_effect_handler
@@ -182,7 +183,8 @@ let ai_frame_effect_handler
     Some
       (fun k ->
         effect_ai_fire_laser_at_player gpx gpy gpz gun_num fpx fpy fpz;
-        Effect.Deep.continue k ())
+        let fs = read_af_fire_state () in
+        Effect.Deep.continue k (fs.(0), fs.(1), fs.(2)))
   | Ox_ai_frame.Calc_gun_point gun_num ->
     Some
       (fun k ->

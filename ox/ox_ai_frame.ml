@@ -132,7 +132,7 @@ let ai_transition_table =
 type _ Effect.t +=
   | Ai_multiplayer_awareness : int -> bool Effect.t
   | Do_ai_robot_hit_attack : unit Effect.t
-  | Ai_fire_laser_at_player : (int * int * int * int * int * int * int) -> unit Effect.t
+  | Ai_fire_laser_at_player : (int * int * int * int * int * int * int) -> (int * int * int) Effect.t
   | Calc_gun_point : int -> (int * int * int) Effect.t
   | Create_path_to_player : (int * int) -> int array Effect.t
   | Create_path_to_station : int -> int array Effect.t
@@ -299,13 +299,18 @@ let ai_do_actual_firing_stuff_d1
   let goal_state_arr = Array.copy goal_state_arr in
   let current_gun = ref current_gun in
   let mode = ref mode in
+  let next_fire = ref next_fire in
   let advance_gun () =
     current_gun := !current_gun + 1;
     if !current_gun >= n_guns then current_gun := 0
   in
+  let fire_laser args =
+    let nf, _nf2, _rfc = Effect.perform (Ai_fire_laser_at_player args) in
+    next_fire := nf
+  in
   if player_visibility = 2
   then (
-    if (not (object_animates <> 0)) || next_fire <= 0
+    if (not (object_animates <> 0)) || !next_fire <= 0
     then (
       let dot =
         Ox_math.vm_vec_dotprod ~a:(fvec_x, fvec_y, fvec_z) ~b:(vtpx, vtpy, vtpz)
@@ -330,7 +335,7 @@ let ai_do_actual_firing_stuff_d1
             let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
             if not ok then ();
             if ok
-            then Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, 0, 0, 0, 0)));
+            then fire_laser (gpx, gpy, gpz, 0, 0, 0, 0));
           if
             behavior <> aib_run_from
             && behavior <> aib_still
@@ -344,20 +349,16 @@ let ai_do_actual_firing_stuff_d1
   then
     if
       ((not (object_animates <> 0)) || achieved_state.(!current_gun) = ais_fire)
-      && next_fire <= 0
+      && !next_fire <= 0
     then (
       let hit_dist = Effect.perform (Compute_vis_and_vec (0, 0, 0)) in
-      (* hit_dist is abused: we pass (0,0,0) and the effect returns player_vis,
-         but we need Hit_pos distance.  Actually for D1, the check is:
-         vm_vec_dist_quick(&Hit_pos, &obj->pos) > F1_0*40
-         This is done on C side; the effect returns the check result as sound_flag *)
       let _, _, _, _, hit_far_enough = hit_dist in
       if hit_far_enough <> 0
       then (
         let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
         if ok
         then (
-          Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, 0, 0, 0, 0));
+          fire_laser (gpx, gpy, gpz, 0, 0, 0, 0);
           goal_state := ais_reco;
           goal_state_arr.(!current_gun) <- ais_reco;
           advance_gun ())
@@ -375,6 +376,7 @@ let ai_do_actual_firing_stuff_d1
    ; goal_state_arr.(7)
    ; !current_gun
    ; !mode
+   ; !next_fire
   |]
 ;;
 
@@ -424,10 +426,18 @@ let ai_do_actual_firing_stuff_d2
   let current_gun = ref current_gun in
   let mode = ref mode in
   let last_fired_updated = ref 0 in
+  let next_fire = ref next_fire in
+  let next_fire2 = ref next_fire2 in
   let advance_gun () =
     current_gun := !current_gun + 1;
     if !current_gun >= n_guns
     then if n_guns = 1 || weapon_type2 = -1 then current_gun := 0 else current_gun := 1
+  in
+  let fire_laser args =
+    let nf, nf2, _rfc = Effect.perform (Ai_fire_laser_at_player args) in
+    next_fire := nf;
+    next_fire2 := nf2;
+    last_fired_updated := 1
   in
   let do_ranged_fire ~fire_px ~fire_py ~fire_pz =
     if gpx = 0 && gpy = 0 && gpz = 0
@@ -438,22 +448,16 @@ let ai_do_actual_firing_stuff_d2
       then
         if gun_num <> 0
         then (
-          if next_fire <= 0
-          then (
-            Effect.perform
-              (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz));
-            last_fired_updated := 1);
-          if next_fire2 <= 0 && weapon_type2 <> -1
+          if !next_fire <= 0
+          then
+            fire_laser (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz);
+          if !next_fire2 <= 0 && weapon_type2 <> -1
           then (
             let gp2x, gp2y, gp2z = Effect.perform (Calc_gun_point 0) in
-            Effect.perform
-              (Ai_fire_laser_at_player (gp2x, gp2y, gp2z, 0, fire_px, fire_py, fire_pz));
-            last_fired_updated := 1))
-        else if next_fire <= 0
-        then (
-          Effect.perform
-            (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz));
-          last_fired_updated := 1))
+            fire_laser (gp2x, gp2y, gp2z, 0, fire_px, fire_py, fire_pz)))
+        else if !next_fire <= 0
+        then
+          fire_laser (gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz))
   in
   if player_visibility = 2 || dist_to_last_fired_upon < fire_at_nearby_threshold
   then (
@@ -467,8 +471,8 @@ let ai_do_actual_firing_stuff_d2
     let fire_pz = ref believed_pz in
     if
       (not (object_animates <> 0))
-      || next_fire <= 0
-      || (next_fire2 <= 0 && weapon_type2 <> -1)
+      || !next_fire <= 0
+      || (!next_fire2 <= 0 && weapon_type2 <> -1)
     then (
       let dot =
         Ox_math.vm_vec_dotprod ~a:(fvec_x, fvec_y, fvec_z) ~b:(vtpx, vtpy, vtpz)
@@ -502,7 +506,7 @@ let ai_do_actual_firing_stuff_d2
     if
       (* Path 2: homing weapons *)
       ((not (object_animates <> 0)) || achieved_state.(!current_gun) = ais_fire)
-      && ((next_fire <= 0 && !current_gun <> 0) || (next_fire2 <= 0 && !current_gun = 0))
+      && ((!next_fire <= 0 && !current_gun <> 0) || (!next_fire2 <= 0 && !current_gun = 0))
     then (
       (* Check Hit_pos distance > 40*F1_0 via effect *)
       let _, _, _, _, hit_far_enough = Effect.perform (Compute_vis_and_vec (0, 0, 0)) in
@@ -511,7 +515,7 @@ let ai_do_actual_firing_stuff_d2
         let ok = Effect.perform (Ai_multiplayer_awareness robot_fire_agitation) in
         if ok
         then (
-          Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
+          fire_laser (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz);
           goal_state := ais_reco;
           goal_state_arr.(!current_gun) <- ais_reco;
           advance_gun ())
@@ -527,8 +531,8 @@ let ai_do_actual_firing_stuff_d2
       then
         if
           (not (object_animates <> 0))
-          || next_fire <= 0
-          || (next_fire2 <= 0 && weapon_type2 <> -1)
+          || !next_fire <= 0
+          || (!next_fire2 <= 0 && weapon_type2 <> -1)
         then (
           (* Direction computed on C side as vec to Last_fired_upon_player_pos *)
           let dot =
@@ -556,19 +560,19 @@ let ai_do_actual_firing_stuff_d2
                 then
                   if gun_num <> 0
                   then (
-                    if next_fire <= 0
+                    if !next_fire <= 0
                     then
-                      Effect.perform
-                        (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
-                    if next_fire2 <= 0 && weapon_type2 <> -1
+                      fire_laser
+                        (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz);
+                    if !next_fire2 <= 0 && weapon_type2 <> -1
                     then (
                       let gp2x, gp2y, gp2z = Effect.perform (Calc_gun_point 0) in
-                      Effect.perform
-                        (Ai_fire_laser_at_player (gp2x, gp2y, gp2z, 0, believed_px, believed_py, believed_pz))))
-                  else if next_fire <= 0
+                      fire_laser
+                        (gp2x, gp2y, gp2z, 0, believed_px, believed_py, believed_pz)))
+                  else if !next_fire <= 0
                   then
-                    Effect.perform
-                      (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz)));
+                    fire_laser
+                      (gpx, gpy, gpz, gun_num, believed_px, believed_py, believed_pz));
               if
                 behavior <> aib_run_from
                 && behavior <> aib_still
@@ -598,6 +602,8 @@ let ai_do_actual_firing_stuff_d2
    ; !current_gun
    ; !mode
    ; !last_fired_updated
+   ; !next_fire
+   ; !next_fire2
   |]
 ;;
 
@@ -790,7 +796,9 @@ let do_ai_frame_d1
       goal_state_arr.(i) <- result.(1 + i)
     done;
     current_gun := result.(9);
-    mode := result.(10)
+    mode := result.(10);
+    (* Read back fire timer updated by set_next_fire_time in C *)
+    next_fire := result.(11)
   in
   (* -- Phase 1: Skip count ------------------------------------------------ *)
   let exception Early_return in
@@ -1644,7 +1652,10 @@ let do_ai_frame_d2
       goal_state_arr.(i) <- result.(1 + i)
     done;
     current_gun := result.(9);
-    mode := result.(10)
+    mode := result.(10);
+    (* Read back fire timers updated by set_next_fire_time in C *)
+    next_fire := result.(12);
+    next_fire2 := result.(13)
   in
   let maybe_fire_mp () =
     if

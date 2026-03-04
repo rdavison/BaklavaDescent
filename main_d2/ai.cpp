@@ -591,6 +591,19 @@ void do_ai_frame(object* obj)
 				});
 			}
 		}
+		// Register read-back for fire timer state (used by OCaml after Ai_fire_laser_at_player)
+		{
+			static int reg_fs = 0;
+			if (!reg_fs) {
+				reg_fs = 1;
+				cd_ox_register_read_fire_state([](int32_t* out) {
+					ai_local* ailp = &Ai_local_info[af_obj - Objects];
+					out[0] = ailp->next_fire;
+					out[1] = ailp->next_fire2;
+					out[2] = ailp->rapidfire_count;
+				});
+			}
+		}
 	}
 	af_obj = obj;
 
