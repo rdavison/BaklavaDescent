@@ -1483,10 +1483,10 @@ let do_physics_drag (packed : int array) =
     let az = Ox_math.fixmul ~a:tz ~b:inv_mass in
     let one_minus_drag = f1_0 - drag in
     while !count > 0 do
-      (* vel += accel; vel *= (1 - drag) *)
-      vx := Ox_math.fixmul ~a:(!vx + ax) ~b:one_minus_drag;
-      vy := Ox_math.fixmul ~a:(!vy + ay) ~b:one_minus_drag;
-      vz := Ox_math.fixmul ~a:(!vz + az) ~b:one_minus_drag;
+      (* vel += accel; vel *= (1 - drag) — wrap addition to 32-bit like C *)
+      vx := Ox_math.fixmul ~a:(w32 (!vx + ax)) ~b:one_minus_drag;
+      vy := Ox_math.fixmul ~a:(w32 (!vy + ay)) ~b:one_minus_drag;
+      vz := Ox_math.fixmul ~a:(w32 (!vz + az)) ~b:one_minus_drag;
       count := !count - 1
     done;
     (* Linear remainder: vel += accel*k; vel *= (1 - k*drag) *)
@@ -1494,9 +1494,9 @@ let do_physics_drag (packed : int array) =
     let k_accel_y = Ox_math.fixmul ~a:ay ~b:k in
     let k_accel_z = Ox_math.fixmul ~a:az ~b:k in
     let one_minus_k_drag = f1_0 - Ox_math.fixmul ~a:k ~b:drag in
-    vx := Ox_math.fixmul ~a:(!vx + k_accel_x) ~b:one_minus_k_drag;
-    vy := Ox_math.fixmul ~a:(!vy + k_accel_y) ~b:one_minus_k_drag;
-    vz := Ox_math.fixmul ~a:(!vz + k_accel_z) ~b:one_minus_k_drag)
+    vx := Ox_math.fixmul ~a:(w32 (!vx + k_accel_x)) ~b:one_minus_k_drag;
+    vy := Ox_math.fixmul ~a:(w32 (!vy + k_accel_y)) ~b:one_minus_k_drag;
+    vz := Ox_math.fixmul ~a:(w32 (!vz + k_accel_z)) ~b:one_minus_k_drag)
   else (
     (* No thrust: just accumulate drag *)
     let total_drag = ref f1_0 in
