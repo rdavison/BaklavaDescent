@@ -1840,7 +1840,9 @@ let do_ai_frame_d2
              unpack_path_state (Effect.perform
                (Create_path_to_player (4 + (overall_agitation / 8) + difficulty_level, 1)))
            | m when m = aim_still ->
-             if not (!behavior = aib_still || !behavior = aib_station || !behavior = aib_follow)
+             if attack_type <> 0
+             then Effect.perform Move_towards_segment_center
+             else if not (!behavior = aib_still || !behavior = aib_station || !behavior = aib_follow)
              then unpack_path_state (Effect.perform Attempt_to_resume_path)
            | m when m = aim_follow_path ->
              if game_mode land gm_multi <> 0
