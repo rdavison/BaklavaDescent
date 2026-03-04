@@ -3306,8 +3306,13 @@ void do_ai_frame(object* obj)
 			cd_ox_register_read_fire_state([](int32_t* out) {
 				ai_local* ailp = &Ai_local_info[af_obj - Objects];
 				out[0] = ailp->next_fire;
-				out[1] = ailp->next_fire2;
+				out[1] = 0;
 				out[2] = ailp->rapidfire_count;
+			});
+			cd_ox_register_write_fire_timers([](int32_t nf, int32_t nf2) {
+				ai_local* ailp = &Ai_local_info[af_obj - Objects];
+				ailp->next_fire = nf;
+				(void)nf2;
 			});
 		}
 	}

@@ -1014,6 +1014,7 @@ void cd_ox_register_read_path_state(cd_effect_af_read_path_state_fn fn);
 typedef void (*cd_effect_af_read_fire_state_fn)(int32_t* out);  /* out[3] */
 
 void cd_ox_register_read_fire_state(cd_effect_af_read_fire_state_fn fn);
+void cd_ox_register_write_fire_timers(void (*fn)(int32_t, int32_t));
 
 /* openable_doors_in_segment effect: returns side index or -1 */
 void cd_ox_register_af_openable_doors(int (*fn)(void));

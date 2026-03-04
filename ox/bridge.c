@@ -202,6 +202,7 @@ static cd_effect_af_do_companion_extras_fn g_effect_af_do_companion_extras = NUL
 static cd_effect_af_do_thief_extras_fn g_effect_af_do_thief_extras = NULL;
 static cd_effect_af_read_path_state_fn g_read_path_state = NULL;
 static cd_effect_af_read_fire_state_fn g_read_fire_state = NULL;
+static void (*g_write_fire_timers)(int32_t next_fire, int32_t next_fire2) = NULL;
 static int (*g_effect_af_openable_doors_in_segment)(void) = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
@@ -3806,6 +3807,18 @@ CAMLprim value cd_ox_read_af_fire_state(value unit)
     for (int i = 0; i < 3; i++)
         Store_field(v_result, i, Val_long(buf[i]));
     CAMLreturn(v_result);
+}
+
+void cd_ox_register_write_fire_timers(void (*fn)(int32_t, int32_t))
+{
+    g_write_fire_timers = fn;
+}
+
+CAMLprim value cd_ox_write_af_fire_timers(value v_nf, value v_nf2)
+{
+    if (g_write_fire_timers)
+        g_write_fire_timers(Int_val(v_nf), Int_val(v_nf2));
+    return Val_unit;
 }
 
 CAMLprim value cd_ox_effect_af_multiplayer_awareness(value v_agitation)

@@ -132,7 +132,7 @@ let ai_transition_table =
 type _ Effect.t +=
   | Ai_multiplayer_awareness : int -> bool Effect.t
   | Do_ai_robot_hit_attack : unit Effect.t
-  | Ai_fire_laser_at_player : (int * int * int * int * int * int * int) -> (int * int * int) Effect.t
+  | Ai_fire_laser_at_player : (int * int * int * int * int * int * int * int * int) -> (int * int * int) Effect.t
   | Calc_gun_point : int -> (int * int * int) Effect.t
   | Create_path_to_player : (int * int) -> int array Effect.t
   | Create_path_to_station : int -> int array Effect.t
@@ -304,8 +304,8 @@ let ai_do_actual_firing_stuff_d1
     current_gun := !current_gun + 1;
     if !current_gun >= n_guns then current_gun := 0
   in
-  let fire_laser args =
-    let nf, _nf2, _rfc = Effect.perform (Ai_fire_laser_at_player args) in
+  let fire_laser (gpx, gpy, gpz, gun_num, fpx, fpy, fpz) =
+    let nf, _nf2, _rfc = Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, fpx, fpy, fpz, !next_fire, 0)) in
     next_fire := nf
   in
   if player_visibility = 2
@@ -433,8 +433,8 @@ let ai_do_actual_firing_stuff_d2
     if !current_gun >= n_guns
     then if n_guns = 1 || weapon_type2 = -1 then current_gun := 0 else current_gun := 1
   in
-  let fire_laser args =
-    let nf, nf2, _rfc = Effect.perform (Ai_fire_laser_at_player args) in
+  let fire_laser (gpx, gpy, gpz, gun_num, fpx, fpy, fpz) =
+    let nf, nf2, _rfc = Effect.perform (Ai_fire_laser_at_player (gpx, gpy, gpz, gun_num, fpx, fpy, fpz, !next_fire, !next_fire2)) in
     next_fire := nf;
     next_fire2 := nf2;
     last_fired_updated := 1

@@ -602,6 +602,11 @@ void do_ai_frame(object* obj)
 					out[1] = ailp->next_fire2;
 					out[2] = ailp->rapidfire_count;
 				});
+				cd_ox_register_write_fire_timers([](int32_t nf, int32_t nf2) {
+					ai_local* ailp = &Ai_local_info[af_obj - Objects];
+					ailp->next_fire = nf;
+					ailp->next_fire2 = nf2;
+				});
 			}
 		}
 	}
