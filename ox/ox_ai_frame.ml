@@ -1873,9 +1873,11 @@ let do_ai_frame_d2
                 Effect.perform (Ai_multi_send_robot_position (-1));
                 if not (!mode = aim_follow_path && !cur_path_index < !path_length - 1)
                 then
-                  if !dist_to_player < f1_0 * 30
-                  then unpack_path_state (Effect.perform (Create_n_segment_path (5, 1)))
-                  else unpack_path_state (Effect.perform (Create_path_to_player (20, 1))))));
+                  if !behavior <> aib_snipe && !behavior <> aib_run_from
+                  then
+                    if !dist_to_player < f1_0 * 30
+                    then unpack_path_state (Effect.perform (Create_n_segment_path (5, 1)))
+                    else unpack_path_state (Effect.perform (Create_path_to_player (20, 1))))));
       (* Phase: collision awareness + visibility agitation *)
       if objnum = 28 && game_time > 270000 && game_time < 280000 then (
         Printf.eprintf "OX28_VISAGIT pat=%d prev_vis=%d obj_ref=%d dist=%d gt=%d\n"
