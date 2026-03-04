@@ -66,6 +66,11 @@ let player_flags_headlight_on = 0x4000
 let pf_uses_thrust = 0x40
 
 (* D2-only constants *)
+let snipe_retreat_time = f1_0 * 5
+let snipe_abort_retreat_time = snipe_retreat_time / 2
+let snipe_attack_time = f1_0 * 10
+let snipe_wait_time = f1_0 * 5
+let snipe_fire_time = f1_0 * 2
 let sub_flags_camera_awake = 4
 let proximity_id = 47 (* D1 *)
 let proximity_id_d2 = 47 (* D2 *)
@@ -1978,9 +1983,57 @@ let do_ai_frame_d2
                 || !player_awareness_type = pa_weapon_robot_collision
              then mode := aim_snipe_attack);
           if thief = 0 && !mode <> aim_still then (
-            let vtpx, vtpy, vtpz = !vec_to_player in
-            unpack_path_state (Effect.perform
-              (Do_snipe_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode)))))
+            (* Ported do_snipe_frame: handle snipe mode transitions and timing *)
+            if !dist_to_player <= f1_0 * 500 then (
+              let vtpx, vtpy, vtpz = !vec_to_player in
+              (match !mode with
+               | m when m = aim_snipe_wait ->
+                 if not (!dist_to_player > f1_0 * 50 && !next_action_time > 0) then (
+                   next_action_time := snipe_wait_time;
+                   (* NOTE: find_connected_distance not available as effect;
+                      always attempt path creation. Divergence expected until
+                      find_connected_distance is available in ai_frame context. *)
+                   unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+                   mode := aim_snipe_attack;
+                   next_action_time := snipe_attack_time)
+               | m when m = aim_snipe_retreat || m = aim_snipe_retreat_backwards ->
+                 if !next_action_time < 0 then (
+                   mode := aim_snipe_wait;
+                   next_action_time := snipe_wait_time)
+                 else if !player_visibility = 0 || !next_action_time > snipe_abort_retreat_time then (
+                   unpack_path_state (Effect.perform
+                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   mode := aim_snipe_retreat_backwards)
+                 else (
+                   mode := aim_snipe_fire;
+                   next_action_time := snipe_fire_time / 2)
+               | m when m = aim_snipe_attack ->
+                 if !next_action_time < 0 then (
+                   mode := aim_snipe_retreat;
+                   next_action_time := snipe_wait_time)
+                 else (
+                   unpack_path_state (Effect.perform
+                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   if !player_visibility <> 0 then (
+                     mode := aim_snipe_fire;
+                     next_action_time := snipe_fire_time)
+                   else
+                     mode := aim_snipe_attack)
+               | m when m = aim_snipe_fire ->
+                 if !next_action_time < 0 then (
+                   let pr = Effect.perform P_Rand in
+                   unpack_path_state (Effect.perform
+                     (Create_n_segment_path (10 + pr / 2048, console_segnum)));
+                   (* NOTE: polish_path not available as effect; path used unpolished.
+                      Divergence expected until polish_path is ported. *)
+                   let pr2 = Effect.perform P_Rand in
+                   if pr2 < 8192
+                   then mode := aim_snipe_retreat_backwards
+                   else mode := aim_snipe_retreat;
+                   next_action_time := snipe_retreat_time)
+               | _ ->
+                 mode := aim_snipe_attack;
+                 next_action_time := f1_0))))
         else if thief = 0 && companion = 0
         then (early_return_flag := 1; raise Early_return))
       else if companion <> 0
