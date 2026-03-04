@@ -311,14 +311,16 @@ let ai_frame_effect_handler
       (fun k ->
         effect_laser_create_new_easy fvx fvy fvz fpx fpy fpz objnum weapon_id;
         Effect.Deep.continue k ())
-  | Ox_ai_frame.Do_companion_extras (dist, vis, vtpx, vtpy, vtpz, mode) ->
+  | Ox_ai_frame.Do_companion_extras (dist, vis, vtpx, vtpy, vtpz, mode, nf_in, nf2_in) ->
     Some
       (fun k ->
+        write_af_fire_timers nf_in nf2_in;
         let nf = effect_do_companion_extras dist vis vtpx vtpy vtpz mode in
         Effect.Deep.continue k nf)
-  | Ox_ai_frame.Do_thief_extras (dist, vis, vtpx, vtpy, vtpz) ->
+  | Ox_ai_frame.Do_thief_extras (dist, vis, vtpx, vtpy, vtpz, nf_in, nf2_in) ->
     Some
       (fun k ->
+        write_af_fire_timers nf_in nf2_in;
         let nf = effect_do_thief_extras dist vis vtpx vtpy vtpz in
         Effect.Deep.continue k nf)
   | _ -> None

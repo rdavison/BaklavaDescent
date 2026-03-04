@@ -159,13 +159,13 @@ type _ Effect.t +=
       (int * int * int * int * int * int * int * int)
       -> unit Effect.t
   (* Do_companion_extras: danger laser evasion + flare firing for companion robot.
-     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, mode)
+     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, mode, next_fire, next_fire2)
      Returns: updated next_fire *)
-  | Do_companion_extras : (int * int * int * int * int * int) -> int Effect.t
+  | Do_companion_extras : (int * int * int * int * int * int * int * int) -> int Effect.t
   (* Do_thief_extras: flare firing for thief robot.
-     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz)
+     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, next_fire, next_fire2)
      Returns: updated next_fire *)
-  | Do_thief_extras : (int * int * int * int * int) -> int Effect.t
+  | Do_thief_extras : (int * int * int * int * int * int * int) -> int Effect.t
 
 (* Ai_fire_laser_at_player args: gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz
    D1: gun_num=0, fire_pos=(0,0,0) ignored on C side
@@ -1987,7 +1987,7 @@ let do_ai_frame_d2
         (* Companion extras: danger laser evasion + flare firing (C lines 1433-1466) *)
         let vtpx, vtpy, vtpz = !vec_to_player in
         let new_nf = Effect.perform
-          (Do_companion_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode)) in
+          (Do_companion_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode, !next_fire, !next_fire2)) in
         next_fire := new_nf);
       (* Thief section: runs independently of snipe (thief has AIB_SNIPE behavior) *)
       if thief <> 0
@@ -1999,7 +1999,7 @@ let do_ai_frame_d2
                            !player_awareness_type, !player_awareness_time)));
         (* Thief extras: flare firing (C lines 1478-1494) *)
         let new_nf = Effect.perform
-          (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz)) in
+          (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !next_fire, !next_fire2)) in
         next_fire := new_nf);
       (* Phase: mode dispatch (D2) *)
       (match !mode with
