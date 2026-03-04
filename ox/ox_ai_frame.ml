@@ -708,9 +708,19 @@ let do_ai_frame_d1
       in
       player_visibility := pv;
       vec_to_player := vtx, vty, vtz;
-      (* C's compute_vis_and_vec updates ailp->previous_visibility = player_visibility.
-         Mirror that here so the time-slice check uses the current frame's value. *)
+      (* Mirror compute_vis_and_vec_v2 side effects on local refs.
+         The effect updates C structs directly, but OCaml's pack_result
+         would overwrite those with stale local values if we don't
+         replicate the updates here. *)
+      (* C lines 2177-2181: wake up resting robots on first clear sight *)
+      if pv = 2 && !previous_visibility <> 2
+      then
+        if !goal_state = ais_rest || !current_state = ais_rest
+        then (
+          goal_state := ais_fire;
+          current_state := ais_fire);
       previous_visibility := pv;
+      if pv <> 0 then time_player_seen := game_time;
       visibility_and_vec_computed := 1)
   in
   (* Helper: unpack path state returned by path effects.
@@ -1543,9 +1553,19 @@ let do_ai_frame_d2
       in
       player_visibility := pv;
       vec_to_player := vtx, vty, vtz;
-      (* C's compute_vis_and_vec updates ailp->previous_visibility = player_visibility.
-         Mirror that here so the time-slice check uses the current frame's value. *)
+      (* Mirror compute_vis_and_vec_v2 side effects on local refs.
+         The effect updates C structs directly, but OCaml's pack_result
+         would overwrite those with stale local values if we don't
+         replicate the updates here. *)
+      (* C lines 2177-2181: wake up resting robots on first clear sight *)
+      if pv = 2 && !previous_visibility <> 2
+      then
+        if !goal_state = ais_rest || !current_state = ais_rest
+        then (
+          goal_state := ais_fire;
+          current_state := ais_fire);
       previous_visibility := pv;
+      if pv <> 0 then time_player_seen := game_time;
       visibility_and_vec_computed := 1)
   in
   (* Helper: unpack path state returned by path effects.
