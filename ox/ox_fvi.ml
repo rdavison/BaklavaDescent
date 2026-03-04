@@ -275,7 +275,7 @@ let special_check_line_to_face
       let closest_point_edge = vm_vec_scale_add ~a:edge_v0 ~b:edge_vec_n ~k:edge_t2 in
       let closest_point_move = vm_vec_scale_add ~a:p0 ~b:move_vec_n ~k:move_t2 in
       let closest_dist = vm_vec_dist ~a:closest_point_edge ~b:closest_point_move in
-      if closest_dist < wrap32 (fixmul ~a:rad ~b:15) / 20
+      if closest_dist < wrap32 (rad * 15) / 20
       then (
         let newp = vm_vec_scale_add ~a:p0 ~b:move_vec_n ~k:(wrap32 (move_t - rad)) in
         it_edge, newp)
