@@ -919,7 +919,7 @@ let find_point_seg_fvi_v2 ~point:(px, py, pz) ~segnum ~n_segments =
         done;
         if !sidenum <> -1
         then trace children.(!sidenum) (iterations + 1)
-        else s))
+        else -1))
   in
   if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
 ;;
