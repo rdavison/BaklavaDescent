@@ -1,0 +1,14 @@
+(executable
+ (name bridge)
+ (modes (native object))
+ (libraries core ox)
+ (modules
+   bridge
+   math
+   g3d gameseg
+   physics collide
+   fvi ai
+   robot lighting
+   weapon controlcen
+   ai_frame physics_sim)
+ (flags (:standard -w -27 -open Core)))

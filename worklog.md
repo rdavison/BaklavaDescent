@@ -2377,3 +2377,38 @@ Converted all four functions from shadow mode to OCaml-authoritative:
 - Headless replay completes 636 frames, no crashes or exceptions
 - All three systems log OCaml-authoritative: `do_physics_sim`, `do_ai_frame`, `find_vector_intersection`
 - State divergences vs C-ref expected: escort robot (obj 28) behavioral differences cascade through all frames since OCaml is now driving game state
+
+### 42) Separate game logic from porting infrastructure
+
+Reorganized the project to make the boundary between pure OCaml game logic and porting scaffolding explicit.
+
+#### Directory restructuring
+- **`ox/`** now contains only pure game logic (15 `ox_*.ml` files, `tests/`, `tests/oracle/`)
+- **`ox-bridge/`** (new) contains the C↔OCaml bridge: adapter modules (`math.ml`, `g3d.ml`, `physics.ml`, etc.), entry point (`bridge.ml`), and C glue (`bridge.c`, `bridge.h`)
+- **`tools/`** gained `input_recorder.cpp/.h`, `input_replayer.cpp/.h`, `parity.cpp/.h`, and `smoke_test.cpp` — all testing infrastructure that doesn't belong in the bridge
+- Moved `ox/oracle/` → `ox/tests/oracle/` (test-only C reference library)
+- Removed stale `ox/_build/` and `build/` directories
+
+#### Bridge architecture cleanup
+- Merged the bridge library and entry-point executable into a single dune executable stanza
+- Renamed `math_bridge.ml` → split into `ox-bridge/math.ml` (bridge library module) + `ox-bridge/bridge.ml` (entry point)
+- Stripped `_bridge` suffix from all bridge module names (redundant since directory is `ox-bridge/`)
+- Changed all bridge modules from top-level `let () = Callback.register ...` to explicit `let register_callbacks () = ...`, called from `bridge.ml`
+
+#### Files changed
+| Area | Change |
+|------|--------|
+| `ox/dune` | Stripped to 15 pure game logic modules, removed `(library_flags -linkall)` |
+| `ox-bridge/dune` | Single executable stanza with all bridge modules |
+| `ox/tests/dune` | Updated library deps from individual modules to `ox`, oracle include path |
+| `ox/tests/parity_expect.ml` | Fixed stale refs: `sphere_intersects_wall` → `_v2`, `find_homing_object_complete` → `_v2` |
+| `scripts/ox/build_bridge.sh` | Updated dune target path |
+| `CMakeLists.txt` | Updated all source/dependency paths |
+| ~50 C/C++ files | `#include "ox/..."` → `#include "ox-bridge/..."` or `#include "tools/..."` |
+| `CLAUDE.md` | Updated architecture diagram and code layout table |
+
+#### Verification
+- `dune build @all` succeeds
+- `cmake --build build-ox -j8` succeeds (ChocolateDescent, ChocolateDescent2, headless_replay)
+- `cmake --build build-c-ref -j8` succeeds
+- All four game binaries (D1/D2 × C/OCaml) launch and run correctly

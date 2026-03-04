@@ -50,7 +50,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gauges.h"
 #include "stringtable.h"
 #include "misc/rand.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 
 #ifdef EDITOR
 #include "editor\editor.h"

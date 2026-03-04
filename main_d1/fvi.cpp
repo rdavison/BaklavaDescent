@@ -16,7 +16,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>
 
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 extern bool g_ox_nested_ocaml_guard;
 #endif
 

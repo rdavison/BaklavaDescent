@@ -113,7 +113,7 @@ let cd_openable_doors_in_segment_d2 (packed : int array) =
 (* do_firing_stuff: packed 12-int array → 3-int array *)
 let cd_do_firing_stuff (packed : int array) = Ox_ai.do_firing_stuff packed
 
-let () =
+let register_callbacks () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
   Callback.register "cd_ai_behavior_to_mode_d1" cd_ai_behavior_to_mode_d1;

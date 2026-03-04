@@ -79,8 +79,8 @@ char copyright[] = "DESCENT II  COPYRIGHT (C) 1994-1996 PARALLAX SOFTWARE CORPOR
 #include "misc/types.h"
 
 #ifdef OX_REPLAY
-#include "ox/input_recorder.h"
-#include "ox/input_replayer.h"
+#include "tools/input_recorder.h"
+#include "tools/input_replayer.h"
 #endif
 
 //#include "3dfx_des.h"

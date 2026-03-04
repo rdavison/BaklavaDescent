@@ -669,6 +669,9 @@ let do_ai_frame_d1
       ~(cloak_last_pos : int array)
       ~cloak_last_time
       ~ai_evaded_in
+      ~velocity_x
+      ~velocity_y
+      ~velocity_z
   =
   (* Unpack AI state into refs *)
   let skip_ai_count = ref ai_state.(idx_skip_ai_count) in
@@ -744,6 +747,42 @@ let do_ai_frame_d1
       if pv <> 0 then time_player_seen := game_time;
       visibility_and_vec_computed := 1)
   in
+  (* Pathfinding wrappers — call Ox_aipath directly instead of C effects *)
+  let d1_console_segnum = believed_seg in
+  let do_create_path_to_player max_length safety_flag =
+    Ox_aipath.create_path_to_player ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~believed_seg ~max_length ~safety_flag
+      ~behavior:!behavior ~is_companion:false ~is_d2:false ~game_time
+      ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count ~robot_id:obj_id
+      ~player_flags ~mode:!mode ~frame_count ~console_segnum:d1_console_segnum
+  in
+  let do_create_path_to_station max_length =
+    Ox_aipath.create_path_to_station ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~hide_segment:!hide_segment ~max_length
+      ~behavior:!behavior ~is_companion:false ~is_d2:false ~game_time
+      ~skip_ai_count:!skip_ai_count ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum:d1_console_segnum
+  in
+  let do_create_n_segment_path length avoid_seg =
+    Ox_aipath.create_n_segment_path ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~path_length_in:length ~avoid_seg
+      ~behavior:!behavior ~is_companion:false ~is_d2:false
+      ~previous_visibility:!previous_visibility ~skip_ai_count:!skip_ai_count
+      ~hide_segment:!hide_segment ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum:d1_console_segnum ~game_time
+  in
+  let do_attempt_to_resume_path () =
+    Ox_aipath.attempt_to_resume_path ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z ~obj_size
+      ~behavior:!behavior ~is_companion:false ~is_d2:false
+      ~cur_path_index:!cur_path_index ~path_length:!path_length
+      ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count
+      ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum:d1_console_segnum ~game_time
+  in
+  let do_move_towards_segment_center () =
+    Ox_aipath.move_towards_segment_center ~objnum ~obj_x ~obj_y ~obj_z
+      ~obj_segnum ~obj_size
+  in
   (* Helper: unpack path state returned by path effects.
      Array: [0]hide_index [1]path_length [2]cur_path_index [3]path_dir
             [4]mode [5]goal_segment [6]time_player_seen [7]player_awareness_type
@@ -761,9 +800,41 @@ let do_ai_frame_d1
     hide_segment := ps.(9);
     skip_ai_count := ps.(10)
   in
+  (* Velocity/orient from ai_follow_path — written back to C *)
+  let new_orient_vel = ref None in
+  let do_ai_follow_path vis prev_vis _vtpx _vtpy _vtpz =
+    let (ps, gx, gy, gz) =
+      Ox_aipath.ai_follow_path ~objnum ~obj_x ~obj_y ~obj_z ~obj_segnum ~obj_size
+        ~velocity_x ~velocity_y ~velocity_z
+        ~player_visibility:vis ~previous_visibility:prev_vis
+        ~hide_index:!hide_index ~path_length:!path_length ~cur_path_index:!cur_path_index
+        ~behavior:!behavior ~mode:!mode ~is_companion:false ~is_thief:false ~is_d2:false
+        ~console_segnum:believed_seg ~frame_time ~frame_count ~game_time
+        ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count ~robot_id:obj_id ~player_flags
+        ~player_is_dead ~viewer_x:console_x ~viewer_y:console_y ~viewer_z:console_z
+        ~max_speed:(rinfo.(ri_max_speed + difficulty_level)) ~difficulty_level
+    in
+    unpack_path_state ps;
+    let packed = [| velocity_x; velocity_y; velocity_z;
+      obj_x; obj_y; obj_z;
+      orient.(6); orient.(7); orient.(8);
+      orient.(0); orient.(1); orient.(2);
+      gx; gy; gz;
+      rinfo.(ri_max_speed + difficulty_level);
+      rinfo.(ri_turn_time + difficulty_level);
+      rinfo.(ri_turn_time + 4);
+      !mode; frame_time; 0;
+      0; 0; 0;
+      0; 0; 0 |]
+    in
+    let ov = Ox_physics.ai_path_set_orient_and_vel packed in
+    new_orient_vel := Some ov
+  in
   (* Helper: pack result *)
   let pack_result () =
-    let r = Array.create ~len:ai_state_size 0 in
+    let r = Array.create ~len:(ai_state_size + 12) 0 in
+    (* Sentinel: no velocity/orient update by default *)
+    r.(ai_state_size) <- 0x7FFFFFFF;
     r.(idx_skip_ai_count) <- !skip_ai_count;
     r.(idx_goal_state) <- !goal_state;
     r.(idx_current_state) <- !current_state;
@@ -794,6 +865,13 @@ let do_ai_frame_d1
       r.(idx_achieved_state + i) <- achieved_state.(i)
     done;
     r.(idx_previous_visibility) <- !previous_visibility;
+    (* Velocity/orient from ai_follow_path *)
+    (match !new_orient_vel with
+     | Some ov ->
+       for i = 0 to 11 do
+         r.(ai_state_size + i) <- ov.(i)
+       done
+     | None -> ());
     r
   in
   (* Helper: fire actual *)
@@ -921,8 +999,8 @@ let do_ai_frame_d1
             let pr2 = Effect.perform P_Rand in
             if pr2 * (overall_agitation - 40) > f1_0 * 5
             then (
-              unpack_path_state (Effect.perform
-                (Create_path_to_player (4 + (overall_agitation / 8) + difficulty_level, 1)));
+              unpack_path_state
+                (do_create_path_to_player (4 + (overall_agitation / 8) + difficulty_level) 1);
               raise Early_return)));
     (* Phase: retry count *)
     if !retry_count > 0 && game_mode land gm_multi = 0
@@ -933,33 +1011,33 @@ let do_ai_frame_d1
       then (
         (match !mode with
          | m when m = aim_chase_object ->
-           unpack_path_state (Effect.perform
-             (Create_path_to_player (4 + (overall_agitation / 8) + difficulty_level, 1)))
+           unpack_path_state
+             (do_create_path_to_player (4 + (overall_agitation / 8) + difficulty_level) 1)
          | m when m = aim_still ->
            if not (!behavior = aib_still || !behavior = aib_station)
-           then unpack_path_state (Effect.perform Attempt_to_resume_path)
+           then unpack_path_state (do_attempt_to_resume_path ())
          | m when m = aim_follow_path ->
            if game_mode land gm_multi <> 0
            then mode := aim_still
-           else unpack_path_state (Effect.perform Attempt_to_resume_path)
+           else unpack_path_state (do_attempt_to_resume_path ())
          | m when m = aim_run_from_object ->
-           Effect.perform Move_towards_segment_center;
-           unpack_path_state (Effect.perform (Create_n_segment_path (5, -1)));
+           do_move_towards_segment_center ();
+           unpack_path_state (do_create_n_segment_path 5 (-1));
            mode := aim_run_from_object
          | m when m = aim_behind ->
-           Effect.perform Move_towards_segment_center;
+           do_move_towards_segment_center ();
            if overall_agitation > 50 - (difficulty_level * 4)
-           then unpack_path_state (Effect.perform (Create_path_to_player (4 + (overall_agitation / 8), 1)))
-           else unpack_path_state (Effect.perform (Create_n_segment_path (5, -1)))
+           then unpack_path_state (do_create_path_to_player (4 + (overall_agitation / 8)) 1)
+           else unpack_path_state (do_create_n_segment_path 5 (-1))
          | m when m = aim_open_door ->
-           unpack_path_state (Effect.perform (Create_n_segment_path_to_door (5, -1)))
+           unpack_path_state (do_create_n_segment_path 5 (-1))
          | _ -> ());
         consecutive_retries := 0))
     else consecutive_retries := !consecutive_retries / 2;
     (* Phase: robotmaker exit *)
     if game_mode land gm_multi = 0 && seg_special = segment_is_robotmaker
     then (
-      unpack_path_state (Effect.perform (Ai_follow_path (1, !previous_visibility, 0, 0, 0)));
+      do_ai_follow_path 1 !previous_visibility 0 0 0;
       raise Early_return);
     (* Phase: awareness decay *)
     if !player_awareness_type > 0
@@ -993,8 +1071,8 @@ let do_ai_frame_d1
               if not (!mode = aim_follow_path && !cur_path_index < !path_length - 1)
               then
                 if !dist_to_player < f1_0 * 30
-                then unpack_path_state (Effect.perform (Create_n_segment_path (5, 1)))
-                else unpack_path_state (Effect.perform (Create_path_to_player (20, 1))))));
+                then unpack_path_state (do_create_n_segment_path 5 1)
+                else unpack_path_state (do_create_path_to_player 20 1))));
     (* Phase: collision awareness + visibility agitation *)
     if
       !player_awareness_type = pa_weapon_robot_collision
@@ -1095,7 +1173,7 @@ let do_ai_frame_d1
         then (
           let ok = Effect.perform (Ai_multiplayer_awareness 50) in
           if not ok then raise Early_return;
-          unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+          unpack_path_state (do_create_n_segment_path (8 + difficulty_level) (-1));
           Effect.perform (Ai_multi_send_robot_position (-1))))
       else (
         compute_vis ();
@@ -1103,7 +1181,7 @@ let do_ai_frame_d1
         then (
           let ok = Effect.perform (Ai_multiplayer_awareness 50) in
           if not ok then raise Early_return;
-          unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+          unpack_path_state (do_create_n_segment_path (8 + difficulty_level) (-1));
           Effect.perform (Ai_multi_send_robot_position (-1))));
     (* Phase: mode dispatch *)
     let saved_prev_vis = !previous_visibility in
@@ -1122,7 +1200,7 @@ let do_ai_frame_d1
          if not ok
          then maybe_fire_mp_and_return ()
          else (
-           unpack_path_state (Effect.perform (Create_path_to_player (8, 1)));
+           unpack_path_state (do_create_path_to_player 8 1);
            Effect.perform (Ai_multi_send_robot_position (-1))))
        else if
          !player_visibility = 0
@@ -1132,8 +1210,8 @@ let do_ai_frame_d1
          if !behavior = aib_station
          then (
            goal_segment := !hide_segment;
-           unpack_path_state (Effect.perform (Create_path_to_station 15)))
-         else unpack_path_state (Effect.perform (Create_n_segment_path (5, -1)));
+           unpack_path_state (do_create_path_to_station 15))
+         else unpack_path_state (do_create_n_segment_path 5 (-1));
        if !current_state = ais_rest && !goal_state = ais_rest
        then
          if !player_visibility > 0
@@ -1158,7 +1236,7 @@ let do_ai_frame_d1
          if not ok
          then maybe_fire_mp_and_return ()
          else (
-           unpack_path_state (Effect.perform (Create_path_to_player (10, 1)));
+           unpack_path_state (do_create_path_to_player 10 1);
            Effect.perform (Ai_multi_send_robot_position (-1))))
        else if !current_state <> ais_rest && !goal_state <> ais_rest
        then (
@@ -1193,8 +1271,7 @@ let do_ai_frame_d1
          let ok = Effect.perform (Ai_multiplayer_awareness 75) in
          if ok
          then (
-           unpack_path_state (Effect.perform
-             (Ai_follow_path (!player_visibility, saved_prev_vis, 0, 0, 0)));
+           do_ai_follow_path !player_visibility saved_prev_vis 0 0 0;
            Effect.perform (Ai_multi_send_robot_position (-1))));
        if !goal_state <> ais_flin
        then goal_state := ais_lock
@@ -1237,8 +1314,7 @@ let do_ai_frame_d1
            do_actual_firing ());
          raise Early_return)
        else (
-         unpack_path_state (Effect.perform
-           (Ai_follow_path (!player_visibility, !previous_visibility, 0, 0, 0)));
+         do_ai_follow_path !player_visibility !previous_visibility 0 0 0;
          if !goal_state <> ais_flin
          then goal_state := ais_lock
          else if !current_state = ais_flin
@@ -1277,8 +1353,7 @@ let do_ai_frame_d1
          raise Early_return)
        else (
          compute_vis ();
-         unpack_path_state (Effect.perform
-           (Ai_follow_path (!player_visibility, saved_prev_vis, 0, 0, 0)));
+         do_ai_follow_path !player_visibility saved_prev_vis 0 0 0;
          if !goal_state <> ais_flin
          then goal_state := ais_lock
          else if !current_state = ais_flin
@@ -1335,7 +1410,7 @@ let do_ai_frame_d1
            if !behavior = aib_station
            then (
              goal_segment := !hide_segment;
-             unpack_path_state (Effect.perform (Create_path_to_station 15))))
+             unpack_path_state (do_create_path_to_station 15)))
      | m when m = aim_open_door ->
        let ok = Effect.perform (Ai_multiplayer_awareness 62) in
        if not ok then raise Early_return;
@@ -1500,6 +1575,9 @@ let do_ai_frame_d2
       ~fire_at_nearby_threshold
       ~seg_station_enabled
       ~console_segnum
+      ~velocity_x
+      ~velocity_y
+      ~velocity_z
   =
   (* Unpack AI state into refs *)
   let skip_ai_count = ref ai_state.(idx_skip_ai_count) in
@@ -1590,6 +1668,41 @@ let do_ai_frame_d2
       if pv <> 0 then time_player_seen := game_time;
       visibility_and_vec_computed := 1)
   in
+  (* Pathfinding wrappers — call Ox_aipath directly instead of C effects *)
+  let do_create_path_to_player max_length safety_flag =
+    Ox_aipath.create_path_to_player ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~believed_seg ~max_length ~safety_flag
+      ~behavior:!behavior ~is_companion:(companion<>0) ~is_d2:true ~game_time
+      ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count ~robot_id:obj_id
+      ~player_flags ~mode:!mode ~frame_count ~console_segnum
+  in
+  let do_create_path_to_station max_length =
+    Ox_aipath.create_path_to_station ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~hide_segment:!hide_segment ~max_length
+      ~behavior:!behavior ~is_companion:(companion<>0) ~is_d2:true ~game_time
+      ~skip_ai_count:!skip_ai_count ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum
+  in
+  let do_create_n_segment_path length avoid_seg =
+    Ox_aipath.create_n_segment_path ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z
+      ~obj_size ~path_length_in:length ~avoid_seg
+      ~behavior:!behavior ~is_companion:(companion<>0) ~is_d2:true
+      ~previous_visibility:!previous_visibility ~skip_ai_count:!skip_ai_count
+      ~hide_segment:!hide_segment ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum ~game_time
+  in
+  let do_attempt_to_resume_path () =
+    Ox_aipath.attempt_to_resume_path ~objnum ~obj_segnum ~obj_x ~obj_y ~obj_z ~obj_size
+      ~behavior:!behavior ~is_companion:(companion<>0) ~is_d2:true
+      ~cur_path_index:!cur_path_index ~path_length:!path_length
+      ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count
+      ~robot_id:obj_id ~player_flags ~mode:!mode
+      ~frame_count ~console_segnum ~game_time
+  in
+  let do_move_towards_segment_center () =
+    Ox_aipath.move_towards_segment_center ~objnum ~obj_x ~obj_y ~obj_z
+      ~obj_segnum ~obj_size
+  in
   (* Helper: unpack path state returned by path effects.
      Array: [0]hide_index [1]path_length [2]cur_path_index [3]path_dir
             [4]mode [5]goal_segment [6]time_player_seen [7]player_awareness_type
@@ -1610,9 +1723,41 @@ let do_ai_frame_d2
        operate on stale next_action_time (OCaml decremented it but didn't write to C).
        OCaml manages next_action_time directly (decrement + snipe_attack reset). *)
   in
+  (* Velocity/orient from ai_follow_path — written back to C *)
+  let new_orient_vel = ref None in
+  let do_ai_follow_path vis prev_vis vtpx vtpy vtpz =
+    let (ps, gx, gy, gz) =
+      Ox_aipath.ai_follow_path ~objnum ~obj_x ~obj_y ~obj_z ~obj_segnum ~obj_size
+        ~velocity_x ~velocity_y ~velocity_z
+        ~player_visibility:vis ~previous_visibility:prev_vis
+        ~hide_index:!hide_index ~path_length:!path_length ~cur_path_index:!cur_path_index
+        ~behavior:!behavior ~mode:!mode ~is_companion:(companion<>0) ~is_thief:(thief<>0) ~is_d2:true
+        ~console_segnum ~frame_time ~frame_count ~game_time
+        ~hide_segment:!hide_segment ~skip_ai_count:!skip_ai_count ~robot_id:obj_id ~player_flags
+        ~player_is_dead ~viewer_x:console_x ~viewer_y:console_y ~viewer_z:console_z
+        ~max_speed:(rinfo.(ri_max_speed + difficulty_level)) ~difficulty_level
+    in
+    unpack_path_state ps;
+    let packed = [| velocity_x; velocity_y; velocity_z;
+      obj_x; obj_y; obj_z;
+      orient.(6); orient.(7); orient.(8);
+      orient.(0); orient.(1); orient.(2);
+      gx; gy; gz;
+      rinfo.(ri_max_speed + difficulty_level);
+      rinfo.(ri_turn_time + difficulty_level);
+      rinfo.(ri_turn_time + 4);
+      !mode; frame_time; 1;
+      !behavior; companion; vis;
+      vtpx; vtpy; vtpz |]
+    in
+    let ov = Ox_physics.ai_path_set_orient_and_vel packed in
+    new_orient_vel := Some ov
+  in
   (* Helper: pack result *)
   let pack_result () =
-    let r = Array.create ~len:(ai_state_size + 7) 0 in
+    let r = Array.create ~len:(ai_state_size + 19) 0 in
+    (* Sentinel: no velocity/orient update by default *)
+    r.(ai_state_size + 7) <- 0x7FFFFFFF;
     r.(idx_skip_ai_count) <- !skip_ai_count;
     r.(idx_goal_state) <- !goal_state;
     r.(idx_current_state) <- !current_state;
@@ -1652,6 +1797,13 @@ let do_ai_frame_d2
     r.(ai_state_size + 4) <- !object_animates;
     r.(ai_state_size + 5) <- !early_return_flag;
     r.(ai_state_size + 6) <- !mode_case_vis;
+    (* Velocity/orient from ai_follow_path *)
+    (match !new_orient_vel with
+     | Some ov ->
+       for i = 0 to 11 do
+         r.(ai_state_size + 7 + i) <- ov.(i)
+       done
+     | None -> ());
     r
   in
   (* Helper: fire actual D2 *)
@@ -1766,7 +1918,7 @@ let do_ai_frame_d2
       if objnum = 28 && game_time > 274000 && game_time < 278000 then (
         Printf.eprintf "OX28_D2_ENTRY gt=%d pat=%d mode=%d\n"
           game_time !player_awareness_type !mode;
-        flush stderr);
+        Out_channel.flush stderr);
       (* Phase: unflinch (D2 uses ready_to_fire) *)
       if
         !goal_state = ais_flin
@@ -1856,30 +2008,30 @@ let do_ai_frame_d2
         then (
           (match !mode with
            | m when m = aim_goto_player ->
-             Effect.perform Move_towards_segment_center;
-             unpack_path_state (Effect.perform (Create_path_to_player (100, 1)))
+             do_move_towards_segment_center ();
+             unpack_path_state (do_create_path_to_player 100 1)
            | m when m = aim_goto_object ->
              Effect.perform Invalidate_escort_goal
            | m when m = aim_chase_object ->
-             unpack_path_state (Effect.perform
-               (Create_path_to_player (4 + (overall_agitation / 8) + difficulty_level, 1)))
+             unpack_path_state
+               (do_create_path_to_player (4 + (overall_agitation / 8) + difficulty_level) 1)
            | m when m = aim_still ->
              if attack_type <> 0
-             then Effect.perform Move_towards_segment_center
+             then do_move_towards_segment_center ()
              else if not (!behavior = aib_still || !behavior = aib_station || !behavior = aib_follow)
-             then unpack_path_state (Effect.perform Attempt_to_resume_path)
+             then unpack_path_state (do_attempt_to_resume_path ())
            | m when m = aim_follow_path ->
              if game_mode land gm_multi <> 0
              then mode := aim_still
-             else unpack_path_state (Effect.perform Attempt_to_resume_path)
+             else unpack_path_state (do_attempt_to_resume_path ())
            | m when m = aim_run_from_object ->
-             Effect.perform Move_towards_segment_center;
-             unpack_path_state (Effect.perform (Create_n_segment_path (5, -1)));
+             do_move_towards_segment_center ();
+             unpack_path_state (do_create_n_segment_path 5 (-1));
              mode := aim_run_from_object
            | m when m = aim_behind ->
-             Effect.perform Move_towards_segment_center
+             do_move_towards_segment_center ()
            | m when m = aim_open_door ->
-             unpack_path_state (Effect.perform (Create_n_segment_path_to_door (5, -1)))
+             unpack_path_state (do_create_n_segment_path 5 (-1))
            | _ -> ());
           consecutive_retries := 0))
       else consecutive_retries := !consecutive_retries / 2;
@@ -1889,8 +2041,8 @@ let do_ai_frame_d2
          && seg_station_enabled <> 0
       then (
         if objnum = 28 && game_time > 270000 && game_time < 280000 then (
-          Printf.eprintf "OX28_ROBOTMAKER_EXIT gt=%d\n" game_time; flush stderr);
-        unpack_path_state (Effect.perform (Ai_follow_path (1, 1, 0, 0, 0)));
+          Printf.eprintf "OX28_ROBOTMAKER_EXIT gt=%d\n" game_time; Out_channel.flush stderr);
+        do_ai_follow_path 1 1 0 0 0;
         raise Early_return);
       (* Phase: awareness decay *)
       if !player_awareness_type > 0
@@ -1925,13 +2077,13 @@ let do_ai_frame_d2
                   if !behavior <> aib_snipe && !behavior <> aib_run_from
                   then
                     if !dist_to_player < f1_0 * 30
-                    then unpack_path_state (Effect.perform (Create_n_segment_path (5, 1)))
-                    else unpack_path_state (Effect.perform (Create_path_to_player (20, 1))))));
+                    then unpack_path_state (do_create_n_segment_path 5 1)
+                    else unpack_path_state (do_create_path_to_player 20 1))));
       (* Phase: collision awareness + visibility agitation *)
       if objnum = 28 && game_time > 270000 && game_time < 280000 then (
         Printf.eprintf "OX28_VISAGIT pat=%d prev_vis=%d obj_ref=%d dist=%d gt=%d\n"
           !player_awareness_type !previous_visibility obj_ref !dist_to_player game_time;
-        flush stderr);
+        Out_channel.flush stderr);
       if
         !player_awareness_type = pa_weapon_robot_collision
         || !player_awareness_type >= pa_player_collision
@@ -1949,7 +2101,7 @@ let do_ai_frame_d2
           Printf.eprintf "OX28_RAND rval=%d sval=%d fm=%d dist=%d prev=%d result=%d headlight=%d gt=%d\n"
             rval sval frame_time !dist_to_player !previous_visibility
             (Ox_math.fixmul ~a:rval ~b:sval) (player_flags land player_flags_headlight_on) game_time;
-          flush stderr);
+          Out_channel.flush stderr);
         if Ox_math.fixmul ~a:rval ~b:sval < frame_time
            || player_flags land player_flags_headlight_on <> 0
         then (
@@ -2008,7 +2160,7 @@ let do_ai_frame_d2
           then (
             let ok = Effect.perform (Ai_multiplayer_awareness 50) in
             if not ok then raise Early_return;
-            unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+            unpack_path_state (do_create_n_segment_path (8 + difficulty_level) (-1));
             Effect.perform (Ai_multi_send_robot_position (-1)));
           if !next_action_time < 0
           then (
@@ -2023,7 +2175,7 @@ let do_ai_frame_d2
           then (
             let ok = Effect.perform (Ai_multiplayer_awareness 50) in
             if not ok then raise Early_return;
-            unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
+            unpack_path_state (do_create_n_segment_path (8 + difficulty_level) (-1));
             Effect.perform (Ai_multi_send_robot_position (-1))));
       (* Phase: D2 specials: snipe, escort, thief *)
       if !behavior = aib_snipe
@@ -2047,7 +2199,7 @@ let do_ai_frame_d2
                    (* NOTE: find_connected_distance not available as effect;
                       always attempt path creation. Divergence expected until
                       find_connected_distance is available in ai_frame context. *)
-                   unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+                   unpack_path_state (do_create_path_to_player 30 1);
                    mode := aim_snipe_attack;
                    next_action_time := snipe_attack_time)
                | m when m = aim_snipe_retreat || m = aim_snipe_retreat_backwards ->
@@ -2055,8 +2207,7 @@ let do_ai_frame_d2
                    mode := aim_snipe_wait;
                    next_action_time := snipe_wait_time)
                  else if !player_visibility = 0 || !next_action_time > snipe_abort_retreat_time then (
-                   unpack_path_state (Effect.perform
-                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   do_ai_follow_path !player_visibility !player_visibility vtpx vtpy vtpz;
                    mode := aim_snipe_retreat_backwards)
                  else (
                    mode := aim_snipe_fire;
@@ -2066,8 +2217,7 @@ let do_ai_frame_d2
                    mode := aim_snipe_retreat;
                    next_action_time := snipe_wait_time)
                  else (
-                   unpack_path_state (Effect.perform
-                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   do_ai_follow_path !player_visibility !player_visibility vtpx vtpy vtpz;
                    if !player_visibility <> 0 then (
                      mode := aim_snipe_fire;
                      next_action_time := snipe_fire_time)
@@ -2122,12 +2272,12 @@ let do_ai_frame_d2
              (* C lines 1362-1376: awareness/visibility checks with early returns *)
              if !player_awareness_type >= pa_player_collision then (
                player_awareness_type := 0;
-               unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+               unpack_path_state (do_create_path_to_player 30 1);
                mode := aim_thief_attack;
                next_action_time := thief_attack_time / 2;
                thief_done := true)
              else if !player_visibility <> 0 then (
-               unpack_path_state (Effect.perform (Create_n_segment_path (15, console_segnum)));
+               unpack_path_state (do_create_n_segment_path 15 console_segnum);
                mode := aim_thief_retreat;
                thief_done := true);
              (* C lines 1378-1389: distance/timer gate, then path to player *)
@@ -2135,7 +2285,7 @@ let do_ai_frame_d2
                if not (!dist_to_player > f1_0 * 50 && !next_action_time > 0) then (
                  next_action_time := thief_wait_time / 2;
                  (* NOTE: find_connected_distance not available; always create path *)
-                 unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+                 unpack_path_state (do_create_path_to_player 30 1);
                  mode := aim_thief_attack;
                  next_action_time := thief_attack_time))
            | m when m = aim_thief_retreat ->
@@ -2147,8 +2297,7 @@ let do_ai_frame_d2
                      || !player_visibility <> 0
                      || !player_awareness_type >= pa_player_collision then (
                let vtpx, vtpy, vtpz = !vec_to_player in
-               unpack_path_state (Effect.perform
-                 (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+               do_ai_follow_path !player_visibility !player_visibility vtpx vtpy vtpz;
                if !dist_to_player < f1_0 * 100
                   || !player_awareness_type >= pa_player_collision then (
                  (* C lines 1403-1420: path end check + new retreat path.
@@ -2156,7 +2305,7 @@ let do_ai_frame_d2
                     NOTE: shield-based path lengthening skipped (shields not available). *)
                  if (!cur_path_index <= 1 || !cur_path_index >= !path_length - 1) then (
                    player_awareness_type := 0;
-                   unpack_path_state (Effect.perform (Create_n_segment_path (10, console_segnum)));
+                   unpack_path_state (do_create_n_segment_path 10 console_segnum);
                    mode := aim_thief_retreat))
                else
                  mode := aim_thief_retreat)
@@ -2166,12 +2315,12 @@ let do_ai_frame_d2
                player_awareness_type := 0;
                let pr = Effect.perform P_Rand in
                if pr > 8192 then (
-                 unpack_path_state (Effect.perform (Create_n_segment_path (10, console_segnum)));
+                 unpack_path_state (do_create_n_segment_path 10 console_segnum);
                  next_action_time := thief_wait_time / 2;
                  mode := aim_thief_retreat))
              else if !next_action_time < 0 then (
                next_action_time := f1_0;
-               unpack_path_state (Effect.perform (Create_path_to_player (100, 0)));
+               unpack_path_state (do_create_path_to_player 100 0);
                mode := aim_thief_attack)
              else (
                if !player_visibility <> 0 && !dist_to_player < f1_0 * 100 then (
@@ -2183,8 +2332,7 @@ let do_ai_frame_d2
                else (
                  if !path_length > 1 || frame_count land 0x0f = 0 then (
                    let vtpx, vtpy, vtpz = !vec_to_player in
-                   unpack_path_state (Effect.perform
-                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   do_ai_follow_path !player_visibility !player_visibility vtpx vtpy vtpz;
                    mode := aim_thief_attack)))
            | _ ->
              mode := aim_thief_attack;
@@ -2211,7 +2359,7 @@ let do_ai_frame_d2
            if not ok
            then maybe_fire_mp ()
            else (
-             unpack_path_state (Effect.perform (Create_path_to_player (8, 1)));
+             unpack_path_state (do_create_path_to_player 8 1);
              Effect.perform (Ai_multi_send_robot_position (-1))))
          else if
            !player_visibility = 0
@@ -2221,7 +2369,7 @@ let do_ai_frame_d2
            if !behavior = aib_station
            then (
              goal_segment := !hide_segment;
-             unpack_path_state (Effect.perform (Create_path_to_station 15)));
+             unpack_path_state (do_create_path_to_station 15));
            (* C break: skip rest of AIM_CHASE_OBJECT case *)
            chase_break := true);
          if not !chase_break then (
@@ -2275,8 +2423,7 @@ let do_ai_frame_d2
            if ok
            then (
              let vtpx, vtpy, vtpz = !vec_to_player in
-             unpack_path_state (Effect.perform
-               (Ai_follow_path (!player_visibility, saved_prev_vis, vtpx, vtpy, vtpz)));
+             do_ai_follow_path !player_visibility saved_prev_vis vtpx vtpy vtpz;
              Effect.perform (Ai_multi_send_robot_position (-1))));
          if !goal_state <> ais_flin
          then goal_state := ais_lock
@@ -2305,8 +2452,7 @@ let do_ai_frame_d2
        | m when m = aim_goto_player || m = aim_goto_object ->
          (* C-only passes player_visibility=2 (hardcoded) for goto modes *)
          let vtpx, vtpy, vtpz = !vec_to_player in
-         unpack_path_state (Effect.perform
-           (Ai_follow_path (2, saved_prev_vis, vtpx, vtpy, vtpz)))
+         do_ai_follow_path 2 saved_prev_vis vtpx vtpy vtpz
        | m when m = aim_follow_path ->
          let anger_level = ref 65 in
          if !behavior = aib_station then anger_level := 64;
@@ -2325,8 +2471,7 @@ let do_ai_frame_d2
              do_actual_firing ()))
          else (
            let vtpx, vtpy, vtpz = !vec_to_player in
-           unpack_path_state (Effect.perform
-             (Ai_follow_path (!player_visibility, saved_prev_vis, vtpx, vtpy, vtpz)));
+           do_ai_follow_path !player_visibility saved_prev_vis vtpx vtpy vtpz;
            if !goal_state <> ais_flin
            then goal_state := ais_lock
            else if !current_state = ais_flin
@@ -2420,7 +2565,7 @@ let do_ai_frame_d2
              if !behavior = aib_station
              then (
                goal_segment := !hide_segment;
-               unpack_path_state (Effect.perform (Create_path_to_station 15))))
+               unpack_path_state (do_create_path_to_station 15)))
        | m when m = aim_open_door ->
          let ok = Effect.perform (Ai_multiplayer_awareness 62) in
          if ok then Effect.perform (Ai_multi_send_robot_position (-1))

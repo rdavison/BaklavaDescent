@@ -164,6 +164,13 @@ external read_af_path_state : unit -> int array = "cd_ox_read_af_path_state"
 external read_af_fire_state : unit -> int array = "cd_ox_read_af_fire_state"
 external write_af_fire_timers : int -> int -> unit = "cd_ox_write_af_fire_timers"
 
+(* Pathfinding externals — for Ox_aipath effects *)
+external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
+external fetch_wall_data_c : int -> int -> int array = "cd_ox_fetch_wall_data"
+external path_fvi_query_c : int array -> int array = "cd_ox_path_fvi_query"
+external path_obj_relink_c : int array -> unit = "cd_ox_path_obj_relink"
+external path_find_object_seg_c : int -> int -> int -> int = "cd_ox_path_find_object_seg"
+
 (* Effect handler *)
 let ai_frame_effect_handler
   : type a. a Effect.t -> ((a, _) Effect.Deep.continuation -> _) option
@@ -323,6 +330,42 @@ let ai_frame_effect_handler
         write_af_fire_timers nf_in nf2_in;
         let nf = effect_do_thief_extras dist vis vtpx vtpy vtpz in
         Effect.Deep.continue k nf)
+  (* Pathfinding effects from Ox_aipath *)
+  | Ox_gameseg.Fetch_segment_data segnum ->
+    Some
+      (fun k ->
+        let data = fetch_segment_data_c segnum in
+        Effect.Deep.continue k data)
+  | Ox_aipath.Fetch_wall_data (segnum, sidenum) ->
+    Some
+      (fun k ->
+        let data = fetch_wall_data_c segnum sidenum in
+        Effect.Deep.continue k data)
+  | Ox_aipath.Path_p_rand ->
+    Some
+      (fun k ->
+        let result = effect_p_rand () in
+        Effect.Deep.continue k result)
+  | Ox_aipath.Path_fvi_query params ->
+    Some
+      (fun k ->
+        let result = path_fvi_query_c params in
+        Effect.Deep.continue k result)
+  | Ox_aipath.Path_obj_relink params ->
+    Some
+      (fun k ->
+        path_obj_relink_c params;
+        Effect.Deep.continue k ())
+  | Ox_aipath.Path_move_to_legal_spot ->
+    Some
+      (fun k ->
+        (* Rare edge case — currently a no-op *)
+        Effect.Deep.continue k ())
+  | Ox_aipath.Path_find_object_seg (x, y, z) ->
+    Some
+      (fun k ->
+        let seg = path_find_object_seg_c x y z in
+        Effect.Deep.continue k seg)
   | _ -> None
 ;;
 
@@ -360,6 +403,9 @@ let cd_do_ai_frame_d1
       cloak_last_pos
       cloak_last_time
       ai_evaded_in
+      velocity_x
+      velocity_y
+      velocity_z
   =
   Effect.Deep.match_with
     (fun () ->
@@ -395,13 +441,18 @@ let cd_do_ai_frame_d1
          ~seg_special
          ~cloak_last_pos
          ~cloak_last_time
-         ~ai_evaded_in)
+         ~ai_evaded_in
+         ~velocity_x
+         ~velocity_y
+         ~velocity_z)
     ()
     { retc = (fun x -> x)
     ; exnc = (fun exn ->
         Printf.eprintf "OX_SHADOW: D1 ai_frame exception: %s\n" (Exn.to_string exn);
         Out_channel.flush stderr;
-        Array.create ~len:50 0)
+        let r = Array.create ~len:55 0 in
+        r.(43) <- 0x7FFFFFFF;
+        r)
     ; effc = (fun (type a) (eff : a Effect.t) -> ai_frame_effect_handler eff)
     }
 ;;
@@ -451,6 +502,9 @@ let cd_do_ai_frame_d2
       fire_at_nearby_threshold
       seg_station_enabled
       console_segnum
+      velocity_x
+      velocity_y
+      velocity_z
   =
   Effect.Deep.match_with
     (fun () ->
@@ -497,18 +551,23 @@ let cd_do_ai_frame_d2
          ~dist_to_last_fired_upon
          ~fire_at_nearby_threshold
          ~seg_station_enabled
-         ~console_segnum)
+         ~console_segnum
+         ~velocity_x
+         ~velocity_y
+         ~velocity_z)
     ()
     { retc = (fun x -> x)
     ; exnc = (fun exn ->
         Printf.eprintf "OX_SHADOW: D2 ai_frame exception: %s\n" (Exn.to_string exn);
         Out_channel.flush stderr;
-        Array.create ~len:50 0)
+        let r = Array.create ~len:62 0 in
+        r.(50) <- 0x7FFFFFFF;
+        r)
     ; effc = (fun (type a) (eff : a Effect.t) -> ai_frame_effect_handler eff)
     }
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_do_ai_frame_d1" cd_do_ai_frame_d1;
   Callback.register "cd_do_ai_frame_d2" cd_do_ai_frame_d2
 ;;

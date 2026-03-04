@@ -30,7 +30,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "wall.h"
 #include "fuelcen.h"
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 
 // How far a point can be from a plane, and still be "in" the plane

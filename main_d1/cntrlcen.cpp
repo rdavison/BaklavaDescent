@@ -28,7 +28,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "robot.h"
 
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 
 vms_vector controlcen_gun_points[MAX_CONTROLCEN_GUNS];

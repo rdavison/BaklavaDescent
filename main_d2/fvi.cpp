@@ -17,7 +17,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <stdlib.h>
 
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 
 #if defined(__linux__) || defined(_WIN32) || defined(_WIN64)

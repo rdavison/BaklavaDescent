@@ -30,7 +30,7 @@
 
 #include "main_shared/game_shared.h"
 #include "misc/rand.h"
-#include "ox/input_recorder.h"
+#include "tools/input_recorder.h"
 
 /* Ring buffer for frame records - flush when full */
 #define RECORD_BUFFER_SIZE 1024

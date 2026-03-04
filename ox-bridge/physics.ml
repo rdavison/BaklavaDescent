@@ -380,7 +380,13 @@ let cd_do_physics_align_object (packed : int array) =
   buf
 ;;
 
-let () =
+let cd_do_physics_drag (packed : int array) = Ox_physics.do_physics_drag packed
+
+let cd_do_homing_weapon_frame (packed : int array) =
+  Ox_physics.do_homing_weapon_frame packed
+;;
+
+let register_callbacks () =
   Callback.register "cd_physics_turn_towards_vector" cd_physics_turn_towards_vector;
   Callback.register "cd_do_physics_sim_rot" cd_do_physics_sim_rot;
   Callback.register "cd_calc_gun_point" cd_calc_gun_point;
@@ -400,14 +406,7 @@ let () =
   Callback.register "cd_ai_frame_animation" cd_ai_frame_animation;
   Callback.register "cd_ai_move_relative_to_player" cd_ai_move_relative_to_player;
   Callback.register "cd_ai_path_set_orient_and_vel" cd_ai_path_set_orient_and_vel;
-  Callback.register "cd_do_silly_animation" cd_do_silly_animation
+  Callback.register "cd_do_silly_animation" cd_do_silly_animation;
+  Callback.register "cd_do_physics_drag" cd_do_physics_drag;
+  Callback.register "cd_do_homing_weapon_frame" cd_do_homing_weapon_frame
 ;;
-
-let cd_do_physics_drag (packed : int array) = Ox_physics.do_physics_drag packed
-let () = Callback.register "cd_do_physics_drag" cd_do_physics_drag
-
-let cd_do_homing_weapon_frame (packed : int array) =
-  Ox_physics.do_homing_weapon_frame packed
-;;
-
-let () = Callback.register "cd_do_homing_weapon_frame" cd_do_homing_weapon_frame

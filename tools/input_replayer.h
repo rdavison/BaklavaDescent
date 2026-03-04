@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-#include "ox/input_recorder.h"
+#include "tools/input_recorder.h"
 
 /*
  * Initialize the replayer.

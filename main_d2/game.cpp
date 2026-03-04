@@ -30,8 +30,8 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "misc/rand.h"
 
 #ifdef OX_REPLAY
-#include "ox/input_recorder.h"
-#include "ox/input_replayer.h"
+#include "tools/input_recorder.h"
+#include "tools/input_replayer.h"
 #endif
 
 #include "platform/platform.h"

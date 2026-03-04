@@ -18,7 +18,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "polyobj.h"
 #include "platform/mono.h"
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #include <stdio.h>
 #endif
 

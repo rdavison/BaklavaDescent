@@ -28,7 +28,7 @@ let cd_player_has_weapon_d2
     ~omega_charge
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_player_has_weapon_d1" cd_player_has_weapon_d1;
   Callback.register "cd_player_has_weapon_d2" cd_player_has_weapon_d2
 ;;

@@ -11644,7 +11644,7 @@ let%expect_test "sphere_intersects_wall - tiny segment, sphere inside tolerance"
   let packed =
     mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:50 ~segnum:0 ~seg_blocks:[| seg |]
   in
-  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall_v2 packed);
   [%expect {| 0 |}]
 ;;
 
@@ -11656,7 +11656,7 @@ let%expect_test "sphere_intersects_wall - sphere at face, solid wall (intersects
   let packed =
     mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg |]
   in
-  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall_v2 packed);
   [%expect {| 1 |}]
 ;;
 
@@ -11703,7 +11703,7 @@ let%expect_test "sphere_intersects_wall - sphere near shared face, no solid hit"
       ~segnum:0
       ~seg_blocks:[| seg0; seg1 |]
   in
-  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall_v2 packed);
   [%expect {| 0 |}]
 ;;
 
@@ -11730,7 +11730,7 @@ let%expect_test "sphere_intersects_wall - sphere hits solid wall on one side" =
   let packed =
     mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg0; seg1 |]
   in
-  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall_v2 packed);
   [%expect {| 1 |}]
 ;;
 
@@ -11752,7 +11752,7 @@ let%expect_test "sphere_intersects_wall - cycle prevention" =
   let packed =
     mk_sphere_wall_packed ~pnt:(0, 0, 0) ~rad:f1 ~segnum:0 ~seg_blocks:[| seg0; seg1 |]
   in
-  printf "%d\n" (Ox_fvi.sphere_intersects_wall packed);
+  printf "%d\n" (Ox_fvi.sphere_intersects_wall_v2 packed);
   [%expect {| 0 |}]
 ;;
 
@@ -12425,7 +12425,7 @@ let%expect_test "homing - no valid targets" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12454,7 +12454,7 @@ let%expect_test "homing - single robot target" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=1 |}]
 ;;
@@ -12483,7 +12483,7 @@ let%expect_test "homing - skip parent object" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12510,7 +12510,7 @@ let%expect_test "homing - skip cloaked robot" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12542,7 +12542,7 @@ let%expect_test "homing - skip cloaked player" =
       ~track_types:(obj_player, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12574,7 +12574,7 @@ let%expect_test "homing - best angle wins" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=2 |}]
 ;;
@@ -12601,7 +12601,7 @@ let%expect_test "homing - object behind tracker rejected (D1)" =
       ~track_types:(obj_robot, -1)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12630,7 +12630,7 @@ let%expect_test "homing D2 - skip companion robot" =
       ~is_d2:true
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=-1 |}]
 ;;
@@ -12660,7 +12660,7 @@ let%expect_test "homing - track two types" =
       ~track_types:(obj_robot, obj_player)
       ()
   in
-  let r = Ox_fvi.find_homing_object_complete packed in
+  let r = Ox_fvi.find_homing_object_complete_v2 packed in
   printf "result=%d\n" r;
   [%expect {| result=2 |}]
 ;;

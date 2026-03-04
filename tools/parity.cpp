@@ -34,7 +34,7 @@
 #include "misc/rand.h"
 #endif
 
-#include "ox/parity.h"
+#include "tools/parity.h"
 
 /* Pre-allocated snapshot buffers (~350KB each, ~1MB total) */
 game_state_snapshot parity_snap_before;

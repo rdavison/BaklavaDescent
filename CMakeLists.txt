@@ -728,7 +728,7 @@ if (USE_OX_BRIDGE)
 	)
 	include_directories(${OCAML_STDLIB_DIR})
 
-	set(OX_BRIDGE_OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/ox/build/math_bridge_complete.o)
+	set(OX_BRIDGE_OBJECT ${CMAKE_CURRENT_SOURCE_DIR}/_build/default/ox-bridge/bridge.exe.o)
 	add_custom_command(
 		OUTPUT ${OX_BRIDGE_OBJECT}
 		COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
@@ -736,37 +736,40 @@ if (USE_OX_BRIDGE)
 		DEPENDS
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_math.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_3d.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/g3d_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/g3d.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_gameseg.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/gameseg_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/gameseg.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_physics.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/physics.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_collide.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/collide_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/collide.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_fvi.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/fvi_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/fvi.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/ai.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_aipath.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_robot.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/robot_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/robot.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_lighting.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/lighting_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/lighting.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_weapon.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/weapon_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/weapon.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_controlcen.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/controlcen_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/controlcen.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_ai_frame.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/ai_frame_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/ai_frame.ml
 			${CMAKE_CURRENT_SOURCE_DIR}/ox/ox_physics_sim.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/physics_sim_bridge.ml
-			${CMAKE_CURRENT_SOURCE_DIR}/ox/math_bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/physics_sim.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/bridge.ml
+			${CMAKE_CURRENT_SOURCE_DIR}/ox/dune
+			${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/dune
 			${CMAKE_CURRENT_SOURCE_DIR}/scripts/ox/build_bridge.sh
 		COMMENT "Building OxCaml bridge object"
 		VERBATIM
 	)
 	add_custom_target(ox_bridge_build DEPENDS ${OX_BRIDGE_OBJECT})
 
-	set(OX_BRIDGE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ox/bridge.c ${OX_BRIDGE_OBJECT} ${CMAKE_CURRENT_SOURCE_DIR}/ox/parity.cpp)
+	set(OX_BRIDGE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ox-bridge/bridge.c ${OX_BRIDGE_OBJECT} ${CMAKE_CURRENT_SOURCE_DIR}/tools/parity.cpp)
 	set(OX_BRIDGE_LIBS dl m pthread)
 endif()
 
@@ -832,11 +835,11 @@ endif()
 
 if (OX_REPLAY)
 	target_sources(ChocolateDescent PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_recorder.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_replayer.cpp)
+		${CMAKE_CURRENT_SOURCE_DIR}/tools/input_recorder.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/tools/input_replayer.cpp)
 	target_sources(ChocolateDescent2 PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_recorder.cpp
-		${CMAKE_CURRENT_SOURCE_DIR}/ox/input_replayer.cpp)
+		${CMAKE_CURRENT_SOURCE_DIR}/tools/input_recorder.cpp
+		${CMAKE_CURRENT_SOURCE_DIR}/tools/input_replayer.cpp)
 	target_compile_definitions(ChocolateDescent PUBLIC OX_REPLAY)
 	target_compile_definitions(ChocolateDescent2 PUBLIC OX_REPLAY)
 endif()
@@ -857,8 +860,8 @@ if (OX_REPLAY)
 	list(APPEND HEADLESS_SOURCES
 		tools/headless_replay.cpp
 		tools/headless_stubs.cpp
-		ox/input_recorder.cpp
-		ox/input_replayer.cpp)
+		tools/input_recorder.cpp
+		tools/input_replayer.cpp)
 	add_executable(headless_replay ${HEADLESS_SOURCES} ${NOT_COMPILED_SOURCES})
 	target_compile_definitions(headless_replay PUBLIC
 		BUILD_DESCENT2 OX_REPLAY UNIX _UNIX)

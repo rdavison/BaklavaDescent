@@ -50,10 +50,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gauges.h"
 #include "stringtable.h"
 #include "misc/rand.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 
 #ifdef USE_OX_BRIDGE
-#include "ox/parity.h"
+#include "tools/parity.h"
 static bool g_shadow_dry_run = false;
 bool g_ox_nested_ocaml_guard = false;  // When true, skip OCaml paths to avoid nested OCaml calls
 #endif
@@ -3315,6 +3315,65 @@ void do_ai_frame(object* obj)
 				(void)nf2;
 			});
 		}
+		// Register pathfinding callbacks for Ox_aipath
+		{
+			static int reg_pc = 0;
+			if (!reg_pc) {
+				reg_pc = 1;
+				cd_ox_register_path_callbacks(
+					// fetch_wall_data
+					[](int segnum, int sidenum, int32_t* out) {
+						int wall_num = Segments[segnum].sides[sidenum].wall_num;
+						if (wall_num < 0 || wall_num >= Num_walls) {
+							out[0] = -1;
+							return;
+						}
+						wall* wp = &Walls[wall_num];
+						out[0] = wall_num;
+						out[1] = wp->type;
+						out[2] = wp->keys;
+						out[3] = wp->flags;
+						out[4] = wp->state;
+						out[5] = wp->clip_num;
+						out[6] = wp->trigger;  // D1: trigger instead of controlling_trigger
+						out[7] = (wp->clip_num >= 0) ? WallAnims[wp->clip_num].flags : 0;
+					},
+					// path_fvi_query
+					[](const int32_t* params, int32_t* out) {
+						vms_vector p0 = {params[0], params[1], params[2]};
+						vms_vector p1 = {params[4], params[5], params[6]};
+						fvi_info hit_data;
+						fvi_query fq;
+						fq.p0 = &p0;
+						fq.startseg = params[3];
+						fq.p1 = &p1;
+						fq.rad = params[7];
+						fq.thisobjnum = params[8];
+						fq.ignore_obj_list = NULL;
+						fq.flags = FQ_CHECK_OBJS;
+						int hit_type = find_vector_intersection(&fq, &hit_data);
+						out[0] = hit_type;
+						out[1] = hit_data.hit_pnt.x;
+						out[2] = hit_data.hit_pnt.y;
+						out[3] = hit_data.hit_pnt.z;
+						out[4] = hit_data.hit_seg;
+					},
+					// path_obj_relink
+					[](int objnum, int32_t x, int32_t y, int32_t z, int segnum) {
+						Objects[objnum].pos.x = x;
+						Objects[objnum].pos.y = y;
+						Objects[objnum].pos.z = z;
+						if (segnum != Objects[objnum].segnum)
+							obj_relink(objnum, segnum);
+					},
+					// path_find_object_seg
+					[](int32_t x, int32_t y, int32_t z) -> int {
+						vms_vector p = {x, y, z};
+						return find_point_seg(&p, -1);
+					}
+				);
+			}
+		}
 	}
 	af_obj = obj;
 
@@ -3413,7 +3472,7 @@ void do_ai_frame(object* obj)
 			ox_logged = 1;
 		}
 
-		int32_t result[43];
+		int32_t result[55];
 		cd_ox_do_ai_frame_d1(
 			ai_state, 43,
 			rinfo, 29,
@@ -3427,6 +3486,7 @@ void do_ai_frame(object* obj)
 			Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z, ConsoleObject->segnum,
 			orient, gun_point, Segments[obj->segnum].special,
 			cloak_last_pos, Ai_cloak_info[cloak_idx].last_time, 0 /* ai_evaded */,
+			obj->mtype.phys_info.velocity.x, obj->mtype.phys_info.velocity.y, obj->mtype.phys_info.velocity.z,
 			result);
 
 		// Write back OCaml result to C state
@@ -3456,6 +3516,15 @@ void do_ai_frame(object* obj)
 		for (int i = 0; i < 8; i++)
 			ailp->achieved_state[i] = result[33 + i];
 		ailp->previous_visibility = result[41];
+		// Velocity/orient from ai_follow_path (if populated)
+		if (result[43] != 0x7FFFFFFF) {
+			obj->mtype.phys_info.velocity.x = result[43];
+			obj->mtype.phys_info.velocity.y = result[44];
+			obj->mtype.phys_info.velocity.z = result[45];
+			obj->orient.rvec.x = result[46]; obj->orient.rvec.y = result[47]; obj->orient.rvec.z = result[48];
+			obj->orient.uvec.x = result[49]; obj->orient.uvec.y = result[50]; obj->orient.uvec.z = result[51];
+			obj->orient.fvec.x = result[52]; obj->orient.fvec.y = result[53]; obj->orient.fvec.z = result[54];
+		}
 
 		return;
 	}

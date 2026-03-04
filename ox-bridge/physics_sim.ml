@@ -890,7 +890,7 @@ let cd_do_physics_sim_d2
     }
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_do_physics_sim_d1" cd_do_physics_sim_d1;
   Callback.register "cd_do_physics_sim_d2" cd_do_physics_sim_d2
 ;;

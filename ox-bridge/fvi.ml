@@ -15,7 +15,8 @@ external check_trans_wall_c
   -> int
   = "cd_ox_check_trans_wall_bytecode" "cd_ox_check_trans_wall"
 
-let () = Ox_fvi.check_trans_wall_callback := check_trans_wall_c
+let register_callbacks () =
+  Ox_fvi.check_trans_wall_callback := check_trans_wall_c;
 
 (* C externals for on-demand data fetching *)
 external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
@@ -116,7 +117,6 @@ let cd_compute_vis_and_vec_v2 (arr : int array) =
     Array.create ~len:28 0
 ;;
 
-let () =
   Callback.register "cd_find_vector_intersection_v2" cd_find_vector_intersection_v2;
   Callback.register "cd_object_intersects_wall_v2" cd_object_intersects_wall_v2;
   Callback.register "cd_find_homing_object_complete_v2" cd_find_homing_object_complete_v2;

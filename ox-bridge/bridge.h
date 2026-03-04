@@ -1019,6 +1019,22 @@ void cd_ox_register_write_fire_timers(void (*fn)(int32_t, int32_t));
 /* openable_doors_in_segment effect: returns side index or -1 */
 void cd_ox_register_af_openable_doors(int (*fn)(void));
 
+/* Pathfinding effects for OCaml-authoritative path creation */
+/* Fetch wall data for ai_door_is_openable: (segnum, sidenum) -> 8 ints */
+typedef void (*cd_fetch_wall_data_fn)(int segnum, int sidenum, int32_t* out);
+/* FVI query for path: 9 ints in -> 5 ints out */
+typedef void (*cd_path_fvi_query_fn)(const int32_t* params, int32_t* out);
+/* Object relink: set object pos and relink to segment */
+typedef void (*cd_path_obj_relink_fn)(int objnum, int32_t x, int32_t y, int32_t z, int segnum);
+/* Find object seg: returns segnum or -1 */
+typedef int (*cd_path_find_object_seg_fn)(int32_t x, int32_t y, int32_t z);
+
+void cd_ox_register_path_callbacks(
+    cd_fetch_wall_data_fn fetch_wall_data,
+    cd_path_fvi_query_fn path_fvi_query,
+    cd_path_obj_relink_fn path_obj_relink,
+    cd_path_find_object_seg_fn path_find_object_seg);
+
 /* D1: do_ai_frame.
    ai_state is packed array (~43 ints), rinfo is packed array (~29 ints).
    result receives updated ai_state. */
@@ -1035,6 +1051,7 @@ void cd_ox_do_ai_frame_d1(
     int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
     const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
     const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int32_t velocity_x, int32_t velocity_y, int32_t velocity_z,
     int32_t* result);
 
 /* D2: do_ai_frame.
@@ -1058,6 +1075,7 @@ void cd_ox_do_ai_frame_d2(
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t seg_station_enabled,
     int32_t console_segnum,
+    int32_t velocity_x, int32_t velocity_y, int32_t velocity_z,
     int32_t* result);
 
 /* -- Physics sim logic ------------------------------------------------ */

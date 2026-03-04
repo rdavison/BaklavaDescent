@@ -31,7 +31,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "player.h"
 #include "weapon.h"
 #include "powerup.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #include "fvi.h"
 #include "robot.h"
 #include "multi.h"

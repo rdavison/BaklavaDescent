@@ -36,9 +36,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "cntrlcen.h"
 #include "fireball.h"
 #include "hostage.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #ifdef USE_OX_BRIDGE
-#include "ox/parity.h"
+#include "tools/parity.h"
 #endif
 #include "multibot.h"
 #include <stdio.h>

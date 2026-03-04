@@ -19,19 +19,27 @@ Port functions at **whole-function granularity** using a shadow/validate/swap wo
 - No "effect-wins" write-back during shadow phase. C is always the source of truth until the swap.
 - Effects still call into C for side effects (path creation, sound, etc.), but during shadow mode these are dry-runs or the C path handles them authoritatively.
 
+## Handling Divergences
+
+The goal is to **port C to OCaml and eventually delete the C code**. Divergences between OCaml and C are expected during the transition — they are a map of what still needs to be ported, not bugs to fix with workarounds.
+
+**Do NOT** add sync/read-back mechanisms to shuttle C state into OCaml to hide divergences. If an OCaml effect calls a C function (e.g., `create_path_to_player`) that mutates C state (e.g., `hide_index`, `path_length`, `mode`), and OCaml overwrites those mutations with its own stale values — that divergence is correct and expected. It tells us `create_path_to_player` needs to be ported to OCaml.
+
+**Do** use divergences to identify the next functions to port. The fix for a divergence is always: port the underlying C function to OCaml, not bridge more C state back into OCaml.
+
 ## Architecture
 
 ```
-ox/ox_<module>.ml          Pure OCaml game logic
-ox/<module>_bridge.ml      Effect handlers + C externals
-ox/bridge.c + bridge.h     C↔OCaml glue (caml_callback)
-main_d2/*.cpp              #ifdef USE_OX_BRIDGE callsites
+ox/ox_<module>.ml              Pure OCaml game logic
+ox-bridge/<module>.ml          Effect handlers + C externals
+ox-bridge/bridge.c + bridge.h  C↔OCaml glue (caml_callback)
+main_d2/*.cpp                  #ifdef USE_OX_BRIDGE callsites
 ```
 
 - All game values are 32-bit fixed-point integers (`F1_0 = 0x10000 = 1.0`)
 - OCaml performs algebraic effects → bridge handler calls C external → C calls registered callback
 
-All ported functions (`do_ai_frame` D1/D2, `do_physics_sim` D1/D2) use shadow mode. Parity checking (snapshot/restore/compare) is always enabled when `USE_OX_BRIDGE` is on — no separate flag needed.
+Ported functions (`do_ai_frame` D1/D2, `do_physics_sim` D1/D2, `find_vector_intersection` D1/D2) are OCaml-authoritative — OCaml's results drive the game, C path kept as fallback.
 
 ## Building
 
@@ -164,11 +172,11 @@ cd <game-data-dir>
 | Path | Description |
 |------|-------------|
 | `ox/ox_*.ml` | Pure OCaml game logic |
-| `ox/*_bridge.ml` | Bridge adapters (effect handlers + C externals) |
-| `ox/bridge.c`, `ox/bridge.h` | C↔OCaml glue layer |
-| `ox/parity.cpp/.h` | Parity snapshot/restore/compare |
-| `ox/input_recorder.cpp/.h` | Frame input recorder |
-| `ox/input_replayer.cpp/.h` | Frame input replayer |
+| `ox-bridge/<module>.ml` | Bridge adapters (effect handlers + C externals) |
+| `ox-bridge/bridge.c`, `ox-bridge/bridge.h` | C↔OCaml glue layer |
+| `tools/parity.cpp/.h` | Parity snapshot/restore/compare |
+| `tools/input_recorder.cpp/.h` | Frame input recorder |
+| `tools/input_replayer.cpp/.h` | Frame input replayer |
 | `main_d2/ai.cpp` | D2 AI frame (bridge callsite + C-only path) |
 | `main_d2/ai2.cpp` | D2 AI helpers (do_silly_animation, do_snipe_frame bridge) |
 | `main_d2/escort.cpp` | D2 escort/thief/snipe robot logic |

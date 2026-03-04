@@ -28,7 +28,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "player.h"
 #include "weapon.h"
 #include "powerup.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 
 //global saying how bright the light beam is
 fix	Beam_brightness = (F1_0 / 2);

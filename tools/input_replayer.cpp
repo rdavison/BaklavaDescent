@@ -28,7 +28,7 @@
 
 #include "main_shared/game_shared.h"
 #include "misc/rand.h"
-#include "ox/input_replayer.h"
+#include "tools/input_replayer.h"
 
 static FILE *replay_file = NULL;
 static FILE *state_log = NULL;

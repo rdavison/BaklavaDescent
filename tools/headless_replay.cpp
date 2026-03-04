@@ -37,11 +37,11 @@
 #include "main_d2/object.h"
 
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 
 #ifdef OX_REPLAY
-#include "ox/input_replayer.h"
+#include "tools/input_replayer.h"
 #endif
 
 /* Functions declared only in gameseq.cpp, not in headers */

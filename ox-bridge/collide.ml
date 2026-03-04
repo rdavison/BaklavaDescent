@@ -610,7 +610,7 @@ let cd_maybe_kill_weapon_d2
   new_shields, if dead then 1 else 0
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_apply_damage_to_robot_d1" cd_apply_damage_to_robot_d1;
   Callback.register "cd_get_explosion_vclip" cd_get_explosion_vclip;
   Callback.register "cd_apply_damage_to_robot_d2" cd_apply_damage_to_robot_d2;

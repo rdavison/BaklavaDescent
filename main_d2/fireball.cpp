@@ -17,7 +17,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <algorithm>
 
 #include "misc/rand.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 
 #include "misc/error.h"
 #include "3d/3d.h"

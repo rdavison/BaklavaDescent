@@ -43,7 +43,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "cntrlcen.h"
 #include "fireball.h"
 #include "hostage.h"
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #include <stdio.h>
 
 // Forward declaration from collide.cpp
@@ -51,7 +51,7 @@ int do_boss_weapon_collision(object* robot, object* weapon, vms_vector* collisio
 #endif
 
 #ifdef USE_OX_BRIDGE
-#include "ox/parity.h"
+#include "tools/parity.h"
 #endif
 
 #ifdef TACTILE

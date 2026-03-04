@@ -204,6 +204,11 @@ static cd_effect_af_read_path_state_fn g_read_path_state = NULL;
 static cd_effect_af_read_fire_state_fn g_read_fire_state = NULL;
 static void (*g_write_fire_timers)(int32_t next_fire, int32_t next_fire2) = NULL;
 static int (*g_effect_af_openable_doors_in_segment)(void) = NULL;
+/* Pathfinding callbacks */
+static cd_fetch_wall_data_fn g_fetch_wall_data = NULL;
+static cd_path_fvi_query_fn g_path_fvi_query = NULL;
+static cd_path_obj_relink_fn g_path_obj_relink = NULL;
+static cd_path_find_object_seg_fn g_path_find_object_seg = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
 
@@ -4079,6 +4084,74 @@ void cd_ox_register_af_openable_doors(int (*fn)(void))
     g_effect_af_openable_doors_in_segment = fn;
 }
 
+/* -- Pathfinding callbacks ------------------------------------------------ */
+
+void cd_ox_register_path_callbacks(
+    cd_fetch_wall_data_fn fetch_wall_data,
+    cd_path_fvi_query_fn path_fvi_query,
+    cd_path_obj_relink_fn path_obj_relink,
+    cd_path_find_object_seg_fn path_find_object_seg)
+{
+    g_fetch_wall_data = fetch_wall_data;
+    g_path_fvi_query = path_fvi_query;
+    g_path_obj_relink = path_obj_relink;
+    g_path_find_object_seg = path_find_object_seg;
+}
+
+CAMLprim value cd_ox_fetch_wall_data(value v_segnum, value v_sidenum)
+{
+    CAMLparam2(v_segnum, v_sidenum);
+    CAMLlocal1(v_result);
+    int32_t buf[8];
+    memset(buf, 0, sizeof(buf));
+    buf[0] = -1;  /* wall_num = -1 (no wall) by default */
+    buf[1] = -1;  /* wall_type */
+    if (g_fetch_wall_data)
+        g_fetch_wall_data(Int_val(v_segnum), Int_val(v_sidenum), buf);
+    v_result = caml_alloc(8, 0);
+    for (int i = 0; i < 8; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_path_fvi_query(value v_params)
+{
+    CAMLparam1(v_params);
+    CAMLlocal1(v_result);
+    int32_t params[9];
+    for (int i = 0; i < 9; i++)
+        params[i] = Int_val(Field(v_params, i));
+    int32_t out[5];
+    memset(out, 0, sizeof(out));
+    if (g_path_fvi_query)
+        g_path_fvi_query(params, out);
+    v_result = caml_alloc(5, 0);
+    for (int i = 0; i < 5; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_path_obj_relink(value v_params)
+{
+    CAMLparam1(v_params);
+    if (g_path_obj_relink)
+        g_path_obj_relink(
+            Int_val(Field(v_params, 0)),   /* objnum */
+            Int_val(Field(v_params, 1)),   /* x */
+            Int_val(Field(v_params, 2)),   /* y */
+            Int_val(Field(v_params, 3)),   /* z */
+            Int_val(Field(v_params, 4))); /* segnum */
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value cd_ox_path_find_object_seg(value v_x, value v_y, value v_z)
+{
+    int result = -1;
+    if (g_path_find_object_seg)
+        result = g_path_find_object_seg(Int_val(v_x), Int_val(v_y), Int_val(v_z));
+    return Val_int(result);
+}
+
 CAMLprim value cd_ox_effect_af_invalidate_escort_goal(value unit)
 {
     (void)unit;
@@ -4151,6 +4224,7 @@ void cd_ox_do_ai_frame_d1(
     int32_t believed_x, int32_t believed_y, int32_t believed_z, int32_t believed_seg,
     const int32_t* orient, const int32_t* gun_point_in, int32_t seg_special,
     const int32_t* cloak_last_pos, int32_t cloak_last_time, int32_t ai_evaded_in,
+    int32_t velocity_x, int32_t velocity_y, int32_t velocity_z,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_ai_frame_d1");
@@ -4185,7 +4259,7 @@ void cd_ox_do_ai_frame_d1(
     Store_field(v_cloak_pos, 1, Val_long(cloak_last_pos ? cloak_last_pos[1] : 0));
     Store_field(v_cloak_pos, 2, Val_long(cloak_last_pos ? cloak_last_pos[2] : 0));
 
-    value args[32] = {
+    value args[35] = {
         v_ai_state, v_rinfo,
         Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
         Val_long(game_mode), Val_long(difficulty_level),
@@ -4197,9 +4271,10 @@ void cd_ox_do_ai_frame_d1(
         Val_long(believed_x), Val_long(believed_y), Val_long(believed_z), Val_long(believed_seg),
         v_orient, v_gun_point, Val_long(seg_special),
         v_cloak_pos,
-        Val_long(cloak_last_time), Val_long(ai_evaded_in)
+        Val_long(cloak_last_time), Val_long(ai_evaded_in),
+        Val_long(velocity_x), Val_long(velocity_y), Val_long(velocity_z)
     };
-    v_result = caml_callbackN(*g_do_ai_frame_d1, 32, args);
+    v_result = caml_callbackN(*g_do_ai_frame_d1, 35, args);
 
     int result_len = Wosize_val(v_result);
     for (int i = 0; i < result_len; i++)
@@ -4226,6 +4301,7 @@ void cd_ox_do_ai_frame_d2(
     int32_t dist_to_last_fired_upon, int32_t fire_at_nearby_threshold,
     int32_t seg_station_enabled,
     int32_t console_segnum,
+    int32_t velocity_x, int32_t velocity_y, int32_t velocity_z,
     int32_t* result)
 {
     cd_ox_require_ready("cd_ox_do_ai_frame_d2");
@@ -4260,7 +4336,7 @@ void cd_ox_do_ai_frame_d2(
     Store_field(v_rotthrust, 1, Val_long(rotthrust_in[1]));
     Store_field(v_rotthrust, 2, Val_long(rotthrust_in[2]));
 
-    value args[43] = {
+    value args[46] = {
         v_ai_state, v_rinfo,
         Val_long(frame_time), Val_long(frame_count), Val_long(game_time),
         Val_long(game_mode), Val_long(difficulty_level),
@@ -4278,9 +4354,10 @@ void cd_ox_do_ai_frame_d2(
         Val_long(phys_flags_in), v_rotthrust,
         Val_long(dist_to_last_fired_upon), Val_long(fire_at_nearby_threshold),
         Val_long(seg_station_enabled),
-        Val_long(console_segnum)
+        Val_long(console_segnum),
+        Val_long(velocity_x), Val_long(velocity_y), Val_long(velocity_z)
     };
-    v_result = caml_callbackN(*g_do_ai_frame_d2, 43, args);
+    v_result = caml_callbackN(*g_do_ai_frame_d2, 46, args);
 
     int result_len = Wosize_val(v_result);
     for (int i = 0; i < result_len; i++)

@@ -1,18 +1,7 @@
 (library
  (name parity_expect)
  (modules parity_expect)
- (libraries
-  core
-  ox_math
-  ox_3d
-  ox_gameseg
-  ox_fvi
-  ox_curves
-  ox_physics
-  ox_ai
-  ox_lighting
-  ox_collide
-  ox_robot)
+ (libraries core ox)
  (preprocess
   (pps ppx_jane))
  (inline_tests)
@@ -22,13 +11,13 @@
  (foreign_stubs
   (language cxx)
   (names c_fix_stubs)
-  (include_dirs ../oracle)
+  (include_dirs oracle)
   (flags
    (:standard -std=c++17))))
 
 (library
  (name collide_expect)
- (libraries core ox_collide)
+ (libraries core ox)
  (modules collide_expect)
  (preprocess
   (pps ppx_jane))

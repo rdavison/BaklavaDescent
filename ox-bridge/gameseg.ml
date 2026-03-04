@@ -251,7 +251,7 @@ let cd_find_point_seg (arr : int array) = Ox_gameseg.find_point_seg arr
    Returns: [| distance (fix) or -1; connected_segment_distance |] *)
 let cd_find_connected_distance (arr : int array) = Ox_gameseg.find_connected_distance arr
 
-let () =
+let register_callbacks () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
   Callback.register "cd_get_verts_for_normal" cd_get_verts_for_normal;

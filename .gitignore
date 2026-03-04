@@ -348,3 +348,9 @@ healthchecksdb
 
 # Dune (OxCaml tests)
 /_build/
+
+# CMake build directories
+/build-*/
+
+# macOS
+.DS_Store

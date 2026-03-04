@@ -220,7 +220,7 @@ let cd_calc_rod_corners bx by bz bw tx ty tz tw msx msy msz =
   c0x, c0y, c0z, c1x, c1y, c1z, c2x, c2y, c2z, c3x, c3y, c3z, codes_and
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_g3_code_point" cd_g3_code_point;
   Callback.register "cd_checkmuldiv" cd_checkmuldiv;
   Callback.register "cd_g3_rotate_point" cd_g3_rotate_point;

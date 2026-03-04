@@ -95,7 +95,7 @@ let cd_robot_set_angles (packed : int array) =
   buf
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_robot_get_anim_state" cd_robot_get_anim_state;
   Callback.register "cd_set_robot_state" cd_set_robot_state;
   Callback.register "cd_robot_set_angles" cd_robot_set_angles

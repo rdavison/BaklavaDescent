@@ -14,7 +14,7 @@ as described in copying.txt.
 #endif
 #include "platform/platform.h"
 #ifdef USE_OX_BRIDGE
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 
 #include "SDL.h" //[ISB] required for main replacement macro

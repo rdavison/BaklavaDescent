@@ -204,7 +204,7 @@ let cd_do_controlcen_frame_d2
     }
 ;;
 
-let () =
+let register_callbacks () =
   Callback.register "cd_do_controlcen_frame_d1" cd_do_controlcen_frame_d1;
   Callback.register "cd_do_controlcen_frame_d2" cd_do_controlcen_frame_d2
 ;;

@@ -17,7 +17,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include <math.h>
 #ifdef USE_OX_BRIDGE
 #include <stdio.h>
-#include "ox/bridge.h"
+#include "ox-bridge/bridge.h"
 #endif
 #include "misc/error.h"
 #include "fix/fix.h"
