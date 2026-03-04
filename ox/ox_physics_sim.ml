@@ -655,7 +655,7 @@ let do_physics_sim_d1
        ; rvx
        ; rvy
        ; rvz
-       ; (if !retry_count > 0 then !retry_count - 1 else 0)
+       ; !retry_count
        ; !n_phys_segs
        ; (if needs_levelling then 1 else 0)
       |]
@@ -1232,7 +1232,7 @@ let do_physics_sim_d2
        ; rvx
        ; rvy
        ; rvz
-       ; (if !retry_count > 0 then !retry_count - 1 else 0)
+       ; !retry_count
        ; !n_phys_segs
        ; (if needs_levelling then 1 else 0)
       |]

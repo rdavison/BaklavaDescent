@@ -917,7 +917,7 @@ void do_physics_sim(object *obj)
 		pi->turnroll = result[18];
 		pi->rotvel.x = result[19]; pi->rotvel.y = result[20]; pi->rotvel.z = result[21];
 		if (obj->control_type == CT_AI && result[22] > 0)
-			Ai_local_info[objnum].retry_count = result[22];
+			Ai_local_info[objnum].retry_count = result[22] - 1;
 
 		// Write phys_seglist for player
 		n_phys_segs = result[23];
