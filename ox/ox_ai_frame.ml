@@ -75,8 +75,8 @@ let thief_attack_time = f1_0 * 10
 let thief_wait_times = [| f1_0 * 30; f1_0 * 25; f1_0 * 20; f1_0 * 15; f1_0 * 10 |]
 let sub_flags_sprox = 0x02
 let sub_flags_camera_awake = 4
-let proximity_id = 47 (* D1 *)
-let proximity_id_d2 = 47 (* D2 *)
+let proximity_id = 16 (* D1: PROXIMITY_ID *)
+let proximity_id_d2 = 16 (* D2: PROXIMITY_ID *)
 let superprox_id_d2 = 53
 
 (* AI transition table (from ai.h / ai.cpp):
