@@ -2347,8 +2347,10 @@ let do_ai_frame_d2
         for i = 0 to n_guns - 1 do
           goal_state_arr.(i) <- ais_fire
         done;
-      (* Phase: bash to fire *)
-      if !next_fire < 0 && !goal_state = ais_fire then current_state := ais_fire;
+      (* Phase: bash to fire (D2 uses ready_to_fire: next_fire <= 0 OR next_fire2 <= 0) *)
+      if (!next_fire <= 0 || (weapon_type2 <> -1 && !next_fire2 <= 0))
+         && !goal_state = ais_fire
+      then current_state := ais_fire;
       (* Phase: state machine *)
       if !goal_state <> ais_flin && obj_id <> robot_brain
       then (
@@ -2366,7 +2368,9 @@ let do_ai_frame_d2
           if !goal_state = ais_rest
           then (
             compute_vis ();
-            if !next_fire <= 0 && !player_visibility > 0 then goal_state := ais_fire)
+            if (!next_fire <= 0 || (weapon_type2 <> -1 && !next_fire2 <= 0))
+               && !player_visibility > 0
+            then goal_state := ais_fire)
         | s when s = ais_srch ->
           let ok = Effect.perform (Ai_multiplayer_awareness 60) in
           if ok
