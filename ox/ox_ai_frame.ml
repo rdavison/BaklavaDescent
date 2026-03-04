@@ -1943,11 +1943,14 @@ let do_ai_frame_d2
           if !player_visibility = 1 then player_visibility := 2));
       (* Phase: flinch→lock *)
       if !goal_state = ais_flin && !current_state = ais_flin then goal_state := ais_lock;
-      (* Phase: animation — skipped in bridge path.
-         The bridge pre-animation already called do_silly_animation and set
-         object_animates + CS=GS for the far-away case. The packed ai_state
-         already has the correct CURRENT_STATE, and animation_enabled carries
-         the real object_animates value. Nothing to do here. *)
+      (* Phase: animation — do_silly_animation + ai_frame_animation are
+         handled on the C side; here we just set the object_animates flag
+         so that firing logic and state sync behave correctly. *)
+      if !dist_to_player < f1_0 * 100
+      then object_animates := 1
+      else (
+        current_state := !goal_state;
+        object_animates := 0);
       (* Phase: boss handling *)
       if boss_flag <> 0
       then (
