@@ -910,16 +910,16 @@ let find_point_seg_fvi_v2 ~point:(px, py, pz) ~segnum ~n_segments =
         let biggest_val = ref 0 in
         let sidenum = ref (-1) in
         for i = 0 to 5 do
-          if centermask land (1 lsl i) <> 0
+          if centermask land (1 lsl i) <> 0 && children.(i) >= 0
           then
             if side_dists.(i) < !biggest_val
             then (
               biggest_val := side_dists.(i);
               sidenum := i)
         done;
-        if !sidenum <> -1 && children.(!sidenum) >= 0
+        if !sidenum <> -1
         then trace children.(!sidenum) (iterations + 1)
-        else s))
+        else -1))
   in
   if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
 ;;
