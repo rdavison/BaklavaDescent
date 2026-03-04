@@ -71,6 +71,7 @@ let snipe_abort_retreat_time = snipe_retreat_time / 2
 let snipe_attack_time = f1_0 * 10
 let snipe_wait_time = f1_0 * 5
 let snipe_fire_time = f1_0 * 2
+let sub_flags_sprox = 0x02
 let sub_flags_camera_awake = 4
 let proximity_id = 47 (* D1 *)
 let proximity_id_d2 = 47 (* D2 *)
@@ -2158,10 +2159,15 @@ let do_ai_frame_d2
              let fpx, fpy, fpz =
                Ox_math.vm_vec_add ~a:(obj_x, obj_y, obj_z) ~b:(fvx, fvy, fvz)
              in
+             let weapon_id =
+               if !sub_flags land sub_flags_sprox <> 0
+               then superprox_id_d2
+               else proximity_id_d2
+             in
              Effect.perform
                (Laser_create_new_easy
-                  (fvx, fvy, fvz, fpx, fpy, fpz, objnum, proximity_id_d2));
-             next_fire := f1_0 * 5))
+                  (fvx, fvy, fvz, fpx, fpy, fpz, objnum, weapon_id));
+             next_fire := (f1_0 / 2) * (ndl + 5 - difficulty_level)))
        | m when m = aim_goto_player || m = aim_goto_object ->
          (* C-only passes player_visibility=2 (hardcoded) for goto modes *)
          let vtpx, vtpy, vtpz = !vec_to_player in
