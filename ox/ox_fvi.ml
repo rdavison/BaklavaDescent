@@ -907,19 +907,32 @@ let find_point_seg_fvi_v2 ~point:(px, py, pz) ~segnum ~n_segments =
       in
       if centermask = 0 then s
       else (
-        let biggest_val = ref 0 in
-        let sidenum = ref (-1) in
-        for i = 0 to 5 do
-          if centermask land (1 lsl i) <> 0 && children.(i) >= 0
-          then
-            if side_dists.(i) < !biggest_val
+        (* Multi-branch DFS: try all children in order of most-negative side_dist,
+           matching C's trace_segs which retries with the next best child on failure *)
+        let sd = Array.copy side_dists in
+        let result = ref (-1) in
+        let continue_ = ref true in
+        while !continue_ do
+          let biggest_side = ref (-1) in
+          let biggest_val = ref 0 in
+          for sn = 0 to 5 do
+            if centermask land (1 lsl sn) <> 0 && children.(sn) >= 0
+               && sd.(sn) < !biggest_val
             then (
-              biggest_val := side_dists.(i);
-              sidenum := i)
+              biggest_val := sd.(sn);
+              biggest_side := sn)
+          done;
+          if !biggest_side <> -1
+          then (
+            sd.(!biggest_side) <- 0;
+            let check = trace children.(!biggest_side) (iterations + 1) in
+            if check <> -1
+            then (
+              result := check;
+              continue_ := false))
+          else continue_ := false
         done;
-        if !sidenum <> -1
-        then trace children.(!sidenum) (iterations + 1)
-        else -1))
+        !result))
   in
   if segnum < 0 || segnum >= n_segments then -1 else trace segnum 0
 ;;
