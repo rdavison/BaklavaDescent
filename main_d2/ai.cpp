@@ -751,8 +751,8 @@ void do_ai_frame(object* obj)
 		aip->hide_index = result[7];
 		aip->path_length = result[8];
 		aip->SUB_FLAGS = result[9];
-		aip->danger_laser_num = result[10];
-		aip->danger_laser_signature = result[11];
+		// danger_laser_num/signature (indices 10,11) are managed by C side effects
+		// (ai_move_relative_to_player), not by OCaml logic — don't overwrite with zeros
 		// result[12] = goalside (not in ai_static)
 		aip->hide_segment = result[13];
 		ailp->next_fire = result[14];
