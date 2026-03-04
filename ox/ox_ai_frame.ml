@@ -1100,7 +1100,7 @@ let do_ai_frame_d1
        let circle_distance = circle_distance_diff + console_size in
        let circle_distance =
          if attack_type <> 1
-         then circle_distance + (objnum land 0xf * f1_0 / 2)
+         then circle_distance + ((objnum land 0xf) * f1_0 / 2)
          else circle_distance
        in
        compute_vis ();
@@ -2184,7 +2184,7 @@ let do_ai_frame_d2
          let circle_distance = circle_distance_diff + console_size in
          let circle_distance =
            if attack_type <> 1
-           then circle_distance + (objnum land 0xf * f1_0 / 2)
+           then circle_distance + ((objnum land 0xf) * f1_0 / 2)
            else circle_distance
          in
          compute_vis ();
