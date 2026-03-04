@@ -115,6 +115,8 @@ type _ Effect.t +=
       Tmap_is_force_field :
       (int * int)
       -> int Effect.t (* seg, side -> 0 or 1 *)
+  | (* Query object type and id by objnum *)
+      Query_object_type_id : int -> (int * int) Effect.t (* objnum -> (type, id) *)
   | (* D2 only: vm_vector_2_matrix for weapon orientation on bounce *)
       Vm_vector_2_matrix_orient :
       (int * int * int * int * int * int)
@@ -317,17 +319,12 @@ let do_physics_sim_d1
                , !fq_flags
                , !cur_segnum ))
         in
-        (* D1: proximity mine hack *)
+        (* D1: proximity mine hack — don't count hitting a proximity mine as a retry *)
         if fate = hit_object && hit_objnum >= 0
-        then
-          (* C checks: objp->type == OBJ_WEAPON && objp->id == PROXIMITY_ID
-             We pass hit_objnum; C side does the check via effect return.
-             For simplicity, we just note it and let C handle the decrement.
-             Actually, let's handle it: the C effect already tells us hit_objnum.
-             We'd need the object type/id — that's not passed to us.
-             The plan says this is handled in C. We'll skip the count-- for now
-             as it only affects retry limit. *)
-          ();
+        then (
+          let (ho_type, ho_id) = Effect.perform (Query_object_type_id hit_objnum) in
+          if ho_type = obj_weapon && ho_id = proximity_id
+          then retry_count := !retry_count - 1);
         (* Player seglist tracking *)
         if obj_type = obj_player
         then (
@@ -859,8 +856,12 @@ let do_physics_sim_d2
                , !fq_flags
                , !cur_segnum ))
         in
-        (* D2: proximity + superprox mine hack — handled by C side
-           (count-- for proximity/superprox hits) *)
+        (* D2: proximity + superprox mine hack — don't count as a retry *)
+        if fate = hit_object && hit_objnum >= 0
+        then (
+          let (ho_type, ho_id) = Effect.perform (Query_object_type_id hit_objnum) in
+          if ho_type = obj_weapon && (ho_id = proximity_id || ho_id = superprox_id)
+          then retry_count := !retry_count - 1);
         (* Player seglist tracking *)
         if obj_type = obj_player
         then (

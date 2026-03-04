@@ -717,6 +717,12 @@ let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
       (fun k ->
         let result = effect_vm_vector_2_matrix_orient vx vy vz ux uy uz in
         Effect.Deep.continue k result)
+  | Ox_physics_sim.Query_object_type_id objnum ->
+    Some
+      (fun k ->
+        (* Reuse collision data fetch — hit object type at index 20, id at 21 *)
+        let cd = effect_fetch_collision_data objnum in
+        Effect.Deep.continue k (cd.(20), cd.(21)))
   | _ -> None
 ;;
 
