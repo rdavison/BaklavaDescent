@@ -1106,6 +1106,7 @@ let do_ai_frame_d1
           unpack_path_state (Effect.perform (Create_n_segment_path_to_door (8 + difficulty_level, -1)));
           Effect.perform (Ai_multi_send_robot_position (-1))));
     (* Phase: mode dispatch *)
+    let saved_prev_vis = !previous_visibility in
     (match !mode with
      | m when m = aim_chase_object ->
        let circle_distance = circle_distance_diff + console_size in
@@ -1115,7 +1116,7 @@ let do_ai_frame_d1
          else circle_distance
        in
        compute_vis ();
-       if !player_visibility < 2 && !previous_visibility = 2
+       if !player_visibility < 2 && saved_prev_vis = 2
        then (
          let ok = Effect.perform (Ai_multiplayer_awareness 53) in
          if not ok
@@ -1193,7 +1194,7 @@ let do_ai_frame_d1
          if ok
          then (
            unpack_path_state (Effect.perform
-             (Ai_follow_path (!player_visibility, !previous_visibility, 0, 0, 0)));
+             (Ai_follow_path (!player_visibility, saved_prev_vis, 0, 0, 0)));
            Effect.perform (Ai_multi_send_robot_position (-1))));
        if !goal_state <> ais_flin
        then goal_state := ais_lock
@@ -1277,7 +1278,7 @@ let do_ai_frame_d1
        else (
          compute_vis ();
          unpack_path_state (Effect.perform
-           (Ai_follow_path (!player_visibility, !previous_visibility, 0, 0, 0)));
+           (Ai_follow_path (!player_visibility, saved_prev_vis, 0, 0, 0)));
          if !goal_state <> ais_flin
          then goal_state := ais_lock
          else if !current_state = ais_flin
@@ -1291,7 +1292,7 @@ let do_ai_frame_d1
          compute_vis ();
          if
            !player_visibility = 2
-           || !previous_visibility = 2
+           || saved_prev_vis = 2
          then (
            let ok = Effect.perform (Ai_multiplayer_awareness 71) in
            if not ok
