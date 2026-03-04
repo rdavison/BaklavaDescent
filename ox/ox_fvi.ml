@@ -547,6 +547,10 @@ let rec fvi_sub_v2
           ~entry_seg
   =
   let open Ox_math in
+  (* C sets disable_new_fvi_stuff = (obj->type != OBJ_PLAYER) before calling FVI.
+     When true, special_check_line_to_face falls back to check_line_to_face.
+     We replicate this by checking thisobjnum vs player_objnum. *)
+  let disable_new_fvi_stuff = thisobjnum >= 0 && thisobjnum <> player_objnum in
   let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data startseg) in
   let children, side_types, seg_verts, normals, seg_vert_positions, wid, first_object =
     unpack_seg seg_data ~seg_base:0
@@ -717,7 +721,7 @@ let rec fvi_sub_v2
             in
             let norm = normals.((sn * 2) + face) in
             let face_hit_type, hit_point =
-              if startmask land !bit <> 0
+              if startmask land !bit <> 0 && not disable_new_fvi_stuff
               then
                 special_check_line_to_face
                   ~p0 ~p1 ~norm ~rad ~facenum:face ~nv ~num_faces
