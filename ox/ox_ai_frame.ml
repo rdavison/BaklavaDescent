@@ -1557,8 +1557,10 @@ let do_ai_frame_d2
     player_awareness_type := ps.(7);
     behavior := ps.(8);
     hide_segment := ps.(9);
-    skip_ai_count := ps.(10);
-    next_action_time := ps.(11)
+    skip_ai_count := ps.(10)
+    (* ps.(11) = next_action_time: NOT read back because C's do_snipe_frame/do_thief_frame
+       operate on stale next_action_time (OCaml decremented it but didn't write to C).
+       OCaml manages next_action_time directly (decrement + snipe_attack reset). *)
   in
   (* Helper: pack result *)
   let pack_result () =
