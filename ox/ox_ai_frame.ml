@@ -2284,14 +2284,16 @@ let do_ai_frame_d2
        | m when m = aim_open_door ->
          let ok = Effect.perform (Ai_multiplayer_awareness 62) in
          if ok then Effect.perform (Ai_multi_send_robot_position (-1))
-       | m
-         when m = aim_snipe_attack
-              || m = aim_snipe_fire
-              || m = aim_snipe_retreat
-              || m = aim_snipe_retreat_backwards
-              || m = aim_snipe_wait ->
-         (* Snipe modes handled by Do_snipe_frame effect above *)
+       | m when m = aim_snipe_wait || m = aim_snipe_retreat ->
+         (* Snipe wait/retreat: no firing in mode dispatch (C lines 1699-1705) *)
          ()
+       | m
+         when m = aim_snipe_retreat_backwards
+              || m = aim_snipe_attack
+              || m = aim_snipe_fire ->
+         (* Snipe retreat_backwards/attack/fire: firing in mode dispatch (C lines 1706-1715) *)
+         let ok = Effect.perform (Ai_multiplayer_awareness 53) in
+         if ok then do_actual_firing ()
        | m when m = aim_thief_attack || m = aim_thief_retreat || m = aim_thief_wait ->
          (* Thief modes handled by Do_thief_frame effect above *)
          ()
