@@ -710,7 +710,7 @@ let do_ai_frame_d1
   (* Helper: unpack path state returned by path effects.
      Array: [0]hide_index [1]path_length [2]cur_path_index [3]path_dir
             [4]mode [5]goal_segment [6]time_player_seen [7]player_awareness_type
-            [8]behavior [9]hide_segment *)
+            [8]behavior [9]hide_segment [10]skip_ai_count *)
   let unpack_path_state ps =
     hide_index := ps.(0);
     path_length := ps.(1);
@@ -1557,7 +1557,8 @@ let do_ai_frame_d2
     player_awareness_type := ps.(7);
     behavior := ps.(8);
     hide_segment := ps.(9);
-    skip_ai_count := ps.(10)
+    skip_ai_count := ps.(10);
+    next_action_time := ps.(11)
   in
   (* Helper: pack result *)
   let pack_result () =

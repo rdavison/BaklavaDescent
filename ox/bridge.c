@@ -3780,12 +3780,12 @@ CAMLprim value cd_ox_read_af_path_state(value unit)
 {
     CAMLparam1(unit);
     CAMLlocal1(v_result);
-    int32_t buf[11];
+    int32_t buf[12];
     memset(buf, 0, sizeof(buf));
     if (g_read_path_state)
         g_read_path_state(buf);
-    v_result = caml_alloc(11, 0);
-    for (int i = 0; i < 11; i++)
+    v_result = caml_alloc(12, 0);
+    for (int i = 0; i < 12; i++)
         Store_field(v_result, i, Val_long(buf[i]));
     CAMLreturn(v_result);
 }

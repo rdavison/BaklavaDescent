@@ -588,6 +588,7 @@ void do_ai_frame(object* obj)
 					out[8] = aip->behavior;
 					out[9] = aip->hide_segment;
 				out[10] = aip->SKIP_AI_COUNT;
+				out[11] = ailp->next_action_time;
 				});
 			}
 		}
