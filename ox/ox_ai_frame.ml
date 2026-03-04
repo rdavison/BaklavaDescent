@@ -71,6 +71,8 @@ let snipe_abort_retreat_time = snipe_retreat_time / 2
 let snipe_attack_time = f1_0 * 10
 let snipe_wait_time = f1_0 * 5
 let snipe_fire_time = f1_0 * 2
+let thief_attack_time = f1_0 * 10
+let thief_wait_times = [| f1_0 * 30; f1_0 * 25; f1_0 * 20; f1_0 * 15; f1_0 * 10 |]
 let sub_flags_sprox = 0x02
 let sub_flags_camera_awake = 4
 let proximity_id = 47 (* D1 *)
@@ -2072,11 +2074,94 @@ let do_ai_frame_d2
       if thief <> 0
       then (
         compute_vis ();
-        let vtpx, vtpy, vtpz = !vec_to_player in
-        unpack_path_state (Effect.perform
-          (Do_thief_frame (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz,
-                           !player_awareness_type, !player_awareness_time)));
+        (* Ported do_thief_frame: handle thief mode transitions and timing.
+           NOTE: init_thief_for_level (negative levels only) not ported.
+           NOTE: find_connected_distance not available; always attempt path creation.
+           NOTE: move_towards_player/ai_turn_towards_vector not available as effects;
+                 thief physical movement in attack mode will diverge. *)
+        let thief_done = ref false in
+        let thief_wait_time = thief_wait_times.(difficulty_level) in
+        (* C line 1352: early return if far and timer positive *)
+        if !dist_to_player > f1_0 * 500 && !next_action_time > 0 then
+          thief_done := true;
+        if not !thief_done then (
+          (* C line 1355: if player dead, retreat *)
+          if player_is_dead <> 0 then
+            mode := aim_thief_retreat;
+          (match !mode with
+           | m when m = aim_thief_wait ->
+             (* C lines 1362-1376: awareness/visibility checks with early returns *)
+             if !player_awareness_type >= pa_player_collision then (
+               player_awareness_type := 0;
+               unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+               mode := aim_thief_attack;
+               next_action_time := thief_attack_time / 2;
+               thief_done := true)
+             else if !player_visibility <> 0 then (
+               unpack_path_state (Effect.perform (Create_n_segment_path (15, console_segnum)));
+               mode := aim_thief_retreat;
+               thief_done := true);
+             (* C lines 1378-1389: distance/timer gate, then path to player *)
+             if not !thief_done then (
+               if not (!dist_to_player > f1_0 * 50 && !next_action_time > 0) then (
+                 next_action_time := thief_wait_time / 2;
+                 (* NOTE: find_connected_distance not available; always create path *)
+                 unpack_path_state (Effect.perform (Create_path_to_player (30, 1)));
+                 mode := aim_thief_attack;
+                 next_action_time := thief_attack_time))
+           | m when m = aim_thief_retreat ->
+             (* C lines 1396-1424 *)
+             if !next_action_time < 0 then (
+               mode := aim_thief_wait;
+               next_action_time := thief_wait_time)
+             else if !dist_to_player < f1_0 * 100
+                     || !player_visibility <> 0
+                     || !player_awareness_type >= pa_player_collision then (
+               let vtpx, vtpy, vtpz = !vec_to_player in
+               unpack_path_state (Effect.perform
+                 (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+               if !dist_to_player < f1_0 * 100
+                  || !player_awareness_type >= pa_player_collision then (
+                 (* C lines 1403-1420: path end check + new retreat path.
+                    NOTE: path_dir not tracked in OCaml; path end check simplified.
+                    NOTE: shield-based path lengthening skipped (shields not available). *)
+                 if (!cur_path_index <= 1 || !cur_path_index >= !path_length - 1) then (
+                   player_awareness_type := 0;
+                   unpack_path_state (Effect.perform (Create_n_segment_path (10, console_segnum)));
+                   mode := aim_thief_retreat))
+               else
+                 mode := aim_thief_retreat)
+           | m when m = aim_thief_attack ->
+             (* C lines 1434-1470 *)
+             if !player_awareness_type >= pa_player_collision then (
+               player_awareness_type := 0;
+               let pr = Effect.perform P_Rand in
+               if pr > 8192 then (
+                 unpack_path_state (Effect.perform (Create_n_segment_path (10, console_segnum)));
+                 next_action_time := thief_wait_time / 2;
+                 mode := aim_thief_retreat))
+             else if !next_action_time < 0 then (
+               next_action_time := f1_0;
+               unpack_path_state (Effect.perform (Create_path_to_player (100, 0)));
+               mode := aim_thief_attack)
+             else (
+               if !player_visibility <> 0 && !dist_to_player < f1_0 * 100 then (
+                 (* NOTE: ai_turn_towards_vector and move_towards_player not available
+                    as effects. Physical movement divergence expected.
+                    NOTE: player-looking dot check skipped (ConsoleObject orient.fvec
+                    not available). *)
+                 ())
+               else (
+                 if !path_length > 1 || frame_count land 0x0f = 0 then (
+                   let vtpx, vtpy, vtpz = !vec_to_player in
+                   unpack_path_state (Effect.perform
+                     (Ai_follow_path (!player_visibility, !player_visibility, vtpx, vtpy, vtpz)));
+                   mode := aim_thief_attack)))
+           | _ ->
+             mode := aim_thief_attack;
+             next_action_time := f1_0));
         (* Thief extras: flare firing (C lines 1478-1494) *)
+        let vtpx, vtpy, vtpz = !vec_to_player in
         let new_nf = Effect.perform
           (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !next_fire, !next_fire2)) in
         next_fire := new_nf);
