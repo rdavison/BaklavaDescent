@@ -967,7 +967,10 @@ let find_vector_intersection_v2 (arr : int array) =
         ~game_mode_coop ~player_objnum ~physics_cheat
         st ~p0 ~startseg ~p1 ~rad ~thisobjnum ~flags ~entry_seg:(-2)
     in
-    let hit_pnt_x, hit_pnt_y, hit_pnt_z = hit_pnt in
+    let hit_pnt_x = ref (let x, _, _ = hit_pnt in x) in
+    let hit_pnt_y = ref (let _, y, _ = hit_pnt in y) in
+    let hit_pnt_z = ref (let _, _, z = hit_pnt in z) in
+    let cur_hit_pnt () = (!hit_pnt_x, !hit_pnt_y, !hit_pnt_z) in
     (* Resolve hit_seg *)
     let hit_seg = ref (-1) in
     if hit_seg2 <> -1
@@ -976,12 +979,12 @@ let find_vector_intersection_v2 (arr : int array) =
       let sv2, st2, n2, svp2 = unpack_seg_for_masks sd2 in
       let _, _, cm2 =
         Ox_gameseg.get_seg_masks
-          ~checkp:hit_pnt ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
+          ~checkp:(cur_hit_pnt ()) ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
       in
       if cm2 = 0 then hit_seg := hit_seg2);
     if !hit_seg = -1
     then
-      hit_seg := find_point_seg_fvi_v2 ~point:hit_pnt ~segnum:startseg ~n_segments;
+      hit_seg := find_point_seg_fvi_v2 ~point:(cur_hit_pnt ()) ~segnum:startseg ~n_segments;
     (* HACK: if HIT_WALL and hit_seg=-1, try fvi_hit_seg2 *)
     if hit_type = hit_wall && !hit_seg = -1 && st.fvi_hit_seg2 <> -1
     then (
@@ -989,7 +992,7 @@ let find_vector_intersection_v2 (arr : int array) =
       let sv2, st2, n2, svp2 = unpack_seg_for_masks sd2 in
       let _, _, cm2 =
         Ox_gameseg.get_seg_masks
-          ~checkp:hit_pnt ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
+          ~checkp:(cur_hit_pnt ()) ~rad:0 ~seg_verts:sv2 ~side_types:st2 ~normals:n2 ~seg_vert_positions:svp2
       in
       if cm2 = 0 then hit_seg := st.fvi_hit_seg2);
     (* Retry with rad=0 if hit_seg still -1 *)
@@ -1005,8 +1008,13 @@ let find_vector_intersection_v2 (arr : int array) =
           ~game_mode_coop ~player_objnum ~physics_cheat
           st2 ~p0 ~startseg ~p1 ~rad:0 ~thisobjnum ~flags ~entry_seg:(-2)
       in
-      ignore _new_hit_pnt;
-      if new_hit_seg2 <> -1 then hit_seg := new_hit_seg2);
+      if new_hit_seg2 <> -1
+      then (
+        hit_seg := new_hit_seg2;
+        let npx, npy, npz = _new_hit_pnt in
+        hit_pnt_x := npx;
+        hit_pnt_y := npy;
+        hit_pnt_z := npz));
     (* Trim seglist at hit point *)
     let final_seglist = Array.create ~len:max_fvi_segs 0 in
     let final_n_segs = ref n_segs in
@@ -1033,9 +1041,9 @@ let find_vector_intersection_v2 (arr : int array) =
     let result_len = 12 + !final_n_segs in
     let result = Array.create ~len:result_len 0 in
     result.(0) <- hit_type;
-    result.(1) <- hit_pnt_x;
-    result.(2) <- hit_pnt_y;
-    result.(3) <- hit_pnt_z;
+    result.(1) <- !hit_pnt_x;
+    result.(2) <- !hit_pnt_y;
+    result.(3) <- !hit_pnt_z;
     result.(4) <- !hit_seg;
     result.(5) <- st.fvi_hit_side;
     result.(6) <- st.fvi_hit_side_seg;
