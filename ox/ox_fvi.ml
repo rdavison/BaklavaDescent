@@ -549,8 +549,10 @@ let rec fvi_sub_v2
   let open Ox_math in
   (* C sets disable_new_fvi_stuff = (obj->type != OBJ_PLAYER) before calling FVI.
      When true, special_check_line_to_face falls back to check_line_to_face.
-     We replicate this by checking thisobjnum vs player_objnum. *)
-  let disable_new_fvi_stuff = thisobjnum >= 0 && thisobjnum <> player_objnum in
+     D2: special_check_line_to_face checks disable_new_fvi_stuff and falls back.
+     D1: special_check_line_to_face does NOT check it — always runs full edge code.
+     So only apply this for D2. *)
+  let disable_new_fvi_stuff = is_d2 && thisobjnum >= 0 && thisobjnum <> player_objnum in
   let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data startseg) in
   let children, side_types, seg_verts, normals, seg_vert_positions, wid, first_object =
     unpack_seg seg_data ~seg_base:0
