@@ -365,8 +365,11 @@ void do_ai_frame(object* obj)
 					if (g_shadow_dry_run) return;
 					create_n_segment_path(af_obj, length, avoid_seg);
 				},
-				// create_n_segment_path_to_door (D2: noop, D1 only)
-				[](int length, int avoid_seg) {},
+				// create_n_segment_path_to_door
+				[](int length, int avoid_seg) {
+					if (g_shadow_dry_run) return;
+					create_n_segment_path_to_door(af_obj, length, avoid_seg);
+				},
 				// attempt_to_resume_path
 				[]() {
 					if (g_shadow_dry_run) return;
