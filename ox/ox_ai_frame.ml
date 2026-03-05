@@ -49,13 +49,19 @@ let min_behavior = aib_still
 let max_behavior_d1 = aib_station
 let max_behavior_d2 = aib_follow
 
-(* Player awareness types *)
+(* Object types *)
+let obj_robot = 2
+let obj_weapon = 5
+
+(* Awareness states *)
 let pa_nearby_robot_fired = 1
 let pa_weapon_wall_collision = 2
 let pa_player_collision = 3
 let pa_weapon_robot_collision = 4
 let robot_brain = 7
 let ndl = 5
+let min_escort_distance = f1_0 * 40
+let flare_id = 15
 let robot_fire_agitation = 94
 let gm_multi = 38
 let segment_is_robotmaker = 2
@@ -142,13 +148,6 @@ type _ Effect.t +=
   | Do_ai_robot_hit_attack : unit Effect.t
   | Ai_fire_laser_at_player : (int * int * int * int * int * int * int * int * int) -> (int * int * int) Effect.t
   | Calc_gun_point : int -> (int * int * int) Effect.t
-  | Create_path_to_player : (int * int) -> int array Effect.t
-  | Create_path_to_station : int -> int array Effect.t
-  | Create_n_segment_path : (int * int) -> int array Effect.t
-  | Create_n_segment_path_to_door : (int * int) -> int array Effect.t
-  | Attempt_to_resume_path : int array Effect.t
-  | Ai_follow_path : (int * int * int * int * int) -> int array Effect.t
-  | Move_towards_segment_center : unit Effect.t
   | Compute_vis_and_vec : (int * int * int) -> (int * int * int * int * int) Effect.t
   | Ai_multi_send_robot_position : int -> unit Effect.t
   | Do_boss_stuff : int -> unit Effect.t
@@ -156,8 +155,6 @@ type _ Effect.t +=
   | Make_random_vector : (int * int * int) Effect.t
   | Object_to_object_visibility : int Effect.t
   | Do_snipe_frame : (int * int * int * int * int * int) -> int array Effect.t  (* returns path state *)
-  | Do_escort_frame : (int * int) -> int array Effect.t  (* returns path state *)
-  | Do_thief_frame : (int * int * int * int * int * int * int) -> int array Effect.t  (* returns path state *)
   | Do_any_robot_dying_frame : bool Effect.t
   | Make_nearby_robot_snipe : unit Effect.t
   | Move_away_from_player : unit Effect.t
@@ -166,14 +163,7 @@ type _ Effect.t +=
   | Laser_create_new_easy :
       (int * int * int * int * int * int * int * int)
       -> unit Effect.t
-  (* Do_companion_extras: danger laser evasion + flare firing for companion robot.
-     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, mode, next_fire, next_fire2)
-     Returns: updated next_fire *)
-  | Do_companion_extras : (int * int * int * int * int * int * int * int) -> int Effect.t
-  (* Do_thief_extras: flare firing for thief robot.
-     Args: (dist_to_player, player_visibility, vtpx, vtpy, vtpz, next_fire, next_fire2)
-     Returns: updated next_fire *)
-  | Do_thief_extras : (int * int * int * int * int * int * int) -> int Effect.t
+  | Fetch_danger_laser_data : int -> int array Effect.t
 
 (* Ai_fire_laser_at_player args: gpx, gpy, gpz, gun_num, fire_px, fire_py, fire_pz
    D1: gun_num=0, fire_pos=(0,0,0) ignored on C side
@@ -235,8 +225,11 @@ let idx_previous_visibility = 41
 (* D2: next_action_time *)
 let idx_next_action_time = 42
 
+(* shields *)
+let idx_shields = 43
+
 (* Total AI state packed array size *)
-let ai_state_size = 43
+let ai_state_size = 44
 
 (* Robot info packed array layout *)
 let ri_attack_type = 0
@@ -261,6 +254,8 @@ let ri_homing_flag2 = 18
 let ri_circle_distance = 19 (* array of NDL=5 *)
 let ri_turn_time = 24 (* array of NDL=5 *)
 let ri_pursuit = 29
+let ri_evade_speed = 30 (* array of NDL=5 *)
+let ri_strength = 35
 
 (* -- maybe_ai_do_actual_firing_stuff -------------------------------------- *)
 
@@ -659,6 +654,9 @@ let do_ai_frame_d1
       ~console_y
       ~console_z
       ~console_size
+      ~console_fvx
+      ~console_fvy
+      ~console_fvz
       ~believed_x
       ~believed_y
       ~believed_z
@@ -684,6 +682,8 @@ let do_ai_frame_d1
   let hide_index = ref ai_state.(idx_hide_index) in
   let path_length = ref ai_state.(idx_path_length) in
   let _sub_flags = ai_state.(idx_sub_flags) in
+  let danger_laser_num = ref ai_state.(idx_danger_laser_num) in
+  let danger_laser_signature = ref ai_state.(idx_danger_laser_sig) in
   let goalside = ref ai_state.(idx_goalside) in
   let hide_segment = ref ai_state.(idx_hide_segment) in
   let next_fire = ref ai_state.(idx_next_fire) in
@@ -700,6 +700,14 @@ let do_ai_frame_d1
   let _rapidfire_count = ai_state.(idx_rapidfire_count) in
   let achieved_state = Array.init 8 ~f:(fun i -> ai_state.(idx_achieved_state + i)) in
   let previous_visibility = ref ai_state.(idx_previous_visibility) in
+  let next_action_time = ref ai_state.(idx_next_action_time) in
+  let shields = ai_state.(idx_shields) in
+  let console_fvec = (console_fvx, console_fvy, console_fvz) in
+  let fvec = ref (orient.(6), orient.(7), orient.(8)) in
+  let uvec = ref (orient.(3), orient.(4), orient.(5)) in
+  let rvec = ref (orient.(0), orient.(1), orient.(2)) in
+  let velocity = ref (velocity_x, velocity_y, velocity_z) in
+  ignore (next_action_time, console_fvec, fvec, uvec, rvec, velocity);
   (* Unpack robot info *)
   let attack_type = rinfo.(ri_attack_type) in
   let _weapon_type = rinfo.(ri_weapon_type) in
@@ -710,6 +718,7 @@ let do_ai_frame_d1
   let cloak_type = rinfo.(ri_cloak_type) in
   let circle_distance_diff = rinfo.(ri_circle_distance + difficulty_level) in
   let turn_time_diff = rinfo.(ri_turn_time + difficulty_level) in
+  ignore turn_time_diff;
   (* Mutable locals *)
   let player_visibility = ref (-1) in
   let object_animates = ref 0 in
@@ -829,6 +838,49 @@ let do_ai_frame_d1
     in
     let ov = Ox_physics.ai_path_set_orient_and_vel packed in
     new_orient_vel := Some ov
+  in
+  let do_ai_move_relative_to_player dist_to_player_in circle_distance evade_only =
+    let dld = if !danger_laser_num <> -1 then Effect.perform (Fetch_danger_laser_data !danger_laser_num) else Array.create ~len:12 0 in
+    let packed = [|
+      velocity_x; velocity_y; velocity_z;
+      !vec_to_player |> (fun (x,y,z) -> x); !vec_to_player |> (fun (_,y,_) -> y); !vec_to_player |> (fun (_,_,z) -> z);
+      dist_to_player_in; circle_distance; evade_only;
+      orient.(6); orient.(7); orient.(8); (* fvec *)
+      orient.(3); orient.(4); orient.(5); (* uvec *)
+      orient.(0); orient.(1); orient.(2); (* rvec *)
+      obj_x; obj_y; obj_z;
+      shields;
+      !danger_laser_num; !danger_laser_signature;
+      dld.(0); dld.(1); (* dl_type, dl_sig *)
+      dld.(2); dld.(3); dld.(4); (* dl_pos *)
+      dld.(5); (* dl_render_type *)
+      dld.(6); dld.(7); dld.(8); (* dl_fvec *)
+      dld.(9); dld.(10); dld.(11); (* dl_velocity *)
+      attack_type;
+      rinfo.(ri_field_of_view + difficulty_level);
+      rinfo.(ri_evade_speed + difficulty_level);
+      rinfo.(ri_firing_wait + difficulty_level);
+      rinfo.(ri_max_speed + difficulty_level);
+      rinfo.(ri_strength + difficulty_level);
+      !next_fire;
+      difficulty_level;
+      frame_time;
+      frame_count;
+      objnum;
+      (if player_is_dead <> 0 then 1 else 0);
+      (if player_flags land player_flags_cloaked <> 0 then 1 else 0);
+      Effect.perform Ox_misc.P_Rand_get_state_internal; (* prand_state *)
+      0; (* is_d2 = false *)
+      !player_visibility;
+      (game_time lsr 18) land 0xFF; (* game_time_shr18_masked *)
+      0; 0; (* companion, thief *)
+      0 (* kamikaze *)
+    |] in
+    let result = Ox_physics.ai_move_relative_to_player packed in
+    new_orient_vel := Some [| result.(0); result.(1); result.(2);
+      orient.(0); orient.(1); orient.(2);
+      orient.(3); orient.(4); orient.(5);
+      orient.(6); orient.(7); orient.(8) |]
   in
   (* Helper: pack result *)
   let pack_result () =
@@ -1244,15 +1296,8 @@ let do_ai_frame_d1
          if not ok
          then maybe_fire_mp_and_return ()
          else (
-           ignore circle_distance;
-           (* ai_move_relative_to_player done on C side *)
            if obj_ref land 1 <> 0 && (!goal_state = ais_srch || !goal_state = ais_lock)
-           then
-             if !player_visibility > 0
-             then (
-               let vtpx, vtpy, vtpz = !vec_to_player in
-               ignore (vtpx, vtpy, vtpz, turn_time_diff))
-             else ();
+           then do_ai_move_relative_to_player !dist_to_player circle_distance 0;
            if !ai_evaded <> 0
            then (
              Effect.perform (Ai_multi_send_robot_position 1);
@@ -1554,6 +1599,9 @@ let do_ai_frame_d2
       ~console_y
       ~console_z
       ~console_size
+      ~console_fvx
+      ~console_fvy
+      ~console_fvz
       ~believed_x
       ~believed_y
       ~believed_z
@@ -1590,6 +1638,8 @@ let do_ai_frame_d2
   let hide_index = ref ai_state.(idx_hide_index) in
   let path_length = ref ai_state.(idx_path_length) in
   let sub_flags = ref ai_state.(idx_sub_flags) in
+  let danger_laser_num = ref ai_state.(idx_danger_laser_num) in
+  let danger_laser_signature = ref ai_state.(idx_danger_laser_sig) in
   let goalside = ref ai_state.(idx_goalside) in
   let hide_segment = ref ai_state.(idx_hide_segment) in
   let next_fire = ref ai_state.(idx_next_fire) in
@@ -1607,6 +1657,13 @@ let do_ai_frame_d2
   let achieved_state = Array.init 8 ~f:(fun i -> ai_state.(idx_achieved_state + i)) in
   let previous_visibility = ref ai_state.(idx_previous_visibility) in
   let next_action_time = ref ai_state.(idx_next_action_time) in
+  let shields = ai_state.(idx_shields) in
+  let console_fvec = (console_fvx, console_fvy, console_fvz) in
+  let fvec = ref (orient.(6), orient.(7), orient.(8)) in
+  let uvec = ref (orient.(3), orient.(4), orient.(5)) in
+  let rvec = ref (orient.(0), orient.(1), orient.(2)) in
+  let velocity = ref (velocity_x, velocity_y, velocity_z) in
+  ignore uvec;
   let phys_flags = ref phys_flags_in in
   let rotthrust = Array.copy rotthrust_in in
   (* Unpack robot info *)
@@ -1752,6 +1809,49 @@ let do_ai_frame_d2
     in
     let ov = Ox_physics.ai_path_set_orient_and_vel packed in
     new_orient_vel := Some ov
+  in
+  let do_ai_move_relative_to_player dist_to_player_in circle_distance evade_only =
+    let dld = if !danger_laser_num <> -1 then Effect.perform (Fetch_danger_laser_data !danger_laser_num) else Array.create ~len:12 0 in
+    let packed = [|
+      velocity_x; velocity_y; velocity_z;
+      !vec_to_player |> (fun (x,y,z) -> x); !vec_to_player |> (fun (_,y,_) -> y); !vec_to_player |> (fun (_,_,z) -> z);
+      dist_to_player_in; circle_distance; evade_only;
+      orient.(6); orient.(7); orient.(8); (* fvec *)
+      orient.(3); orient.(4); orient.(5); (* uvec *)
+      orient.(0); orient.(1); orient.(2); (* rvec *)
+      obj_x; obj_y; obj_z;
+      shields;
+      !danger_laser_num; !danger_laser_signature;
+      dld.(0); dld.(1); (* dl_type, dl_sig *)
+      dld.(2); dld.(3); dld.(4); (* dl_pos *)
+      dld.(5); (* dl_render_type *)
+      dld.(6); dld.(7); dld.(8); (* dl_fvec *)
+      dld.(9); dld.(10); dld.(11); (* dl_velocity *)
+      attack_type;
+      rinfo.(ri_field_of_view + difficulty_level);
+      rinfo.(ri_evade_speed + difficulty_level);
+      rinfo.(ri_firing_wait + difficulty_level);
+      rinfo.(ri_max_speed + difficulty_level);
+      rinfo.(ri_strength + difficulty_level);
+      !next_fire;
+      difficulty_level;
+      frame_time;
+      frame_count;
+      objnum;
+      (if player_is_dead <> 0 then 1 else 0);
+      (if player_flags land player_flags_cloaked <> 0 then 1 else 0);
+      Effect.perform Ox_misc.P_Rand_get_state_internal; (* prand_state *)
+      1; (* is_d2 = true *)
+      !player_visibility;
+      (game_time lsr 18) land 0xFF; (* game_time_shr18_masked *)
+      (if companion<>0 then 1 else 0); (if thief<>0 then 1 else 0);
+      rinfo.(ri_kamikaze)
+    |] in
+    let result = Ox_physics.ai_move_relative_to_player packed in
+    new_orient_vel := Some [| result.(0); result.(1); result.(2);
+      orient.(0); orient.(1); orient.(2);
+      orient.(3); orient.(4); orient.(5);
+      orient.(6); orient.(7); orient.(8) |]
   in
   (* Helper: pack result *)
   let pack_result () =
@@ -1994,9 +2094,8 @@ let do_ai_frame_d2
               let pr2 = Effect.perform P_Rand in
               if pr2 * (overall_agitation - 40) > f1_0 * 5
               then (
-                unpack_path_state (Effect.perform
-                  (Create_path_to_player
-                     (4 + (overall_agitation / 8) + difficulty_level, 1)));
+                unpack_path_state (do_create_path_to_player
+                     (4 + (overall_agitation / 8) + difficulty_level) 1);
                 early_return_flag := 1;
                 raise Early_return)));
       (* Phase: retry count *)
@@ -2226,8 +2325,7 @@ let do_ai_frame_d2
                | m when m = aim_snipe_fire ->
                  if !next_action_time < 0 then (
                    let pr = Effect.perform P_Rand in
-                   unpack_path_state (Effect.perform
-                     (Create_n_segment_path (10 + pr / 2048, console_segnum)));
+                   unpack_path_state (do_create_n_segment_path (10 + pr / 2048) console_segnum);
                    (* NOTE: polish_path not available as effect; path used unpolished.
                       Divergence expected until polish_path is ported. *)
                    let pr2 = Effect.perform P_Rand in
@@ -2243,21 +2341,45 @@ let do_ai_frame_d2
       else if companion <> 0
       then (
         compute_vis ();
-        unpack_path_state (Effect.perform (Do_escort_frame (!dist_to_player, !player_visibility)));
         (* Companion extras: danger laser evasion + flare firing (C lines 1433-1466) *)
         let vtpx, vtpy, vtpz = !vec_to_player in
-        let new_nf = Effect.perform
-          (Do_companion_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !mode, !next_fire, !next_fire2)) in
-        next_fire := new_nf);
+        ignore (vtpx, vtpy, vtpz);
+        (* Danger laser evasion *)
+        if !danger_laser_num <> -1 then (
+          let dld = Effect.perform (Fetch_danger_laser_data !danger_laser_num) in
+          if dld.(0) = obj_weapon && dld.(1) = !danger_laser_signature then (
+            let circle_distance = circle_distance_diff + console_size in
+            do_ai_move_relative_to_player !dist_to_player circle_distance 1
+          )
+        );
+        (* Flare firing *)
+        let ready = if weapon_type2 <> -1 then !next_fire <= 0 || !next_fire2 <= 0 else !next_fire <= 0 in
+        if ready then (
+          let do_stuff = ref false in
+          if (Effect.perform Openable_doors_in_segment) <> -1 then do_stuff := true
+          else (
+            (* NOTE: checking door in path segments skipped for now (Point_segs not easy to access) *)
+            if !mode = aim_goto_player && !dist_to_player < 3 * min_escort_distance / 2 then (
+              let dot = Ox_math.vm_vec_dotprod ~a:console_fvec ~b:(!vec_to_player) in
+              if dot > -(f1_0 / 4) then do_stuff := true
+            )
+          );
+          if !do_stuff then (
+            let fvx, fvy, fvz = !fvec in
+            let fpx, fpy, fpz = Ox_math.vm_vec_add ~a:(obj_x, obj_y, obj_z) ~b:(fvx, fvy, fvz) in
+            Effect.perform (Laser_create_new_easy (fvx, fvy, fvz, fpx, fpy, fpz, objnum, flare_id));
+            next_fire := f1_0 / 2;
+            (* NOTE: Buddy_allowed_to_talk check skipped, always add jitter if not shareware *)
+            let pr = Effect.perform P_Rand in
+            next_fire := !next_fire + (pr * 4)
+          )
+        )
+      );
       (* Thief section: runs independently of snipe (thief has AIB_SNIPE behavior) *)
       if thief <> 0
       then (
         compute_vis ();
-        (* Ported do_thief_frame: handle thief mode transitions and timing.
-           NOTE: init_thief_for_level (negative levels only) not ported.
-           NOTE: find_connected_distance not available; always attempt path creation.
-           NOTE: move_towards_player/ai_turn_towards_vector not available as effects;
-                 thief physical movement in attack mode will diverge. *)
+        (* Ported do_thief_frame: handle thief mode transitions and timing. *)
         let thief_done = ref false in
         let thief_wait_time = thief_wait_times.(difficulty_level) in
         (* C line 1352: early return if far and timer positive *)
@@ -2300,9 +2422,7 @@ let do_ai_frame_d2
                do_ai_follow_path !player_visibility !player_visibility vtpx vtpy vtpz;
                if !dist_to_player < f1_0 * 100
                   || !player_awareness_type >= pa_player_collision then (
-                 (* C lines 1403-1420: path end check + new retreat path.
-                    NOTE: path_dir not tracked in OCaml; path end check simplified.
-                    NOTE: shield-based path lengthening skipped (shields not available). *)
+                 (* C lines 1403-1420: path end check + new retreat path. *)
                  if (!cur_path_index <= 1 || !cur_path_index >= !path_length - 1) then (
                    player_awareness_type := 0;
                    unpack_path_state (do_create_n_segment_path 10 console_segnum);
@@ -2324,11 +2444,25 @@ let do_ai_frame_d2
                mode := aim_thief_attack)
              else (
                if !player_visibility <> 0 && !dist_to_player < f1_0 * 100 then (
-                 (* NOTE: ai_turn_towards_vector and move_towards_player not available
-                    as effects. Physical movement divergence expected.
-                    NOTE: player-looking dot check skipped (ConsoleObject orient.fvec
-                    not available). *)
-                 ())
+                 (* ai_turn_towards_vector and move_towards_player *)
+                 let goal = !vec_to_player in
+                 let new_orient =
+                   Ox_physics.ai_turn_towards_vector
+                     ~goal ~fvec:!fvec ~rvec:!rvec
+                     ~rate:(rinfo.(ri_turn_time + 4) / 2)
+                     ~frame_time ~seismic_mag:0 ~robot_mass:0 ~rand_vec:(0,0,0)
+                 in
+                 let (nrx, nry, nrz), (nux, nuy, nuz), (nfx, nfy, nfz) = new_orient in
+                 let new_vel =
+                   Ox_physics.move_towards_vector
+                     ~velocity:!velocity ~vec_goal:goal ~fvec:!fvec
+                     ~frame_time ~difficulty:difficulty_level
+                     ~max_speed:(rinfo.(ri_max_speed + difficulty_level))
+                     ~attack_type ~dot_based:true ~is_thief:true ~is_kamikaze:false
+                 in
+                 let nvx, nvy, nvz = new_vel in
+                 new_orient_vel := Some [| nvx; nvy; nvz; nrx; nry; nrz; nux; nuy; nuz; nfx; nfy; nfz |]
+               )
                else (
                  if !path_length > 1 || frame_count land 0x0f = 0 then (
                    let vtpx, vtpy, vtpz = !vec_to_player in
@@ -2338,10 +2472,21 @@ let do_ai_frame_d2
              mode := aim_thief_attack;
              next_action_time := f1_0));
         (* Thief extras: flare firing (C lines 1478-1494) *)
-        let vtpx, vtpy, vtpz = !vec_to_player in
-        let new_nf = Effect.perform
-          (Do_thief_extras (!dist_to_player, !player_visibility, vtpx, vtpy, vtpz, !next_fire, !next_fire2)) in
-        next_fire := new_nf);
+        let ready = if weapon_type2 <> -1 then !next_fire <= 0 || !next_fire2 <= 0 else !next_fire <= 0 in
+        if ready then (
+          let do_stuff = ref false in
+          if (Effect.perform Openable_doors_in_segment) <> -1 then do_stuff := true;
+          (* NOTE: path segment door check skipped *)
+          if !do_stuff then (
+            let fvx, fvy, fvz = !fvec in
+            let fpx, fpy, fpz = Ox_math.vm_vec_add ~a:(obj_x, obj_y, obj_z) ~b:(fvx, fvy, fvz) in
+            Effect.perform (Laser_create_new_easy (fvx, fvy, fvz, fpx, fpy, fpz, objnum, flare_id));
+            next_fire := f1_0 / 2;
+            let pr = Effect.perform P_Rand in
+            next_fire := !next_fire + (pr * 4)
+          )
+        )
+      );
       (* Phase: mode dispatch (D2) *)
       (match !mode with
        | m when m = aim_chase_object ->
@@ -2401,8 +2546,7 @@ let do_ai_frame_d2
              if not ok
              then maybe_fire_mp ()
              else (
-               ignore circle_distance;
-               (* ai_move_relative_to_player on C side *)
+               do_ai_move_relative_to_player !dist_to_player circle_distance 0;
                if obj_ref land 1 <> 0 && (!goal_state = ais_srch || !goal_state = ais_lock)
                then ();
                if !ai_evaded <> 0

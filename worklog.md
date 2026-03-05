@@ -2412,3 +2412,34 @@ Reorganized the project to make the boundary between pure OCaml game logic and p
 - `cmake --build build-ox -j8` succeeds (ChocolateDescent, ChocolateDescent2, headless_replay)
 - `cmake --build build-c-ref -j8` succeeds
 - All four game binaries (D1/D2 × C/OCaml) launch and run correctly
+
+### Session 25: AI Frame Bridge Stabilization & RNG Hunt Scoping
+
+- **Goal:** Resolve persistent "Unhandled Effect" crashes in OCaml AI frame and achieve stable headless replay.
+
+- **Architecture Fix: Pure OCaml Pathfinding Calls**
+  - Discovered that OCaml 5 effect handlers are not automatically recursive across the C bridge.
+  - Refactored `ox/ox_ai_frame.ml` to call `Ox_aipath` directly (OCaml-to-OCaml) instead of performing an effect that bounces through the C bridge.
+  - This allows pathfinding-triggered effects (like `P_Rand`) to propagate naturally to the top-level AI handler.
+  - Removed redundant pathfinding effects from `ox-bridge/ai_frame.ml`.
+
+- **Bug Fixes identified during "RNG Hunt":**
+  - **Wall Data Order**: Corrected `segnum/sidenum` argument order in `cd_ox_fetch_wall_data` bridge (was swapped).
+  - **RNG Jitter Math**: Fixed precedence in `Ox_aipath` jitter computation to match C: `(P_Rand() - 16384) / 2`.
+  - **Redundant Escort/Thief Effects**: Removed obsolete `Do_escort_frame` and `Do_thief_frame` effects from the bridge, as their logic is now fully inlined in OCaml.
+
+- **Results:**
+  - **Headless Replay**: SUCCESS. The OCaml build now plays through the entire 636-frame test session without crashing.
+  - **Stability**: Resolved all architectural "Unhandled Effect" loop issues.
+  - **Parity**: 636 divergent frames. Drift starts at Frame 190 where `rand_state` desyncs.
+
+- **Next Steps (documented in RNG_HUNT.md):**
+  - Audit every `P_Rand` call in `Ox_aipath` vs C `aipath.cpp`.
+  - Port full `create_path_points` and `polish_path` logic to eliminate RNG sequence drift.
+  - Port `Laser_create_new_easy` to synchronize object creation side-effects.
+
+- **Files changed:**
+  - `ox/ox_ai_frame.ml`: Refactored to direct OCaml calls, removed redundant effects.
+  - `ox-bridge/ai_frame.ml`: Cleaned up effect handler, fixed wall data arg order.
+  - `ox/ox_aipath.ml`: Fixed RNG jitter math precedence.
+  - `RNG_HUNT.md`: New detailed analysis of the bit-parity desync.
