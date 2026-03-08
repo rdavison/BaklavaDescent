@@ -116,6 +116,7 @@ PORTED_FUNCTIONS = {
     "apply_damage_to_robot": "ported",
     "apply_damage_to_controlcen": "ported",
     "phys_apply_force": "ported",
+    "phys_apply_rot": "ported",
     "maybe_kill_weapon": "ported",
     # Physics sub-functions
     "do_physics_sim_rot": "ported",

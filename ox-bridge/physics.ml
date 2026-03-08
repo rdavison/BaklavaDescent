@@ -146,6 +146,29 @@ let cd_phys_apply_rot fx fy fz mass is_robot fvx fvy fvz is_morph crx cry crz =
   nx, ny, nz, if set_skip_ai then 1 else 0
 ;;
 
+(* phys_apply_rot_d2: 17 scalar args → 4 ints
+   force_vec(3) + mass(1) + is_robot(1) + fvec(3) + is_morph(1) + cur_rotvel(3)
+   + is_thief(1) + is_attack_type(1) + skip_ai_count(1) + frame_time(1) + p_rand(1) = 17 in
+   Returns: (new_rx, new_ry, new_rz, skip_ai_addval) *)
+let cd_phys_apply_rot_d2 fx fy fz mass is_robot fvx fvy fvz is_morph crx cry crz
+    is_thief is_attack_type skip_ai_count frame_time p_rand =
+  let (nx, ny, nz), skip_ai_addval =
+    Ox_physics.phys_apply_rot_d2
+      ~force_vec:(fx, fy, fz)
+      ~mass
+      ~is_robot:(is_robot <> 0)
+      ~fvec:(fvx, fvy, fvz)
+      ~is_morph:(is_morph <> 0)
+      ~cur_rotvel:(crx, cry, crz)
+      ~is_thief:(is_thief <> 0)
+      ~is_attack_type:(is_attack_type <> 0)
+      ~skip_ai_count
+      ~frame_time
+      ~p_rand
+  in
+  nx, ny, nz, skip_ai_addval
+;;
+
 (* ai_turn_towards_vector: 16 scalar args → 9 ints
    goal(3) + fvec(3) + rvec(3) + rate(1) + frame_time(1) +
    seismic_mag(1) + robot_mass(1) + rand_vec(3) = 16 in
@@ -392,6 +415,7 @@ let register_callbacks () =
   Callback.register "cd_calc_gun_point" cd_calc_gun_point;
   Callback.register "cd_phys_apply_force" cd_phys_apply_force;
   Callback.register "cd_phys_apply_rot" cd_phys_apply_rot;
+  Callback.register "cd_phys_apply_rot_d2" cd_phys_apply_rot_d2;
   Callback.register "cd_ai_turn_towards_vector" cd_ai_turn_towards_vector;
   Callback.register "cd_set_thrust_from_velocity" cd_set_thrust_from_velocity;
   Callback.register "cd_move_towards_vector" cd_move_towards_vector;

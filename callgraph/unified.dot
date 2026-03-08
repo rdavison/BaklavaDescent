@@ -575,7 +575,7 @@ digraph callgraph {
   "palette_restore" [label="palette_restore\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "palette_save" [label="palette_save\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "phys_apply_force" [label="phys_apply_force\n(collide)", color=green, style=filled, fillcolor="honeydew"];
-  "phys_apply_rot" [label="phys_apply_rot\n(collide)", color=gray50, style=solid, fillcolor="white"];
+  "phys_apply_rot" [label="phys_apply_rot\n(collide)", color=green, style=filled, fillcolor="honeydew"];
   "physics_set_rotvel_and_saturate" [label="physics_set_rotvel_and_saturate\n(physics)", color=green, style=filled, fillcolor="honeydew"];
   "physics_turn_towards_vector" [label="physics_turn_towards_vector\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "pick_connected_segment" [label="pick_connected_segment\n(escort)", color=gray50, style=solid, fillcolor="white"];

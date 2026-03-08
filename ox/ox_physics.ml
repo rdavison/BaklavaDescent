@@ -323,6 +323,64 @@ let phys_apply_rot ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel =
     new_rv, is_robot)
 ;;
 
+(* D2 version of phys_apply_rot — differs from D1 in SKIP_AI_COUNT handling.
+   D2 probabilistically increments SKIP_AI_COUNT based on FrameTime,
+   unless robot is thief or attack_type.
+
+   Extra inputs vs D1:
+     is_thief      - Robot_info[id].thief
+     is_attack_type - Robot_info[id].attack_type
+     skip_ai_count - current SKIP_AI_COUNT
+     frame_time    - FrameTime
+     p_rand        - pre-rolled P_Rand() value
+
+   Returns: (new_rotvel, skip_ai_addval) where skip_ai_addval is amount
+   to add to SKIP_AI_COUNT on the C side. *)
+let phys_apply_rot_d2 ~force_vec ~mass ~is_robot ~fvec ~is_morph ~cur_rotvel
+    ~is_thief ~is_attack_type ~skip_ai_count ~frame_time ~p_rand =
+  let vecmag = Ox_math.vm_vec_mag ~v:force_vec / 8 in
+  if vecmag < f1_0 / 256
+  then (
+    let rate = 4 * f1_0 in
+    let new_rv =
+      physics_turn_towards_vector ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel
+    in
+    new_rv, 0)
+  else if vecmag < mass asr 14
+  then (
+    let rate = 4 * f1_0 in
+    let new_rv =
+      physics_turn_towards_vector ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel
+    in
+    new_rv, 0)
+  else (
+    let rate = Ox_math.fixdiv ~a:mass ~b:vecmag in
+    if is_robot
+    then (
+      let rate = max rate (f1_0 / 4) in
+      let skip_ai_addval =
+        if (not is_thief) && (not is_attack_type)
+        then
+          if skip_ai_count * frame_time < 3 * f1_0 / 4
+          then (
+            let tval = Ox_math.fixdiv ~a:f1_0 ~b:(8 * frame_time) in
+            let addval = tval asr 16 in
+            if p_rand * 2 < (tval land 0xffff) then addval + 1 else addval)
+          else 0
+        else 0
+      in
+      let new_rv =
+        physics_turn_towards_vector ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel
+      in
+      new_rv, skip_ai_addval)
+    else (
+      let rate = max rate (f1_0 / 2) in
+      let new_rv =
+        physics_turn_towards_vector ~goal:force_vec ~fvec ~rate ~is_morph ~cur_rotvel
+      in
+      new_rv, 0))
+;;
+
 (* AI turn towards vector — smooth orientation interpolation.
    C original: ai.cpp ai_turn_towards_vector (non-baby-spider path)
 

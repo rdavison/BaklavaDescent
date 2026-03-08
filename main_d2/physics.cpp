@@ -1747,10 +1747,35 @@ void physics_turn_towards_vector(vms_vector *goal_vector, object *obj, fix rate)
 //	change in orientation.
 void phys_apply_rot(object *obj,vms_vector *force_vec)
 {
-	fix	rate, vecmag;
-
 	if (obj->movement_type != MT_PHYSICS)
 		return;
+
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) { fprintf(stderr, "[OX] phys_apply_rot (D2) using cd_ox_phys_apply_rot_d2\n"); ox_logged = 1; }
+		int32_t out_rx, out_ry, out_rz;
+		int skip_ai_addval;
+		cd_ox_phys_apply_rot_d2(
+			force_vec->x, force_vec->y, force_vec->z,
+			obj->mtype.phys_info.mass,
+			(obj->type == OBJ_ROBOT) ? 1 : 0,
+			obj->orient.fvec.x, obj->orient.fvec.y, obj->orient.fvec.z,
+			(obj->control_type == CT_MORPH) ? 1 : 0,
+			obj->mtype.phys_info.rotvel.x, obj->mtype.phys_info.rotvel.y, obj->mtype.phys_info.rotvel.z,
+			(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].thief : 0,
+			(obj->type == OBJ_ROBOT) ? Robot_info[obj->id].attack_type : 0,
+			obj->ctype.ai_info.SKIP_AI_COUNT, FrameTime, P_Rand(),
+			&out_rx, &out_ry, &out_rz, &skip_ai_addval);
+		obj->mtype.phys_info.rotvel.x = out_rx;
+		obj->mtype.phys_info.rotvel.y = out_ry;
+		obj->mtype.phys_info.rotvel.z = out_rz;
+		obj->ctype.ai_info.SKIP_AI_COUNT += skip_ai_addval;
+		return;
+	}
+#endif
+
+	fix	rate, vecmag;
 
 	vecmag = vm_vec_mag(force_vec)/8;
 	if (vecmag < F1_0/256)

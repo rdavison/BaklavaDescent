@@ -136,6 +136,7 @@ static const value* g_do_physics_sim_rot = NULL;
 static const value* g_calc_gun_point = NULL;
 static const value* g_phys_apply_force = NULL;
 static const value* g_phys_apply_rot = NULL;
+static const value* g_phys_apply_rot_d2 = NULL;
 static const value* g_ai_turn_towards_vector = NULL;
 static const value* g_set_thrust_from_velocity = NULL;
 static const value* g_move_towards_vector = NULL;
@@ -485,6 +486,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_calc_gun_point
           && g_phys_apply_force
           && g_phys_apply_rot
+          && g_phys_apply_rot_d2
           && g_ai_turn_towards_vector
           && g_set_thrust_from_velocity
           && g_move_towards_vector
@@ -660,6 +662,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_calc_gun_point = caml_named_value("cd_calc_gun_point");
     g_phys_apply_force = caml_named_value("cd_phys_apply_force");
     g_phys_apply_rot = caml_named_value("cd_phys_apply_rot");
+    g_phys_apply_rot_d2 = caml_named_value("cd_phys_apply_rot_d2");
     g_ai_turn_towards_vector = caml_named_value("cd_ai_turn_towards_vector");
     g_set_thrust_from_velocity = caml_named_value("cd_set_thrust_from_velocity");
     g_move_towards_vector = caml_named_value("cd_move_towards_vector");
@@ -845,6 +848,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_calc_gun_point
         || !g_phys_apply_force
         || !g_phys_apply_rot
+        || !g_phys_apply_rot_d2
         || !g_ai_turn_towards_vector
         || !g_set_thrust_from_velocity
         || !g_move_towards_vector
@@ -2494,6 +2498,34 @@ void cd_ox_phys_apply_rot(
     *out_ry = Int_val(Field(out, 1));
     *out_rz = Int_val(Field(out, 2));
     *out_set_skip_ai = Int_val(Field(out, 3));
+}
+
+void cd_ox_phys_apply_rot_d2(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int is_thief, int is_attack_type,
+    int skip_ai_count, int32_t frame_time, int p_rand,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_skip_ai_addval)
+{
+    cd_ox_require_ready("cd_ox_phys_apply_rot_d2");
+    value args[17] = {
+        Val_long(fx), Val_long(fy), Val_long(fz),
+        Val_long(mass), Val_long(is_robot),
+        Val_long(fvx), Val_long(fvy), Val_long(fvz),
+        Val_long(is_morph),
+        Val_long(crx), Val_long(cry), Val_long(crz),
+        Val_long(is_thief), Val_long(is_attack_type),
+        Val_long(skip_ai_count), Val_long(frame_time), Val_long(p_rand),
+    };
+    const value out = caml_callbackN(*g_phys_apply_rot_d2, 17, args);
+    *out_rx = Int_val(Field(out, 0));
+    *out_ry = Int_val(Field(out, 1));
+    *out_rz = Int_val(Field(out, 2));
+    *out_skip_ai_addval = Int_val(Field(out, 3));
 }
 
 void cd_ox_ai_turn_towards_vector(

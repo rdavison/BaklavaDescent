@@ -432,6 +432,19 @@ void cd_ox_phys_apply_rot(
     int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
     int* out_set_skip_ai);
 
+/* phys_apply_rot_d2: applies rotational whack (D2 version).
+   Returns new rotvel in out_rx/ry/rz, and skip_ai_addval (amount to add to SKIP_AI_COUNT). */
+void cd_ox_phys_apply_rot_d2(
+    int32_t fx, int32_t fy, int32_t fz,
+    int32_t mass, int is_robot,
+    int32_t fvx, int32_t fvy, int32_t fvz,
+    int is_morph,
+    int32_t crx, int32_t cry, int32_t crz,
+    int is_thief, int is_attack_type,
+    int skip_ai_count, int32_t frame_time, int p_rand,
+    int32_t* out_rx, int32_t* out_ry, int32_t* out_rz,
+    int* out_skip_ai_addval);
+
 /* calc_gun_point: computes world-space gun position via bone hierarchy.
    packed[] is 86 ints (see physics_bridge.ml for layout).
    Writes result to out_x/y/z. */
