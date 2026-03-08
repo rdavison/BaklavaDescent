@@ -251,6 +251,36 @@ let cd_find_point_seg (arr : int array) = Ox_gameseg.find_point_seg arr
    Returns: [| distance (fix) or -1; connected_segment_distance |] *)
 let cd_find_connected_distance (arr : int array) = Ox_gameseg.find_connected_distance arr
 
+(* C externals for on-demand segment data + side type mutation *)
+external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
+external set_segment_side_type_c : int -> int -> int -> unit = "cd_ox_set_segment_side_type"
+
+(* check_segment_connections: runs OCaml logic under effect handlers.
+   Takes highest_segment_index as parameter. Returns error count (0 or 1). *)
+let cd_check_segment_connections highest_segment_index =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_gameseg.check_segment_connections ~highest_segment_index)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] check_segment_connections exception: %s\n"
+          (Exn.to_string e);
+        Out_channel.flush stderr;
+        0)
+    ; effc = (fun (type a) (eff : a Effect.t) ->
+        match eff with
+        | Ox_gameseg.Fetch_segment_data segnum ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            Effect.Deep.continue k (fetch_segment_data_c segnum))
+        | Ox_gameseg.Set_segment_side_type (segnum, sidenum, new_type) ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            set_segment_side_type_c segnum sidenum new_type;
+            Effect.Deep.continue k ())
+        | _ -> None)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_compute_center_point_on_side" cd_compute_center_point_on_side;
   Callback.register "cd_compute_segment_center" cd_compute_segment_center;
@@ -268,5 +298,6 @@ let register_callbacks () =
   Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;
   Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists;
   Callback.register "cd_find_point_seg" cd_find_point_seg;
-  Callback.register "cd_find_connected_distance" cd_find_connected_distance
+  Callback.register "cd_find_connected_distance" cd_find_connected_distance;
+  Callback.register "cd_check_segment_connections" cd_check_segment_connections
 ;;

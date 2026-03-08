@@ -764,6 +764,14 @@ uint8_t get_side_dists(vms_vector *checkp,int segnum,fix *side_dists)
 
 }
 
+#ifdef USE_OX_BRIDGE
+/* Called from OCaml bridge to set a segment side type (debug repair) */
+extern "C" void cd_set_segment_side_type(int segnum, int sidenum, int new_type)
+{
+	Segments[segnum].sides[sidenum].type = new_type;
+}
+#endif
+
 #ifndef NDEBUG
 #ifndef COMPACT_SEGS
 //returns true if errors detected
@@ -808,6 +816,16 @@ int check_norms(int segnum,int sidenum,int facenum,int csegnum,int csidenum,int 
 //heavy-duty error checking
 int check_segment_connections(void)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_logged = 0;
+		if (!ox_logged) {
+			fprintf(stderr, "[OX] check_segment_connections using cd_ox_check_segment_connections.\n");
+			ox_logged = 1;
+		}
+		return cd_ox_check_segment_connections(Highest_segment_index);
+	}
+#endif
 	int segnum,sidenum;
 	int errors=0;
 

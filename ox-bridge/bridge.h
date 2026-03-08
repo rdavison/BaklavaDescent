@@ -767,6 +767,7 @@ void cd_ox_create_walls_on_side(
 int cd_ox_check_norms(
     int32_t n0x, int32_t n0y, int32_t n0z,
     int32_t n1x, int32_t n1y, int32_t n1z);
+int cd_ox_check_segment_connections(int32_t highest_segment_index);
 void cd_ox_create_all_vertex_lists(
     int32_t side_type, int32_t sidenum,
     int32_t* num_faces, int32_t* vertices_6);

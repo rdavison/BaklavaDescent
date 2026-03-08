@@ -414,6 +414,7 @@ static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
 static const value* g_find_point_seg = NULL;
 static const value* g_find_connected_distance = NULL;
+static const value* g_check_segment_connections = NULL;
 
 /* v2 callbacks (on-demand data fetching via effects) */
 static const value* g_find_vector_intersection_v2 = NULL;
@@ -777,6 +778,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
+    g_check_segment_connections = caml_named_value("cd_check_segment_connections");
 
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_matcen_create = caml_named_value("cd_matcen_create");
@@ -932,6 +934,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_robot_set_angles
         || !g_find_point_seg
         || !g_find_connected_distance
+        || !g_check_segment_connections
         || !g_do_controlcen_frame_d1
         || !g_do_controlcen_frame_d2
         || !g_init_controlcen_for_level
@@ -3430,6 +3433,26 @@ void cd_ox_create_all_vertnum_lists(
     *num_faces = Int_val(Field(result, 0));
     for (int i = 0; i < 6; i++)
         vertnums_6[i] = Int_val(Field(result, i + 1));
+}
+
+int cd_ox_check_segment_connections(int32_t highest_segment_index)
+{
+    cd_ox_require_ready("cd_ox_check_segment_connections");
+    return Int_val(caml_callback(*g_check_segment_connections,
+        Val_long(highest_segment_index)));
+}
+
+/* Set a segment side's type (debug repair for mismatched triangulation).
+   Called from OCaml via effect handler. */
+CAMLprim value cd_ox_set_segment_side_type(value v_segnum, value v_sidenum, value v_new_type)
+{
+    CAMLparam3(v_segnum, v_sidenum, v_new_type);
+    int segnum = Int_val(v_segnum);
+    int sidenum = Int_val(v_sidenum);
+    int new_type = Int_val(v_new_type);
+    extern void cd_set_segment_side_type(int segnum, int sidenum, int new_type);
+    cd_set_segment_side_type(segnum, sidenum, new_type);
+    CAMLreturn(Val_unit);
 }
 
 int cd_ox_ai_door_is_openable_d1(

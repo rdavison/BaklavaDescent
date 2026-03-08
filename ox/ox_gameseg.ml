@@ -980,3 +980,133 @@ let pick_random_point_in_seg ~segnum =
   let vec2 = Ox_math.vm_vec_scale ~v:vec2 ~k:(Ox_misc.p_rand ()) in
   Ox_math.vm_vec_add2 ~a:center ~b:vec2
 ;;
+
+(* --- check_segment_connections ---------------------------------------- *)
+(* Heavy-duty error checking: validate that segment connections are consistent.
+   For each segment side with a child, checks that the child connects back,
+   vertex lists match (with correct orientation), and face normals are negations.
+   Returns 1 if errors detected, 0 if OK.
+   C original: gameseg.cpp check_segment_connections (debug-only) *)
+
+(* Effect: set a segment side's type (used for debug repair of mismatched triangulation) *)
+type _ Effect.t += Set_segment_side_type : (int * int * int) -> unit Effect.t
+
+let check_segment_connections ~highest_segment_index =
+  let errors = ref 0 in
+  for segnum = 0 to highest_segment_index do
+    let seg_data = Effect.perform (Fetch_segment_data segnum) in
+    let children = Array.init 6 ~f:(fun i -> seg_data.(i)) in
+    let side_types = Array.init 6 ~f:(fun i -> seg_data.(6 + i)) in
+    let seg_verts = Array.init 8 ~f:(fun i -> seg_data.(12 + i)) in
+    for sidenum = 0 to 5 do
+      let num_faces, vertex_list =
+        create_abs_vertex_lists ~side_type:side_types.(sidenum) ~seg_verts ~sidenum
+      in
+      let csegnum = children.(sidenum) in
+      if csegnum >= 0
+      then (
+        let cseg_data = Effect.perform (Fetch_segment_data csegnum) in
+        let cseg_children = Array.init 6 ~f:(fun i -> cseg_data.(i)) in
+        let cseg_side_types = Array.init 6 ~f:(fun i -> cseg_data.(6 + i)) in
+        let cseg_seg_verts = Array.init 8 ~f:(fun i -> cseg_data.(12 + i)) in
+        let csidenum =
+          find_connect_side ~children:cseg_children ~base_seg_num:segnum
+        in
+        if csidenum = -1
+        then errors := 1
+        else (
+          let con_num_faces, con_vertex_list =
+            create_abs_vertex_lists
+              ~side_type:cseg_side_types.(csidenum)
+              ~seg_verts:cseg_seg_verts
+              ~sidenum:csidenum
+          in
+          if con_num_faces <> num_faces
+          then errors := 1
+          else if num_faces = 1
+          then (
+            (* Find rotation offset t where con_vertex_list[t] = vertex_list[0] *)
+            let t = ref 0 in
+            while !t < 4 && con_vertex_list.(!t) <> vertex_list.(0) do
+              incr t
+            done;
+            if !t = 4
+               || vertex_list.(0) <> con_vertex_list.(!t)
+               || vertex_list.(1) <> con_vertex_list.((!t + 3) mod 4)
+               || vertex_list.(2) <> con_vertex_list.((!t + 2) mod 4)
+               || vertex_list.(3) <> con_vertex_list.((!t + 1) mod 4)
+            then errors := 1
+            else (
+              (* check_norms(segnum, sidenum, 0, csegnum, csidenum, 0) *)
+              let off0 = 20 + ((sidenum * 2) + 0) * 3 in
+              let n0 = seg_data.(off0), seg_data.(off0 + 1), seg_data.(off0 + 2) in
+              let coff0 = 20 + ((csidenum * 2) + 0) * 3 in
+              let n1 = cseg_data.(coff0), cseg_data.(coff0 + 1), cseg_data.(coff0 + 2) in
+              errors := !errors lor check_norms ~n0 ~n1))
+          else (
+            (* num_faces = 2: triangulated side *)
+            if vertex_list.(1) = con_vertex_list.(1)
+            then (
+              if vertex_list.(4) <> con_vertex_list.(4)
+                 || vertex_list.(0) <> con_vertex_list.(2)
+                 || vertex_list.(2) <> con_vertex_list.(0)
+                 || vertex_list.(3) <> con_vertex_list.(5)
+                 || vertex_list.(5) <> con_vertex_list.(3)
+              then (
+                (* Flip the connected side's type: type = 5 - type *)
+                let new_type = 5 - cseg_side_types.(csidenum) in
+                Effect.perform (Set_segment_side_type (csegnum, csidenum, new_type)))
+              else (
+                (* check_norms face 0 vs 0, face 1 vs 1 *)
+                let off0 = 20 + ((sidenum * 2) + 0) * 3 in
+                let n0_0 =
+                  seg_data.(off0), seg_data.(off0 + 1), seg_data.(off0 + 2)
+                in
+                let coff0 = 20 + ((csidenum * 2) + 0) * 3 in
+                let n1_0 =
+                  cseg_data.(coff0), cseg_data.(coff0 + 1), cseg_data.(coff0 + 2)
+                in
+                errors := !errors lor check_norms ~n0:n0_0 ~n1:n1_0;
+                let off1 = 20 + ((sidenum * 2) + 1) * 3 in
+                let n0_1 =
+                  seg_data.(off1), seg_data.(off1 + 1), seg_data.(off1 + 2)
+                in
+                let coff1 = 20 + ((csidenum * 2) + 1) * 3 in
+                let n1_1 =
+                  cseg_data.(coff1), cseg_data.(coff1 + 1), cseg_data.(coff1 + 2)
+                in
+                errors := !errors lor check_norms ~n0:n0_1 ~n1:n1_1))
+            else if vertex_list.(1) <> con_vertex_list.(4)
+                    || vertex_list.(4) <> con_vertex_list.(1)
+                    || vertex_list.(0) <> con_vertex_list.(5)
+                    || vertex_list.(5) <> con_vertex_list.(0)
+                    || vertex_list.(2) <> con_vertex_list.(3)
+                    || vertex_list.(3) <> con_vertex_list.(2)
+            then (
+              (* Flip the connected side's type: type = 5 - type *)
+              let new_type = 5 - cseg_side_types.(csidenum) in
+              Effect.perform (Set_segment_side_type (csegnum, csidenum, new_type)))
+            else (
+              (* check_norms face 0 vs 1, face 1 vs 0 *)
+              let off0 = 20 + ((sidenum * 2) + 0) * 3 in
+              let n0_0 =
+                seg_data.(off0), seg_data.(off0 + 1), seg_data.(off0 + 2)
+              in
+              let coff1 = 20 + ((csidenum * 2) + 1) * 3 in
+              let n1_1 =
+                cseg_data.(coff1), cseg_data.(coff1 + 1), cseg_data.(coff1 + 2)
+              in
+              errors := !errors lor check_norms ~n0:n0_0 ~n1:n1_1;
+              let off1 = 20 + ((sidenum * 2) + 1) * 3 in
+              let n0_1 =
+                seg_data.(off1), seg_data.(off1 + 1), seg_data.(off1 + 2)
+              in
+              let coff0 = 20 + ((csidenum * 2) + 0) * 3 in
+              let n1_0 =
+                cseg_data.(coff0), cseg_data.(coff0 + 1), cseg_data.(coff0 + 2)
+              in
+              errors := !errors lor check_norms ~n0:n0_1 ~n1:n1_0))))
+    done
+  done;
+  !errors
+;;

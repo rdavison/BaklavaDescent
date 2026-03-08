@@ -153,6 +153,7 @@ PORTED_FUNCTIONS = {
     "create_shortpos": "ported",
     "extract_shortpos": "ported",
     "find_connected_distance": "ported",
+    "check_segment_connections": "ported",
     # Lighting
     "apply_light": "ported",
     "cast_light": "ported",

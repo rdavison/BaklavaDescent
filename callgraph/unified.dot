@@ -145,7 +145,7 @@ digraph callgraph {
   "check_object_object_intersection" [label="check_object_object_intersection\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "check_point_to_face" [label="check_point_to_face\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "check_poke" [label="check_poke\n(wall)", color=green, style=filled, fillcolor="honeydew"];
-  "check_segment_connections" [label="check_segment_connections\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
+  "check_segment_connections" [label="check_segment_connections\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "check_sphere_to_face" [label="check_sphere_to_face\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "check_to_use_primary" [label="check_to_use_primary\n(powerup)", color=gray50, style=solid, fillcolor="white"];
   "check_trans_wall" [label="check_trans_wall\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
