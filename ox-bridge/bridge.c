@@ -8327,3 +8327,32 @@ void cd_ox_process_super_mines_frame(void)
 
     caml_callback(*g_process_super_mines_frame, Val_unit);
 }
+
+/* C entry point: calls OCaml set_camera_pos.
+   Takes camera pos, object pos/segnum/index, Camera_to_player_dist_goal.
+   Writes updated camera pos into out_cam. */
+static const value* g_set_camera_pos = NULL;
+
+void cd_ox_set_camera_pos(
+    int32_t cam_x, int32_t cam_y, int32_t cam_z,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_index,
+    int32_t camera_to_player_dist_goal,
+    int32_t* out_cam)
+{
+    cd_ox_require_ready("cd_ox_set_camera_pos");
+    if (!g_set_camera_pos)
+        g_set_camera_pos = caml_named_value("cd_set_camera_pos");
+    if (!g_set_camera_pos) return;
+    value args[9] = {
+        Val_long(cam_x), Val_long(cam_y), Val_long(cam_z),
+        Val_long(obj_x), Val_long(obj_y), Val_long(obj_z),
+        Val_long(obj_segnum), Val_long(obj_index),
+        Val_long(camera_to_player_dist_goal),
+    };
+    value result = caml_callbackN(*g_set_camera_pos, 9, args);
+    /* result is a tuple (x, y, z) */
+    out_cam[0] = Int_val(Field(result, 0));
+    out_cam[1] = Int_val(Field(result, 1));
+    out_cam[2] = Int_val(Field(result, 2));
+}

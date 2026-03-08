@@ -1902,6 +1902,16 @@ void cd_ox_register_process_super_mines_effects(
     cd_effect_wep_write_process_super_mines_fn write_data,
     cd_effect_wep_super_mine_fvi_check_fn fvi_check);
 
+/* C entry point: OCaml set_camera_pos.
+   Takes camera pos (3), object pos (3), segnum, obj_index, dist_goal = 9 args.
+   Writes new camera pos into out_cam (3 ints). */
+void cd_ox_set_camera_pos(
+    int32_t cam_x, int32_t cam_y, int32_t cam_z,
+    int32_t obj_x, int32_t obj_y, int32_t obj_z,
+    int32_t obj_segnum, int32_t obj_index,
+    int32_t camera_to_player_dist_goal,
+    int32_t* out_cam);
+
 #ifdef __cplusplus
 }
 #endif

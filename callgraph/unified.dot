@@ -644,7 +644,7 @@ digraph callgraph {
   "select_weapon" [label="select_weapon\n(weapon)", color=gray50, style=solid, fillcolor="white"];
   "set_ambient_sound_flags" [label="set_ambient_sound_flags\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
   "set_ambient_sound_flags_common" [label="set_ambient_sound_flags_common\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
-  "set_camera_pos" [label="set_camera_pos\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "set_camera_pos" [label="set_camera_pos\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "set_display_mode" [label="set_display_mode\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "set_dynamic_light" [label="set_dynamic_light\n(lighting)", color=gray50, style=solid, fillcolor="white"];
   "set_escort_special_goal" [label="set_escort_special_goal\n(escort)", color=gray50, style=solid, fillcolor="white"];

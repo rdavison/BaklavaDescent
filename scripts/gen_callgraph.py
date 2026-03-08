@@ -298,6 +298,8 @@ PORTED_FUNCTIONS = {
     "remove_all_objects_but": "ported",
     "remove_incorrect_objects": "ported",
     "drop_marker_object": "ported",
+    # Camera
+    "set_camera_pos": "ported",
     # Wall - door blocking
     "check_poke": "ported",
     "is_door_free": "ported",

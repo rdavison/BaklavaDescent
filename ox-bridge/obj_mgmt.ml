@@ -192,6 +192,70 @@ let cd_fix_object_segs () =
     ; effc
     }
 
+(* FVI effect external — same C symbol as physics_sim bridge *)
+external effect_find_vector_intersection
+  :  int array
+  -> int array
+  = "cd_ox_effect_ps_find_vector_intersection"
+
+(* set_camera_pos: needs FVI + P_Rand effects *)
+let cd_set_camera_pos cam_x cam_y cam_z
+    obj_x obj_y obj_z obj_segnum obj_index
+    camera_to_player_dist_goal =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.set_camera_pos
+      ~cam_x ~cam_y ~cam_z
+      ~obj_x ~obj_y ~obj_z ~obj_segnum ~obj_index
+      ~camera_to_player_dist_goal)
+    ()
+    { retc = (fun (x, y, z) -> (x, y, z))
+    ; exnc = (fun _exn ->
+        Printf.eprintf "[OX] set_camera_pos exception: %s\n" (Exn.to_string _exn);
+        Out_channel.flush stderr;
+        (cam_x, cam_y, cam_z))
+    ; effc =
+        (fun (type a) (eff : a Effect.t) ->
+          match eff with
+          | Ox_physics_sim.Find_vector_intersection
+              (p0x, p0y, p0z, p1x, p1y, p1z, rad, thisobjnum, ignore_list, flags, startseg)
+            ->
+            Some
+              (fun (k : (a, _) Effect.Deep.continuation) ->
+                try
+                  let query =
+                    [| p0x; p0y; p0z; p1x; p1y; p1z; rad; thisobjnum; flags; startseg
+                     ; Array.length ignore_list
+                    |]
+                  in
+                  let fpacked = Array.append query ignore_list in
+                  let result = effect_find_vector_intersection fpacked in
+                  let fate = result.(0) in
+                  let hit_px = result.(1) in
+                  let hit_py = result.(2) in
+                  let hit_pz = result.(3) in
+                  let hit_seg = result.(4) in
+                  let hit_side = result.(5) in
+                  let hit_side_seg = result.(6) in
+                  let hit_object = result.(7) in
+                  let wn_x = result.(8) in
+                  let wn_y = result.(9) in
+                  let wn_z = result.(10) in
+                  let n_segs = result.(11) in
+                  let seglist = Array.sub result ~pos:12 ~len:n_segs in
+                  Effect.Deep.continue
+                    k
+                    ( fate, hit_px, hit_py, hit_pz, hit_seg, hit_side, hit_side_seg
+                    , hit_object, wn_x, wn_y, wn_z, n_segs, seglist )
+                with Invalid_argument _ ->
+                  Effect.Deep.continue k (0, p0x, p0y, p0z, startseg, 0, -1, -1, 0, 0, 0, 0, [||]))
+          | Ox_misc.P_Rand_internal ->
+            Some (fun k -> Effect.Deep.continue k (Ox_misc.p_rand_direct ()))
+          | _ ->
+            (match effc eff with
+             | Some handler -> Some handler
+             | None -> None))
+    }
+
 let register_callbacks () =
   Callback.register "search_all_segments_for_object" search_all_segments_for_object_wrapper;
   Callback.register "cd_set_robot_location_info" cd_set_robot_location_info;
@@ -203,4 +267,5 @@ let register_callbacks () =
   Callback.register "cd_compress_objects" cd_compress_objects;
   Callback.register "cd_check_duplicate_objects" cd_check_duplicate_objects;
   Callback.register "cd_drop_marker_object" cd_drop_marker_object;
-  Callback.register "cd_fix_object_segs" cd_fix_object_segs
+  Callback.register "cd_fix_object_segs" cd_fix_object_segs;
+  Callback.register "cd_set_camera_pos" cd_set_camera_pos

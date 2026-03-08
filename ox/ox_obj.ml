@@ -499,3 +499,76 @@ let drop_marker_object ~pos_x ~pos_y ~pos_z ~segnum
   end;
   objnum
 ;;
+
+(* -- set_camera_pos ----------------------------------------------------- *)
+
+let hit_none = 0
+let hit_wall = 1
+
+(* make_random_vector: generate a random unit-ish vector using P_Rand.
+   Same logic as C make_random_vector. *)
+let make_random_vector () =
+  let rx = (Effect.perform Ox_misc.P_Rand_internal - 16384) lor 1 in
+  let ry = Effect.perform Ox_misc.P_Rand_internal - 16384 in
+  let rz = Effect.perform Ox_misc.P_Rand_internal - 16384 in
+  let _, v = Ox_math.vm_vec_copy_normalize_quick ~v:(rx, ry, rz) in
+  v
+
+(* set_camera_pos: if camera is too close to the player object, push it away
+   using FVI ray casts to avoid going through walls.
+   C original: void set_camera_pos(vms_vector* camera_pos, object* objp)
+   in main_d1/object.cpp and main_d2/object.cpp (identical).
+   Returns (new_cam_x, new_cam_y, new_cam_z). *)
+let set_camera_pos ~cam_x ~cam_y ~cam_z
+    ~obj_x ~obj_y ~obj_z ~obj_segnum ~obj_index
+    ~camera_to_player_dist_goal =
+  let cam = ref (cam_x, cam_y, cam_z) in
+  let camera_player_dist =
+    Ox_math.vm_vec_dist_quick ~a:!cam ~b:(obj_x, obj_y, obj_z)
+  in
+  if camera_player_dist < camera_to_player_dist_goal then begin
+    let player_camera_vec = ref (Ox_math.vm_vec_sub ~a:!cam ~b:(obj_x, obj_y, obj_z)) in
+    let (pcvx, pcvy, pcvz) = !player_camera_vec in
+    if pcvx = 0 && pcvy = 0 && pcvz = 0 then
+      player_camera_vec := (f1_0 / 16, pcvy, pcvz);
+    let hit_type = ref hit_wall in
+    let far_scale = ref f1_0 in
+    let count = ref 0 in
+    while !hit_type <> hit_none && !count < 6 do
+      count := !count + 1;
+      (* vm_vec_normalize_quick *)
+      let _, pcv_norm = Ox_math.vm_vec_normalize_quick ~v:!player_camera_vec in
+      (* vm_vec_scale by Camera_to_player_dist_goal *)
+      let pcv_scaled = Ox_math.vm_vec_scale ~v:pcv_norm ~k:camera_to_player_dist_goal in
+      (* closer_p1 = objp->pos + player_camera_vec (scaled to goal dist) *)
+      let closer_p1 = Ox_math.vm_vec_add ~a:(obj_x, obj_y, obj_z) ~b:pcv_scaled in
+      (* scale further by far_scale for the FVI ray endpoint *)
+      let pcv_far = Ox_math.vm_vec_scale ~v:pcv_scaled ~k:!far_scale in
+      (* local_p1 = objp->pos + pcv_far *)
+      let local_p1 = Ox_math.vm_vec_add ~a:(obj_x, obj_y, obj_z) ~b:pcv_far in
+      let (lp1x, lp1y, lp1z) = local_p1 in
+      (* find_vector_intersection *)
+      let (fate, _hit_px, _hit_py, _hit_pz, _hit_seg, _hit_side,
+           _hit_side_seg, _hit_object, _wn_x, _wn_y, _wn_z,
+           _n_segs, _seglist) =
+        Effect.perform
+          (Ox_physics_sim.Find_vector_intersection
+             ( obj_x, obj_y, obj_z
+             , lp1x, lp1y, lp1z
+             , 0 (* rad *)
+             , obj_index (* thisobjnum *)
+             , [| -1 |] (* ignore_obj_list *)
+             , 0 (* flags *)
+             , obj_segnum (* startseg *) ))
+      in
+      if fate = hit_none then
+        cam := closer_p1
+      else begin
+        player_camera_vec := make_random_vector ();
+        far_scale := 3 * f1_0 / 2
+      end;
+      hit_type := fate
+    done
+  end;
+  !cam
+;;

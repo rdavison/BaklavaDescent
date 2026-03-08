@@ -1709,6 +1709,19 @@ void dead_player_frame(void)
 
 		Camera_to_player_dist_goal = std::min((int)(time_dead * 8), F1_0 * 20) + ConsoleObject->size;
 
+#ifdef USE_OX_BRIDGE
+		if (cd_ox_is_ready()) {
+			int32_t out_cam[3];
+			cd_ox_set_camera_pos(
+				Dead_player_camera->pos.x, Dead_player_camera->pos.y, Dead_player_camera->pos.z,
+				ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
+				ConsoleObject->segnum, (int32_t)(ConsoleObject - Objects),
+				Camera_to_player_dist_goal, out_cam);
+			Dead_player_camera->pos.x = out_cam[0];
+			Dead_player_camera->pos.y = out_cam[1];
+			Dead_player_camera->pos.z = out_cam[2];
+		} else
+#endif
 		set_camera_pos(&Dead_player_camera->pos, ConsoleObject);
 
 		//		if (time_dead < DEATH_SEQUENCE_EXPLODE_TIME+F1_0*2) {
