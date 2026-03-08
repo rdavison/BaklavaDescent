@@ -10,5 +10,6 @@
    fvi ai
    robot lighting
    weapon controlcen
-   ai_frame physics_sim)
+   ai_frame physics_sim
+   misc mem escort gameseq switch wall obj_mgmt morph)
  (flags (:standard -w -27 -open Core)))

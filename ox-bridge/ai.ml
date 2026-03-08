@@ -113,6 +113,83 @@ let cd_openable_doors_in_segment_d2 (packed : int array) =
 (* do_firing_stuff: packed 12-int array → 3-int array *)
 let cd_do_firing_stuff (packed : int array) = Ox_ai.do_firing_stuff packed
 
+(* init_ai_object D1: packed 6-int array → 18-int array *)
+let cd_init_ai_object_d1 (packed : int array) = Ox_ai.init_ai_object_d1 packed
+
+(* init_ai_object D2: packed 9-int array → 21-int array *)
+let cd_init_ai_object_d2 (packed : int array) = Ox_ai.init_ai_object_d2 packed
+
+(* add_awareness_event: needs Ai_do_cloak_stuff and P_Rand effects *)
+external effect_aae_ai_do_cloak_stuff : unit -> unit = "cd_ox_effect_aae_ai_do_cloak_stuff"
+
+let cd_add_awareness_event atype obj_id obj_segnum obj_pos_x obj_pos_y obj_pos_z
+    num_awareness_events is_d2 =
+  Effect.Deep.match_with
+    (fun () ->
+       Ox_ai.add_awareness_event ~atype ~obj_id ~obj_segnum ~obj_pos_x ~obj_pos_y ~obj_pos_z
+         ~num_awareness_events ~is_d2:(is_d2 <> 0))
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX: add_awareness_event exception: %s\n" (Core.Exn.to_string exn);
+        Out_channel.flush stderr;
+        [| 1; 0; 0; 0; 0; 0; 0 |])
+    ; effc = (fun (type a) (eff : a Effect.t) : ((a, _) Effect.Deep.continuation -> _) option ->
+        match eff with
+        | Ox_ai.Ai_do_cloak_stuff ->
+          Some (fun k -> effect_aae_ai_do_cloak_stuff (); Effect.Deep.continue k ())
+        | (eff : a Effect.t) -> (
+          match Misc.effc eff with
+          | Some h -> Some h
+          | None -> None))
+    }
+;;
+
+(* create_awareness_event: packed 10-int array → 8-int array,
+   needs Ai_do_cloak_stuff and P_Rand effects *)
+let cd_create_awareness_event (packed : int array) =
+  Effect.Deep.match_with
+    (fun () -> Ox_ai.create_awareness_event packed)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX: create_awareness_event exception: %s\n" (Core.Exn.to_string exn);
+        Out_channel.flush stderr;
+        [| packed.(9); 0; 0; 0; 0; 0; 0 |])
+    ; effc = (fun (type a) (eff : a Effect.t) : ((a, _) Effect.Deep.continuation -> _) option ->
+        match eff with
+        | Ox_ai.Ai_do_cloak_stuff ->
+          Some (fun k -> effect_aae_ai_do_cloak_stuff (); Effect.Deep.continue k ())
+        | (eff : a Effect.t) -> (
+          match Misc.effc eff with
+          | Some h -> Some h
+          | None -> None))
+    }
+;;
+
+(* init_ai_frame: packed 14-int array → 6-int array, needs Ai_do_cloak_stuff effect *)
+external effect_iaf_ai_do_cloak_stuff : unit -> unit = "cd_ox_effect_aae_ai_do_cloak_stuff"
+
+let cd_init_ai_frame (packed : int array) =
+  Effect.Deep.match_with
+    (fun () -> Ox_ai.init_ai_frame packed)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX: init_ai_frame exception: %s\n" (Core.Exn.to_string exn);
+        Out_channel.flush stderr;
+        [| 0; 0; 0; 0; 0; 0 |])
+    ; effc = (fun (type a) (eff : a Effect.t) : ((a, _) Effect.Deep.continuation -> _) option ->
+        match eff with
+        | Ox_ai.Ai_do_cloak_stuff ->
+          Some (fun k -> effect_iaf_ai_do_cloak_stuff (); Effect.Deep.continue k ())
+        | (eff : a Effect.t) -> (
+          match Misc.effc eff with
+          | Some h -> Some h
+          | None -> None))
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
@@ -123,5 +200,10 @@ let register_callbacks () =
   Callback.register "cd_ai_door_is_openable_d2" cd_ai_door_is_openable_d2;
   Callback.register "cd_openable_doors_in_segment_d1" cd_openable_doors_in_segment_d1;
   Callback.register "cd_openable_doors_in_segment_d2" cd_openable_doors_in_segment_d2;
-  Callback.register "cd_do_firing_stuff" cd_do_firing_stuff
+  Callback.register "cd_do_firing_stuff" cd_do_firing_stuff;
+  Callback.register "cd_init_ai_object_d1" cd_init_ai_object_d1;
+  Callback.register "cd_init_ai_object_d2" cd_init_ai_object_d2;
+  Callback.register "cd_add_awareness_event" cd_add_awareness_event;
+  Callback.register "cd_create_awareness_event" cd_create_awareness_event;
+  Callback.register "cd_init_ai_frame" cd_init_ai_frame
 ;;

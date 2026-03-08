@@ -23,12 +23,18 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "bm.h"
 #include "platform/mono.h"
 #include "3d/3d.h"
+#include "3d/globvars.h"
 #include "segment.h"
 #include "laser.h"
 #include "platform/key.h"
 #include "gameseg.h"
 #include "textures.h"
 #include "texmap/texmap.h"
+
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 #include "object.h"
 #include "physics.h"
 #include "slew.h"		
@@ -548,8 +554,29 @@ void render_object(object* obj)
 		draw_polygon_object(obj);
 
 		//"warn" robot if being shot at
-		if (obj->type == OBJ_ROBOT)
+		if (obj->type == OBJ_ROBOT) {
+#ifdef USE_OX_BRIDGE
+			if (cd_ox_is_ready()) {
+				int32_t danger_num, danger_sig;
+				int laser_sig = (Player_fired_laser_this_frame != -1)
+					? Objects[Player_fired_laser_this_frame].signature : 0;
+				int updated = cd_ox_set_robot_location_info(
+					Player_fired_laser_this_frame,
+					obj->pos.x, obj->pos.y, obj->pos.z,
+					View_position.x, View_position.y, View_position.z,
+					View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+					View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+					View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+					laser_sig,
+					&danger_num, &danger_sig);
+				if (updated) {
+					obj->ctype.ai_info.danger_laser_num = (short)danger_num;
+					obj->ctype.ai_info.danger_laser_signature = danger_sig;
+				}
+			} else
+#endif
 			set_robot_location_info(obj);
+		}
 
 		//JOHN SAID TO:			if ( (obj->type==OBJ_PLAYER) && ((keyd_pressed[KEY_W]) || (keyd_pressed[KEY_I])))
 		//JOHN SAID TO:				object_render_id(obj);
@@ -735,6 +762,30 @@ void init_objects()
 //the free list, then set the apporpriate globals
 void special_reset_objects(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int sro_reg = 0;
+		if (!sro_reg) {
+			sro_reg = 1;
+			cd_ox_register_special_reset_objects_effects(
+				/* fetch: array of MAX_OBJECTS object types */
+				[](int32_t* out) {
+					for (int j = 0; j < MAX_OBJECTS; j++)
+						out[j] = Objects[j].type;
+				},
+				/* write: [num_objects, highest_object_index, free_list_entries...] */
+				[](const int32_t* packed, int len) {
+					num_objects = packed[0];
+					Highest_object_index = packed[1];
+					int n_free = len - 2;
+					for (int j = 0; j < n_free; j++)
+						free_obj_list[num_objects + j] = packed[2 + j];
+				});
+		}
+		cd_ox_special_reset_objects();
+		return;
+	}
+#endif
 	int i;
 
 	num_objects = MAX_OBJECTS;
@@ -767,6 +818,20 @@ int is_object_in_seg(int segnum, int objn)
 
 int search_all_segments_for_object(int objnum)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_search_effects(
+				[](int segnum) -> int { return Segments[segnum].objects; },
+				[](int objn) -> int { return Objects[objn].next; },
+				[]() -> int { return Highest_segment_index; }
+			);
+		}
+		return cd_ox_search_all_segments_for_object(objnum);
+	}
+#endif
 	int i;
 	int count = 0;
 
@@ -927,8 +992,42 @@ int	Unused_object_slots;
 //Generally, obj_create() should be called to get an object, since it
 //fills in important fields and does the linking.
 //returns -1 if no free objects
+void free_object_slots(int num_used);  // forward declaration for bridge
 int obj_allocate(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int oa_reg = 0;
+		if (!oa_reg) {
+			oa_reg = 1;
+			cd_ox_register_obj_allocate_effects(
+				/* fetch: [num_objects, highest, highest_ever, is_d2, free_obj_list_entry, obj_types...] */
+				[](int32_t* out, int* out_len) {
+					out[0] = num_objects;
+					out[1] = Highest_object_index;
+					out[2] = Highest_ever_object_index;
+					out[3] = 0; /* is_d2 = false */
+					out[4] = (num_objects < MAX_OBJECTS) ? free_obj_list[num_objects] : -1;
+					for (int i = 0; i < MAX_OBJECTS; i++)
+						out[5 + i] = Objects[i].type;
+					*out_len = 5 + MAX_OBJECTS;
+				},
+				/* write: [objnum, num_objects, highest, highest_ever, unused_slots] */
+				[](const int32_t* packed, int len) {
+					(void)len;
+					num_objects = packed[1];
+					Highest_object_index = packed[2];
+					Highest_ever_object_index = packed[3];
+					Unused_object_slots = packed[4];
+				},
+				/* call_free_object_slots (not used for D1, but provide anyway) */
+				[](int num_used) {
+					free_object_slots(num_used);
+				});
+		}
+		return cd_ox_obj_allocate();
+	}
+#endif
 	int objnum;
 
 	if (num_objects >= MAX_OBJECTS) {
@@ -972,6 +1071,39 @@ void obj_free(int objnum)
 //	Scan the object list, freeing down to num_used objects
 void free_object_slots(int num_used)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int fos_reg = 0;
+		if (!fos_reg) {
+			fos_reg = 1;
+			cd_ox_register_free_object_slots_effects(
+				/* fetch: [highest_object_index, is_d2, then per-object: type, flags, id, delete_objnum] */
+				[](int32_t* out, int* out_len) {
+					int highest = Highest_object_index;
+					out[0] = highest;
+					out[1] = 0; /* is_d2 = false */
+					for (int j = 0; j <= highest; j++) {
+						int base = 2 + j * 4;
+						out[base + 0] = Objects[j].type;
+						out[base + 1] = Objects[j].flags;
+						out[base + 2] = Objects[j].id;
+						out[base + 3] = Objects[j].ctype.expl_info.delete_objnum;
+					}
+					*out_len = 2 + (highest + 1) * 4;
+				},
+				/* write: [return_value, n_marked, objnum_0, objnum_1, ...] */
+				[](const int32_t* packed, int len) {
+					int n_marked = packed[1];
+					for (int j = 0; j < n_marked; j++) {
+						int objnum = packed[2 + j];
+						Objects[objnum].flags |= OF_SHOULD_BE_DEAD;
+					}
+				});
+		}
+		cd_ox_free_object_slots(num_used);
+		return;
+	}
+#endif
 	int	i, olind;
 	int	obj_list[MAX_OBJECTS];
 	int	num_already_free, num_to_free;

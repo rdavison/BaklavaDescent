@@ -29,6 +29,7 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 //#include "error.h"
 #include "platform/mono.h"
 #include "3d/3d.h"
+#include "3d/globvars.h"
 #include "segment.h"
 #include "texmap/texmap.h"
 #include "laser.h"
@@ -36,6 +37,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gameseg.h"
 #include "gameseq.h"
 #include "textures.h"
+
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
 
 #include "object.h"
 #include "physics.h"
@@ -642,8 +647,29 @@ void render_object(object* obj)
 		draw_polygon_object(obj);
 
 		//"warn" robot if being shot at
-		if (obj->type == OBJ_ROBOT)
+		if (obj->type == OBJ_ROBOT) {
+#ifdef USE_OX_BRIDGE
+			if (cd_ox_is_ready()) {
+				int32_t danger_num, danger_sig;
+				int laser_sig = (Player_fired_laser_this_frame != -1)
+					? Objects[Player_fired_laser_this_frame].signature : 0;
+				int updated = cd_ox_set_robot_location_info(
+					Player_fired_laser_this_frame,
+					obj->pos.x, obj->pos.y, obj->pos.z,
+					View_position.x, View_position.y, View_position.z,
+					View_matrix.rvec.x, View_matrix.rvec.y, View_matrix.rvec.z,
+					View_matrix.uvec.x, View_matrix.uvec.y, View_matrix.uvec.z,
+					View_matrix.fvec.x, View_matrix.fvec.y, View_matrix.fvec.z,
+					laser_sig,
+					&danger_num, &danger_sig);
+				if (updated) {
+					obj->ctype.ai_info.danger_laser_num = (short)danger_num;
+					obj->ctype.ai_info.danger_laser_signature = danger_sig;
+				}
+			} else
+#endif
 			set_robot_location_info(obj);
+		}
 
 		break;
 
@@ -815,6 +841,30 @@ void init_objects()
 //the free list, then set the apporpriate globals
 void special_reset_objects(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int sro_reg = 0;
+		if (!sro_reg) {
+			sro_reg = 1;
+			cd_ox_register_special_reset_objects_effects(
+				/* fetch: array of MAX_OBJECTS object types */
+				[](int32_t* out) {
+					for (int j = 0; j < MAX_OBJECTS; j++)
+						out[j] = Objects[j].type;
+				},
+				/* write: [num_objects, highest_object_index, free_list_entries...] */
+				[](const int32_t* packed, int len) {
+					num_objects = packed[0];
+					Highest_object_index = packed[1];
+					int n_free = len - 2;
+					for (int j = 0; j < n_free; j++)
+						free_obj_list[num_objects + j] = packed[2 + j];
+				});
+		}
+		cd_ox_special_reset_objects();
+		return;
+	}
+#endif
 	int i;
 
 	num_objects = MAX_OBJECTS;
@@ -849,10 +899,24 @@ int is_object_in_seg(int segnum, int objn)
 
 int search_all_segments_for_object(int objnum)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_search_effects(
+				[](int segnum) -> int { return Segments[segnum].objects; },
+				[](int objn) -> int { return Objects[objn].next; },
+				[]() -> int { return Highest_segment_index; }
+			);
+		}
+		return cd_ox_search_all_segments_for_object(objnum);
+	}
+#endif
 	int i;
 	int count = 0;
 
-	for (i = 0; i <= Highest_segment_index; i++) 
+	for (i = 0; i <= Highest_segment_index; i++)
 	{
 		count += is_object_in_seg(i, objnum);
 	}
@@ -1026,9 +1090,42 @@ void obj_detach_one(object* sub);
 //returns -1 if no free objects
 int obj_allocate(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int oa_reg = 0;
+		if (!oa_reg) {
+			oa_reg = 1;
+			cd_ox_register_obj_allocate_effects(
+				/* fetch: [num_objects, highest, highest_ever, is_d2, free_obj_list_entry, obj_types...] */
+				[](int32_t* out, int* out_len) {
+					out[0] = num_objects;
+					out[1] = Highest_object_index;
+					out[2] = Highest_ever_object_index;
+					out[3] = 1; /* is_d2 = true */
+					out[4] = (num_objects < MAX_OBJECTS) ? free_obj_list[num_objects] : -1;
+					for (int i = 0; i < MAX_OBJECTS; i++)
+						out[5 + i] = Objects[i].type;
+					*out_len = 5 + MAX_OBJECTS;
+				},
+				/* write: [objnum, num_objects, highest, highest_ever, unused_slots] */
+				[](const int32_t* packed, int len) {
+					(void)len;
+					num_objects = packed[1];
+					Highest_object_index = packed[2];
+					Highest_ever_object_index = packed[3];
+					Unused_object_slots = packed[4];
+				},
+				/* call_free_object_slots */
+				[](int num_used) {
+					free_object_slots(num_used);
+				});
+		}
+		return cd_ox_obj_allocate();
+	}
+#endif
 	int objnum;
 
-	if (num_objects >= MAX_OBJECTS - 2) 
+	if (num_objects >= MAX_OBJECTS - 2)
 	{
 		int	num_freed;
 
@@ -1036,7 +1133,7 @@ int obj_allocate(void)
 		mprintf((0, " *** Freed %i objects in frame %i\n", num_freed, FrameCount));
 	}
 
-	if (num_objects >= MAX_OBJECTS) 
+	if (num_objects >= MAX_OBJECTS)
 	{
 #ifndef NDEBUG
 		mprintf((1, "Object creation failed - too many objects!\n"));
@@ -1080,6 +1177,39 @@ void obj_free(int objnum)
 //	Returns number of slots freed.
 int free_object_slots(int num_used)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int fos_reg = 0;
+		if (!fos_reg) {
+			fos_reg = 1;
+			cd_ox_register_free_object_slots_effects(
+				/* fetch: [highest_object_index, is_d2, then per-object: type, flags, id, delete_objnum] */
+				[](int32_t* out, int* out_len) {
+					int highest = Highest_object_index;
+					out[0] = highest;
+					out[1] = 1; /* is_d2 = true */
+					for (int j = 0; j <= highest; j++) {
+						int base = 2 + j * 4;
+						out[base + 0] = Objects[j].type;
+						out[base + 1] = Objects[j].flags;
+						out[base + 2] = Objects[j].id;
+						out[base + 3] = Objects[j].ctype.expl_info.delete_objnum;
+					}
+					*out_len = 2 + (highest + 1) * 4;
+				},
+				/* write: [return_value, n_marked, objnum_0, objnum_1, ...] */
+				[](const int32_t* packed, int len) {
+					cd_ox_set_free_object_slots_retval(packed[0]);
+					int n_marked = packed[1];
+					for (int j = 0; j < n_marked; j++) {
+						int objnum = packed[2 + j];
+						Objects[objnum].flags |= OF_SHOULD_BE_DEAD;
+					}
+				});
+		}
+		return cd_ox_free_object_slots(num_used);
+	}
+#endif
 	int	i, olind;
 	int	obj_list[MAX_OBJECTS];
 	int	num_already_free, num_to_free, original_num_to_free;
@@ -2312,14 +2442,85 @@ int drop_marker_object(vms_vector* pos, int segnum, vms_matrix* orient, int mark
 
 extern int Ai_last_missile_camera;
 
+#ifdef USE_OX_BRIDGE
+static int g_wake_up_effects_registered = 0;
+
+static int32_t s_wake_viewer_px, s_wake_viewer_py, s_wake_viewer_pz;
+
+static void wake_up_fetch_context_with_viewer(int window_num, int32_t* out, int* out_len)
+{
+	out[0] = FrameCount;
+	out[1] = Window_rendered_data[window_num].frame;
+	out[2] = s_wake_viewer_px;
+	out[3] = s_wake_viewer_py;
+	out[4] = s_wake_viewer_pz;
+	int num_rendered = Window_rendered_data[window_num].num_objects;
+	out[5] = num_rendered;
+	*out_len = 6 + num_rendered * 5;
+	for (int i = 0; i < num_rendered; i++) {
+		int objnum = Window_rendered_data[window_num].rendered_objects[i];
+		out[6 + i*5 + 0] = objnum;
+		out[6 + i*5 + 1] = Objects[objnum].type;
+		out[6 + i*5 + 2] = Objects[objnum].pos.x;
+		out[6 + i*5 + 3] = Objects[objnum].pos.y;
+		out[6 + i*5 + 4] = Objects[objnum].pos.z;
+	}
+}
+
+static int wake_up_fetch_awareness(int objnum)
+{
+	return Ai_local_info[objnum].player_awareness_type;
+}
+
+static void wake_up_apply(const int32_t* packed, int len)
+{
+	if (len < 3) return;
+	int valid = packed[0];
+	int num_wakeups = packed[1];
+	int viewer_objnum = packed[2];
+	if (!valid) return;
+	Ai_last_missile_camera = viewer_objnum;
+	for (int i = 0; i < num_wakeups && (3 + i) < len; i++) {
+		int objnum = packed[3 + i];
+		Objects[objnum].ctype.ai_info.SUB_FLAGS |= SUB_FLAGS_CAMERA_AWAKE;
+		Ai_local_info[objnum].player_awareness_type = PA_WEAPON_ROBOT_COLLISION;
+		Ai_local_info[objnum].player_awareness_time = F1_0 * 3;
+		Ai_local_info[objnum].previous_visibility = 2;
+	}
+}
+
+static void ensure_wake_up_effects_registered()
+{
+	if (!g_wake_up_effects_registered) {
+		cd_ox_register_wake_up_effects(
+			wake_up_fetch_context_with_viewer,
+			wake_up_fetch_awareness,
+			wake_up_apply);
+		g_wake_up_effects_registered = 1;
+	}
+}
+#endif
+
 //	*viewer is a viewer, probably a missile.
 //	wake up all robots that were rendered last frame subject to some constraints.
 void wake_up_rendered_objects(object* viewer, int window_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		ensure_wake_up_effects_registered();
+		int viewer_objnum = (int)(viewer - Objects);
+		s_wake_viewer_px = viewer->pos.x;
+		s_wake_viewer_py = viewer->pos.y;
+		s_wake_viewer_pz = viewer->pos.z;
+		cd_ox_wake_up_rendered_objects(viewer_objnum, window_num);
+		return;
+	}
+#endif
+
 	int	i;
 
 	//	Make sure that we are processing current data.
-	if (FrameCount != Window_rendered_data[window_num].frame) 
+	if (FrameCount != Window_rendered_data[window_num].frame)
 	{
 		mprintf((1, "Warning: Called wake_up_rendered_objects with a bogus window.\n"));
 		return;
@@ -2327,7 +2528,7 @@ void wake_up_rendered_objects(object* viewer, int window_num)
 
 	Ai_last_missile_camera = viewer - Objects;
 
-	for (i = 0; i < Window_rendered_data[window_num].num_objects; i++) 
+	for (i = 0; i < Window_rendered_data[window_num].num_objects; i++)
 	{
 		int	objnum;
 		object* objp;
@@ -2338,7 +2539,7 @@ void wake_up_rendered_objects(object* viewer, int window_num)
 		{
 			objp = &Objects[objnum];
 
-			if (objp->type == OBJ_ROBOT) 
+			if (objp->type == OBJ_ROBOT)
 			{
 				if (vm_vec_dist_quick(&viewer->pos, &objp->pos) < F1_0 * 100) {
 					ai_local* ailp = &Ai_local_info[objnum];

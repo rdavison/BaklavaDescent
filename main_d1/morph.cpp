@@ -29,6 +29,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "platform/mono.h"
 #include "bm.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 morph_data morph_objects[MAX_MORPH_OBJECTS];
 
 //returns ptr to data for this object, or NULL if none
@@ -120,6 +124,21 @@ void init_points(polymodel* pm, vms_vector* box_size, int submodel_num, morph_da
 
 	vp = (vms_vector*)data;
 
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int morph_slot = (int)(md - morph_objects);
+		int32_t nmp = md->n_morphing_points[submodel_num];
+		cd_ox_update_points(morph_slot, submodel_num,
+			FrameTime, nverts, i, &nmp,
+			&md->morph_times[i],
+			(int32_t*)&md->morph_vecs[i],
+			(int32_t*)&md->morph_deltas[i],
+			(int32_t*)vp);
+		md->n_morphing_points[submodel_num] = nmp;
+		return;
+	}
+#endif
+
 	while (nverts--) 
 	{
 		fix k, dist;
@@ -182,6 +201,21 @@ void update_points(polymodel* pm, int submodel_num, morph_data* md)
 		i = 0;				//start at zero
 
 	vp = (vms_vector*)data;
+
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int morph_slot = (int)(md - morph_objects);
+		int32_t nmp = md->n_morphing_points[submodel_num];
+		cd_ox_update_points(morph_slot, submodel_num,
+			FrameTime, nverts, i, &nmp,
+			&md->morph_times[i],
+			(int32_t*)&md->morph_vecs[i],
+			(int32_t*)&md->morph_deltas[i],
+			(int32_t*)vp);
+		md->n_morphing_points[submodel_num] = nmp;
+		return;
+	}
+#endif
 
 	while (nverts--) 
 	{
@@ -309,6 +343,35 @@ void morph_start(object* obj)
 
 	pm = &Polygon_models[obj->rtype.pobj_info.model_num];
 
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int morph_reg = 0;
+		if (!morph_reg) {
+			morph_reg = 1;
+			cd_ox_register_morph_effects(
+				/* fetch_verts: extract vertex coords from polymodel submodel bytecode */
+				[](int model_num, int submodel_num, int32_t* out_verts, int* out_count) {
+					polymodel* p = &Polygon_models[model_num];
+					uint16_t* data = (uint16_t*)&p->model_data[p->submodel_ptrs[submodel_num]];
+					uint16_t type = *data++;
+					uint16_t nverts = *data++;
+					if (type == 7)
+						data += 2; /* skip start & pad */
+					vms_vector* vp = (vms_vector*)data;
+					*out_count = nverts;
+					for (int j = 0; j < nverts; j++) {
+						out_verts[j * 3 + 0] = vp[j].x;
+						out_verts[j * 3 + 1] = vp[j].y;
+						out_verts[j * 3 + 2] = vp[j].z;
+					}
+				});
+		}
+		int32_t ox_min[3], ox_max[3];
+		cd_ox_find_min_max(obj->rtype.pobj_info.model_num, 0, ox_min, ox_max);
+		pmmin.x = ox_min[0]; pmmin.y = ox_min[1]; pmmin.z = ox_min[2];
+		pmmax.x = ox_max[0]; pmmax.y = ox_max[1]; pmmax.z = ox_max[2];
+	} else
+#endif
 	find_min_max(pm, 0, &pmmin, &pmmax);
 
 	box_size.x = std::max(-pmmin.x, pmmax.x) / 2;

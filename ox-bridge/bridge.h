@@ -771,6 +771,18 @@ void cd_ox_do_firing_stuff(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* init_ai_object D1: initialize AI state for a single robot.
+   packed[6] input, out_buf[18] output. */
+void cd_ox_init_ai_object_d1(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
+/* init_ai_object D2: initialize AI state for a single robot.
+   packed[9] input, out_buf[21] output. */
+void cd_ox_init_ai_object_d2(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* find_point_seg: find segment containing a point.
    packed layout: header(6) + n_segments × 80 ints per segment.
    Header: p.xyz, segnum(hint,-1), n_segments, doing_lighting_hack.
@@ -920,6 +932,11 @@ int cd_ox_player_has_weapon_d2(
     int32_t ammo_usage, int32_t energy_usage,
     int is_gauss, int32_t vulcan_ammo,
     int is_omega, int32_t omega_charge);
+
+/* POrderList / SOrderList: search weapon order array for priority index.
+   order points to 11-element uint8_t array (MAX_PRIMARY/SECONDARY_WEAPONS + 1). */
+int cd_ox_p_order_list(const uint8_t* order, int num);
+int cd_ox_s_order_list(const uint8_t* order, int num);
 
 /* -- AI frame logic --------------------------------------------------- */
 
@@ -1100,7 +1117,7 @@ typedef void (*cd_effect_ps_compute_segment_center_fn)(int seg,
                                                         int32_t* cx, int32_t* cy, int32_t* cz);
 typedef void (*cd_effect_ps_add_stuck_object_fn)(int wall_seg, int wall_side);
 typedef int  (*cd_effect_ps_find_connect_side_fn)(int seg1, int seg2);
-typedef int  (*cd_effect_ps_wall_is_doorway_fn)(int seg, int side);
+typedef void (*cd_effect_ps_fetch_doorway_info_fn)(int seg, int side, int32_t* out);
 typedef void (*cd_effect_ps_create_abs_vertex_lists_and_dist_fn)(
     int seg, int side, int spx, int spy, int spz,
     int32_t* dist, int32_t* nx, int32_t* ny, int32_t* nz);
@@ -1122,7 +1139,7 @@ void cd_ox_register_physics_sim_effects(
     cd_effect_ps_compute_segment_center_fn compute_segment_center,
     cd_effect_ps_add_stuck_object_fn add_stuck_object,
     cd_effect_ps_find_connect_side_fn find_connect_side,
-    cd_effect_ps_wall_is_doorway_fn wall_is_doorway,
+    cd_effect_ps_fetch_doorway_info_fn fetch_doorway_info,
     cd_effect_ps_create_abs_vertex_lists_and_dist_fn create_abs_vertex_lists_and_dist,
     cd_effect_ps_tmap_is_force_field_fn tmap_is_force_field,
     cd_effect_ps_vm_vector_2_matrix_orient_fn vm_vector_2_matrix_orient);
@@ -1253,6 +1270,317 @@ void cd_ox_do_physics_sim_d2(
     int32_t seg_special,
     int32_t frame_time, int32_t physics_cheat_flag,
     int32_t* result);
+
+/* init_ai_for_ship: initialize AI cloak info for new ship.
+   result must have room for 40 ints (8 entries × 5 fields each:
+   last_time, last_segment, pos_x, pos_y, pos_z). */
+void cd_ox_init_ai_for_ship(
+    int32_t game_time, int32_t segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t* result);
+
+/* init_robots_for_level D1: result must have room for 1 int [overall_agitation]. */
+void cd_ox_init_robots_for_level_d1(int32_t* result);
+
+/* init_robots_for_level D2: result must have room for 6 ints
+   [overall_agitation, final_boss_is_dead, buddy_objnum,
+    buddy_allowed_to_talk, boss_invulnerable_dot, boss_dying_start_time]. */
+void cd_ox_init_robots_for_level_d2(int difficulty_level, int32_t* result);
+
+/* -- Escort/thief logic ----------------------------------------------- */
+/* init_thief_for_level: initialize stolen items for a new level (D2 only).
+   result must have room for 11 ints: [stolen_items[0..9], stolen_item_index]. */
+void cd_ox_init_thief_for_level(int game_mode, int32_t* result);
+
+/* create_bfs_list: BFS of reachable segments from start_seg (D2 only).
+   buddy_ailp_mode = Ai_local_info[Buddy_objnum].mode
+   player_flags = Players[Player_num].flags
+   bfs_list must have room for max_segs shorts.
+   Returns the number of segments found. */
+int cd_ox_create_bfs_list(int start_seg, int max_segs, int buddy_ailp_mode,
+                          int player_flags, short* bfs_list);
+
+/* -- Gameseq logic ---------------------------------------------------- */
+/* bash_to_shield: Replace powerup object with shield boost (D2 only). */
+void cd_ox_bash_to_shield(int objnum);
+
+/* clear_stuck_objects: Clear all stuck objects (D2 only). */
+void cd_ox_clear_stuck_objects(void);
+
+/* filter_objects_from_level: Remove flag powerups from single-player levels (D2 only). */
+void cd_ox_filter_objects_from_level(void);
+typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out_len);
+void cd_ox_register_filter_objects_effects(
+    cd_effect_gs_fetch_filter_objects_data_fn fetch_data);
+
+/* Gameseq effect registration */
+typedef void (*cd_effect_gs_fetch_bash_to_shield_data_fn)(int objnum, int32_t* out);
+typedef void (*cd_effect_gs_write_bash_to_shield_fn)(const int32_t* packed, int len);
+typedef void (*cd_effect_gs_fetch_stuck_objects_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_clear_stuck_objects_fn)(const int32_t* packed, int len);
+void cd_ox_register_gameseq_effects(
+    cd_effect_gs_fetch_bash_to_shield_data_fn fetch_bash_data,
+    cd_effect_gs_write_bash_to_shield_fn write_bash_data);
+void cd_ox_register_stuck_objects_effects(
+    cd_effect_gs_fetch_stuck_objects_data_fn fetch_stuck_data,
+    cd_effect_gs_write_clear_stuck_objects_fn write_clear_stuck);
+
+/* init_ammo_and_energy: Ensure minimum energy/shields/ammo for new level. */
+void cd_ox_init_ammo_and_energy(void);
+
+/* init_ammo_and_energy effect registration */
+typedef void (*cd_effect_gs_fetch_init_ammo_energy_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_init_ammo_energy_fn)(const int32_t* packed, int len);
+void cd_ox_register_init_ammo_energy_effects(
+    cd_effect_gs_fetch_init_ammo_energy_data_fn fetch_data,
+    cd_effect_gs_write_init_ammo_energy_fn write_data);
+
+/* update_player_stats: Update time_level/time_total, rolling over hours. */
+void cd_ox_update_player_stats(void);
+
+/* update_player_stats effect registration */
+typedef void (*cd_effect_gs_fetch_update_player_stats_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_update_player_stats_fn)(const int32_t* packed, int len);
+void cd_ox_register_update_player_stats_effects(
+    cd_effect_gs_fetch_update_player_stats_data_fn fetch_data,
+    cd_effect_gs_write_update_player_stats_fn write_data);
+
+/* special_reset_objects: Rebuild free object list and Highest_object_index. */
+void cd_ox_special_reset_objects(void);
+
+/* special_reset_objects effect registration */
+typedef void (*cd_effect_gs_fetch_special_reset_objects_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_special_reset_objects_fn)(const int32_t* packed, int len);
+void cd_ox_register_special_reset_objects_effects(
+    cd_effect_gs_fetch_special_reset_objects_data_fn fetch_data,
+    cd_effect_gs_write_special_reset_objects_fn write_data);
+
+/* free_object_slots: Scan object list, freeing down to num_used objects. */
+int cd_ox_free_object_slots(int num_used);
+void cd_ox_set_free_object_slots_retval(int rv);
+
+/* free_object_slots effect registration */
+typedef void (*cd_effect_gs_fetch_free_object_slots_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_free_object_slots_fn)(const int32_t* packed, int len);
+void cd_ox_register_free_object_slots_effects(
+    cd_effect_gs_fetch_free_object_slots_data_fn fetch_data,
+    cd_effect_gs_write_free_object_slots_fn write_data);
+
+/* init_player_object: Set up Player_num & ConsoleObject. */
+void cd_ox_init_player_object(void);
+
+/* init_player_object effect registration */
+typedef void (*cd_effect_gs_fetch_init_player_object_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_init_player_object_fn)(const int32_t* packed, int len);
+void cd_ox_register_init_player_object_effects(
+    cd_effect_gs_fetch_init_player_object_data_fn fetch_data,
+    cd_effect_gs_write_init_player_object_fn write_data);
+
+/* verify_console_object: Verify and set ConsoleObject pointer. */
+void cd_ox_verify_console_object(void);
+
+/* verify_console_object effect registration */
+typedef void (*cd_effect_gs_fetch_verify_console_object_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_verify_console_object_fn)(int objnum);
+void cd_ox_register_verify_console_object_effects(
+    cd_effect_gs_fetch_verify_console_object_data_fn fetch_data,
+    cd_effect_gs_write_verify_console_object_fn write_data);
+
+/* copy_defaults_to_robot: Set robot shields from Robot_info defaults. */
+void cd_ox_copy_defaults_to_robot(int objnum);
+
+/* copy_defaults_to_robot_all: Set shields for all robot objects. */
+void cd_ox_copy_defaults_to_robot_all(void);
+
+/* copy_defaults_to_robot effect registration */
+typedef void (*cd_effect_gs_fetch_copy_defaults_to_robot_data_fn)(int objnum, int32_t* out);
+typedef void (*cd_effect_gs_write_copy_defaults_to_robot_fn)(const int32_t* packed, int len);
+void cd_ox_register_copy_defaults_to_robot_effects(
+    cd_effect_gs_fetch_copy_defaults_to_robot_data_fn fetch_data,
+    cd_effect_gs_write_copy_defaults_to_robot_fn write_data);
+
+/* -- Switch logic ---------------------------------------------------- */
+/* do_lock_doors: Lock all doors linked to a trigger (D2 only). */
+void cd_ox_do_lock_doors(int trigger_num);
+/* do_unlock_doors: Unlock all doors linked to a trigger (D2 only). */
+void cd_ox_do_unlock_doors(int trigger_num);
+/* door_is_wall_switched: Return trigger number if wall is switch-controlled, else -1. */
+int cd_ox_door_is_wall_switched(int wall_num);
+
+/* flag_wall_switched_doors: Mark all wall-switched doors (D2 only). */
+void cd_ox_flag_wall_switched_doors(void);
+/* do_il_on: Turn on illusion walls for all links of a trigger. */
+void cd_ox_do_il_on(int trigger_num);
+
+/* Switch effect registration */
+typedef void (*cd_effect_sw_fetch_trigger_links_fn)(int trigger_num, int32_t* out, int* out_len);
+typedef void (*cd_effect_sw_fetch_trigger_seg_sides_fn)(int trigger_num, int32_t* out, int* out_len);
+typedef void (*cd_effect_sw_lock_wall_door_fn)(int wall_num);
+typedef void (*cd_effect_sw_unlock_wall_door_fn)(int wall_num);
+typedef int (*cd_effect_sw_get_num_triggers_fn)(void);
+typedef int (*cd_effect_sw_get_num_walls_fn)(void);
+typedef void (*cd_effect_sw_set_wall_flag_wall_switch_fn)(int wall_num);
+void cd_ox_register_switch_effects(
+    cd_effect_sw_fetch_trigger_links_fn fetch_links,
+    cd_effect_sw_lock_wall_door_fn lock_door,
+    cd_effect_sw_unlock_wall_door_fn unlock_door,
+    cd_effect_sw_get_num_triggers_fn get_num_triggers,
+    cd_effect_sw_get_num_walls_fn get_num_walls,
+    cd_effect_sw_set_wall_flag_wall_switch_fn set_wall_flag);
+void cd_ox_register_switch_seg_side_effect(
+    cd_effect_sw_fetch_trigger_seg_sides_fn fetch_seg_sides);
+
+/* -- Wall logic --------------------------------------------------------- */
+
+/* reset_walls: Tidy up Walls array for load/save purposes. */
+void cd_ox_reset_walls(void);
+
+/* Wall effect callbacks */
+typedef void (*cd_effect_wall_fetch_reset_walls_info_fn)(int32_t* out);
+typedef void (*cd_effect_wall_write_reset_walls_fn)(const int32_t* packed, int len);
+
+void cd_ox_register_wall_effects(
+    cd_effect_wall_fetch_reset_walls_info_fn fetch_info,
+    cd_effect_wall_write_reset_walls_fn write_reset);
+
+/* kill_stuck_objects: Door opening, kill all objects stuck in it. */
+void cd_ox_kill_stuck_objects(int wallnum);
+
+/* kill_stuck_objects effect callbacks */
+typedef void (*cd_effect_wall_fetch_kill_stuck_data_fn)(int wallnum, int32_t* out);
+typedef void (*cd_effect_wall_write_kill_stuck_objects_fn)(const int32_t* packed, int len);
+typedef void (*cd_effect_wall_flush_fcd_cache_fn)(void);
+
+void cd_ox_register_wall_kill_stuck_effects(
+    cd_effect_wall_fetch_kill_stuck_data_fn fetch_data,
+    cd_effect_wall_write_kill_stuck_objects_fn write_back,
+    cd_effect_wall_flush_fcd_cache_fn flush_fcd);
+
+/* wall_illusion_on / wall_illusion_off */
+void cd_ox_wall_illusion_on(int segnum, int side);
+void cd_ox_wall_illusion_off(int segnum, int side);
+
+/* wall_illusion effect callbacks */
+typedef void (*cd_effect_wall_fetch_seg_children_and_wall_nums_fn)(int segnum, int32_t* out);
+typedef void (*cd_effect_wall_set_flags_fn)(int wall_num, int flags);
+typedef void (*cd_effect_wall_clear_flags_fn)(int wall_num, int flags);
+
+void cd_ox_register_wall_illusion_effects(
+    cd_effect_wall_fetch_seg_children_and_wall_nums_fn fetch_seg,
+    cd_effect_wall_set_flags_fn set_flags,
+    cd_effect_wall_clear_flags_fn clear_flags);
+
+/* add_awareness_event: port of C add_awareness_event to OCaml.
+   out_buf[7]: [0]=result, [1]=should_store, [2..6]=event data.
+   Returns result (0=filtered, 1=not filtered). */
+int cd_ox_add_awareness_event(
+    int atype, int obj_id, int obj_segnum,
+    int obj_pos_x, int obj_pos_y, int obj_pos_z,
+    int num_awareness_events, int is_d2,
+    int32_t* out_buf);
+
+/* create_awareness_event: wraps add_awareness_event with multiplayer check
+   and Overall_agitation update.
+   out_buf[7]: [0]=new_overall_agitation, [1]=should_store, [2..6]=event data. */
+void cd_ox_create_awareness_event(
+    int atype, int obj_id, int obj_segnum,
+    int obj_pos_x, int obj_pos_y, int obj_pos_z,
+    int num_awareness_events, int is_d2, int game_mode, int overall_agitation,
+    int32_t* out_buf);
+
+/* init_ai_frame: per-frame AI global setup.
+   out_buf[6]: [0]=dist_to_last_fired_upon, [1]=should_update_believed,
+   [2]=believed_seg, [3..5]=believed_pos xyz. */
+void cd_ox_init_ai_frame(
+    int32_t lfup_x, int32_t lfup_y, int32_t lfup_z,
+    int32_t bp_x, int32_t bp_y, int32_t bp_z,
+    int is_shareware, int32_t player_flags,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_segnum,
+    int32_t afterburner_charge, int afterburner_state,
+    int32_t* out_buf);
+
+/* Object detach effects */
+typedef void (*cd_obj_detach_one_fn)(int objnum);
+typedef int (*cd_get_attached_obj_fn)(int objnum);
+void cd_ox_register_obj_detach_effects(
+    cd_obj_detach_one_fn detach_one,
+    cd_get_attached_obj_fn get_attached);
+
+/* -- Object segment search effects -------------------------------------- */
+typedef int (*cd_get_seg_first_object_fn)(int segnum);
+typedef int (*cd_get_obj_next_fn)(int objnum);
+typedef int (*cd_get_highest_segment_index_fn)(void);
+void cd_ox_register_obj_search_effects(
+    cd_get_seg_first_object_fn get_seg_first_object,
+    cd_get_obj_next_fn get_obj_next,
+    cd_get_highest_segment_index_fn get_highest_segment_index);
+
+/* C entry point: OCaml search_all_segments_for_object */
+int cd_ox_search_all_segments_for_object(int objnum);
+
+/* -- Morph effects ----------------------------------------------------- */
+
+/* Fetch submodel vertices from polymodel bytecode.
+   out_verts: flat array [x0,y0,z0, x1,y1,z1, ...], out_count: number of vertices */
+typedef void (*cd_effect_morph_fetch_submodel_vertices_fn)(
+    int model_num, int submodel_num, int32_t* out_verts, int* out_count);
+void cd_ox_register_morph_effects(
+    cd_effect_morph_fetch_submodel_vertices_fn fetch_verts);
+
+/* find_min_max: compute bounding box of polymodel submodel vertices.
+   Returns min/max via out_min[3] and out_max[3]. */
+void cd_ox_find_min_max(int model_num, int submodel_num,
+    int32_t* out_min, int32_t* out_max);
+
+/* update_points: advance morph animation for one submodel.
+   Reads morph state from morph_data, computes in OCaml, writes back. */
+void cd_ox_update_points(int morph_slot, int submodel_num,
+    int32_t frame_time,
+    int nverts, int start_index,
+    int32_t* n_morphing_points,
+    int32_t* morph_times,
+    int32_t* morph_vecs,     /* [nverts*3] x,y,z */
+    int32_t* morph_deltas,   /* [nverts*3] x,y,z */
+    int32_t* final_verts);   /* [nverts*3] x,y,z */
+
+/* set_robot_location_info: check if robot near screen center while player fired.
+   Returns 1 if danger_laser fields should be updated, 0 otherwise.
+   On return=1, out_danger_num and out_danger_sig are set. */
+int cd_ox_set_robot_location_info(
+    int32_t player_fired_laser, int32_t obj_px, int32_t obj_py, int32_t obj_pz,
+    int32_t vp_x, int32_t vp_y, int32_t vp_z,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t laser_sig,
+    int32_t* out_danger_num, int32_t* out_danger_sig);
+
+/* -- wake_up_rendered_objects (D2 only) --------------------------------- */
+/* C entry point: calls OCaml wake_up_rendered_objects */
+void cd_ox_wake_up_rendered_objects(int viewer_objnum, int window_num);
+
+/* wake_up effect registration */
+typedef void (*cd_effect_fetch_wake_up_context_fn)(int window_num, int32_t* out, int* out_len);
+typedef int (*cd_effect_fetch_ai_local_awareness_fn)(int objnum);
+typedef void (*cd_effect_apply_wake_up_fn)(const int32_t* packed, int len);
+void cd_ox_register_wake_up_effects(
+    cd_effect_fetch_wake_up_context_fn fetch_ctx,
+    cd_effect_fetch_ai_local_awareness_fn fetch_awareness,
+    cd_effect_apply_wake_up_fn apply_wake_up);
+
+/* -- obj_allocate -------------------------------------------------------- */
+/* Effect callback types */
+typedef void (*cd_effect_fetch_obj_allocate_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_write_obj_allocate_result_fn)(const int32_t* packed, int len);
+typedef void (*cd_effect_call_free_object_slots_fn)(int num_used);
+
+void cd_ox_register_obj_allocate_effects(
+    cd_effect_fetch_obj_allocate_data_fn fetch,
+    cd_effect_write_obj_allocate_result_fn write,
+    cd_effect_call_free_object_slots_fn call_fos);
+
+/* C entry point: calls OCaml obj_allocate, returns objnum or -1 */
+int cd_ox_obj_allocate(void);
 
 #ifdef __cplusplus
 }

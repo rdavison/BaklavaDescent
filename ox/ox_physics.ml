@@ -258,7 +258,8 @@ let calc_gun_point ~gun_point ~start_mn ~anim_angles ~offsets ~parents ~orient ~
   (* Walk up bone hierarchy from gun submodel to root *)
   let pnt = ref gun_point in
   let mn = ref start_mn in
-  while !mn <> 0 do
+  let n = Array.length anim_angles in
+  while !mn <> 0 && !mn > 0 && !mn < n do
     let ap, ab, ah = anim_angles.(!mn) in
     let m = Ox_math.vm_angles_2_matrix ~v:(ap, ab, ah) in
     let m = Ox_math.vm_transpose_matrix ~m in

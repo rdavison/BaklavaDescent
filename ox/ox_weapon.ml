@@ -44,3 +44,38 @@ let player_has_weapon_d2
   then r := !r lor has_energy_flag;
   !r
 ;;
+
+let max_primary_weapons = 10
+let max_secondary_weapons = 10
+
+(* POrderList: search PrimaryOrder array for weapon num, return its priority index.
+   C original: int POrderList(int num) — weapon.cpp
+   order array has MAX_PRIMARY_WEAPONS+1 = 11 elements *)
+let p_order_list ~order_0 ~order_1 ~order_2 ~order_3 ~order_4
+                 ~order_5 ~order_6 ~order_7 ~order_8 ~order_9 ~order_10
+                 ~num =
+  let order = [| order_0; order_1; order_2; order_3; order_4;
+                 order_5; order_6; order_7; order_8; order_9; order_10 |] in
+  let result = ref (-1) in
+  for i = 0 to max_primary_weapons do
+    if order.(i) = num then result := i
+  done;
+  if !result = -1 then 0
+  else !result
+;;
+
+(* SOrderList: search SecondaryOrder array for weapon num, return its priority index.
+   C original: int SOrderList(int num) — weapon.cpp
+   order array has MAX_SECONDARY_WEAPONS+1 = 11 elements *)
+let s_order_list ~order_0 ~order_1 ~order_2 ~order_3 ~order_4
+                 ~order_5 ~order_6 ~order_7 ~order_8 ~order_9 ~order_10
+                 ~num =
+  let order = [| order_0; order_1; order_2; order_3; order_4;
+                 order_5; order_6; order_7; order_8; order_9; order_10 |] in
+  let result = ref (-1) in
+  for i = 0 to max_secondary_weapons do
+    if order.(i) = num then result := i
+  done;
+  if !result = -1 then 0
+  else !result
+;;

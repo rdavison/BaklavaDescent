@@ -23,11 +23,6 @@ external effect_send_controlcen_fire
   -> unit
   = "cd_ox_effect_cc_send_controlcen_fire"
 
-external effect_make_random_vector
-  :  unit
-  -> int * int * int
-  = "cd_ox_effect_cc_make_random_vector"
-
 external effect_p_rand : unit -> int = "cd_ox_effect_cc_p_rand"
 
 (* Effect handler shared by D1 and D2 *)
@@ -46,11 +41,6 @@ let controlcen_effect_handler
       (fun k ->
         effect_send_controlcen_fire dx dy dz gun_num obj_id;
         Effect.Deep.continue k ())
-  | Ox_controlcen.Make_random_vector ->
-    Some
-      (fun k ->
-        let result = effect_make_random_vector () in
-        Effect.Deep.continue k result)
   | Ox_controlcen.P_Rand ->
     Some
       (fun k ->

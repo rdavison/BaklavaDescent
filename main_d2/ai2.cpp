@@ -204,6 +204,46 @@ void init_ai_object(int objnum, int behavior, int hide_segment)
 	ai_local		*ailp = &Ai_local_info[objnum];
 	robot_info	*robptr = &Robot_info[objp->id];
 
+#ifdef USE_OX_BRIDGE
+	{
+		int32_t packed[9];
+		packed[0] = behavior;
+		packed[1] = hide_segment;
+		packed[2] = robptr->cloak_type;
+		packed[3] = aip->behavior;
+		packed[4] = GameTime;
+		packed[5] = objp->mtype.phys_info.flags;
+		packed[6] = robptr->companion;
+		packed[7] = robptr->thief;
+		packed[8] = robptr->attack_type;
+
+		int32_t out[21];
+		cd_ox_init_ai_object_d2(packed, 9, out);
+
+		aip->behavior = out[0];
+		ailp->mode = out[1];
+		ailp->previous_visibility = out[2];
+		aip->GOAL_STATE = out[3];
+		aip->CURRENT_STATE = out[4];
+		ailp->player_awareness_time = out[5];
+		ailp->player_awareness_type = out[6];
+		ailp->time_player_seen = out[7];
+		ailp->next_misc_sound_time = out[8];
+		ailp->time_player_sound_attacked = out[9];
+		if (out[10] != -2) aip->hide_segment = out[10];
+		if (out[11] != -2) ailp->goal_segment = out[11];
+		if (out[12] != -2) aip->hide_index = out[12];
+		if (out[13] != -2) aip->cur_path_index = out[13];
+		aip->SKIP_AI_COUNT = out[14];
+		aip->CLOAKED = out[15];
+		objp->mtype.phys_info.flags = out[16];
+		aip->REMOTE_OWNER = out[17];
+		if (out[18] != -2) Escort_kill_object = out[18];
+		aip->dying_sound_playing = out[19];
+		aip->dying_start_time = out[20];
+		vm_vec_zero(&objp->mtype.phys_info.velocity);
+	}
+#else
 	if (behavior == 0) {
 		// mprintf((0, "Behavior of 0 for object #%i, bashing to AIB_NORMAL.\n", objnum));
 		behavior = AIB_NORMAL;
@@ -266,11 +306,12 @@ void init_ai_object(int objnum, int behavior, int hide_segment)
 		aip->CLOAKED = 0;
 
 	objp->mtype.phys_info.flags |= (PF_BOUNCE | PF_TURNROLL);
-	
+
 	aip->REMOTE_OWNER = -1;
 
 	aip->dying_sound_playing = 0;
 	aip->dying_start_time = 0;
+#endif
 
 }
 

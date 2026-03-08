@@ -39,6 +39,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "laser.h"		//	For seeing if a flare is stuck in a wall.
 #include "collide.h"
 #include "main_shared/effects.h"
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
 
 #ifdef EDITOR
 #include "editor\editor.h"
@@ -990,6 +993,33 @@ void wall_illusion_off(segment* seg, int side)
 //  wall switches or triggers that can turn on/off illusionary walls.)
 void wall_illusion_on(segment* seg, int side)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int segnum = seg - Segments;
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_illusion_effects(
+				/* fetch_seg_children_and_wall_nums */
+				[](int segnum, int32_t* out) {
+					for (int i = 0; i < 6; i++)
+						out[i] = Segments[segnum].children[i];
+					for (int i = 0; i < 6; i++)
+						out[6 + i] = Segments[segnum].sides[i].wall_num;
+				},
+				/* set_flags */
+				[](int wall_num, int flags) {
+					Walls[wall_num].flags |= flags;
+				},
+				/* clear_flags */
+				[](int wall_num, int flags) {
+					Walls[wall_num].flags &= ~flags;
+				});
+			registered = 1;
+		}
+		cd_ox_wall_illusion_on(segnum, side);
+		return;
+	}
+#endif
 	segment* csegp;
 	int cside;
 
@@ -1140,6 +1170,35 @@ void wall_toggle(segment* seg, int side)
 // Tidy up Walls array for load/save purposes.
 void reset_walls()
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_effects(
+				/* fetch_reset_walls_info */
+				[](int32_t* out) {
+					out[0] = Num_walls;
+					out[1] = 1; /* is_d2 = true */
+				},
+				/* write_reset_walls: packed = [start_idx, max_walls] */
+				[](const int32_t* packed, int len) {
+					if (len < 2) return;
+					int start = packed[0];
+					int end = packed[1];
+					for (int i = start; i < end; i++) {
+						Walls[i].type = WALL_NORMAL;
+						Walls[i].flags = 0;
+						Walls[i].hps = 0;
+						Walls[i].trigger = -1;
+						Walls[i].clip_num = -1;
+					}
+				});
+			registered = 1;
+		}
+		cd_ox_reset_walls();
+		return;
+	}
+#endif
 	int i;
 
 	if (Num_walls < 0) {
@@ -1384,6 +1443,46 @@ extern void flush_fcd_cache(void);
 //	Door with wall index wallnum is opening, kill all objects stuck in it.
 void kill_stuck_objects(int wallnum)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_kill_stuck_effects(
+				/* fetch_kill_stuck_data: [is_d2, num_stuck, (wallnum, objnum, obj_type) x 32] */
+				[](int wallnum_arg, int32_t* out) {
+					out[0] = 1; /* is_d2 */
+					out[1] = Num_stuck_objects;
+					for (int i = 0; i < MAX_STUCK_OBJECTS; i++) {
+						int base = 2 + i * 3;
+						out[base]     = Stuck_objects[i].wallnum;
+						out[base + 1] = Stuck_objects[i].objnum;
+						out[base + 2] = (Stuck_objects[i].wallnum != -1)
+							? Objects[Stuck_objects[i].objnum].type : -1;
+					}
+				},
+				/* write_kill_stuck_objects: [new_num_stuck, n_matches, (slot, objnum, is_weapon) x n] */
+				[](const int32_t* packed, int len) {
+					if (len < 2) return;
+					Num_stuck_objects = packed[0];
+					int n_matches = packed[1];
+					for (int j = 0; j < n_matches && (2 + j * 3 + 2) < len; j++) {
+						int slot = packed[2 + j * 3];
+						int objnum = packed[2 + j * 3 + 1];
+						int is_weapon = packed[2 + j * 3 + 2];
+						if (is_weapon) {
+							Objects[objnum].lifeleft = F1_0 / 8;
+						}
+						Stuck_objects[slot].wallnum = -1;
+					}
+				},
+				/* flush_fcd_cache */
+				[]() { flush_fcd_cache(); });
+			registered = 1;
+		}
+		cd_ox_kill_stuck_objects(wallnum);
+		return;
+	}
+#endif
 	int	i;
 
 	if (Num_stuck_objects == 0) {
@@ -1447,6 +1546,43 @@ void init_stuck_objects(void)
 // Clear out all stuck objects.  Called for a new ship
 void clear_stuck_objects(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int stuck_reg = 0;
+		if (!stuck_reg) {
+			stuck_reg = 1;
+			cd_ox_register_stuck_objects_effects(
+				/* fetch_stuck_objects_data: [num_stuck, (wallnum, objnum, obj_type, obj_id) x 32] */
+				[](int32_t* out, int* out_len) {
+					out[0] = Num_stuck_objects;
+					for (int i = 0; i < MAX_STUCK_OBJECTS; i++) {
+						int base = 1 + i * 4;
+						out[base + 0] = Stuck_objects[i].wallnum;
+						out[base + 1] = Stuck_objects[i].objnum;
+						if (Stuck_objects[i].wallnum != -1) {
+							out[base + 2] = Objects[Stuck_objects[i].objnum].type;
+							out[base + 3] = Objects[Stuck_objects[i].objnum].id;
+						} else {
+							out[base + 2] = 0;
+							out[base + 3] = 0;
+						}
+					}
+				},
+				/* write_clear_stuck_objects: packed = [n_flares, objnum_0..n-1, new_num_stuck] */
+				[](const int32_t* packed, int len) {
+					if (len < 2) return;
+					int n_flares = packed[0];
+					for (int j = 0; j < n_flares; j++)
+						Objects[packed[j + 1]].lifeleft = F1_0 / 8;
+					for (int i = 0; i < MAX_STUCK_OBJECTS; i++)
+						Stuck_objects[i].wallnum = -1;
+					Num_stuck_objects = packed[len - 1];
+				});
+		}
+		cd_ox_clear_stuck_objects();
+		return;
+	}
+#endif
 	int	i;
 
 	for (i = 0; i < MAX_STUCK_OBJECTS; i++) {

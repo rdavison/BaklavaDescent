@@ -54,6 +54,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "laser.h"
 //#include "pa_enabl.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 #ifdef EDITOR
 #include "editor\editor.h"
 #endif
@@ -192,6 +196,12 @@ int segment_is_reachable(int curseg, int sidenum)
 //		length:		number of elements in bfs_list
 void create_bfs_list(int start_seg, short bfs_list[], int *length, int max_segs)
 {
+#ifdef USE_OX_BRIDGE
+	int buddy_ailp_mode = Ai_local_info[Buddy_objnum].mode;
+	int player_flags = Players[Player_num].flags;
+	*length = cd_ox_create_bfs_list(start_seg, max_segs, buddy_ailp_mode,
+	                                player_flags, bfs_list);
+#else
 	int	i, head, tail;
 	int8_t	visited[MAX_SEGMENTS];
 
@@ -204,7 +214,7 @@ void create_bfs_list(int start_seg, short bfs_list[], int *length, int max_segs)
 	bfs_list[head++] = start_seg;
 	visited[start_seg] = 1;
 
-	while ((head != tail) && (head < max_segs)) 
+	while ((head != tail) && (head < max_segs))
 	{
 		int		i;
 		int		curseg;
@@ -213,7 +223,7 @@ void create_bfs_list(int start_seg, short bfs_list[], int *length, int max_segs)
 		curseg = bfs_list[tail++];
 		cursegp = &Segments[curseg];
 
-		for (i=0; i<MAX_SIDES_PER_SEGMENT; i++) 
+		for (i=0; i<MAX_SIDES_PER_SEGMENT; i++)
 		{
 			int	connected_seg;
 
@@ -221,7 +231,7 @@ void create_bfs_list(int start_seg, short bfs_list[], int *length, int max_segs)
 
 			if (IS_CHILD(connected_seg) && (visited[connected_seg] == 0))
 			{
-				if (segment_is_reachable(curseg, i)) 
+				if (segment_is_reachable(curseg, i))
 				{
 					bfs_list[head++] = connected_seg;
 					if (head >= max_segs)
@@ -234,7 +244,7 @@ void create_bfs_list(int start_seg, short bfs_list[], int *length, int max_segs)
 	}
 
 	*length = head;
-	
+#endif
 }
 
 //	-----------------------------------------------------------------------------
@@ -1344,8 +1354,18 @@ void do_thief_frame(object *objp, fix dist_to_player, int player_visibility, vms
 	// -- mprintf((0, "%10s: Action Time: %7.3f\n", mode_text[ailp->mode], f2fl(ailp->next_action_time)));
 
 	if ((Current_level_num < 0) && (Re_init_thief_time < GameTime)) {
-		if (Re_init_thief_time > GameTime - F1_0*2)
+		if (Re_init_thief_time > GameTime - F1_0*2) {
+#ifdef USE_OX_BRIDGE
+			if (cd_ox_is_ready()) {
+				int32_t thief_result[11];
+				cd_ox_init_thief_for_level(Game_mode, thief_result);
+				for (int ti = 0; ti < MAX_STOLEN_ITEMS; ti++)
+					Stolen_items[ti] = (uint8_t)thief_result[ti];
+				Stolen_item_index = thief_result[MAX_STOLEN_ITEMS];
+			} else
+#endif
 			init_thief_for_level();
+		}
 		Re_init_thief_time = 0x3f000000;
 	}
 

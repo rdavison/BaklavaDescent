@@ -63,6 +63,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "automap.h"
 #include "platform/posixstub.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 //
 // Local macros and prototypes
 //
@@ -3674,6 +3678,35 @@ int find_goal_texture(uint8_t t)
 
 void bash_to_shield(int i, const char* s)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		/* Register gameseq effects on first call */
+		static int gs_reg = 0;
+		if (!gs_reg) {
+			gs_reg = 1;
+			cd_ox_register_gameseq_effects(
+				/* fetch_bash_data: returns [obj_id, shield_vclip_num, shield_frame_time] */
+				[](int objnum, int32_t* out) {
+					out[0] = Objects[objnum].id;
+					int shield_vclip = Powerup_info[POW_SHIELD_BOOST].vclip_num;
+					out[1] = shield_vclip;
+					out[2] = Vclip[shield_vclip].frame_time;
+				},
+				/* write_bash_data: packed = [objnum, old_type, new_id, vclip_num, frametime] */
+				[](const int32_t* packed, int len) {
+					if (len < 5) return;
+					int objnum = packed[0];
+					int old_type = packed[1];
+					PowerupsInMine[old_type] = MaxPowerupsAllowed[old_type] = 0;
+					Objects[objnum].id = packed[2];
+					Objects[objnum].rtype.vclip_info.vclip_num = packed[3];
+					Objects[objnum].rtype.vclip_info.frametime = packed[4];
+				});
+		}
+		cd_ox_bash_to_shield(i);
+		return;
+	}
+#endif
 	int type = Objects[i].id;
 
 	mprintf((0, "Bashing %s object #%i to shield.\n", s, i));

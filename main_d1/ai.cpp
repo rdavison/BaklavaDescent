@@ -458,6 +458,40 @@ void init_ai_object(int objnum, int behavior, int hide_segment)
 	}
 #endif
 
+#ifdef USE_OX_BRIDGE
+	{
+		int32_t packed[6];
+		packed[0] = behavior;
+		packed[1] = hide_segment;
+		packed[2] = Robot_info[objp->id].cloak_type;
+		packed[3] = aip->behavior;
+		packed[4] = GameTime;
+		packed[5] = objp->mtype.phys_info.flags;
+
+		int32_t out[18];
+		cd_ox_init_ai_object_d1(packed, 6, out);
+
+		aip->behavior = out[0];
+		ailp->mode = out[1];
+		ailp->previous_visibility = out[2];
+		aip->GOAL_STATE = out[3];
+		aip->CURRENT_STATE = out[4];
+		ailp->player_awareness_time = out[5];
+		ailp->player_awareness_type = out[6];
+		ailp->time_player_seen = out[7];
+		ailp->next_misc_sound_time = out[8];
+		ailp->time_player_sound_attacked = out[9];
+		if (out[10] != -2) aip->hide_segment = out[10];
+		if (out[11] != -2) ailp->goal_segment = out[11];
+		if (out[12] != -2) aip->hide_index = out[12];
+		if (out[13] != -2) aip->cur_path_index = out[13];
+		aip->SKIP_AI_COUNT = out[14];
+		aip->CLOAKED = out[15];
+		objp->mtype.phys_info.flags = out[16];
+		aip->REMOTE_OWNER = out[17];
+		vm_vec_zero(&objp->mtype.phys_info.velocity);
+	}
+#else
 	if (behavior == 0) {
 		// mprintf((0, "Behavior of 0 for object #%i, bashing to AIB_NORMAL.\n", objnum));
 		behavior = AIB_NORMAL;
@@ -508,6 +542,7 @@ void init_ai_object(int objnum, int behavior, int hide_segment)
 	objp->mtype.phys_info.flags |= (PF_BOUNCE | PF_TURNROLL);
 
 	aip->REMOTE_OWNER = -1;
+#endif
 }
 
 void john_cheat_func_2(int key)
@@ -4412,6 +4447,23 @@ void ai_do_cloak_stuff(void)
 //	Returns false if awareness is considered too puny to add, else returns true.
 int add_awareness_event(object* objp, int type)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out[7];
+	int result = cd_ox_add_awareness_event(
+		type, objp->id, objp->segnum,
+		objp->pos.x, objp->pos.y, objp->pos.z,
+		Num_awareness_events, 0, /* is_d2=0 */
+		out);
+	if (out[1]) { /* should_store */
+		Awareness_events[Num_awareness_events].segnum = out[2];
+		Awareness_events[Num_awareness_events].pos.x = out[3];
+		Awareness_events[Num_awareness_events].pos.y = out[4];
+		Awareness_events[Num_awareness_events].pos.z = out[5];
+		Awareness_events[Num_awareness_events].type = out[6];
+		Num_awareness_events++;
+	}
+	return result;
+#else
 	//	If player cloaked and hit a robot, then increase awareness
 	if ((type == PA_WEAPON_ROBOT_COLLISION) || (type == PA_WEAPON_WALL_COLLISION) || (type == PA_PLAYER_COLLISION))
 		ai_do_cloak_stuff();
@@ -4431,6 +4483,7 @@ int add_awareness_event(object* objp, int type)
 		Assert(0);		// Hey -- Overflowed Awareness_events, make more or something
 							// This just gets ignored, so you can just continue.
 	return 1;
+#endif
 
 }
 
@@ -4439,12 +4492,31 @@ int add_awareness_event(object* objp, int type)
 //	The object (probably player or weapon) which created the awareness is objp.
 void create_awareness_event(object* objp, int type)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out[7];
+	cd_ox_create_awareness_event(
+		type, objp->id, objp->segnum,
+		objp->pos.x, objp->pos.y, objp->pos.z,
+		Num_awareness_events, 0, /* is_d2=0 */
+		Game_mode, Overall_agitation,
+		out);
+	Overall_agitation = out[0];
+	if (out[1]) { /* should_store */
+		Awareness_events[Num_awareness_events].segnum = out[2];
+		Awareness_events[Num_awareness_events].pos.x = out[3];
+		Awareness_events[Num_awareness_events].pos.y = out[4];
+		Awareness_events[Num_awareness_events].pos.z = out[5];
+		Awareness_events[Num_awareness_events].type = out[6];
+		Num_awareness_events++;
+	}
+#else
 	if (add_awareness_event(objp, type)) {
 		if (((P_Rand() * (type + 4)) >> 15) > 4)
 			Overall_agitation++;
 		if (Overall_agitation > OVERALL_AGITATION_MAX)
 			Overall_agitation = OVERALL_AGITATION_MAX;
 	}
+#endif
 }
 
 int8_t	New_awareness[MAX_SEGMENTS];
@@ -4614,6 +4686,14 @@ void do_ai_frame_all(void)
 //	Initializations to be performed for all robots for a new level.
 void init_robots_for_level(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int32_t result[1];
+		cd_ox_init_robots_for_level_d1(result);
+		Overall_agitation = result[0];
+		return;
+	}
+#endif
 	Overall_agitation = 0;
 }
 

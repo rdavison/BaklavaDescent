@@ -1,0 +1,259 @@
+(* ox_obj.ml — Object management functions ported from object.cpp *)
+
+open Core
+
+(* -- Algebraic effects -------------------------------------------------- *)
+
+type _ Effect.t +=
+  | Obj_detach_one_internal : int -> unit Effect.t
+  | Get_attached_obj_internal : int -> int Effect.t
+  | Get_seg_first_object_internal : int -> int Effect.t
+  | Get_obj_next_internal : int -> int Effect.t
+  | Get_highest_segment_index_internal : int Effect.t
+
+let obj_detach_one objnum = Effect.perform (Obj_detach_one_internal objnum)
+let get_attached_obj objnum = Effect.perform (Get_attached_obj_internal objnum)
+let get_seg_first_object segnum = Effect.perform (Get_seg_first_object_internal segnum)
+let get_obj_next objnum = Effect.perform (Get_obj_next_internal objnum)
+let get_highest_segment_index () = Effect.perform Get_highest_segment_index_internal
+
+let max_objects = 350
+
+(* -- Ported functions --------------------------------------------------- *)
+
+(* Count occurrences of object objn in segment segnum's object linked list.
+   C original: int is_object_in_seg(int segnum, int objn)
+   Debug-only function (#ifndef NDEBUG). *)
+let is_object_in_seg ~segnum ~objn =
+  let count = ref 0 in
+  let objnum = ref (get_seg_first_object segnum) in
+  let done_ = ref false in
+  while not !done_ do
+    if !objnum = -1 then
+      done_ := true
+    else begin
+      if !count > max_objects then begin
+        (* Int3() — debug break in C; just return count *)
+        done_ := true
+      end else begin
+        if !objnum = objn then count := !count + 1;
+        objnum := get_obj_next !objnum
+      end
+    end
+  done;
+  !count
+;;
+
+(* Search all segments for occurrences of object objnum.
+   C original: int search_all_segments_for_object(int objnum)
+   Debug-only function (#ifndef NDEBUG). *)
+let search_all_segments_for_object ~objnum =
+  let count = ref 0 in
+  let highest = get_highest_segment_index () in
+  for i = 0 to highest do
+    count := !count + is_object_in_seg ~segnum:i ~objn:objnum
+  done;
+  !count
+;;
+
+(* Detaches all objects from this object.
+   C original: void obj_detach_all(object* parent)
+   Loops calling obj_detach_one on each attached object until none remain. *)
+let obj_detach_all ~parent_objnum =
+  let continue_loop = ref true in
+  while !continue_loop do
+    let attached = get_attached_obj parent_objnum in
+    if attached <> -1 then
+      obj_detach_one attached
+    else
+      continue_loop := false
+  done
+;;
+
+let f1_0 = 0x10000
+let obj_robot = 2
+
+(* -- Effects for wake_up_rendered_objects -------------------------------- *)
+
+(* Fetch_wake_up_context(window_num) returns packed int array:
+   [0] = frame_count
+   [1] = window_frame
+   [2] = viewer_px
+   [3] = viewer_py
+   [4] = viewer_pz
+   [5] = num_rendered
+   For each rendered object i (0..num_rendered-1):
+     [6 + i*5 + 0] = objnum
+     [6 + i*5 + 1] = obj_type
+     [6 + i*5 + 2] = pos_x
+     [6 + i*5 + 3] = pos_y
+     [6 + i*5 + 4] = pos_z
+*)
+type _ Effect.t +=
+  | Fetch_wake_up_context_internal : int -> int array Effect.t
+  | Fetch_ai_local_awareness_internal : int -> int Effect.t
+  | Apply_wake_up_internal : int array -> unit Effect.t
+
+let fetch_wake_up_context window_num =
+  Effect.perform (Fetch_wake_up_context_internal window_num)
+let fetch_ai_local_awareness objnum =
+  Effect.perform (Fetch_ai_local_awareness_internal objnum)
+let apply_wake_up packed =
+  Effect.perform (Apply_wake_up_internal packed)
+
+(* set_robot_location_info: check if robot rendered near screen center
+   while player fired a laser. If so, return the danger laser info.
+   Returns (should_update, danger_laser_num, danger_laser_signature).
+   should_update = 1 means the caller should write danger_laser_num and
+   danger_laser_signature to the object's ai_info. *)
+let set_robot_location_info
+    ~player_fired_laser_this_frame
+    ~obj_pos_x ~obj_pos_y ~obj_pos_z
+    ~view_pos_x ~view_pos_y ~view_pos_z
+    ~vm_r1 ~vm_r2 ~vm_r3
+    ~vm_u1 ~vm_u2 ~vm_u3
+    ~vm_f1 ~vm_f2 ~vm_f3
+    ~laser_obj_signature =
+  if player_fired_laser_this_frame = -1 then
+    (0, 0, 0)
+  else begin
+    let (rx, ry, _rz), codes =
+      Ox_3d.g3_rotate_point
+        ~view_pos:(view_pos_x, view_pos_y, view_pos_z)
+        ~view_matrix:((vm_r1, vm_r2, vm_r3), (vm_u1, vm_u2, vm_u3), (vm_f1, vm_f2, vm_f3))
+        (obj_pos_x, obj_pos_y, obj_pos_z)
+    in
+    if codes land Ox_3d.cc_behind <> 0 then
+      (0, 0, 0)
+    else if Int.abs rx < f1_0 * 4 && Int.abs ry < f1_0 * 4 then
+      (1, player_fired_laser_this_frame, laser_obj_signature)
+    else
+      (0, 0, 0)
+  end
+;;
+
+(* wake_up_rendered_objects: Wake up robots rendered by a missile camera.
+   C original: void wake_up_rendered_objects(object* viewer, int window_num)
+   in main_d2/object.cpp.
+   viewer_objnum = viewer - Objects (the missile object number).
+   Returns packed int array:
+     [0] = valid (0 = bogus window, 1 = valid)
+     [1] = num_wakeups
+     [2..] = objnums to wake up *)
+let wake_up_rendered_objects ~viewer_objnum ~window_num =
+  let ctx = fetch_wake_up_context window_num in
+  let frame_count = ctx.(0) in
+  let window_frame = ctx.(1) in
+  (* Make sure that we are processing current data. *)
+  if frame_count <> window_frame then
+    [| 0; 0 |]  (* bogus window *)
+  else begin
+    let viewer_px = ctx.(2) in
+    let viewer_py = ctx.(3) in
+    let viewer_pz = ctx.(4) in
+    let num_rendered = ctx.(5) in
+    let wakeups = Array.create ~len:50 0 in
+    let num_wakeups = ref 0 in
+    let fcval = frame_count land 3 in
+    for i = 0 to num_rendered - 1 do
+      let base = 6 + i * 5 in
+      let objnum = ctx.(base) in
+      if (objnum land 3) = fcval then begin
+        let obj_type = ctx.(base + 1) in
+        if obj_type = obj_robot then begin
+          let obj_px = ctx.(base + 2) in
+          let obj_py = ctx.(base + 3) in
+          let obj_pz = ctx.(base + 4) in
+          let dist = Ox_math.vm_vec_dist_quick
+              ~a:(viewer_px, viewer_py, viewer_pz)
+              ~b:(obj_px, obj_py, obj_pz) in
+          if dist < f1_0 * 100 then begin
+            let awareness = fetch_ai_local_awareness objnum in
+            if awareness = 0 then begin
+              wakeups.(!num_wakeups) <- objnum;
+              num_wakeups := !num_wakeups + 1
+            end
+          end
+        end
+      end
+    done;
+    (* Build result: [valid; num_wakeups; viewer_objnum; wakeup_0; ...] *)
+    let result = Array.create ~len:(3 + !num_wakeups) 0 in
+    result.(0) <- 1;
+    result.(1) <- !num_wakeups;
+    result.(2) <- viewer_objnum;
+    for i = 0 to !num_wakeups - 1 do
+      result.(3 + i) <- wakeups.(i)
+    done;
+    (* Apply wake-ups via effect *)
+    apply_wake_up result;
+    result
+  end
+;;
+
+(* -- Effects for obj_allocate -------------------------------------------- *)
+
+(* Fetch_obj_allocate_data returns packed int array:
+   [0] = num_objects
+   [1] = highest_object_index
+   [2] = highest_ever_object_index
+   [3] = is_d2
+   [4] = free_obj_list[num_objects] (or -1 if num_objects >= MAX_OBJECTS)
+   [5..5+MAX_OBJECTS-1] = Objects[0..MAX_OBJECTS-1].type
+*)
+type _ Effect.t +=
+  | Fetch_obj_allocate_data : int array Effect.t
+  | Write_obj_allocate_result : int array -> unit Effect.t
+  | Call_free_object_slots : int -> unit Effect.t
+
+let fetch_obj_allocate_data () = Effect.perform Fetch_obj_allocate_data
+let write_obj_allocate_result packed = Effect.perform (Write_obj_allocate_result packed)
+let call_free_object_slots num_used = Effect.perform (Call_free_object_slots num_used)
+
+let obj_none = 255
+
+(* obj_allocate: Allocate the next free object slot.
+   C original: int obj_allocate(void) in object.cpp
+   D2 version calls free_object_slots when approaching capacity.
+   Returns objnum, or -1 if no free slots. *)
+let obj_allocate () =
+  let data = ref (fetch_obj_allocate_data ()) in
+  let num_obj = ref (!data).(0) in
+  let highest = ref (!data).(1) in
+  let highest_ever = ref (!data).(2) in
+  let is_d2 = (!data).(3) in
+
+  (* D2: try to free slots when approaching capacity *)
+  if is_d2 <> 0 && !num_obj >= max_objects - 2 then begin
+    call_free_object_slots (max_objects - 10);
+    (* Re-fetch state since free_object_slots modified C globals *)
+    data := fetch_obj_allocate_data ();
+    num_obj := (!data).(0);
+    highest := (!data).(1);
+    highest_ever := (!data).(2)
+  end;
+
+  if !num_obj >= max_objects then
+    -1
+  else begin
+    let objnum = (!data).(4) in
+    num_obj := !num_obj + 1;
+
+    if objnum > !highest then begin
+      highest := objnum;
+      if !highest > !highest_ever then
+        highest_ever := !highest
+    end;
+
+    (* Count unused object slots *)
+    let unused = ref 0 in
+    for i = 0 to !highest do
+      if (!data).(5 + i) = obj_none then
+        unused := !unused + 1
+    done;
+
+    (* Write back: [objnum, num_objects, highest, highest_ever, unused_slots] *)
+    write_obj_allocate_result [| objnum; !num_obj; !highest; !highest_ever; !unused |];
+    objnum
+  end
+;;

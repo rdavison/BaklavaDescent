@@ -35,6 +35,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "multi.h"
 #include "network.h"
 #include "2d/palette.h"
+#include "ox-bridge/bridge.h"
 
 trigger Triggers[MAX_TRIGGERS];
 int Num_triggers;
@@ -109,13 +110,34 @@ void do_matcen(int8_t trigger_num)
 
 void do_il_on(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int seg_side_reg = 0;
+		if (!seg_side_reg) {
+			seg_side_reg = 1;
+			cd_ox_register_switch_seg_side_effect(
+				/* fetch_trigger_seg_sides */
+				[](int tnum, int32_t* out, int* out_len) {
+					int n = Triggers[tnum].num_links;
+					out[0] = n;
+					for (int j = 0; j < n; j++) {
+						out[1 + j * 2] = Triggers[tnum].seg[j];
+						out[1 + j * 2 + 1] = Triggers[tnum].side[j];
+					}
+					*out_len = 1 + n * 2;
+				});
+		}
+		cd_ox_do_il_on(trigger_num);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Illusion ON\n"));
 
-	if (trigger_num != -1) 
+	if (trigger_num != -1)
 	{
-		for (i = 0; i < Triggers[trigger_num].num_links; i++) 
+		for (i = 0; i < Triggers[trigger_num].num_links; i++)
 		{
 			wall_illusion_on(&Segments[Triggers[trigger_num].seg[i]], Triggers[trigger_num].side[i]);
 			mprintf((0, " trigger_num %d : seg %d, side %d\n",

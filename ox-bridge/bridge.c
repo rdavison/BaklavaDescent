@@ -90,6 +90,24 @@ static cd_fvi_fetch_segment_data_fn g_fvi_fetch_segment_data = NULL;
 static cd_fvi_fetch_object_data_fn g_fvi_fetch_object_data = NULL;
 static cd_fvi_fetch_collision_table_fn g_fvi_fetch_collision_table = NULL;
 
+/* Object detach function pointers (set via cd_ox_register_obj_detach_effects) */
+static cd_obj_detach_one_fn g_obj_detach_one = NULL;
+static cd_get_attached_obj_fn g_get_attached_obj = NULL;
+
+/* Morph effect function pointers (set via cd_ox_register_morph_effects) */
+static cd_effect_morph_fetch_submodel_vertices_fn g_effect_morph_fetch_submodel_vertices = NULL;
+static const value* g_find_min_max = NULL;
+static const value* g_update_points = NULL;
+
+/* wake_up_rendered_objects effect function pointers */
+typedef void (*cd_effect_fetch_wake_up_context_fn)(int window_num, int32_t* out, int* out_len);
+typedef int (*cd_effect_fetch_ai_local_awareness_fn)(int objnum);
+typedef void (*cd_effect_apply_wake_up_fn)(const int32_t* packed, int len);
+static cd_effect_fetch_wake_up_context_fn g_effect_fetch_wake_up_context = NULL;
+static cd_effect_fetch_ai_local_awareness_fn g_effect_fetch_ai_local_awareness = NULL;
+static cd_effect_apply_wake_up_fn g_effect_apply_wake_up = NULL;
+static const value* g_wake_up_rendered_objects = NULL;
+
 /* Collide effect function pointers (set via cd_ox_register_collide_effects) */
 static cd_effect_increment_kills_fn g_effect_increment_kills = NULL;
 static cd_effect_start_boss_death_fn g_effect_start_boss_death = NULL;
@@ -144,11 +162,18 @@ static const value* g_ai_door_is_openable_d2 = NULL;
 static const value* g_openable_doors_in_segment_d1 = NULL;
 static const value* g_openable_doors_in_segment_d2 = NULL;
 static const value* g_do_firing_stuff = NULL;
+static const value* g_init_ai_object_d1 = NULL;
+static const value* g_init_ai_object_d2 = NULL;
+static const value* g_add_awareness_event = NULL;
+static const value* g_create_awareness_event = NULL;
+static const value* g_init_ai_frame = NULL;
 static const value* g_compute_object_light = NULL;
 static const value* g_do_physics_drag = NULL;
 static const value* g_do_homing_weapon_frame = NULL;
 static const value* g_player_has_weapon_d1 = NULL;
 static const value* g_player_has_weapon_d2 = NULL;
+static const value* g_p_order_list = NULL;
+static const value* g_s_order_list = NULL;
 
 /* Clutter effect function pointers */
 static cd_effect_explode_object_delay_clutter_fn g_effect_explode_object_delay_clutter = NULL;
@@ -211,6 +236,96 @@ static cd_path_obj_relink_fn g_path_obj_relink = NULL;
 static cd_path_find_object_seg_fn g_path_find_object_seg = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
+static const value* g_init_ai_for_ship = NULL;
+static const value* g_init_robots_for_level_d1 = NULL;
+static const value* g_init_robots_for_level_d2 = NULL;
+static const value* g_init_thief_for_level = NULL;
+static const value* g_create_bfs_list = NULL;
+static const value* g_bash_to_shield = NULL;
+static const value* g_clear_stuck_objects = NULL;
+static const value* g_init_ammo_and_energy = NULL;
+static const value* g_update_player_stats = NULL;
+static const value* g_special_reset_objects = NULL;
+static const value* g_init_player_object = NULL;
+static const value* g_verify_console_object = NULL;
+static const value* g_free_object_slots = NULL;
+static const value* g_copy_defaults_to_robot = NULL;
+static const value* g_copy_defaults_to_robot_all = NULL;
+static const value* g_filter_objects_from_level = NULL;
+static const value* g_do_lock_doors = NULL;
+static const value* g_do_unlock_doors = NULL;
+static const value* g_door_is_wall_switched = NULL;
+static const value* g_flag_wall_switched_doors = NULL;
+static const value* g_reset_walls = NULL;
+static const value* g_kill_stuck_objects = NULL;
+static const value* g_wall_illusion_off = NULL;
+static const value* g_wall_illusion_on = NULL;
+static const value* g_do_il_on = NULL;
+
+/* Switch effect function pointers */
+static cd_effect_sw_fetch_trigger_links_fn g_effect_sw_fetch_trigger_links = NULL;
+static cd_effect_sw_lock_wall_door_fn g_effect_sw_lock_wall_door = NULL;
+static cd_effect_sw_unlock_wall_door_fn g_effect_sw_unlock_wall_door = NULL;
+static cd_effect_sw_get_num_triggers_fn g_effect_sw_get_num_triggers = NULL;
+static cd_effect_sw_get_num_walls_fn g_effect_sw_get_num_walls = NULL;
+static cd_effect_sw_set_wall_flag_wall_switch_fn g_effect_sw_set_wall_flag_wall_switch = NULL;
+static cd_effect_sw_fetch_trigger_seg_sides_fn g_effect_sw_fetch_trigger_seg_sides = NULL;
+
+/* Gameseq effect function pointers */
+typedef void (*cd_effect_gs_fetch_bash_to_shield_data_fn)(int objnum, int32_t* out);
+typedef void (*cd_effect_gs_write_bash_to_shield_fn)(const int32_t* packed, int len);
+typedef void (*cd_effect_gs_fetch_stuck_objects_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_clear_stuck_objects_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_bash_to_shield_data_fn g_effect_gs_fetch_bash_to_shield_data = NULL;
+static cd_effect_gs_write_bash_to_shield_fn g_effect_gs_write_bash_to_shield = NULL;
+static cd_effect_gs_fetch_stuck_objects_data_fn g_effect_gs_fetch_stuck_objects_data = NULL;
+static cd_effect_gs_write_clear_stuck_objects_fn g_effect_gs_write_clear_stuck_objects = NULL;
+typedef void (*cd_effect_gs_fetch_init_ammo_energy_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_init_ammo_energy_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_init_ammo_energy_data_fn g_effect_gs_fetch_init_ammo_energy_data = NULL;
+static cd_effect_gs_write_init_ammo_energy_fn g_effect_gs_write_init_ammo_energy = NULL;
+typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out_len);
+static cd_effect_gs_fetch_filter_objects_data_fn g_effect_gs_fetch_filter_objects_data = NULL;
+
+/* init_player_object effect function pointers */
+static cd_effect_gs_fetch_init_player_object_data_fn g_effect_gs_fetch_init_player_object_data = NULL;
+static cd_effect_gs_write_init_player_object_fn g_effect_gs_write_init_player_object = NULL;
+
+/* verify_console_object effect function pointers */
+static cd_effect_gs_fetch_verify_console_object_data_fn g_effect_gs_fetch_verify_console_object_data = NULL;
+static cd_effect_gs_write_verify_console_object_fn g_effect_gs_write_verify_console_object = NULL;
+
+/* update_player_stats effect function pointers */
+typedef void (*cd_effect_gs_fetch_update_player_stats_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_update_player_stats_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_update_player_stats_data_fn g_effect_gs_fetch_update_player_stats_data = NULL;
+static cd_effect_gs_write_update_player_stats_fn g_effect_gs_write_update_player_stats = NULL;
+
+/* special_reset_objects effect function pointers */
+typedef void (*cd_effect_gs_fetch_special_reset_objects_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_special_reset_objects_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_special_reset_objects_data_fn g_effect_gs_fetch_special_reset_objects_data = NULL;
+static cd_effect_gs_write_special_reset_objects_fn g_effect_gs_write_special_reset_objects = NULL;
+
+/* copy_defaults_to_robot effect function pointers */
+static cd_effect_gs_fetch_copy_defaults_to_robot_data_fn g_effect_gs_fetch_copy_defaults_to_robot_data = NULL;
+static cd_effect_gs_write_copy_defaults_to_robot_fn g_effect_gs_write_copy_defaults_to_robot = NULL;
+
+/* free_object_slots effect function pointers */
+typedef void (*cd_effect_gs_fetch_free_object_slots_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_free_object_slots_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_free_object_slots_data_fn g_effect_gs_fetch_free_object_slots_data = NULL;
+static cd_effect_gs_write_free_object_slots_fn g_effect_gs_write_free_object_slots = NULL;
+
+/* Wall effect function pointers */
+static cd_effect_wall_fetch_reset_walls_info_fn g_effect_wall_fetch_reset_walls_info = NULL;
+static cd_effect_wall_write_reset_walls_fn g_effect_wall_write_reset_walls = NULL;
+static cd_effect_wall_fetch_kill_stuck_data_fn g_effect_wall_fetch_kill_stuck_data = NULL;
+static cd_effect_wall_write_kill_stuck_objects_fn g_effect_wall_write_kill_stuck_objects = NULL;
+static cd_effect_wall_flush_fcd_cache_fn g_effect_wall_flush_fcd_cache = NULL;
+static cd_effect_wall_fetch_seg_children_and_wall_nums_fn g_effect_wall_fetch_seg_children_and_wall_nums = NULL;
+static cd_effect_wall_set_flags_fn g_effect_wall_set_flags = NULL;
+static cd_effect_wall_clear_flags_fn g_effect_wall_clear_flags = NULL;
 
 /* Physics sim effect function pointers */
 static cd_effect_ps_find_vector_intersection_fn g_effect_ps_find_vector_intersection = NULL;
@@ -225,7 +340,7 @@ static cd_effect_ps_get_seg_masks_fn g_effect_ps_get_seg_masks = NULL;
 static cd_effect_ps_compute_segment_center_fn g_effect_ps_compute_segment_center = NULL;
 static cd_effect_ps_add_stuck_object_fn g_effect_ps_add_stuck_object = NULL;
 static cd_effect_ps_find_connect_side_fn g_effect_ps_find_connect_side = NULL;
-static cd_effect_ps_wall_is_doorway_fn g_effect_ps_wall_is_doorway = NULL;
+static cd_effect_ps_fetch_doorway_info_fn g_effect_ps_fetch_doorway_info = NULL;
 static cd_effect_ps_create_abs_vertex_lists_and_dist_fn g_effect_ps_create_abs_vertex_lists_and_dist = NULL;
 static cd_effect_ps_tmap_is_force_field_fn g_effect_ps_tmap_is_force_field = NULL;
 static cd_effect_ps_vm_vector_2_matrix_orient_fn g_effect_ps_vm_vector_2_matrix_orient = NULL;
@@ -372,6 +487,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_openable_doors_in_segment_d1
           && g_openable_doors_in_segment_d2
           && g_do_firing_stuff
+          && g_init_ai_object_d1
+          && g_init_ai_object_d2
           && g_compute_object_light
           && g_do_physics_drag
           && g_do_homing_weapon_frame
@@ -399,10 +516,32 @@ static void cd_ox_require_ready(const char* fn)
           && g_find_point_seg
           && g_player_has_weapon_d1
           && g_player_has_weapon_d2
+          && g_p_order_list
+          && g_s_order_list
           && g_do_controlcen_frame_d1
           && g_do_controlcen_frame_d2
           && g_do_ai_frame_d1
           && g_do_ai_frame_d2
+          && g_init_ai_for_ship
+          && g_init_robots_for_level_d1
+          && g_init_robots_for_level_d2
+          && g_init_thief_for_level
+          && g_create_bfs_list
+          && g_free_object_slots
+          && g_filter_objects_from_level
+          && g_special_reset_objects
+          && g_bash_to_shield
+          && g_clear_stuck_objects
+          && g_init_ammo_and_energy
+          && g_update_player_stats
+          && g_verify_console_object
+          && g_do_lock_doors
+          && g_do_unlock_doors
+          && g_door_is_wall_switched
+          && g_flag_wall_switched_doors
+          && g_reset_walls
+          && g_wall_illusion_off
+          && g_wall_illusion_on
           && g_do_physics_sim_d1
           && g_do_physics_sim_d2))
     {
@@ -526,15 +665,47 @@ int cd_ox_init_runtime(const char* executable_path)
     g_openable_doors_in_segment_d1 = caml_named_value("cd_openable_doors_in_segment_d1");
     g_openable_doors_in_segment_d2 = caml_named_value("cd_openable_doors_in_segment_d2");
     g_do_firing_stuff = caml_named_value("cd_do_firing_stuff");
+    g_init_ai_object_d1 = caml_named_value("cd_init_ai_object_d1");
+    g_init_ai_object_d2 = caml_named_value("cd_init_ai_object_d2");
+    g_add_awareness_event = caml_named_value("cd_add_awareness_event");
+    g_create_awareness_event = caml_named_value("cd_create_awareness_event");
+    g_init_ai_frame = caml_named_value("cd_init_ai_frame");
     g_compute_object_light = caml_named_value("cd_compute_object_light");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
     g_do_homing_weapon_frame = caml_named_value("cd_do_homing_weapon_frame");
     g_player_has_weapon_d1 = caml_named_value("cd_player_has_weapon_d1");
     g_player_has_weapon_d2 = caml_named_value("cd_player_has_weapon_d2");
+    g_p_order_list = caml_named_value("cd_p_order_list");
+    g_s_order_list = caml_named_value("cd_s_order_list");
     g_do_controlcen_frame_d1 = caml_named_value("cd_do_controlcen_frame_d1");
     g_do_controlcen_frame_d2 = caml_named_value("cd_do_controlcen_frame_d2");
     g_do_ai_frame_d1 = caml_named_value("cd_do_ai_frame_d1");
     g_do_ai_frame_d2 = caml_named_value("cd_do_ai_frame_d2");
+    g_init_ai_for_ship = caml_named_value("cd_init_ai_for_ship");
+    g_init_robots_for_level_d1 = caml_named_value("cd_init_robots_for_level_d1");
+    g_init_robots_for_level_d2 = caml_named_value("cd_init_robots_for_level_d2");
+    g_init_thief_for_level = caml_named_value("cd_init_thief_for_level");
+    g_create_bfs_list = caml_named_value("cd_create_bfs_list");
+    g_free_object_slots = caml_named_value("cd_free_object_slots");
+    g_copy_defaults_to_robot = caml_named_value("cd_copy_defaults_to_robot");
+    g_copy_defaults_to_robot_all = caml_named_value("cd_copy_defaults_to_robot_all");
+    g_filter_objects_from_level = caml_named_value("cd_filter_objects_from_level");
+    g_special_reset_objects = caml_named_value("cd_special_reset_objects");
+    g_bash_to_shield = caml_named_value("cd_bash_to_shield");
+    g_clear_stuck_objects = caml_named_value("cd_clear_stuck_objects");
+    g_init_ammo_and_energy = caml_named_value("cd_init_ammo_and_energy");
+    g_update_player_stats = caml_named_value("cd_update_player_stats");
+    g_init_player_object = caml_named_value("cd_init_player_object");
+    g_verify_console_object = caml_named_value("cd_verify_console_object");
+    g_do_lock_doors = caml_named_value("cd_do_lock_doors");
+    g_do_unlock_doors = caml_named_value("cd_do_unlock_doors");
+    g_door_is_wall_switched = caml_named_value("cd_door_is_wall_switched");
+    g_flag_wall_switched_doors = caml_named_value("cd_flag_wall_switched_doors");
+    g_reset_walls = caml_named_value("cd_reset_walls");
+    g_kill_stuck_objects = caml_named_value("cd_kill_stuck_objects");
+    g_wall_illusion_off = caml_named_value("cd_wall_illusion_off");
+    g_wall_illusion_on = caml_named_value("cd_wall_illusion_on");
+    g_do_il_on = caml_named_value("cd_do_il_on");
     g_do_physics_sim_d1 = caml_named_value("cd_do_physics_sim_d1");
     g_do_physics_sim_d2 = caml_named_value("cd_do_physics_sim_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
@@ -560,6 +731,10 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
+
+    g_find_min_max = caml_named_value("cd_find_min_max");
+    g_update_points = caml_named_value("cd_update_points");
+    g_wake_up_rendered_objects = caml_named_value("cd_wake_up_rendered_objects");
 
     /* v2 callbacks (on-demand data fetching) — optional, checked separately */
     g_find_vector_intersection_v2 = caml_named_value("cd_find_vector_intersection_v2");
@@ -672,6 +847,11 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_openable_doors_in_segment_d1
         || !g_openable_doors_in_segment_d2
         || !g_do_firing_stuff
+        || !g_init_ai_object_d1
+        || !g_init_ai_object_d2
+        || !g_add_awareness_event
+        || !g_create_awareness_event
+        || !g_init_ai_frame
         || !g_compute_object_light
         || !g_do_physics_drag
         || !g_do_homing_weapon_frame
@@ -702,8 +882,32 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_do_controlcen_frame_d2
         || !g_do_ai_frame_d1
         || !g_do_ai_frame_d2
+        || !g_init_ai_for_ship
+        || !g_init_robots_for_level_d1
+        || !g_init_robots_for_level_d2
+        || !g_init_thief_for_level
+        || !g_create_bfs_list
+        || !g_bash_to_shield
+        || !g_clear_stuck_objects
+        || !g_copy_defaults_to_robot
+        || !g_copy_defaults_to_robot_all
+        || !g_filter_objects_from_level
+        || !g_init_ammo_and_energy
+        || !g_update_player_stats
+        || !g_init_player_object
+        || !g_verify_console_object
+        || !g_do_lock_doors
+        || !g_do_unlock_doors
+        || !g_door_is_wall_switched
+        || !g_flag_wall_switched_doors
+        || !g_reset_walls
+        || !g_kill_stuck_objects
+        || !g_wall_illusion_off
+        || !g_wall_illusion_on
+        || !g_do_il_on
         || !g_do_physics_sim_d1
-        || !g_do_physics_sim_d2)
+        || !g_do_physics_sim_d2
+        || !g_find_min_max)
     {
         return 1;
     }
@@ -833,8 +1037,12 @@ int cd_ox_is_ready(void)
            && g_do_controlcen_frame_d2
            && g_do_ai_frame_d1
            && g_do_ai_frame_d2
+           && g_init_ai_for_ship
+           && g_init_robots_for_level_d1
+           && g_init_robots_for_level_d2
            && g_do_physics_sim_d1
-           && g_do_physics_sim_d2;
+           && g_do_physics_sim_d2
+           && g_find_min_max;
 }
 
 int32_t cd_ox_i2f(int32_t i)
@@ -3221,6 +3429,38 @@ void cd_ox_do_firing_stuff(
     CAMLreturn0;
 }
 
+void cd_ox_init_ai_object_d1(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_init_ai_object_d1");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_init_ai_object_d1, arr);
+    for (int i = 0; i < 18; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_init_ai_object_d2(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_init_ai_object_d2");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_init_ai_object_d2, arr);
+    for (int i = 0; i < 21; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
 void cd_ox_compute_object_light(
     const int32_t* packed, int packed_len,
     int32_t* out_buf)
@@ -3532,6 +3772,30 @@ int cd_ox_player_has_weapon_d2(
         Val_int(is_omega), Val_int(omega_charge)
     };
     return Int_val(caml_callbackN(*g_player_has_weapon_d2, 9, args));
+}
+
+int cd_ox_p_order_list(const uint8_t* order, int num)
+{
+    cd_ox_require_ready("cd_ox_p_order_list");
+    value args[12] = {
+        Val_int(order[0]), Val_int(order[1]), Val_int(order[2]),
+        Val_int(order[3]), Val_int(order[4]), Val_int(order[5]),
+        Val_int(order[6]), Val_int(order[7]), Val_int(order[8]),
+        Val_int(order[9]), Val_int(order[10]), Val_int(num)
+    };
+    return Int_val(caml_callbackN(*g_p_order_list, 12, args));
+}
+
+int cd_ox_s_order_list(const uint8_t* order, int num)
+{
+    cd_ox_require_ready("cd_ox_s_order_list");
+    value args[12] = {
+        Val_int(order[0]), Val_int(order[1]), Val_int(order[2]),
+        Val_int(order[3]), Val_int(order[4]), Val_int(order[5]),
+        Val_int(order[6]), Val_int(order[7]), Val_int(order[8]),
+        Val_int(order[9]), Val_int(order[10]), Val_int(num)
+    };
+    return Int_val(caml_callbackN(*g_s_order_list, 12, args));
 }
 
 /* -- Control center frame effects + entry points ---------------------- */
@@ -4382,7 +4646,7 @@ void cd_ox_register_physics_sim_effects(
     cd_effect_ps_compute_segment_center_fn compute_segment_center,
     cd_effect_ps_add_stuck_object_fn add_stuck_object,
     cd_effect_ps_find_connect_side_fn find_connect_side,
-    cd_effect_ps_wall_is_doorway_fn wall_is_doorway,
+    cd_effect_ps_fetch_doorway_info_fn fetch_doorway_info,
     cd_effect_ps_create_abs_vertex_lists_and_dist_fn create_abs_vertex_lists_and_dist,
     cd_effect_ps_tmap_is_force_field_fn tmap_is_force_field,
     cd_effect_ps_vm_vector_2_matrix_orient_fn vm_vector_2_matrix_orient)
@@ -4399,7 +4663,7 @@ void cd_ox_register_physics_sim_effects(
     g_effect_ps_compute_segment_center = compute_segment_center;
     g_effect_ps_add_stuck_object = add_stuck_object;
     g_effect_ps_find_connect_side = find_connect_side;
-    g_effect_ps_wall_is_doorway = wall_is_doorway;
+    g_effect_ps_fetch_doorway_info = fetch_doorway_info;
     g_effect_ps_create_abs_vertex_lists_and_dist = create_abs_vertex_lists_and_dist;
     g_effect_ps_tmap_is_force_field = tmap_is_force_field;
     g_effect_ps_vm_vector_2_matrix_orient = vm_vector_2_matrix_orient;
@@ -4552,12 +4816,20 @@ CAMLprim value cd_ox_effect_ps_find_connect_side(value v_seg1, value v_seg2)
     return Val_int(result);
 }
 
-CAMLprim value cd_ox_effect_ps_wall_is_doorway(value v_seg, value v_side)
+CAMLprim value cd_ox_effect_ps_fetch_doorway_info(value v_seg, value v_side)
 {
-    int result = 0;
-    if (g_effect_ps_wall_is_doorway)
-        result = g_effect_ps_wall_is_doorway(Int_val(v_seg), Int_val(v_side));
-    return Val_int(result);
+    CAMLparam2(v_seg, v_side);
+    CAMLlocal1(v_result);
+    int32_t buf[6];
+    memset(buf, 0, sizeof(buf));
+    buf[0] = -1;  /* children_side = -1 (no child) by default */
+    buf[1] = -1;  /* wall_num = -1 (no wall) by default */
+    if (g_effect_ps_fetch_doorway_info)
+        g_effect_ps_fetch_doorway_info(Int_val(v_seg), Int_val(v_side), buf);
+    v_result = caml_alloc(6, 0);
+    for (int i = 0; i < 6; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
 }
 
 CAMLprim value cd_ox_effect_ps_create_abs_vertex_lists_and_dist(
@@ -5101,4 +5373,1485 @@ void cd_ox_do_physics_sim_d2(
     for (int i = 0; i < result_len; i++)
         result[i] = Int_val(Field(v_result, i));
     CAMLreturn0;
+}
+
+/* init_ai_for_ship: called each time the player starts a new ship */
+void cd_ox_init_ai_for_ship(
+    int32_t game_time, int32_t segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_init_ai_for_ship");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    value args[5] = {
+        Val_long(game_time), Val_long(segnum),
+        Val_long(pos_x), Val_long(pos_y), Val_long(pos_z)
+    };
+    v_result = caml_callbackN(*g_init_ai_for_ship, 5, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len && i < 40; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* init_robots_for_level D1: no inputs, returns 1-element array [overall_agitation] */
+void cd_ox_init_robots_for_level_d1(int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_init_robots_for_level_d1");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    v_result = caml_callback(*g_init_robots_for_level_d1, Val_unit);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len && i < 1; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* init_robots_for_level D2: takes difficulty_level, returns 6-element array */
+void cd_ox_init_robots_for_level_d2(int difficulty_level, int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_init_robots_for_level_d2");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    v_result = caml_callback(*g_init_robots_for_level_d2, Val_long(difficulty_level));
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len && i < 6; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* -- init_thief_for_level bridge (D2 only) ----------------------------- */
+void cd_ox_init_thief_for_level(int game_mode, int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_init_thief_for_level");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    v_result = caml_callback(*g_init_thief_for_level, Val_long(game_mode));
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len && i < 11; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* -- create_bfs_list bridge (D2 only) ---------------------------------- */
+/* Returns length via return value, fills bfs_list with segment numbers.
+   buddy_ailp_mode and player_flags are needed for segment_is_reachable
+   (called with NULL objp in C). */
+int cd_ox_create_bfs_list(int start_seg, int max_segs, int buddy_ailp_mode,
+                          int player_flags, short* bfs_list)
+{
+    cd_ox_require_ready("cd_ox_create_bfs_list");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    value args[4] = {
+        Val_long(start_seg),
+        Val_long(max_segs),
+        Val_long(buddy_ailp_mode),
+        Val_long(player_flags),
+    };
+    v_result = caml_callbackN(*g_create_bfs_list, 4, args);
+
+    int length = Int_val(Field(v_result, 0));
+    for (int i = 0; i < length; i++)
+        bfs_list[i] = (short)Int_val(Field(v_result, i + 1));
+    CAMLreturnT(int, length);
+}
+
+/* Stub: fetch danger laser object data (returns 12-element zero array until properly wired) */
+CAMLprim value cd_ox_effect_af_fetch_danger_laser_data(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_result);
+    (void)v_objnum;
+    v_result = caml_alloc(12, 0);
+    for (int i = 0; i < 12; i++)
+        Store_field(v_result, i, Val_long(0));
+    CAMLreturn(v_result);
+}
+
+/* -- Gameseq: bash_to_shield ------------------------------------------ */
+
+void cd_ox_register_gameseq_effects(
+    cd_effect_gs_fetch_bash_to_shield_data_fn fetch_bash_data,
+    cd_effect_gs_write_bash_to_shield_fn write_bash_data)
+{
+    g_effect_gs_fetch_bash_to_shield_data = fetch_bash_data;
+    g_effect_gs_write_bash_to_shield = write_bash_data;
+}
+
+void cd_ox_register_stuck_objects_effects(
+    cd_effect_gs_fetch_stuck_objects_data_fn fetch_stuck_data,
+    cd_effect_gs_write_clear_stuck_objects_fn write_clear_stuck)
+{
+    g_effect_gs_fetch_stuck_objects_data = fetch_stuck_data;
+    g_effect_gs_write_clear_stuck_objects = write_clear_stuck;
+}
+
+CAMLprim value cd_ox_effect_gs_fetch_bash_to_shield_data(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_result);
+
+    int objnum = Long_val(v_objnum);
+    int32_t out[3] = {0, 0, 0};
+    if (g_effect_gs_fetch_bash_to_shield_data)
+        g_effect_gs_fetch_bash_to_shield_data(objnum, out);
+
+    v_result = caml_alloc(3, 0);
+    for (int i = 0; i < 3; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_bash_to_shield(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_bash_to_shield) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[8];
+        if (len > 8) len = 8;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_bash_to_shield(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_bash_to_shield: C entry point that calls into OCaml */
+void cd_ox_bash_to_shield(int objnum)
+{
+    cd_ox_require_ready("cd_ox_bash_to_shield");
+    CAMLparam0();
+
+    caml_callback(*g_bash_to_shield, Val_long(objnum));
+
+    CAMLreturn0;
+}
+
+/* -- Gameseq: clear_stuck_objects --------------------------------------- */
+
+/* MAX_STUCK_OBJECTS = 32, data layout: [num_stuck, (wallnum, objnum, obj_type, obj_id) x 32] = 129 ints */
+#define GS_STUCK_DATA_LEN (1 + 32 * 4)
+
+CAMLprim value cd_ox_effect_gs_fetch_stuck_objects_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_STUCK_DATA_LEN];
+    int out_len = GS_STUCK_DATA_LEN;
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_stuck_objects_data)
+        g_effect_gs_fetch_stuck_objects_data(out, &out_len);
+
+    v_result = caml_alloc(GS_STUCK_DATA_LEN, 0);
+    for (int i = 0; i < GS_STUCK_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_clear_stuck_objects(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_clear_stuck_objects) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[64];
+        if (len > 64) len = 64;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_clear_stuck_objects(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_clear_stuck_objects: C entry point that calls into OCaml */
+void cd_ox_clear_stuck_objects(void)
+{
+    cd_ox_require_ready("cd_ox_clear_stuck_objects");
+    CAMLparam0();
+
+    caml_callback(*g_clear_stuck_objects, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- filter_objects_from_level ------------------------------------------- */
+
+/* Data layout: [highest_object_index, type_0, id_0, type_1, id_1, ...]
+   Max 350 objects → max 1 + 350*2 = 701 ints */
+#define GS_FILTER_DATA_MAX_LEN (1 + 350 * 2)
+
+void cd_ox_register_filter_objects_effects(
+    cd_effect_gs_fetch_filter_objects_data_fn fetch_data)
+{
+    g_effect_gs_fetch_filter_objects_data = fetch_data;
+}
+
+CAMLprim value cd_ox_effect_gs_fetch_filter_objects_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_FILTER_DATA_MAX_LEN];
+    int out_len = GS_FILTER_DATA_MAX_LEN;
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_filter_objects_data)
+        g_effect_gs_fetch_filter_objects_data(out, &out_len);
+
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* cd_ox_filter_objects_from_level: C entry point that calls into OCaml */
+void cd_ox_filter_objects_from_level(void)
+{
+    cd_ox_require_ready("cd_ox_filter_objects_from_level");
+    CAMLparam0();
+
+    caml_callback(*g_filter_objects_from_level, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- copy_defaults_to_robot: effect registration --------------------------- */
+
+void cd_ox_register_copy_defaults_to_robot_effects(
+    cd_effect_gs_fetch_copy_defaults_to_robot_data_fn fetch_data,
+    cd_effect_gs_write_copy_defaults_to_robot_fn write_data)
+{
+    g_effect_gs_fetch_copy_defaults_to_robot_data = fetch_data;
+    g_effect_gs_write_copy_defaults_to_robot = write_data;
+}
+
+/* Fetch copy_defaults_to_robot data: returns 10 ints
+   [obj_type, obj_id, n_robot_types, strength, is_thief, is_companion,
+    boss_flag, current_level_num, difficulty_level, is_d2] */
+#define GS_CDTR_DATA_LEN 10
+
+CAMLprim value cd_ox_effect_gs_fetch_copy_defaults_to_robot_data(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_result);
+
+    int objnum = Long_val(v_objnum);
+    int32_t out[GS_CDTR_DATA_LEN];
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_copy_defaults_to_robot_data)
+        g_effect_gs_fetch_copy_defaults_to_robot_data(objnum, out);
+
+    v_result = caml_alloc(GS_CDTR_DATA_LEN, 0);
+    for (int i = 0; i < GS_CDTR_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_copy_defaults_to_robot(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_copy_defaults_to_robot) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[4];
+        if (len > 4) len = 4;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_copy_defaults_to_robot(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_copy_defaults_to_robot: C entry point that calls into OCaml */
+void cd_ox_copy_defaults_to_robot(int objnum)
+{
+    cd_ox_require_ready("cd_ox_copy_defaults_to_robot");
+    CAMLparam0();
+
+    caml_callback(*g_copy_defaults_to_robot, Val_long(objnum));
+
+    CAMLreturn0;
+}
+
+/* cd_ox_copy_defaults_to_robot_all: C entry point that calls into OCaml */
+void cd_ox_copy_defaults_to_robot_all(void)
+{
+    cd_ox_require_ready("cd_ox_copy_defaults_to_robot_all");
+    CAMLparam0();
+
+    caml_callback(*g_copy_defaults_to_robot_all, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- init_ammo_and_energy: effect registration ----------------------------- */
+
+void cd_ox_register_init_ammo_energy_effects(
+    cd_effect_gs_fetch_init_ammo_energy_data_fn fetch_data,
+    cd_effect_gs_write_init_ammo_energy_fn write_data)
+{
+    g_effect_gs_fetch_init_ammo_energy_data = fetch_data;
+    g_effect_gs_write_init_ammo_energy = write_data;
+}
+
+/* -- init_ammo_and_energy: effect externals -------------------------------- */
+
+CAMLprim value cd_ox_effect_gs_fetch_init_ammo_energy_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[7] = {0, 0, 0, 0, 0, 0, 0};
+    if (g_effect_gs_fetch_init_ammo_energy_data)
+        g_effect_gs_fetch_init_ammo_energy_data(out);
+
+    v_result = caml_alloc(7, 0);
+    for (int i = 0; i < 7; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_init_ammo_energy(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_init_ammo_energy) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[3];
+        if (len > 3) len = 3;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_init_ammo_energy(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_init_ammo_and_energy: C entry point that calls into OCaml */
+void cd_ox_init_ammo_and_energy(void)
+{
+    cd_ox_require_ready("cd_ox_init_ammo_and_energy");
+    CAMLparam0();
+
+    caml_callback(*g_init_ammo_and_energy, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- update_player_stats: effect registration ------------------------------ */
+
+void cd_ox_register_update_player_stats_effects(
+    cd_effect_gs_fetch_update_player_stats_data_fn fetch_data,
+    cd_effect_gs_write_update_player_stats_fn write_data)
+{
+    g_effect_gs_fetch_update_player_stats_data = fetch_data;
+    g_effect_gs_write_update_player_stats = write_data;
+}
+
+/* -- update_player_stats: effect externals --------------------------------- */
+
+CAMLprim value cd_ox_effect_gs_fetch_update_player_stats_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[5] = {0, 0, 0, 0, 0};
+    if (g_effect_gs_fetch_update_player_stats_data)
+        g_effect_gs_fetch_update_player_stats_data(out);
+
+    v_result = caml_alloc(5, 0);
+    for (int i = 0; i < 5; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_update_player_stats(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_update_player_stats) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[4];
+        if (len > 4) len = 4;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_update_player_stats(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_update_player_stats: C entry point that calls into OCaml */
+void cd_ox_update_player_stats(void)
+{
+    cd_ox_require_ready("cd_ox_update_player_stats");
+    CAMLparam0();
+
+    caml_callback(*g_update_player_stats, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- special_reset_objects: effect registration ----------------------------- */
+
+void cd_ox_register_special_reset_objects_effects(
+    cd_effect_gs_fetch_special_reset_objects_data_fn fetch_data,
+    cd_effect_gs_write_special_reset_objects_fn write_data)
+{
+    g_effect_gs_fetch_special_reset_objects_data = fetch_data;
+    g_effect_gs_write_special_reset_objects = write_data;
+}
+
+/* -- special_reset_objects: effect externals -------------------------------- */
+
+/* MAX_OBJECTS = 350 */
+#define GS_SRO_DATA_LEN 350
+
+CAMLprim value cd_ox_effect_gs_fetch_special_reset_objects_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_SRO_DATA_LEN];
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_special_reset_objects_data)
+        g_effect_gs_fetch_special_reset_objects_data(out);
+
+    v_result = caml_alloc(GS_SRO_DATA_LEN, 0);
+    for (int i = 0; i < GS_SRO_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_special_reset_objects(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_special_reset_objects) {
+        int len = Wosize_val(v_packed);
+        /* Max: 2 + 350 = 352 */
+        int32_t buf[352];
+        if (len > 352) len = 352;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_special_reset_objects(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_special_reset_objects: C entry point that calls into OCaml */
+void cd_ox_special_reset_objects(void)
+{
+    cd_ox_require_ready("cd_ox_special_reset_objects");
+    CAMLparam0();
+
+    caml_callback(*g_special_reset_objects, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- verify_console_object: effect registration ----------------------------- */
+
+void cd_ox_register_verify_console_object_effects(
+    cd_effect_gs_fetch_verify_console_object_data_fn fetch_data,
+    cd_effect_gs_write_verify_console_object_fn write_data)
+{
+    g_effect_gs_fetch_verify_console_object_data = fetch_data;
+    g_effect_gs_write_verify_console_object = write_data;
+}
+
+/* Fetch verify_console_object data: returns [Player_num, objnum, obj_type, obj_id] */
+CAMLprim value cd_ox_effect_gs_fetch_verify_console_object_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[4] = {0, 0, 0, 0};
+    if (g_effect_gs_fetch_verify_console_object_data)
+        g_effect_gs_fetch_verify_console_object_data(out);
+
+    v_result = caml_alloc(4, 0);
+    for (int i = 0; i < 4; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* Write verify_console_object: set ConsoleObject = &Objects[objnum] */
+CAMLprim value cd_ox_effect_gs_write_verify_console_object(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+
+    if (g_effect_gs_write_verify_console_object) {
+        int objnum = Long_val(v_objnum);
+        g_effect_gs_write_verify_console_object(objnum);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_verify_console_object: C entry point that calls into OCaml */
+void cd_ox_verify_console_object(void)
+{
+    cd_ox_require_ready("cd_ox_verify_console_object");
+    CAMLparam0();
+
+    caml_callback(*g_verify_console_object, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- init_player_object: effect registration -------------------------------- */
+
+void cd_ox_register_init_player_object_effects(
+    cd_effect_gs_fetch_init_player_object_data_fn fetch_data,
+    cd_effect_gs_write_init_player_object_fn write_data)
+{
+    g_effect_gs_fetch_init_player_object_data = fetch_data;
+    g_effect_gs_write_init_player_object = write_data;
+}
+
+/* Fetch init_player_object data: returns [Player_num] */
+CAMLprim value cd_ox_effect_gs_fetch_init_player_object_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[1] = {0};
+    if (g_effect_gs_fetch_init_player_object_data)
+        g_effect_gs_fetch_init_player_object_data(out);
+
+    v_result = caml_alloc(1, 0);
+    Store_field(v_result, 0, Val_long(out[0]));
+    CAMLreturn(v_result);
+}
+
+/* Write init_player_object: apply player/object mutations */
+CAMLprim value cd_ox_effect_gs_write_init_player_object(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_init_player_object) {
+        int len = Wosize_val(v_packed);
+        int32_t packed[4];
+        for (int i = 0; i < len && i < 4; i++)
+            packed[i] = Long_val(Field(v_packed, i));
+        g_effect_gs_write_init_player_object(packed, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_init_player_object: C entry point that calls into OCaml */
+void cd_ox_init_player_object(void)
+{
+    cd_ox_require_ready("cd_ox_init_player_object");
+    CAMLparam0();
+
+    caml_callback(*g_init_player_object, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- Switch: effect registration ---------------------------------------- */
+
+void cd_ox_register_switch_effects(
+    cd_effect_sw_fetch_trigger_links_fn fetch_links,
+    cd_effect_sw_lock_wall_door_fn lock_door,
+    cd_effect_sw_unlock_wall_door_fn unlock_door,
+    cd_effect_sw_get_num_triggers_fn get_num_triggers,
+    cd_effect_sw_get_num_walls_fn get_num_walls,
+    cd_effect_sw_set_wall_flag_wall_switch_fn set_wall_flag)
+{
+    g_effect_sw_fetch_trigger_links = fetch_links;
+    g_effect_sw_lock_wall_door = lock_door;
+    g_effect_sw_unlock_wall_door = unlock_door;
+    g_effect_sw_get_num_triggers = get_num_triggers;
+    g_effect_sw_get_num_walls = get_num_walls;
+    g_effect_sw_set_wall_flag_wall_switch = set_wall_flag;
+}
+
+void cd_ox_register_switch_seg_side_effect(
+    cd_effect_sw_fetch_trigger_seg_sides_fn fetch_seg_sides)
+{
+    g_effect_sw_fetch_trigger_seg_sides = fetch_seg_sides;
+}
+
+/* -- Switch: effect externals ------------------------------------------- */
+
+/* Fetch trigger links: returns [num_links, wallnum0, wallnum1, ...] */
+CAMLprim value cd_ox_effect_sw_fetch_trigger_links(value v_trigger_num)
+{
+    CAMLparam1(v_trigger_num);
+    CAMLlocal1(v_result);
+    int trigger_num = Long_val(v_trigger_num);
+
+    /* MAX_WALLS_PER_LINK = 10, so max output is 1 + 10 = 11 ints */
+    int32_t buf[11];
+    int len = 0;
+    if (g_effect_sw_fetch_trigger_links) {
+        g_effect_sw_fetch_trigger_links(trigger_num, buf, &len);
+    }
+    v_result = caml_alloc(len, 0);
+    for (int i = 0; i < len; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+/* Lock a wall door: sets WALL_DOOR_LOCKED flag */
+CAMLprim value cd_ox_effect_sw_lock_wall_door(value v_wall_num)
+{
+    CAMLparam1(v_wall_num);
+    int wall_num = Long_val(v_wall_num);
+    if (g_effect_sw_lock_wall_door)
+        g_effect_sw_lock_wall_door(wall_num);
+    CAMLreturn(Val_unit);
+}
+
+/* Unlock a wall door: clears WALL_DOOR_LOCKED, sets keys=KEY_NONE */
+CAMLprim value cd_ox_effect_sw_unlock_wall_door(value v_wall_num)
+{
+    CAMLparam1(v_wall_num);
+    int wall_num = Long_val(v_wall_num);
+    if (g_effect_sw_unlock_wall_door)
+        g_effect_sw_unlock_wall_door(wall_num);
+    CAMLreturn(Val_unit);
+}
+
+/* Get number of triggers */
+CAMLprim value cd_ox_effect_sw_get_num_triggers(value v_unit)
+{
+    CAMLparam1(v_unit);
+    int n = 0;
+    if (g_effect_sw_get_num_triggers)
+        n = g_effect_sw_get_num_triggers();
+    CAMLreturn(Val_long(n));
+}
+
+/* Get number of walls */
+CAMLprim value cd_ox_effect_sw_get_num_walls(value v_unit)
+{
+    CAMLparam1(v_unit);
+    int n = 0;
+    if (g_effect_sw_get_num_walls)
+        n = g_effect_sw_get_num_walls();
+    CAMLreturn(Val_long(n));
+}
+
+/* Set WALL_WALL_SWITCH flag on a wall */
+CAMLprim value cd_ox_effect_sw_set_wall_flag_wall_switch(value v_wall_num)
+{
+    CAMLparam1(v_wall_num);
+    int wall_num = Long_val(v_wall_num);
+    if (g_effect_sw_set_wall_flag_wall_switch)
+        g_effect_sw_set_wall_flag_wall_switch(wall_num);
+    CAMLreturn(Val_unit);
+}
+
+/* Fetch trigger seg/side pairs: returns [num_links, seg0, side0, seg1, side1, ...] */
+CAMLprim value cd_ox_effect_sw_fetch_trigger_seg_sides(value v_trigger_num)
+{
+    CAMLparam1(v_trigger_num);
+    CAMLlocal1(v_result);
+    int trigger_num = Long_val(v_trigger_num);
+
+    /* MAX_WALLS_PER_LINK = 10, so max output is 1 + 10*2 = 21 ints */
+    int32_t buf[21];
+    int len = 0;
+    if (g_effect_sw_fetch_trigger_seg_sides) {
+        g_effect_sw_fetch_trigger_seg_sides(trigger_num, buf, &len);
+    }
+    v_result = caml_alloc(len, 0);
+    for (int i = 0; i < len; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+/* -- Switch: C entry points --------------------------------------------- */
+
+void cd_ox_do_lock_doors(int trigger_num)
+{
+    cd_ox_require_ready("cd_ox_do_lock_doors");
+    CAMLparam0();
+    caml_callback(*g_do_lock_doors, Val_long(trigger_num));
+    CAMLreturn0;
+}
+
+void cd_ox_do_unlock_doors(int trigger_num)
+{
+    cd_ox_require_ready("cd_ox_do_unlock_doors");
+    CAMLparam0();
+    caml_callback(*g_do_unlock_doors, Val_long(trigger_num));
+    CAMLreturn0;
+}
+
+int cd_ox_door_is_wall_switched(int wall_num)
+{
+    cd_ox_require_ready("cd_ox_door_is_wall_switched");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+    v_result = caml_callback(*g_door_is_wall_switched, Val_long(wall_num));
+    int result = Long_val(v_result);
+    CAMLreturnT(int, result);
+}
+
+void cd_ox_flag_wall_switched_doors(void)
+{
+    cd_ox_require_ready("cd_ox_flag_wall_switched_doors");
+    CAMLparam0();
+    caml_callback(*g_flag_wall_switched_doors, Val_unit);
+    CAMLreturn0;
+}
+
+void cd_ox_do_il_on(int trigger_num)
+{
+    cd_ox_require_ready("cd_ox_do_il_on");
+    CAMLparam0();
+    caml_callback(*g_do_il_on, Val_long(trigger_num));
+    CAMLreturn0;
+}
+
+/* -- Wall: effect registration ------------------------------------------ */
+
+void cd_ox_register_wall_effects(
+    cd_effect_wall_fetch_reset_walls_info_fn fetch_info,
+    cd_effect_wall_write_reset_walls_fn write_reset)
+{
+    g_effect_wall_fetch_reset_walls_info = fetch_info;
+    g_effect_wall_write_reset_walls = write_reset;
+}
+
+/* Fetch reset_walls info: returns [num_walls, is_d2] */
+CAMLprim value cd_ox_effect_wall_fetch_reset_walls_info(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[2] = {0, 0};
+    if (g_effect_wall_fetch_reset_walls_info)
+        g_effect_wall_fetch_reset_walls_info(out);
+
+    v_result = caml_alloc(2, 0);
+    Store_field(v_result, 0, Val_long(out[0]));
+    Store_field(v_result, 1, Val_long(out[1]));
+    CAMLreturn(v_result);
+}
+
+/* Write reset walls range: packed = [start_idx, end_idx_exclusive] */
+CAMLprim value cd_ox_effect_wall_write_reset_walls(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_wall_write_reset_walls) {
+        int len = Wosize_val(v_packed);
+        int32_t packed[2];
+        for (int i = 0; i < len && i < 2; i++)
+            packed[i] = Long_val(Field(v_packed, i));
+        g_effect_wall_write_reset_walls(packed, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* -- Wall: C entry point ------------------------------------------------ */
+
+void cd_ox_reset_walls(void)
+{
+    cd_ox_require_ready("cd_ox_reset_walls");
+    CAMLparam0();
+    caml_callback(*g_reset_walls, Val_unit);
+    CAMLreturn0;
+}
+
+/* -- Wall: kill_stuck_objects ---------------------------------------------- */
+
+#define KILL_STUCK_DATA_LEN (2 + 32 * 3)  /* [is_d2, num_stuck, (wallnum, objnum, obj_type) x 32] = 98 */
+
+void cd_ox_register_wall_kill_stuck_effects(
+    cd_effect_wall_fetch_kill_stuck_data_fn fetch_data,
+    cd_effect_wall_write_kill_stuck_objects_fn write_back,
+    cd_effect_wall_flush_fcd_cache_fn flush_fcd)
+{
+    g_effect_wall_fetch_kill_stuck_data = fetch_data;
+    g_effect_wall_write_kill_stuck_objects = write_back;
+    g_effect_wall_flush_fcd_cache = flush_fcd;
+}
+
+/* Fetch kill_stuck data: returns [is_d2, num_stuck, wallnum_0, objnum_0, obj_type_0, ...] */
+CAMLprim value cd_ox_effect_wall_fetch_kill_stuck_data(value v_wallnum)
+{
+    CAMLparam1(v_wallnum);
+    CAMLlocal1(v_result);
+
+    int32_t out[KILL_STUCK_DATA_LEN];
+    memset(out, 0, sizeof(out));
+    int wallnum = Int_val(v_wallnum);
+    if (g_effect_wall_fetch_kill_stuck_data)
+        g_effect_wall_fetch_kill_stuck_data(wallnum, out);
+
+    v_result = caml_alloc(KILL_STUCK_DATA_LEN, 0);
+    for (int i = 0; i < KILL_STUCK_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* Write kill_stuck_objects result: packed = [new_num_stuck, n_matches, (slot, objnum, is_weapon) x n] */
+CAMLprim value cd_ox_effect_wall_write_kill_stuck_objects(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_wall_write_kill_stuck_objects) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[128];
+        if (len > 128) len = 128;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_wall_write_kill_stuck_objects(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* Flush FCD cache effect */
+CAMLprim value cd_ox_effect_wall_flush_fcd_cache(value v_unit)
+{
+    CAMLparam1(v_unit);
+    if (g_effect_wall_flush_fcd_cache)
+        g_effect_wall_flush_fcd_cache();
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point for kill_stuck_objects */
+void cd_ox_kill_stuck_objects(int wallnum)
+{
+    cd_ox_require_ready("cd_ox_kill_stuck_objects");
+    CAMLparam0();
+    caml_callback(*g_kill_stuck_objects, Val_int(wallnum));
+    CAMLreturn0;
+}
+
+/* -- Wall: wall_illusion_on / wall_illusion_off ------------------------------ */
+
+void cd_ox_register_wall_illusion_effects(
+    cd_effect_wall_fetch_seg_children_and_wall_nums_fn fetch_seg,
+    cd_effect_wall_set_flags_fn set_flags,
+    cd_effect_wall_clear_flags_fn clear_flags)
+{
+    g_effect_wall_fetch_seg_children_and_wall_nums = fetch_seg;
+    g_effect_wall_set_flags = set_flags;
+    g_effect_wall_clear_flags = clear_flags;
+}
+
+/* Fetch segment children[0..5] and side wall_nums[0..5] = 12 ints */
+CAMLprim value cd_ox_effect_wall_fetch_seg_children_and_wall_nums(value v_segnum)
+{
+    CAMLparam1(v_segnum);
+    CAMLlocal1(v_result);
+
+    int32_t out[12];
+    memset(out, 0, sizeof(out));
+    if (g_effect_wall_fetch_seg_children_and_wall_nums)
+        g_effect_wall_fetch_seg_children_and_wall_nums(Int_val(v_segnum), out);
+
+    v_result = caml_alloc(12, 0);
+    for (int i = 0; i < 12; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* Set flags on a wall: Walls[wall_num].flags |= flags */
+CAMLprim value cd_ox_effect_wall_set_flags(value v_wall_num, value v_flags)
+{
+    if (g_effect_wall_set_flags)
+        g_effect_wall_set_flags(Int_val(v_wall_num), Int_val(v_flags));
+    return Val_unit;
+}
+
+/* Clear flags on a wall: Walls[wall_num].flags &= ~flags */
+CAMLprim value cd_ox_effect_wall_clear_flags(value v_wall_num, value v_flags)
+{
+    if (g_effect_wall_clear_flags)
+        g_effect_wall_clear_flags(Int_val(v_wall_num), Int_val(v_flags));
+    return Val_unit;
+}
+
+/* C entry point for wall_illusion_off */
+void cd_ox_wall_illusion_off(int segnum, int side)
+{
+    cd_ox_require_ready("cd_ox_wall_illusion_off");
+    CAMLparam0();
+    caml_callback2(*g_wall_illusion_off, Val_int(segnum), Val_int(side));
+    CAMLreturn0;
+}
+
+/* C entry point for wall_illusion_on */
+void cd_ox_wall_illusion_on(int segnum, int side)
+{
+    cd_ox_require_ready("cd_ox_wall_illusion_on");
+    CAMLparam0();
+    caml_callback2(*g_wall_illusion_on, Val_int(segnum), Val_int(side));
+    CAMLreturn0;
+}
+
+/* -- free_object_slots: effect registration -------------------------------- */
+
+void cd_ox_register_free_object_slots_effects(
+    cd_effect_gs_fetch_free_object_slots_data_fn fetch_data,
+    cd_effect_gs_write_free_object_slots_fn write_data)
+{
+    g_effect_gs_fetch_free_object_slots_data = fetch_data;
+    g_effect_gs_write_free_object_slots = write_data;
+}
+
+/* -- free_object_slots: effect externals ----------------------------------- */
+
+/* Data layout: [highest_object_index, is_d2, then per-object: type, flags, id, delete_objnum]
+   Max: 2 + 4*350 = 1402 */
+#define GS_FOS_DATA_LEN 1402
+
+CAMLprim value cd_ox_effect_gs_fetch_free_object_slots_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_FOS_DATA_LEN];
+    int out_len = GS_FOS_DATA_LEN;
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_free_object_slots_data)
+        g_effect_gs_fetch_free_object_slots_data(out, &out_len);
+
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_free_object_slots(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_free_object_slots) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[512];
+        if (len > 512) len = 512;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_free_object_slots(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_free_object_slots: C entry point that calls into OCaml.
+   Return value is packed into write-back array[0] by OCaml. */
+static int g_free_object_slots_retval = 0;
+
+void cd_ox_set_free_object_slots_retval(int rv)
+{
+    g_free_object_slots_retval = rv;
+}
+
+int cd_ox_free_object_slots(int num_used)
+{
+    cd_ox_require_ready("cd_ox_free_object_slots");
+    CAMLparam0();
+
+    g_free_object_slots_retval = 0;
+    caml_callback(*g_free_object_slots, Val_int(num_used));
+
+    CAMLreturn(g_free_object_slots_retval);
+}
+
+/* ── add_awareness_event ──────────────────────────────── */
+
+/* ai_do_cloak_stuff effect: reuses the existing collision-phase2 callback */
+CAMLprim value cd_ox_effect_aae_ai_do_cloak_stuff(value v_unit)
+{
+    (void)v_unit;
+    if (g_effect_ps_ai_do_cloak_stuff)
+        g_effect_ps_ai_do_cloak_stuff();
+    return Val_unit;
+}
+
+/* C entry point: calls OCaml add_awareness_event, writes back event data.
+   Returns the function's return value (0 = filtered, 1 = not filtered).
+   If an event should be stored, writes to Awareness_events and increments
+   *p_num_awareness_events. */
+int cd_ox_add_awareness_event(
+    int atype, int obj_id, int obj_segnum,
+    int obj_pos_x, int obj_pos_y, int obj_pos_z,
+    int num_awareness_events, int is_d2,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_add_awareness_event");
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    result = caml_callbackN(*g_add_awareness_event, 8, (value[]){
+        Val_int(atype), Val_int(obj_id), Val_int(obj_segnum),
+        Val_int(obj_pos_x), Val_int(obj_pos_y), Val_int(obj_pos_z),
+        Val_int(num_awareness_events), Val_int(is_d2)
+    });
+
+    /* result is an OCaml array of 7 ints:
+       [0] = return value, [1] = should_store,
+       [2..6] = segnum, pos_x, pos_y, pos_z, event_type */
+    for (int i = 0; i < 7; i++)
+        out_buf[i] = (int32_t)Long_val(Field(result, i));
+
+    CAMLreturn(out_buf[0]);
+}
+
+/* create_awareness_event: wraps add_awareness_event with multiplayer check
+   and Overall_agitation update.
+   Input (10 ints): atype, obj_id, obj_segnum, obj_pos_x/y/z,
+     num_awareness_events, is_d2, game_mode, overall_agitation
+   Output (7 ints): new_overall_agitation, should_store, event_segnum,
+     event_pos_x/y/z, event_type */
+void cd_ox_create_awareness_event(
+    int atype, int obj_id, int obj_segnum,
+    int obj_pos_x, int obj_pos_y, int obj_pos_z,
+    int num_awareness_events, int is_d2, int game_mode, int overall_agitation,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_create_awareness_event");
+    CAMLparam0();
+    CAMLlocal2(v_packed, result);
+
+    v_packed = caml_alloc(10, 0);
+    Store_field(v_packed, 0, Val_long(atype));
+    Store_field(v_packed, 1, Val_long(obj_id));
+    Store_field(v_packed, 2, Val_long(obj_segnum));
+    Store_field(v_packed, 3, Val_long(obj_pos_x));
+    Store_field(v_packed, 4, Val_long(obj_pos_y));
+    Store_field(v_packed, 5, Val_long(obj_pos_z));
+    Store_field(v_packed, 6, Val_long(num_awareness_events));
+    Store_field(v_packed, 7, Val_long(is_d2));
+    Store_field(v_packed, 8, Val_long(game_mode));
+    Store_field(v_packed, 9, Val_long(overall_agitation));
+
+    result = caml_callback(*g_create_awareness_event, v_packed);
+
+    /* result is an OCaml array of 7 ints:
+       [0] = new_overall_agitation, [1] = should_store,
+       [2..6] = segnum, pos_x, pos_y, pos_z, event_type */
+    for (int i = 0; i < 7; i++)
+        out_buf[i] = (int32_t)Long_val(Field(result, i));
+
+    CAMLreturn0;
+}
+
+/* init_ai_frame: called once per game frame to set up AI globals.
+   Input: 14 ints, Output: 6 ints */
+void cd_ox_init_ai_frame(
+    int32_t lfup_x, int32_t lfup_y, int32_t lfup_z,
+    int32_t bp_x, int32_t bp_y, int32_t bp_z,
+    int is_shareware, int32_t player_flags,
+    int32_t console_x, int32_t console_y, int32_t console_z, int32_t console_segnum,
+    int32_t afterburner_charge, int afterburner_state,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_init_ai_frame");
+    CAMLparam0();
+    CAMLlocal2(v_packed, result);
+
+    v_packed = caml_alloc(14, 0);
+    Store_field(v_packed, 0, Val_long(lfup_x));
+    Store_field(v_packed, 1, Val_long(lfup_y));
+    Store_field(v_packed, 2, Val_long(lfup_z));
+    Store_field(v_packed, 3, Val_long(bp_x));
+    Store_field(v_packed, 4, Val_long(bp_y));
+    Store_field(v_packed, 5, Val_long(bp_z));
+    Store_field(v_packed, 6, Val_long(is_shareware));
+    Store_field(v_packed, 7, Val_long(player_flags));
+    Store_field(v_packed, 8, Val_long(console_x));
+    Store_field(v_packed, 9, Val_long(console_y));
+    Store_field(v_packed, 10, Val_long(console_z));
+    Store_field(v_packed, 11, Val_long(console_segnum));
+    Store_field(v_packed, 12, Val_long(afterburner_charge));
+    Store_field(v_packed, 13, Val_long(afterburner_state));
+
+    result = caml_callback(*g_init_ai_frame, v_packed);
+
+    for (int i = 0; i < 6; i++)
+        out_buf[i] = (int32_t)Long_val(Field(result, i));
+
+    CAMLreturn0;
+}
+
+/* -- Object detach registration + CAMLprim wrappers --------------------- */
+
+void cd_ox_register_obj_detach_effects(
+    cd_obj_detach_one_fn detach_one,
+    cd_get_attached_obj_fn get_attached)
+{
+    g_obj_detach_one = detach_one;
+    g_get_attached_obj = get_attached;
+}
+
+CAMLprim value cd_ox_effect_obj_detach_one(value v_objnum)
+{
+    if (g_obj_detach_one) g_obj_detach_one(Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_get_attached_obj(value v_objnum)
+{
+    if (g_get_attached_obj) return Val_int(g_get_attached_obj(Int_val(v_objnum)));
+    return Val_int(-1);
+}
+
+/* -- Object segment search: CAMLprim wrappers for is_object_in_seg deps -- */
+
+/* These read game state directly via registered callbacks. */
+static cd_get_seg_first_object_fn g_get_seg_first_object = NULL;
+static cd_get_obj_next_fn g_get_obj_next = NULL;
+static cd_get_highest_segment_index_fn g_get_highest_segment_index = NULL;
+
+void cd_ox_register_obj_search_effects(
+    cd_get_seg_first_object_fn get_seg_first_object,
+    cd_get_obj_next_fn get_obj_next,
+    cd_get_highest_segment_index_fn get_highest_segment_index)
+{
+    g_get_seg_first_object = get_seg_first_object;
+    g_get_obj_next = get_obj_next;
+    g_get_highest_segment_index = get_highest_segment_index;
+}
+
+CAMLprim value cd_ox_get_seg_first_object(value v_segnum)
+{
+    if (g_get_seg_first_object) return Val_int(g_get_seg_first_object(Int_val(v_segnum)));
+    return Val_int(-1);
+}
+
+CAMLprim value cd_ox_get_obj_next(value v_objnum)
+{
+    if (g_get_obj_next) return Val_int(g_get_obj_next(Int_val(v_objnum)));
+    return Val_int(-1);
+}
+
+CAMLprim value cd_ox_get_highest_segment_index(value v_unit)
+{
+    (void)v_unit;
+    if (g_get_highest_segment_index) return Val_int(g_get_highest_segment_index());
+    return Val_int(0);
+}
+
+/* C entry point: calls OCaml search_all_segments_for_object.
+   Returns count of segment links for the given object. */
+static const value* g_search_all_segments_for_object = NULL;
+
+int cd_ox_search_all_segments_for_object(int objnum)
+{
+    cd_ox_require_ready("cd_ox_search_all_segments_for_object");
+    if (!g_search_all_segments_for_object)
+        g_search_all_segments_for_object = caml_named_value("search_all_segments_for_object");
+    if (!g_search_all_segments_for_object) return 0;
+    value v_result = caml_callback(*g_search_all_segments_for_object, Val_int(objnum));
+    return Int_val(v_result);
+}
+
+/* C entry point: calls OCaml set_robot_location_info.
+   Returns 1 if danger_laser fields should be updated, 0 otherwise. */
+static const value* g_set_robot_location_info = NULL;
+
+int cd_ox_set_robot_location_info(
+    int32_t player_fired_laser, int32_t obj_px, int32_t obj_py, int32_t obj_pz,
+    int32_t vp_x, int32_t vp_y, int32_t vp_z,
+    int32_t r1, int32_t r2, int32_t r3,
+    int32_t u1, int32_t u2, int32_t u3,
+    int32_t f1, int32_t f2, int32_t f3,
+    int32_t laser_sig,
+    int32_t* out_danger_num, int32_t* out_danger_sig)
+{
+    cd_ox_require_ready("cd_ox_set_robot_location_info");
+    if (!g_set_robot_location_info)
+        g_set_robot_location_info = caml_named_value("cd_set_robot_location_info");
+    if (!g_set_robot_location_info) return 0;
+    value args[17] = {
+        Val_long(player_fired_laser),
+        Val_long(obj_px), Val_long(obj_py), Val_long(obj_pz),
+        Val_long(vp_x), Val_long(vp_y), Val_long(vp_z),
+        Val_long(r1), Val_long(r2), Val_long(r3),
+        Val_long(u1), Val_long(u2), Val_long(u3),
+        Val_long(f1), Val_long(f2), Val_long(f3),
+        Val_long(laser_sig),
+    };
+    value result = caml_callbackN(*g_set_robot_location_info, 17, args);
+    int should_update = Int_val(Field(result, 0));
+    if (should_update) {
+        *out_danger_num = Int_val(Field(result, 1));
+        *out_danger_sig = Int_val(Field(result, 2));
+    }
+    return should_update;
+}
+
+/* ====================================================================== */
+/* Morph: effect registration + externals + entry point                   */
+/* ====================================================================== */
+
+void cd_ox_register_morph_effects(
+    cd_effect_morph_fetch_submodel_vertices_fn fetch_verts)
+{
+    g_effect_morph_fetch_submodel_vertices = fetch_verts;
+}
+
+/* C external: OCaml calls this to fetch submodel vertex data from polymodel.
+   Returns int array [x0,y0,z0, x1,y1,z1, ...]. */
+CAMLprim value cd_ox_effect_morph_fetch_submodel_vertices(value v_model_num, value v_submodel_num)
+{
+    CAMLparam2(v_model_num, v_submodel_num);
+    CAMLlocal1(v_arr);
+
+    /* Max vertices in a submodel — generous upper bound */
+    #define MAX_MORPH_VERTS 1000
+    int32_t verts[MAX_MORPH_VERTS * 3];
+    int count = 0;
+
+    if (g_effect_morph_fetch_submodel_vertices)
+        g_effect_morph_fetch_submodel_vertices(
+            Int_val(v_model_num), Int_val(v_submodel_num), verts, &count);
+
+    int arr_len = count * 3;
+    if (arr_len <= 0) {
+        /* Return minimal 1-vertex array to avoid assert failure */
+        v_arr = caml_alloc(3, 0);
+        Store_field(v_arr, 0, Val_long(0));
+        Store_field(v_arr, 1, Val_long(0));
+        Store_field(v_arr, 2, Val_long(0));
+        CAMLreturn(v_arr);
+    }
+
+    v_arr = caml_alloc(arr_len, 0);
+    for (int i = 0; i < arr_len; i++)
+        Store_field(v_arr, i, Val_long(verts[i]));
+
+    CAMLreturn(v_arr);
+}
+
+/* C entry point: calls OCaml find_min_max.
+   out_min[3], out_max[3] receive the bounding box. */
+void cd_ox_find_min_max(int model_num, int submodel_num,
+    int32_t* out_min, int32_t* out_max)
+{
+    cd_ox_require_ready("cd_ox_find_min_max");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    v_result = caml_callback2(*g_find_min_max, Val_int(model_num), Val_int(submodel_num));
+
+    out_min[0] = Int_val(Field(v_result, 0));
+    out_min[1] = Int_val(Field(v_result, 1));
+    out_min[2] = Int_val(Field(v_result, 2));
+    out_max[0] = Int_val(Field(v_result, 3));
+    out_max[1] = Int_val(Field(v_result, 4));
+    out_max[2] = Int_val(Field(v_result, 5));
+    CAMLreturn0;
+}
+
+/* C entry point: pack morph data, call OCaml update_points, unpack results.
+   Input array: [frame_time, nverts, n_morphing_points,
+     morph_times[0], vecs[0].x,y,z, deltas[0].x,y,z, final[0].x,y,z, ...]
+   Output array: [n_morphing_points, times[0], vecs[0].x,y,z, ...] */
+void cd_ox_update_points(int morph_slot, int submodel_num,
+    int32_t frame_time,
+    int nverts, int start_index,
+    int32_t* n_morphing_points,
+    int32_t* morph_times,
+    int32_t* morph_vecs,
+    int32_t* morph_deltas,
+    int32_t* final_verts)
+{
+    cd_ox_require_ready("cd_ox_update_points");
+    if (!g_update_points) return;
+
+    CAMLparam0();
+    CAMLlocal2(v_input, v_result);
+
+    int arr_len = 3 + nverts * 10;
+    v_input = caml_alloc(arr_len, 0);
+    Store_field(v_input, 0, Val_long(frame_time));
+    Store_field(v_input, 1, Val_long(nverts));
+    Store_field(v_input, 2, Val_long(*n_morphing_points));
+
+    for (int v = 0; v < nverts; v++) {
+        int base = 3 + v * 10;
+        Store_field(v_input, base + 0, Val_long(morph_times[v]));
+        Store_field(v_input, base + 1, Val_long(morph_vecs[v * 3 + 0]));
+        Store_field(v_input, base + 2, Val_long(morph_vecs[v * 3 + 1]));
+        Store_field(v_input, base + 3, Val_long(morph_vecs[v * 3 + 2]));
+        Store_field(v_input, base + 4, Val_long(morph_deltas[v * 3 + 0]));
+        Store_field(v_input, base + 5, Val_long(morph_deltas[v * 3 + 1]));
+        Store_field(v_input, base + 6, Val_long(morph_deltas[v * 3 + 2]));
+        Store_field(v_input, base + 7, Val_long(final_verts[v * 3 + 0]));
+        Store_field(v_input, base + 8, Val_long(final_verts[v * 3 + 1]));
+        Store_field(v_input, base + 9, Val_long(final_verts[v * 3 + 2]));
+    }
+
+    v_result = caml_callback(*g_update_points, v_input);
+
+    *n_morphing_points = Long_val(Field(v_result, 0));
+    for (int v = 0; v < nverts; v++) {
+        int obase = 1 + v * 4;
+        morph_times[v] = Long_val(Field(v_result, obase + 0));
+        morph_vecs[v * 3 + 0] = Long_val(Field(v_result, obase + 1));
+        morph_vecs[v * 3 + 1] = Long_val(Field(v_result, obase + 2));
+        morph_vecs[v * 3 + 2] = Long_val(Field(v_result, obase + 3));
+    }
+
+    CAMLreturn0;
+}
+
+/* ====================================================================== */
+/* wake_up_rendered_objects: effect registration + externals + entry point */
+/* ====================================================================== */
+
+void cd_ox_register_wake_up_effects(
+    cd_effect_fetch_wake_up_context_fn fetch_ctx,
+    cd_effect_fetch_ai_local_awareness_fn fetch_awareness,
+    cd_effect_apply_wake_up_fn apply_wake_up)
+{
+    g_effect_fetch_wake_up_context = fetch_ctx;
+    g_effect_fetch_ai_local_awareness = fetch_awareness;
+    g_effect_apply_wake_up = apply_wake_up;
+}
+
+/* C external: OCaml calls this to fetch wake-up context data.
+   Returns int array:
+   [0]=frame_count [1]=window_frame [2]=viewer_px [3]=viewer_py [4]=viewer_pz
+   [5]=num_rendered [6..]=per-object data (objnum, type, px, py, pz) x num_rendered */
+CAMLprim value cd_ox_effect_fetch_wake_up_context(value v_window_num)
+{
+    CAMLparam1(v_window_num);
+    CAMLlocal1(v_result);
+
+    int window_num = Long_val(v_window_num);
+    /* Max: 6 header + 50 objects * 5 fields = 256 */
+    int32_t out[256];
+    int out_len = 0;
+
+    if (g_effect_fetch_wake_up_context)
+        g_effect_fetch_wake_up_context(window_num, out, &out_len);
+
+    if (out_len <= 0) out_len = 6; /* minimal header */
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* C external: OCaml calls this to get ai_local player_awareness_type */
+CAMLprim value cd_ox_effect_fetch_ai_local_awareness(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    int objnum = Long_val(v_objnum);
+    int result = 0;
+    if (g_effect_fetch_ai_local_awareness)
+        result = g_effect_fetch_ai_local_awareness(objnum);
+    CAMLreturn(Val_long(result));
+}
+
+/* C external: OCaml calls this to apply wake-up mutations.
+   packed: [0]=valid [1]=num_wakeups [2]=viewer_objnum [3..]=objnums */
+CAMLprim value cd_ox_effect_apply_wake_up(value v_packed)
+{
+    CAMLparam1(v_packed);
+    if (g_effect_apply_wake_up) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[64];
+        if (len > 64) len = 64;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_apply_wake_up(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point: calls OCaml wake_up_rendered_objects */
+void cd_ox_wake_up_rendered_objects(int viewer_objnum, int window_num)
+{
+    cd_ox_require_ready("cd_ox_wake_up_rendered_objects");
+    if (!g_wake_up_rendered_objects) return;
+
+    CAMLparam0();
+    caml_callback2(*g_wake_up_rendered_objects,
+                   Val_long(viewer_objnum), Val_long(window_num));
+    CAMLreturn0;
+}
+
+/* -- obj_allocate effect infrastructure --------------------------------- */
+
+static cd_effect_fetch_obj_allocate_data_fn g_effect_fetch_obj_allocate_data = NULL;
+static cd_effect_write_obj_allocate_result_fn g_effect_write_obj_allocate_result = NULL;
+static cd_effect_call_free_object_slots_fn g_effect_call_free_object_slots = NULL;
+static const value* g_obj_allocate = NULL;
+
+void cd_ox_register_obj_allocate_effects(
+    cd_effect_fetch_obj_allocate_data_fn fetch,
+    cd_effect_write_obj_allocate_result_fn write,
+    cd_effect_call_free_object_slots_fn call_fos)
+{
+    g_effect_fetch_obj_allocate_data = fetch;
+    g_effect_write_obj_allocate_result = write;
+    g_effect_call_free_object_slots = call_fos;
+}
+
+/* OCaml external: fetch obj allocate data as int array */
+CAMLprim value cd_ox_effect_fetch_obj_allocate_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+    (void)v_unit;
+
+    int32_t buf[512];
+    int len = 0;
+    if (g_effect_fetch_obj_allocate_data)
+        g_effect_fetch_obj_allocate_data(buf, &len);
+
+    v_result = caml_alloc(len, 0);
+    for (int i = 0; i < len; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+
+    CAMLreturn(v_result);
+}
+
+/* OCaml external: write back obj allocate result */
+CAMLprim value cd_ox_effect_write_obj_allocate_result(value v_packed)
+{
+    CAMLparam1(v_packed);
+    if (g_effect_write_obj_allocate_result) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[16];
+        if (len > 16) len = 16;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_write_obj_allocate_result(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* OCaml external: call free_object_slots from OCaml */
+CAMLprim value cd_ox_effect_call_free_object_slots(value v_num_used)
+{
+    CAMLparam1(v_num_used);
+    if (g_effect_call_free_object_slots)
+        g_effect_call_free_object_slots(Int_val(v_num_used));
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point: calls OCaml obj_allocate, returns objnum or -1 */
+int cd_ox_obj_allocate(void)
+{
+    cd_ox_require_ready("cd_ox_obj_allocate");
+    if (!g_obj_allocate)
+        g_obj_allocate = caml_named_value("cd_obj_allocate");
+    if (!g_obj_allocate) return -1;
+
+    value v_result = caml_callback(*g_obj_allocate, Val_unit);
+    return Int_val(v_result);
 }

@@ -391,3 +391,317 @@ let do_firing_stuff (packed : int array) =
   result.(2) <- !awareness_time;
   result
 ;;
+
+(* ── init_ai_object ────────────────────────────────────── *)
+
+(* Constants *)
+let ais_srch = 2
+let ais_rest = 1
+let ri_cloaked_always = 1
+let pf_bounce = 0x04
+let pf_turnroll = 0x01
+
+(* D1: init_ai_object
+   Packed input [6]:
+     [0] behavior       [1] hide_segment    [2] cloak_type
+     [3] cur_aip_behavior [4] game_time     [5] phys_flags
+   D1 MIN_BEHAVIOR=0x80, MAX_BEHAVIOR=0x85
+
+   Returns array [18]:
+     [0] aip_behavior   [1] ailp_mode       [2] ailp_previous_visibility
+     [3] aip_goal_state  [4] aip_current_state
+     [5] ailp_player_awareness_time [6] ailp_player_awareness_type
+     [7] ailp_time_player_seen [8] ailp_next_misc_sound_time
+     [9] ailp_time_player_sound_attacked
+     [10] aip_hide_segment [11] ailp_goal_segment
+     [12] aip_hide_index   [13] aip_cur_path_index
+     [14] aip_skip_ai_count [15] aip_cloaked
+     [16] new_phys_flags   [17] aip_remote_owner
+   Values of -2 in [10]-[13] mean "don't write back" *)
+let init_ai_object_d1 (packed : int array) =
+  let behavior = ref packed.(0) in
+  let hide_segment = packed.(1) in
+  let cloak_type = packed.(2) in
+  let cur_aip_behavior = ref packed.(3) in
+  let game_time = packed.(4) in
+  let phys_flags = packed.(5) in
+  (* if behavior == 0, bash to AIB_NORMAL *)
+  if !behavior = 0 then begin
+    behavior := aib_normal_d1;
+    cur_aip_behavior := aib_normal_d1
+  end;
+  (* mode is now set from the Robot dialog, so this should get overwritten *)
+  let mode = ref aim_still in
+  let previous_visibility = 0 in
+  if !behavior <> -1 then begin
+    cur_aip_behavior := !behavior;
+    mode := ai_behavior_to_mode_d1 ~behavior:!cur_aip_behavior
+  end else if not (!cur_aip_behavior >= 0x80 && !cur_aip_behavior <= 0x85) then
+    cur_aip_behavior := aib_normal_d1;
+  (* vm_vec_zero velocity — handled by writing 0s back *)
+  let goal_state = ais_srch in
+  let current_state = ais_rest in
+  (* hide_segment path setup *)
+  let out_hide_segment = ref (-2) in
+  let out_goal_segment = ref (-2) in
+  let out_hide_index = ref (-2) in
+  let out_cur_path_index = ref (-2) in
+  if !behavior = aib_hide_d1 || !behavior = aib_follow_path_d1
+     || !behavior = aib_station_d1 || !behavior = aib_run_from_d1
+  then begin
+    out_hide_segment := hide_segment;
+    out_goal_segment := hide_segment;
+    out_hide_index := -1;
+    out_cur_path_index := 0
+  end;
+  let cloaked = if cloak_type = ri_cloaked_always then 1 else 0 in
+  let new_phys_flags = phys_flags lor pf_bounce lor pf_turnroll in
+  [| !cur_aip_behavior; !mode; previous_visibility;
+     goal_state; current_state;
+     0; 0;  (* player_awareness_time, player_awareness_type *)
+     game_time; game_time; game_time;  (* time_player_seen, next_misc_sound_time, time_player_sound_attacked *)
+     !out_hide_segment; !out_goal_segment; !out_hide_index; !out_cur_path_index;
+     0; cloaked;  (* skip_ai_count, cloaked *)
+     new_phys_flags; -1 |]  (* phys_flags, remote_owner *)
+;;
+
+(* D2: init_ai_object
+   Packed input [9]:
+     [0] behavior       [1] hide_segment    [2] cloak_type
+     [3] cur_aip_behavior [4] game_time     [5] phys_flags
+     [6] is_companion    [7] is_thief       [8] attack_type
+   D2 MIN_BEHAVIOR=0x80, MAX_BEHAVIOR=0x86
+
+   Returns array [21]:
+     [0]-[17] same as D1
+     [18] escort_kill_object (-2 = don't write)
+     [19] aip_dying_sound_playing
+     [20] aip_dying_start_time *)
+let init_ai_object_d2 (packed : int array) =
+  let behavior = ref packed.(0) in
+  let hide_segment = packed.(1) in
+  let cloak_type = packed.(2) in
+  let cur_aip_behavior = ref packed.(3) in
+  let game_time = packed.(4) in
+  let phys_flags = packed.(5) in
+  let is_companion = packed.(6) <> 0 in
+  let is_thief = packed.(7) <> 0 in
+  let attack_type = packed.(8) in
+  (* if behavior == 0, bash to AIB_NORMAL *)
+  if !behavior = 0 then begin
+    behavior := aib_normal_d2;
+    cur_aip_behavior := aib_normal_d2
+  end;
+  let mode = ref aim_still in
+  let previous_visibility = 0 in
+  let escort_kill_object = ref (-2) in  (* -2 = don't write *)
+  if !behavior <> -1 then begin
+    cur_aip_behavior := !behavior;
+    mode := ai_behavior_to_mode_d2 ~behavior:!cur_aip_behavior
+  end else if not (!cur_aip_behavior >= 0x80 && !cur_aip_behavior <= 0x86) then
+    cur_aip_behavior := aib_normal_d2;
+  if is_companion then begin
+    mode := aim_goto_player;
+    escort_kill_object := -1
+  end;
+  if is_thief then begin
+    cur_aip_behavior := aib_snipe_d2;
+    mode := 17  (* AIM_THIEF_WAIT *)
+  end;
+  if attack_type <> 0 then begin
+    cur_aip_behavior := aib_normal_d2;
+    mode := ai_behavior_to_mode_d2 ~behavior:!cur_aip_behavior
+  end;
+  let goal_state = ais_srch in
+  let current_state = ais_rest in
+  let out_hide_segment = ref (-2) in
+  let out_goal_segment = ref (-2) in
+  let out_hide_index = ref (-2) in
+  let out_cur_path_index = ref (-2) in
+  if !behavior = aib_snipe_d2 || !behavior = aib_station_d2
+     || !behavior = aib_run_from_d2 || !behavior = aib_follow_d2
+  then begin
+    out_hide_segment := hide_segment;
+    out_goal_segment := hide_segment;
+    out_hide_index := -1;
+    out_cur_path_index := 0
+  end;
+  let cloaked = if cloak_type = ri_cloaked_always then 1 else 0 in
+  let new_phys_flags = phys_flags lor pf_bounce lor pf_turnroll in
+  [| !cur_aip_behavior; !mode; previous_visibility;
+     goal_state; current_state;
+     0; 0;
+     game_time; game_time; game_time;
+     !out_hide_segment; !out_goal_segment; !out_hide_index; !out_cur_path_index;
+     0; cloaked;
+     new_phys_flags; -1;
+     !escort_kill_object; 0; 0 |]  (* escort_kill_object, dying_sound_playing, dying_start_time *)
+;;
+
+(* ── init_robots_for_level ─────────────────────────────── *)
+
+(* D1: just sets Overall_agitation = 0
+   Returns: [| overall_agitation |] *)
+let init_robots_for_level_d1 () =
+  [| 0 |]
+;;
+
+(* D2: sets several globals for new level.
+   Input: difficulty_level (0-4)
+   Returns: [| overall_agitation; final_boss_is_dead; buddy_objnum;
+               buddy_allowed_to_talk; boss_invulnerable_dot; boss_dying_start_time |] *)
+let init_robots_for_level_d2 ~difficulty_level =
+  let boss_invulnerable_dot = f1_0 / 4 - (difficulty_level * f1_0) / 8 in
+  [| 0; 0; 0; 0; boss_invulnerable_dot; 0 |]
+;;
+
+(* ── add_awareness_event ─────────────────────────────── *)
+
+(* PA_* constants *)
+let pa_weapon_wall_collision = 2
+let pa_player_collision = 3
+let pa_weapon_robot_collision = 4
+
+(* VULCAN_ID = 11 in both D1 and D2 *)
+let vulcan_id = 11
+
+(* MAX_AWARENESS_EVENTS = 64 *)
+let max_awareness_events = 64
+
+type _ Effect.t += Ai_do_cloak_stuff : unit Effect.t
+
+(* add_awareness_event: returns packed int array.
+   result[0] = return value (0 = filtered, 1 = not filtered)
+   result[1] = 1 if event should be stored, 0 otherwise
+   result[2..6] = event data (segnum, pos_x, pos_y, pos_z, type) if result[1]=1
+   Inputs: atype, obj_id, obj_segnum, obj_pos_x/y/z, num_awareness_events, is_d2 *)
+let add_awareness_event ~atype ~obj_id ~obj_segnum ~obj_pos_x ~obj_pos_y ~obj_pos_z
+    ~num_awareness_events ~is_d2 =
+  (* If player cloaked and hit a robot, then increase awareness *)
+  if atype = pa_weapon_robot_collision
+     || atype = pa_weapon_wall_collision
+     || atype = pa_player_collision
+  then
+    Effect.perform Ai_do_cloak_stuff;
+
+  if num_awareness_events < max_awareness_events then begin
+    (* For vulcan cannon, only about 1/10 actually cause awareness *)
+    if (atype = pa_weapon_wall_collision || atype = pa_weapon_robot_collision)
+       && obj_id = vulcan_id
+       && Ox_misc.p_rand () > 3276
+    then
+      [| 0; 0; 0; 0; 0; 0; 0 |]
+    else
+      [| 1; 1; obj_segnum; obj_pos_x; obj_pos_y; obj_pos_z; atype |]
+  end else begin
+    if not is_d2 then
+      (* D1: Assert(0) — overflow warning *)
+      Ox_misc.int3 ();
+    (* D2: commented-out Int3(), just ignore overflow *)
+    [| 1; 0; 0; 0; 0; 0; 0 |]
+  end
+;;
+
+(* ── create_awareness_event ─────────────────────────────── *)
+(* GM_MULTI = 38, GM_MULTI_ROBOTS = 8 *)
+let gm_multi = 38
+let gm_multi_robots = 8
+let overall_agitation_max = 100
+
+(* create_awareness_event: wraps add_awareness_event with multiplayer check
+   and Overall_agitation update.
+   Input (10 ints):
+     [0] atype, [1] obj_id, [2] obj_segnum,
+     [3] obj_pos_x, [4] obj_pos_y, [5] obj_pos_z,
+     [6] num_awareness_events, [7] is_d2, [8] game_mode, [9] overall_agitation
+   Output (8 ints):
+     [0] new_overall_agitation,
+     [1] should_store, [2] event_segnum, [3] event_pos_x, [4] event_pos_y,
+     [5] event_pos_z, [6] event_type *)
+let create_awareness_event (packed : int array) =
+  let atype = packed.(0) in
+  let obj_id = packed.(1) in
+  let obj_segnum = packed.(2) in
+  let obj_pos_x = packed.(3) in
+  let obj_pos_y = packed.(4) in
+  let obj_pos_z = packed.(5) in
+  let num_awareness_events = packed.(6) in
+  let is_d2 = packed.(7) <> 0 in
+  let game_mode = packed.(8) in
+  let overall_agitation = ref packed.(9) in
+  (* D2: if not in multiplayer, or in multiplayer with robots *)
+  (* D1: no multiplayer check *)
+  let dominated_by_mp =
+    if is_d2 then
+      game_mode land gm_multi <> 0 && game_mode land gm_multi_robots = 0
+    else
+      false
+  in
+  if not dominated_by_mp then begin
+    let aae_result = add_awareness_event ~atype ~obj_id ~obj_segnum
+        ~obj_pos_x ~obj_pos_y ~obj_pos_z
+        ~num_awareness_events ~is_d2 in
+    let returned = aae_result.(0) in
+    if returned <> 0 then begin
+      if (Ox_misc.p_rand () * (atype + 4)) asr 15 > 4 then
+        overall_agitation := !overall_agitation + 1;
+      if !overall_agitation > overall_agitation_max then
+        overall_agitation := overall_agitation_max
+    end;
+    [| !overall_agitation; aae_result.(1); aae_result.(2); aae_result.(3);
+       aae_result.(4); aae_result.(5); aae_result.(6) |]
+  end else
+    [| !overall_agitation; 0; 0; 0; 0; 0; 0 |]
+;;
+
+(* init_ai_frame: called once per game frame to set up AI globals.
+   Input packed array (14 ints):
+     [0..2] = Last_fired_upon_player_pos (x, y, z)
+     [3..5] = Believed_player_pos (x, y, z)
+     [6]    = is_shareware
+     [7]    = player_flags
+     [8..10] = ConsoleObject->pos (x, y, z)
+     [11]   = ConsoleObject->segnum
+     [12]   = Afterburner_charge
+     [13]   = afterburner_state
+   Output packed array (6 ints):
+     [0] = Dist_to_last_fired_upon_player_pos
+     [1] = should_update_believed (1 if shareware && cloaked)
+     [2] = new Believed_player_seg
+     [3..5] = new Believed_player_pos (x, y, z) *)
+let player_flags_cloaked = 2048
+let player_flags_afterburner = 4096
+let player_flags_headlight_on = 16384
+
+let init_ai_frame (packed : int array) =
+  let lfup_x = packed.(0) and lfup_y = packed.(1) and lfup_z = packed.(2) in
+  let bp_x = packed.(3) and bp_y = packed.(4) and bp_z = packed.(5) in
+  let is_shareware = packed.(6) in
+  let player_flags = packed.(7) in
+  let console_x = packed.(8) and console_y = packed.(9) and console_z = packed.(10) in
+  let console_segnum = packed.(11) in
+  let afterburner_charge = packed.(12) in
+  let afterburner_state = packed.(13) in
+  let dist = Ox_math.vm_vec_dist_quick
+    ~a:(lfup_x, lfup_y, lfup_z)
+    ~b:(bp_x, bp_y, bp_z)
+  in
+  if is_shareware <> 0 then begin
+    if player_flags land player_flags_cloaked <> 0 then
+      [| dist; 1; console_segnum; console_x; console_y; console_z |]
+    else
+      [| dist; 0; 0; 0; 0; 0 |]
+  end else begin
+    let ab_state =
+      afterburner_charge <> 0
+      && afterburner_state <> 0
+      && (player_flags land player_flags_afterburner <> 0)
+    in
+    if (player_flags land player_flags_cloaked = 0)
+       || (player_flags land player_flags_headlight_on <> 0)
+       || ab_state
+    then
+      Effect.perform Ai_do_cloak_stuff;
+    [| dist; 0; 0; 0; 0; 0 |]
+  end
+;;

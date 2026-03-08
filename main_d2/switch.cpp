@@ -38,6 +38,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "2d/palette.h"
 #include "robot.h"
 #include "bm.h"
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
 
 #ifdef EDITOR
 #include "editor\editor.h"
@@ -167,13 +170,53 @@ int do_light_off(int8_t trigger_num)
 // Unlocks all doors linked to the switch.
 void do_unlock_doors(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int sw_reg = 0;
+		if (!sw_reg) {
+			sw_reg = 1;
+			cd_ox_register_switch_effects(
+				/* fetch_trigger_links */
+				[](int tnum, int32_t* out, int* out_len) {
+					int n = Triggers[tnum].num_links;
+					out[0] = n;
+					for (int j = 0; j < n; j++)
+						out[1 + j] = Segments[Triggers[tnum].seg[j]].sides[Triggers[tnum].side[j]].wall_num;
+					*out_len = 1 + n;
+				},
+				/* lock_wall_door */
+				[](int wnum) {
+					Walls[wnum].flags |= WALL_DOOR_LOCKED;
+				},
+				/* unlock_wall_door */
+				[](int wnum) {
+					Walls[wnum].flags &= ~WALL_DOOR_LOCKED;
+					Walls[wnum].keys = KEY_NONE;
+				},
+				/* get_num_triggers */
+				[]() -> int {
+					return Num_triggers;
+				},
+				/* get_num_walls */
+				[]() -> int {
+					return Num_walls;
+				},
+				/* set_wall_flag_wall_switch */
+				[](int wnum) {
+					Walls[wnum].flags |= WALL_WALL_SWITCH;
+				});
+		}
+		cd_ox_do_unlock_doors(trigger_num);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Door unlock!\n"));
 
-	if (trigger_num != -1) 
+	if (trigger_num != -1)
 	{
-		for (i=0;i<Triggers[trigger_num].num_links;i++) 
+		for (i=0;i<Triggers[trigger_num].num_links;i++)
 		{
 			Walls[Segments[Triggers[trigger_num].seg[i]].sides[Triggers[trigger_num].side[i]].wall_num].flags &= ~WALL_DOOR_LOCKED;
 			Walls[Segments[Triggers[trigger_num].seg[i]].sides[Triggers[trigger_num].side[i]].wall_num].keys = KEY_NONE;
@@ -184,11 +227,16 @@ void do_unlock_doors(int8_t trigger_num)
 // Return trigger number if door is controlled by a wall switch, else return -1.
 int door_is_wall_switched(int wall_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		return cd_ox_door_is_wall_switched(wall_num);
+	}
+#endif
 	int i, t;
 
-	for (t=0; t<Num_triggers; t++) 
+	for (t=0; t<Num_triggers; t++)
 	{
-		for (i=0; i<Triggers[t].num_links; i++) 
+		for (i=0; i<Triggers[t].num_links; i++)
 		{
 			if (Segments[Triggers[t].seg[i]].sides[Triggers[t].side[i]].wall_num == wall_num) {
 				mprintf((0, "Wall #%i is keyed to trigger #%i, link #%i\n", wall_num, t, i));
@@ -202,6 +250,12 @@ int door_is_wall_switched(int wall_num)
 
 void flag_wall_switched_doors(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		cd_ox_flag_wall_switched_doors();
+		return;
+	}
+#endif
 	int	i;
 
 	for (i=0; i<Num_walls; i++)
@@ -215,6 +269,12 @@ void flag_wall_switched_doors(void)
 // Locks all doors linked to the switch.
 void do_lock_doors(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		cd_ox_do_lock_doors(trigger_num);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Door lock!\n"));
@@ -354,16 +414,37 @@ void do_matcen(int8_t trigger_num)
 	
 void do_il_on(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int seg_side_reg = 0;
+		if (!seg_side_reg) {
+			seg_side_reg = 1;
+			cd_ox_register_switch_seg_side_effect(
+				/* fetch_trigger_seg_sides */
+				[](int tnum, int32_t* out, int* out_len) {
+					int n = Triggers[tnum].num_links;
+					out[0] = n;
+					for (int j = 0; j < n; j++) {
+						out[1 + j * 2] = Triggers[tnum].seg[j];
+						out[1 + j * 2 + 1] = Triggers[tnum].side[j];
+					}
+					*out_len = 1 + n * 2;
+				});
+		}
+		cd_ox_do_il_on(trigger_num);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Illusion ON\n"));
 
-	if (trigger_num != -1) 
+	if (trigger_num != -1)
 	{
 		for (i=0;i<Triggers[trigger_num].num_links;i++)
 		{
-			wall_illusion_on(&Segments[Triggers[trigger_num].seg[i]], Triggers[trigger_num].side[i]); 
-			mprintf((0," trigger_num %d : seg %d, side %d\n", 
+			wall_illusion_on(&Segments[Triggers[trigger_num].seg[i]], Triggers[trigger_num].side[i]);
+			mprintf((0," trigger_num %d : seg %d, side %d\n",
 				trigger_num, Triggers[trigger_num].seg[i], Triggers[trigger_num].side[i]));
   		}
   	}

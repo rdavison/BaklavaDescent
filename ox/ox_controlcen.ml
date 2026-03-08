@@ -9,13 +9,18 @@ let ndl = 5
 type _ Effect.t +=
   | Fire_weapon : (int * int * int * int * int * int * int * int) -> unit Effect.t
   | Send_controlcen_fire : (int * int * int * int * int) -> unit Effect.t
-  | Make_random_vector : (int * int * int) Effect.t
   | P_Rand : int Effect.t
 
 (* Fire_weapon args: dir_x, dir_y, dir_z, pos_x, pos_y, pos_z, parent_id, make_sound *)
 (* Send_controlcen_fire args: dir_x, dir_y, dir_z, gun_num, obj_id *)
-(* Make_random_vector returns: (rx, ry, rz) *)
 (* P_Rand returns: int *)
+
+let make_random_vector () =
+  let rx = (Effect.perform P_Rand - 16384) lor 1 in
+  let ry = Effect.perform P_Rand - 16384 in
+  let rz = Effect.perform P_Rand - 16384 in
+  let _, v = Ox_math.vm_vec_copy_normalize_quick ~v:(rx, ry, rz) in
+  v
 
 (* FVI external for inline visibility check — reuses physics sim C function *)
 external fvi_find_vector_intersection : int array -> int array
@@ -157,7 +162,7 @@ let do_controlcen_frame_d1
         let prand = Effect.perform P_Rand in
         if prand < 32767 / 4
         then (
-          let rx, ry, rz = Effect.perform Make_random_vector in
+          let rx, ry, rz = make_random_vector () in
           let sx, sy, sz =
             Ox_math.vm_vec_scale_add2
               ~dest:(!vec_x, !vec_y, !vec_z)
@@ -329,7 +334,7 @@ let do_controlcen_frame_d2
             let prand = Effect.perform P_Rand in
             if prand > rand_prob
             then (
-              let rx, ry, rz = Effect.perform Make_random_vector in
+              let rx, ry, rz = make_random_vector () in
               let sx, sy, sz =
                 Ox_math.vm_vec_scale_add2
                   ~dest:(!vec_x, !vec_y, !vec_z)

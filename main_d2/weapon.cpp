@@ -718,6 +718,9 @@ void ReorderSecondary()
 
 int POrderList(int num)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_p_order_list(PrimaryOrder, num);
+#else
 	int i;
 
 	for (i = 0; i < MAX_PRIMARY_WEAPONS + 1; i++)
@@ -728,10 +731,14 @@ int POrderList(int num)
 		}
 	Error("Primary Weapon is not in order list!!!");
 	return 0; //[ISB] shut up warning
+#endif
 }
 
 int SOrderList(int num)
 {
+#ifdef USE_OX_BRIDGE
+	return cd_ox_s_order_list(SecondaryOrder, num);
+#else
 	int i;
 
 	for (i = 0; i < MAX_SECONDARY_WEAPONS + 1; i++)
@@ -743,6 +750,7 @@ int SOrderList(int num)
 	mprintf((0, "Error! Secondary Num=%d\n", num));
 	Error("Secondary Weapon is not in order list!!!");
 	return 0;
+#endif
 }
 
 

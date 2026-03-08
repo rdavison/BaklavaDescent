@@ -955,3 +955,28 @@ let find_point_seg_v2 ~point:(px, py, pz) ~segnum ~n_segments ~doing_lighting_ha
   then exhaustive_scan ()
   else -1
 ;;
+
+let max_vertices_per_segment = 8
+
+(* pick_random_point_in_seg: pick a random point inside a segment.
+   Computes the segment center, picks a random vertex, then moves
+   a random fraction toward that vertex.
+   C original: gameseg.cpp pick_random_point_in_seg *)
+let pick_random_point_in_seg ~segnum =
+  let seg_data = Effect.perform (Fetch_segment_data segnum) in
+  (* Extract 8 vertex positions from segment data *)
+  let verts =
+    Array.init 8 ~f:(fun i ->
+      let off = 56 + (i * 3) in
+      seg_data.(off), seg_data.(off + 1), seg_data.(off + 2))
+  in
+  let center =
+    compute_segment_center
+      ~v0:verts.(0) ~v1:verts.(1) ~v2:verts.(2) ~v3:verts.(3)
+      ~v4:verts.(4) ~v5:verts.(5) ~v6:verts.(6) ~v7:verts.(7)
+  in
+  let vnum = (Ox_misc.p_rand () * max_vertices_per_segment) asr 15 in
+  let vec2 = Ox_math.vm_vec_sub ~a:verts.(vnum) ~b:center in
+  let vec2 = Ox_math.vm_vec_scale ~v:vec2 ~k:(Ox_misc.p_rand ()) in
+  Ox_math.vm_vec_add2 ~a:center ~b:vec2
+;;

@@ -1366,6 +1366,36 @@ let gauss_id = 32
 let gm_multi = 1
 let gm_multi_coop = 0x04
 
+(* -- ok_to_do_omega_damage (D2 only) -------------------------------------- *)
+(* Return true (1) if ok to do Omega damage.
+   In multiplayer, checks if parent object is within MAX_OMEGA_DIST. *)
+
+let desired_omega_dist = f1_0 * 5
+let max_omega_blobs = 16
+let max_omega_dist = max_omega_blobs * desired_omega_dist
+
+let ok_to_do_omega_damage
+      ~game_mode
+      ~parent_sig
+      ~parent_num:_
+      ~parent_obj_signature
+      ~parent_obj_pos_x ~parent_obj_pos_y ~parent_obj_pos_z
+      ~weapon_pos_x ~weapon_pos_y ~weapon_pos_z
+  =
+  if game_mode land gm_multi = 0
+  then true
+  else if parent_obj_signature <> parent_sig
+  then
+    (* Parent of omega blob not consistent with object information. *)
+    true
+  else (
+    let dist = Ox_math.vm_vec_dist_quick
+      ~a:(parent_obj_pos_x, parent_obj_pos_y, parent_obj_pos_z)
+      ~b:(weapon_pos_x, weapon_pos_y, weapon_pos_z) in
+    if dist > max_omega_dist
+    then false
+    else true)
+
 (* -- Helper: identify which side of cd[] is which object type ------------ *)
 (* When the dispatcher gets (weapon, clutter) it could be cd_this=weapon, cd_hit=clutter
    or cd_this=clutter, cd_hit=weapon. We canonicalize. *)

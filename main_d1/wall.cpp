@@ -40,6 +40,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "newdemo.h"
 #include "multi.h"
 #include "gameseq.h"
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
 
 //	Special door on boss level which is locked if not in multiplayer...sorry for this awful solution --MK.
 #define	BOSS_LOCKED_DOOR_LEVEL	7
@@ -720,6 +723,33 @@ void wall_illusion_off(segment* seg, int side)
 //  wall switches or triggers that can turn on/off illusionary walls.)
 void wall_illusion_on(segment* seg, int side)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int segnum = seg - Segments;
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_illusion_effects(
+				/* fetch_seg_children_and_wall_nums */
+				[](int segnum, int32_t* out) {
+					for (int i = 0; i < 6; i++)
+						out[i] = Segments[segnum].children[i];
+					for (int i = 0; i < 6; i++)
+						out[6 + i] = Segments[segnum].sides[i].wall_num;
+				},
+				/* set_flags */
+				[](int wall_num, int flags) {
+					Walls[wall_num].flags |= flags;
+				},
+				/* clear_flags */
+				[](int wall_num, int flags) {
+					Walls[wall_num].flags &= ~flags;
+				});
+			registered = 1;
+		}
+		cd_ox_wall_illusion_on(segnum, side);
+		return;
+	}
+#endif
 	segment* csegp;
 	int cside;
 
@@ -727,7 +757,7 @@ void wall_illusion_on(segment* seg, int side)
 	cside = find_connect_side(seg, csegp);
 	Assert(cside != -1);
 
-	if (seg->sides[side].wall_num == -1) 
+	if (seg->sides[side].wall_num == -1)
 	{
 		mprintf((0, "Trying to turn on illusion illegal wall\n"));
 		return;
@@ -872,15 +902,44 @@ void wall_toggle(segment* seg, int side)
 // Tidy up Walls array for load/save purposes.
 void reset_walls()
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_effects(
+				/* fetch_reset_walls_info */
+				[](int32_t* out) {
+					out[0] = Num_walls;
+					out[1] = 0; /* is_d2 = false */
+				},
+				/* write_reset_walls: packed = [start_idx, max_walls] */
+				[](const int32_t* packed, int len) {
+					if (len < 2) return;
+					int start = packed[0];
+					int end = packed[1];
+					for (int i = start; i < end; i++) {
+						Walls[i].type = WALL_NORMAL;
+						Walls[i].flags = 0;
+						Walls[i].hps = 0;
+						Walls[i].trigger = -1;
+						Walls[i].clip_num = -1;
+					}
+				});
+			registered = 1;
+		}
+		cd_ox_reset_walls();
+		return;
+	}
+#endif
 	int i;
 
-	if (Num_walls < 0) 
+	if (Num_walls < 0)
 	{
 		mprintf((0, "Illegal Num_walls\n"));
 		return;
 	}
 
-	for (i = Num_walls; i < MAX_WALLS; i++) 
+	for (i = Num_walls; i < MAX_WALLS; i++)
 	{
 		Walls[i].type = WALL_NORMAL;
 		Walls[i].flags = 0;
@@ -975,6 +1034,46 @@ void remove_obsolete_stuck_objects(void)
 //	Door with wall index wallnum is opening, kill all objects stuck in it.
 void kill_stuck_objects(int wallnum)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_kill_stuck_effects(
+				/* fetch_kill_stuck_data: [is_d2, num_stuck, (wallnum, objnum, obj_type) x 32] */
+				[](int wallnum_arg, int32_t* out) {
+					out[0] = 0; /* is_d2 = false (D1) */
+					out[1] = Num_stuck_objects;
+					for (int i = 0; i < MAX_STUCK_OBJECTS; i++) {
+						int base = 2 + i * 3;
+						out[base]     = Stuck_objects[i].wallnum;
+						out[base + 1] = Stuck_objects[i].objnum;
+						out[base + 2] = (Stuck_objects[i].wallnum != -1)
+							? Objects[Stuck_objects[i].objnum].type : -1;
+					}
+				},
+				/* write_kill_stuck_objects: [new_num_stuck, n_matches, (slot, objnum, is_weapon) x n] */
+				[](const int32_t* packed, int len) {
+					if (len < 2) return;
+					Num_stuck_objects = packed[0];
+					int n_matches = packed[1];
+					for (int j = 0; j < n_matches && (2 + j * 3 + 2) < len; j++) {
+						int slot = packed[2 + j * 3];
+						int objnum = packed[2 + j * 3 + 1];
+						int is_weapon = packed[2 + j * 3 + 2];
+						if (is_weapon) {
+							Objects[objnum].lifeleft = F1_0 / 4;
+						}
+						Stuck_objects[slot].wallnum = -1;
+					}
+				},
+				/* flush_fcd_cache — D1 doesn't call it, but register a no-op */
+				[]() { });
+			registered = 1;
+		}
+		cd_ox_kill_stuck_objects(wallnum);
+		return;
+	}
+#endif
 	int	i;
 
 	if (Num_stuck_objects == 0)
@@ -983,9 +1082,9 @@ void kill_stuck_objects(int wallnum)
 	Num_stuck_objects = 0;
 
 	for (i = 0; i < MAX_STUCK_OBJECTS; i++)
-		if (Stuck_objects[i].wallnum == wallnum) 
+		if (Stuck_objects[i].wallnum == wallnum)
 		{
-			if (Objects[Stuck_objects[i].objnum].type == OBJ_WEAPON) 
+			if (Objects[Stuck_objects[i].objnum].type == OBJ_WEAPON)
 			{
 				Objects[Stuck_objects[i].objnum].lifeleft = F1_0 / 4;
 				mprintf((0, "Removing object %i from wall %i\n", Stuck_objects[i].objnum, wallnum));

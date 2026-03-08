@@ -2443,3 +2443,23 @@ Reorganized the project to make the boundary between pure OCaml game logic and p
   - `ox-bridge/ai_frame.ml`: Cleaned up effect handler, fixed wall data arg order.
   - `ox/ox_aipath.ml`: Fixed RNG jitter math precedence.
   - `RNG_HUNT.md`: New detailed analysis of the bit-parity desync.
+
+### Ralph Loop Setup & Bulk Porting Sprint (2026-03-07)
+- **Goal:** Shift focus to mechanical porting speed — port all remaining C functions to OCaml as fast as possible, defer parity verification until everything is ported.
+- **ralph_loop.sh updates:**
+  - Removed headless replay and state log comparison from the loop (temporarily disabled)
+  - Removed C-ref build step (not needed without replay)
+  - Updated Claude prompt to focus on faithful mechanical translation, no parity chasing
+  - Added `--verbose` flag (required by Claude CLI for `--output-format stream-json -p`)
+  - Added post-iteration worklog update and git commit step
+- **New modules ported (ralph loop iterations 1-34):**
+  - `ox/ox_wall.ml`, `ox-bridge/wall.ml` — wall logic
+  - `ox/ox_switch.ml`, `ox-bridge/switch.ml` — switch/trigger logic
+  - `ox/ox_gameseq.ml`, `ox-bridge/gameseq.ml` — game sequencing
+  - `ox/ox_obj.ml`, `ox-bridge/obj_mgmt.ml` — object management
+  - `ox/ox_escort.ml`, `ox-bridge/escort.ml` — escort/thief/snipe robot logic
+  - `ox/ox_morph.ml`, `ox-bridge/morph.ml` — morph effects
+  - `ox/ox_mem.ml`, `ox-bridge/mem.ml` — memory helpers
+  - `ox/ox_misc.ml`, `ox-bridge/misc.ml` — misc utilities
+  - `ox/ox_gen_ai_frame_d1.ml`, `ox/ox_gen_ai_frame_d2.ml` — generated AI frame helpers
+- **Note:** Iterations 35-43 failed silently due to missing `--verbose` flag — no functions ported in those iterations.

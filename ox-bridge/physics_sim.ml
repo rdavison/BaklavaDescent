@@ -276,7 +276,7 @@ external effect_find_connect_side
   -> int
   = "cd_ox_effect_ps_find_connect_side"
 
-external effect_wall_is_doorway : int -> int -> int = "cd_ox_effect_ps_wall_is_doorway"
+external effect_fetch_doorway_info : int -> int -> int array = "cd_ox_effect_ps_fetch_doorway_info"
 
 (* create_abs_vertex_lists_and_dist:
    Args: seg, side, start_px, start_py, start_pz
@@ -697,10 +697,10 @@ let physics_sim_effect_handler (type a) ~is_d2 (eff : a Effect.t)
       (fun k ->
         let result = effect_find_connect_side seg1 seg2 in
         Effect.Deep.continue k result)
-  | Ox_physics_sim.Wall_is_doorway (seg, side) ->
+  | Ox_physics_sim.Fetch_doorway_info (seg, side) ->
     Some
       (fun k ->
-        let result = effect_wall_is_doorway seg side in
+        let result = effect_fetch_doorway_info seg side in
         Effect.Deep.continue k result)
   | Ox_physics_sim.Create_abs_vertex_lists_and_dist (seg, side, spx, spy, spz) ->
     Some

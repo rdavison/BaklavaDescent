@@ -105,6 +105,9 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "gamepal.h"
 #include "movie.h"
 #include "controls.h"
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
 #include "credits.h"
 
 #if defined(POLY_ACC)
@@ -178,6 +181,29 @@ extern int Last_msg_ycrd;
 //--------------------------------------------------------------------
 void verify_console_object()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int vco_reg = 0;
+		if (!vco_reg) {
+			vco_reg = 1;
+			cd_ox_register_verify_console_object_effects(
+				/* fetch: [Player_num, objnum, obj_type, obj_id] */
+				[](int32_t* out) {
+					out[0] = Player_num;
+					out[1] = Players[Player_num].objnum;
+					int objnum = Players[Player_num].objnum;
+					out[2] = (objnum >= 0) ? Objects[objnum].type : -1;
+					out[3] = (objnum >= 0) ? Objects[objnum].id : -1;
+				},
+				/* write: set ConsoleObject = &Objects[objnum] */
+				[](int objnum) {
+					ConsoleObject = &Objects[objnum];
+				});
+		}
+		cd_ox_verify_console_object();
+		return;
+	}
+#endif
 	Assert(Player_num > -1);
 	Assert(Players[Player_num].objnum > -1);
 	ConsoleObject = &Objects[Players[Player_num].objnum];
@@ -348,18 +374,39 @@ void init_player_stats_game()
 
 void init_ammo_and_energy(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int iae_reg = 0;
+		if (!iae_reg) {
+			iae_reg = 1;
+			cd_ox_register_init_ammo_energy_effects(
+				/* fetch: [energy, shields, secondary_ammo_0, initial_energy, starting_shields, ndl, difficulty_level] */
+				[](int32_t* out) {
+					out[0] = Players[Player_num].energy;
+					out[1] = Players[Player_num].shields;
+					out[2] = Players[Player_num].secondary_ammo[0];
+					out[3] = INITIAL_ENERGY;
+					out[4] = StartingShields;
+					out[5] = NDL;
+					out[6] = Difficulty_level;
+				},
+				/* write: [energy, shields, secondary_ammo_0] */
+				[](const int32_t* packed, int len) {
+					if (len < 3) return;
+					Players[Player_num].energy = packed[0];
+					Players[Player_num].shields = packed[1];
+					Players[Player_num].secondary_ammo[0] = packed[2];
+				});
+		}
+		cd_ox_init_ammo_and_energy();
+		return;
+	}
+#endif
 	if (Players[Player_num].energy < INITIAL_ENERGY)
 		Players[Player_num].energy = INITIAL_ENERGY;
 	if (Players[Player_num].shields < StartingShields)
 		Players[Player_num].shields = StartingShields;
 
-	//	for (i=0; i<MAX_PRIMARY_WEAPONS; i++)
-	//		if (Players[Player_num].primary_ammo[i] < Default_primary_ammo_level[i])
-	//			Players[Player_num].primary_ammo[i] = Default_primary_ammo_level[i];
-
-	//	for (i=0; i<MAX_SECONDARY_WEAPONS; i++)
-	//		if (Players[Player_num].secondary_ammo[i] < Default_secondary_ammo_level[i])
-	//			Players[Player_num].secondary_ammo[i] = Default_secondary_ammo_level[i];
 	if (Players[Player_num].secondary_ammo[0] < 2 + NDL - Difficulty_level)
 		Players[Player_num].secondary_ammo[0] = 2 + NDL - Difficulty_level;
 }
@@ -506,6 +553,22 @@ void init_player_stats_new_ship()
 #endif
 
 
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int32_t result[40];
+		cd_ox_init_ai_for_ship(
+			GameTime, ConsoleObject->segnum,
+			ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
+			result);
+		for (int ii = 0; ii < MAX_AI_CLOAK_INFO; ii++) {
+			Ai_cloak_info[ii].last_time = result[ii * 5 + 0];
+			Ai_cloak_info[ii].last_segment = result[ii * 5 + 1];
+			Ai_cloak_info[ii].last_position.x = result[ii * 5 + 2];
+			Ai_cloak_info[ii].last_position.y = result[ii * 5 + 3];
+			Ai_cloak_info[ii].last_position.z = result[ii * 5 + 4];
+		}
+	} else
+#endif
 	init_ai_for_ship();
 }
 
@@ -548,6 +611,15 @@ void editor_reset_stuff_on_level()
 	init_controlcen_for_level();
 	automap_clear_visited();
 	init_stuck_objects();
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int32_t thief_result[11];
+		cd_ox_init_thief_for_level(Game_mode, thief_result);
+		for (int ti = 0; ti < MAX_STOLEN_ITEMS; ti++)
+			Stolen_items[ti] = (uint8_t)thief_result[ti];
+		Stolen_item_index = thief_result[MAX_STOLEN_ITEMS];
+	} else
+#endif
 	init_thief_for_level();
 
 	Slide_segs_computed = 0;
@@ -576,6 +648,33 @@ extern int do_save_game_menu();
 //update various information about the player
 void update_player_stats()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int ups_reg = 0;
+		if (!ups_reg) {
+			ups_reg = 1;
+			cd_ox_register_update_player_stats_effects(
+				/* fetch: [frame_time, time_level, hours_level, time_total, hours_total] */
+				[](int32_t* out) {
+					out[0] = FrameTime;
+					out[1] = Players[Player_num].time_level;
+					out[2] = Players[Player_num].hours_level;
+					out[3] = Players[Player_num].time_total;
+					out[4] = Players[Player_num].hours_total;
+				},
+				/* write: [time_level, hours_level, time_total, hours_total] */
+				[](const int32_t* packed, int len) {
+					if (len < 4) return;
+					Players[Player_num].time_level = packed[0];
+					Players[Player_num].hours_level = packed[1];
+					Players[Player_num].time_total = packed[2];
+					Players[Player_num].hours_total = packed[3];
+				});
+		}
+		cd_ox_update_player_stats();
+		return;
+	}
+#endif
 	Players[Player_num].time_level += FrameTime;	//the never-ending march of time...
 	if (Players[Player_num].time_level > i2f(3600))
 	{
@@ -1000,9 +1099,39 @@ void LoadLevel(int level_num, int page_in_textures)
 //	WIN(HideCursorW());
 }
 
-//sets up Player_num & ConsoleObject  
+//sets up Player_num & ConsoleObject
 void InitPlayerObject()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int ipo_reg = 0;
+		if (!ipo_reg) {
+			ipo_reg = 1;
+			cd_ox_register_init_player_object_effects(
+				/* fetch: [Player_num] */
+				[](int32_t* out) {
+					out[0] = Player_num;
+				},
+				/* write: [original_player_num, OBJ_PLAYER, CT_FLYING, MT_PHYSICS] */
+				[](const int32_t* packed, int len) {
+					if (len < 4) return;
+					int original_player_num = packed[0];
+					if (original_player_num != 0) {
+						Players[0] = Players[original_player_num];
+						Player_num = 0;
+					}
+					Players[Player_num].objnum = 0;
+					ConsoleObject = &Objects[Players[Player_num].objnum];
+					ConsoleObject->type = packed[1];  /* OBJ_PLAYER */
+					ConsoleObject->id = Player_num;
+					ConsoleObject->control_type = packed[2];  /* CT_FLYING */
+					ConsoleObject->movement_type = packed[3];  /* MT_PHYSICS */
+				});
+		}
+		cd_ox_init_player_object();
+		return;
+	}
+#endif
 	Assert(Player_num >= 0 && Player_num < MAX_PLAYERS);
 
 	if (Player_num != 0)
@@ -2077,6 +2206,15 @@ void StartNewLevelSub(int level_num, int page_in_textures, int secret_flag)
 	init_morphs();
 	init_all_matcens();
 	reset_palette_add();
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int32_t thief_result[11];
+		cd_ox_init_thief_for_level(Game_mode, thief_result);
+		for (int ti = 0; ti < MAX_STOLEN_ITEMS; ti++)
+			Stolen_items[ti] = (uint8_t)thief_result[ti];
+		Stolen_item_index = thief_result[MAX_STOLEN_ITEMS];
+	} else
+#endif
 	init_thief_for_level();
 	init_stuck_objects();
 	game_flush_inputs();		// clear out the keyboard
@@ -2127,6 +2265,31 @@ extern void bash_to_shield(int, const char*);
 #else
 void bash_to_shield(int i, const char* s)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		/* Register gameseq effects on first call */
+		static int gs_reg = 0;
+		if (!gs_reg) {
+			gs_reg = 1;
+			cd_ox_register_gameseq_effects(
+				[](int objnum, int32_t* out) {
+					out[0] = Objects[objnum].id;
+					int shield_vclip = Powerup_info[POW_SHIELD_BOOST].vclip_num;
+					out[1] = shield_vclip;
+					out[2] = Vclip[shield_vclip].frame_time;
+				},
+				[](const int32_t* packed, int len) {
+					if (len < 5) return;
+					int objnum = packed[0];
+					Objects[objnum].id = packed[2];
+					Objects[objnum].rtype.vclip_info.vclip_num = packed[3];
+					Objects[objnum].rtype.vclip_info.frametime = packed[4];
+				});
+		}
+		cd_ox_bash_to_shield(i);
+		return;
+	}
+#endif
 	int type = Objects[i].id;
 
 	mprintf((0, "Bashing %s object #%i to shield.\n", s, i));
@@ -2139,6 +2302,26 @@ void bash_to_shield(int i, const char* s)
 
 void filter_objects_from_level()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int fo_reg = 0;
+		if (!fo_reg) {
+			fo_reg = 1;
+			cd_ox_register_filter_objects_effects(
+				[](int32_t* out, int* out_len) {
+					int n = Highest_object_index;
+					out[0] = n;
+					for (int i = 0; i <= n; i++) {
+						out[1 + i * 2] = Objects[i].type;
+						out[1 + i * 2 + 1] = Objects[i].id;
+					}
+					*out_len = 1 + (n + 1) * 2;
+				});
+		}
+		cd_ox_filter_objects_from_level();
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Highest object index=%d\n", Highest_object_index));
@@ -2347,6 +2530,40 @@ done:
 //	What about setting size!?  Where does that come from?
 void copy_defaults_to_robot(object* objp)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int cdtr_reg = 0;
+		if (!cdtr_reg) {
+			cdtr_reg = 1;
+			cd_ox_register_copy_defaults_to_robot_effects(
+				/* fetch: [obj_type, obj_id, n_robot_types, strength, is_thief, is_companion,
+				           boss_flag, current_level_num, difficulty_level, is_d2] */
+				[](int objnum, int32_t* out) {
+					object* obj = &Objects[objnum];
+					robot_info* rp = &Robot_info[obj->id];
+					out[0] = obj->type;
+					out[1] = obj->id;
+					out[2] = N_robot_types;
+					out[3] = rp->strength;
+					out[4] = rp->thief;
+					out[5] = rp->companion;
+					out[6] = rp->boss_flag;
+					out[7] = Current_level_num;
+					out[8] = Difficulty_level;
+					out[9] = 1;  /* is_d2 = true */
+				},
+				/* write: [objnum, shields] */
+				[](const int32_t* packed, int len) {
+					if (len >= 2) {
+						Objects[packed[0]].shields = packed[1];
+					}
+				});
+		}
+		int objnum = (int)(objp - Objects);
+		cd_ox_copy_defaults_to_robot(objnum);
+		return;
+	}
+#endif
 	robot_info* robptr;
 	int			objid;
 
@@ -2389,6 +2606,52 @@ void copy_defaults_to_robot(object* objp)
 //	This function should be called at level load time.
 void copy_defaults_to_robot_all()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		/* Ensure filter_objects effect is registered (provides object type iteration) */
+		static int cdtra_fo_reg = 0;
+		if (!cdtra_fo_reg) {
+			cdtra_fo_reg = 1;
+			cd_ox_register_filter_objects_effects(
+				[](int32_t* out, int* out_len) {
+					int n = Highest_object_index;
+					out[0] = n;
+					for (int i = 0; i <= n; i++) {
+						out[1 + i * 2] = Objects[i].type;
+						out[1 + i * 2 + 1] = Objects[i].id;
+					}
+					*out_len = 1 + (n + 1) * 2;
+				});
+		}
+		/* Ensure copy_defaults_to_robot effects are registered */
+		static int cdtra_cdr_reg = 0;
+		if (!cdtra_cdr_reg) {
+			cdtra_cdr_reg = 1;
+			cd_ox_register_copy_defaults_to_robot_effects(
+				[](int objnum, int32_t* out) {
+					object* obj = &Objects[objnum];
+					robot_info* rp = &Robot_info[obj->id];
+					out[0] = obj->type;
+					out[1] = obj->id;
+					out[2] = N_robot_types;
+					out[3] = rp->strength;
+					out[4] = rp->thief;
+					out[5] = rp->companion;
+					out[6] = rp->boss_flag;
+					out[7] = Current_level_num;
+					out[8] = Difficulty_level;
+					out[9] = 1;  /* is_d2 = true */
+				},
+				[](const int32_t* packed, int len) {
+					if (len >= 2) {
+						Objects[packed[0]].shields = packed[1];
+					}
+				});
+		}
+		cd_ox_copy_defaults_to_robot_all();
+		return;
+	}
+#endif
 	int	i;
 
 	for (i = 0; i <= Highest_object_index; i++)

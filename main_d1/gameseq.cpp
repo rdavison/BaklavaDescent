@@ -99,6 +99,10 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "editor\editor.h"
 #endif
 
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 //Current_level_num starts at 1 for the first level
 //-1,-2,-3 are secret levels
 //0 means not a real level loaded
@@ -125,6 +129,29 @@ void HUD_clear_messages(); // From hud.c
 
 void verify_console_object()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int vco_reg = 0;
+		if (!vco_reg) {
+			vco_reg = 1;
+			cd_ox_register_verify_console_object_effects(
+				/* fetch: [Player_num, objnum, obj_type, obj_id] */
+				[](int32_t* out) {
+					out[0] = Player_num;
+					out[1] = Players[Player_num].objnum;
+					int objnum = Players[Player_num].objnum;
+					out[2] = (objnum >= 0) ? Objects[objnum].type : -1;
+					out[3] = (objnum >= 0) ? Objects[objnum].id : -1;
+				},
+				/* write: set ConsoleObject = &Objects[objnum] */
+				[](int objnum) {
+					ConsoleObject = &Objects[objnum];
+				});
+		}
+		cd_ox_verify_console_object();
+		return;
+	}
+#endif
 	Assert(Player_num > -1);
 	Assert(Players[Player_num].objnum > -1);
 	ConsoleObject = &Objects[Players[Player_num].objnum];
@@ -280,6 +307,34 @@ void init_player_stats_game()
 
 void init_ammo_and_energy(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int iae_reg = 0;
+		if (!iae_reg) {
+			iae_reg = 1;
+			cd_ox_register_init_ammo_energy_effects(
+				/* fetch: [energy, shields, secondary_ammo_0, initial_energy, starting_shields, ndl, difficulty_level] */
+				[](int32_t* out) {
+					out[0] = Players[Player_num].energy;
+					out[1] = Players[Player_num].shields;
+					out[2] = Players[Player_num].secondary_ammo[0];
+					out[3] = MAX_ENERGY;
+					out[4] = MAX_SHIELDS;
+					out[5] = NDL;
+					out[6] = Difficulty_level;
+				},
+				/* write: [energy, shields, secondary_ammo_0] */
+				[](const int32_t* packed, int len) {
+					if (len < 3) return;
+					Players[Player_num].energy = packed[0];
+					Players[Player_num].shields = packed[1];
+					Players[Player_num].secondary_ammo[0] = packed[2];
+				});
+		}
+		cd_ox_init_ammo_and_energy();
+		return;
+	}
+#endif
 	if (Players[Player_num].energy < MAX_ENERGY)
 		Players[Player_num].energy = MAX_ENERGY;
 	if (Players[Player_num].shields < MAX_SHIELDS)
@@ -443,18 +498,45 @@ extern void do_save_game_menu();
 //update various information about the player
 void update_player_stats()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int ups_reg = 0;
+		if (!ups_reg) {
+			ups_reg = 1;
+			cd_ox_register_update_player_stats_effects(
+				/* fetch: [frame_time, time_level, hours_level, time_total, hours_total] */
+				[](int32_t* out) {
+					out[0] = FrameTime;
+					out[1] = Players[Player_num].time_level;
+					out[2] = Players[Player_num].hours_level;
+					out[3] = Players[Player_num].time_total;
+					out[4] = Players[Player_num].hours_total;
+				},
+				/* write: [time_level, hours_level, time_total, hours_total] */
+				[](const int32_t* packed, int len) {
+					if (len < 4) return;
+					Players[Player_num].time_level = packed[0];
+					Players[Player_num].hours_level = packed[1];
+					Players[Player_num].time_total = packed[2];
+					Players[Player_num].hours_total = packed[3];
+				});
+		}
+		cd_ox_update_player_stats();
+		return;
+	}
+#endif
 	// I took out this 'if' because it was causing the reactor invul time to be
 	// off for players that sit in the death screen. -JS jul 6,95
 	//	if (!Player_exploded) {
 	Players[Player_num].time_level += FrameTime;	//the never-ending march of time...
-	if (Players[Player_num].time_level > i2f(3600)) 
+	if (Players[Player_num].time_level > i2f(3600))
 	{
 		Players[Player_num].time_level -= i2f(3600);
 		Players[Player_num].hours_level++;
 	}
 
 	Players[Player_num].time_total += FrameTime;	//the never-ending march of time...
-	if (Players[Player_num].time_total > i2f(3600)) 
+	if (Players[Player_num].time_total > i2f(3600))
 	{
 		Players[Player_num].time_total -= i2f(3600);
 		Players[Player_num].hours_total++;
@@ -731,9 +813,39 @@ void LoadLevel(int level_num)
 	songs_play_level_song(Current_level_num);
 }
 
-//sets up Player_num & ConsoleObject  
+//sets up Player_num & ConsoleObject
 void InitPlayerObject()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int ipo_reg = 0;
+		if (!ipo_reg) {
+			ipo_reg = 1;
+			cd_ox_register_init_player_object_effects(
+				/* fetch: [Player_num] */
+				[](int32_t* out) {
+					out[0] = Player_num;
+				},
+				/* write: [original_player_num, OBJ_PLAYER, CT_FLYING, MT_PHYSICS] */
+				[](const int32_t* packed, int len) {
+					if (len < 4) return;
+					int original_player_num = packed[0];
+					if (original_player_num != 0) {
+						Players[0] = Players[original_player_num];
+						Player_num = 0;
+					}
+					Players[Player_num].objnum = 0;
+					ConsoleObject = &Objects[Players[Player_num].objnum];
+					ConsoleObject->type = packed[1];  /* OBJ_PLAYER */
+					ConsoleObject->id = Player_num;
+					ConsoleObject->control_type = packed[2];  /* CT_FLYING */
+					ConsoleObject->movement_type = packed[3];  /* MT_PHYSICS */
+				});
+		}
+		cd_ox_init_player_object();
+		return;
+	}
+#endif
 	Assert(Player_num >= 0 && Player_num < MAX_PLAYERS);
 
 	if (Player_num != 0)
@@ -1366,6 +1478,40 @@ done:
 //	What about setting size!?  Where does that come from?
 void copy_defaults_to_robot(object* objp)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int cdtr_reg = 0;
+		if (!cdtr_reg) {
+			cdtr_reg = 1;
+			cd_ox_register_copy_defaults_to_robot_effects(
+				/* fetch: [obj_type, obj_id, n_robot_types, strength, is_thief, is_companion,
+				           boss_flag, current_level_num, difficulty_level, is_d2] */
+				[](int objnum, int32_t* out) {
+					object* obj = &Objects[objnum];
+					robot_info* rp = &Robot_info[obj->id];
+					out[0] = obj->type;
+					out[1] = obj->id;
+					out[2] = N_robot_types;
+					out[3] = rp->strength;
+					out[4] = 0;  /* D1: no thief field */
+					out[5] = 0;  /* D1: no companion field */
+					out[6] = rp->boss_flag;
+					out[7] = Current_level_num;
+					out[8] = Difficulty_level;
+					out[9] = 0;  /* is_d2 = false */
+				},
+				/* write: [objnum, shields] */
+				[](const int32_t* packed, int len) {
+					if (len >= 2) {
+						Objects[packed[0]].shields = packed[1];
+					}
+				});
+		}
+		int objnum = (int)(objp - Objects);
+		cd_ox_copy_defaults_to_robot(objnum);
+		return;
+	}
+#endif
 	robot_info* robptr;
 	int			objid;
 
@@ -1385,6 +1531,52 @@ void copy_defaults_to_robot(object* objp)
 //	This function should be called at level load time.
 void copy_defaults_to_robot_all(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		/* Ensure filter_objects effect is registered (provides object type iteration) */
+		static int cdtra_fo_reg = 0;
+		if (!cdtra_fo_reg) {
+			cdtra_fo_reg = 1;
+			cd_ox_register_filter_objects_effects(
+				[](int32_t* out, int* out_len) {
+					int n = Highest_object_index;
+					out[0] = n;
+					for (int i = 0; i <= n; i++) {
+						out[1 + i * 2] = Objects[i].type;
+						out[1 + i * 2 + 1] = Objects[i].id;
+					}
+					*out_len = 1 + (n + 1) * 2;
+				});
+		}
+		/* Ensure copy_defaults_to_robot effects are registered */
+		static int cdtra_cdr_reg = 0;
+		if (!cdtra_cdr_reg) {
+			cdtra_cdr_reg = 1;
+			cd_ox_register_copy_defaults_to_robot_effects(
+				[](int objnum, int32_t* out) {
+					object* obj = &Objects[objnum];
+					robot_info* rp = &Robot_info[obj->id];
+					out[0] = obj->type;
+					out[1] = obj->id;
+					out[2] = N_robot_types;
+					out[3] = rp->strength;
+					out[4] = 0;  /* D1: no thief field */
+					out[5] = 0;  /* D1: no companion field */
+					out[6] = rp->boss_flag;
+					out[7] = Current_level_num;
+					out[8] = Difficulty_level;
+					out[9] = 0;  /* is_d2 = false */
+				},
+				[](const int32_t* packed, int len) {
+					if (len >= 2) {
+						Objects[packed[0]].shields = packed[1];
+					}
+				});
+		}
+		cd_ox_copy_defaults_to_robot_all();
+		return;
+	}
+#endif
 	int	i;
 
 	for (i = 0; i <= Highest_object_index; i++)

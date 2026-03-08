@@ -12,7 +12,6 @@ external effect_compute_vis_and_vec : int -> int -> int -> int * int * int * int
 external effect_ai_multi_send_robot_position : int -> unit = "cd_ox_effect_af_multi_send_robot_position"
 external effect_do_boss_stuff : int -> unit = "cd_ox_effect_af_do_boss_stuff"
 external effect_p_rand : unit -> int = "cd_ox_effect_af_p_rand"
-external effect_make_random_vector : unit -> int * int * int = "cd_ox_effect_af_make_random_vector"
 external effect_object_to_object_visibility : unit -> int = "cd_ox_effect_af_object_to_object_visibility"
 external effect_do_snipe_frame : int -> int -> int -> int -> int -> int -> unit = "cd_ox_effect_af_do_snipe_frame_bytecode" "cd_ox_effect_af_do_snipe_frame"
 external effect_do_any_robot_dying_frame : unit -> int = "cd_ox_effect_af_do_any_robot_dying_frame"
@@ -22,8 +21,6 @@ external effect_move_away_from_player : unit -> unit = "cd_ox_effect_af_move_awa
 external effect_invalidate_escort_goal : unit -> unit = "cd_ox_effect_af_invalidate_escort_goal"
 external effect_laser_create_new_easy : int -> int -> int -> int -> int -> int -> int -> int -> unit = "cd_ox_effect_af_laser_create_new_easy_bytecode" "cd_ox_effect_af_laser_create_new_easy"
 external effect_fetch_danger_laser_data : int -> int array = "cd_ox_effect_af_fetch_danger_laser_data"
-external effect_int3 : unit -> unit = "cd_ox_effect_misc_int3"
-external effect_set_exit_message : string -> unit = "cd_ox_effect_misc_set_exit_message"
 external read_af_path_state : unit -> int array = "cd_ox_read_af_path_state"
 external read_af_fire_state : unit -> int array = "cd_ox_read_af_fire_state"
 external write_af_fire_timers : int -> int -> unit = "cd_ox_write_af_fire_timers"
@@ -47,8 +44,8 @@ let ai_frame_effect_handler (type a) (eff : a Effect.t)
   | Ox_misc.P_Rand_set_state_internal s -> Some (fun k -> Ox_misc.p_rand_set_state_direct s; Effect.Deep.continue k ())
   | Ox_misc.Error_internal msg -> Some (fun k -> Printf.eprintf "ERROR: %s\n" msg; Out_channel.flush stderr; Effect.Deep.continue k ())
   | Ox_misc.Warning_internal msg -> Some (fun k -> Printf.eprintf "WARNING: %s\n" msg; Out_channel.flush stderr; Effect.Deep.continue k ())
-  | Ox_misc.Int3_internal -> Some (fun k -> effect_int3 (); Effect.Deep.continue k ())
-  | Ox_misc.Set_exit_message_internal msg -> Some (fun k -> effect_set_exit_message msg; Effect.Deep.continue k ())
+  | Ox_misc.Int3_internal -> Some (fun k -> Printf.eprintf "INT3!\n"; Out_channel.flush stderr; Effect.Deep.continue k ())
+  | Ox_misc.Set_exit_message_internal _msg -> Some (fun k -> Effect.Deep.continue k ())
 
   (* PRIORITY 2: Data/System effects *)
   | Ox_gameseg.Fetch_segment_data segnum -> Some (fun k -> Effect.Deep.continue k (fetch_segment_data_c segnum))
@@ -75,7 +72,6 @@ let ai_frame_effect_handler (type a) (eff : a Effect.t)
   | Ox_ai_frame.Do_boss_stuff pv -> Some (fun k -> effect_do_boss_stuff pv; Effect.Deep.continue k ())
   | Ox_ai_frame.Fetch_danger_laser_data objnum -> Some (fun k -> Effect.Deep.continue k (effect_fetch_danger_laser_data objnum))
   | Ox_ai_frame.P_Rand -> Some (fun k -> Effect.Deep.continue k (effect_p_rand ()))
-  | Ox_ai_frame.Make_random_vector -> Some (fun k -> Effect.Deep.continue k (effect_make_random_vector ()))
   | Ox_ai_frame.Object_to_object_visibility -> Some (fun k -> Effect.Deep.continue k (effect_object_to_object_visibility ()))
   | Ox_ai_frame.Do_snipe_frame (dist, vis, vtpx, vtpy, vtpz, mode) ->
     Some (fun k -> effect_do_snipe_frame dist vis vtpx vtpy vtpz mode; Effect.Deep.continue k (read_af_path_state ()))
@@ -149,7 +145,19 @@ let cd_do_ai_frame_d2
     ; effc = (fun (type a) (eff : a Effect.t) -> ai_frame_effect_handler eff)
     }
 
+let cd_init_ai_for_ship game_time segnum pos_x pos_y pos_z =
+  Ox_ai_frame.init_ai_for_ship ~game_time ~segnum ~pos_x ~pos_y ~pos_z
+
+let cd_init_robots_for_level_d1 () =
+  Ox_ai.init_robots_for_level_d1 ()
+
+let cd_init_robots_for_level_d2 difficulty_level =
+  Ox_ai.init_robots_for_level_d2 ~difficulty_level
+
 let register_callbacks () =
   Callback.register "cd_do_ai_frame_d1" cd_do_ai_frame_d1;
-  Callback.register "cd_do_ai_frame_d2" cd_do_ai_frame_d2
+  Callback.register "cd_do_ai_frame_d2" cd_do_ai_frame_d2;
+  Callback.register "cd_init_ai_for_ship" cd_init_ai_for_ship;
+  Callback.register "cd_init_robots_for_level_d1" cd_init_robots_for_level_d1;
+  Callback.register "cd_init_robots_for_level_d2" cd_init_robots_for_level_d2
 ;;

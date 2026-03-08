@@ -51,7 +51,9 @@ let max_behavior_d2 = aib_follow
 
 (* Object types *)
 let obj_robot = 2
+let obj_player = 4
 let obj_weapon = 5
+let obj_cntrlcen = 9
 
 (* Awareness states *)
 let pa_nearby_robot_fired = 1
@@ -152,7 +154,6 @@ type _ Effect.t +=
   | Ai_multi_send_robot_position : int -> unit Effect.t
   | Do_boss_stuff : int -> unit Effect.t
   | P_Rand : int Effect.t
-  | Make_random_vector : (int * int * int) Effect.t
   | Object_to_object_visibility : int Effect.t
   | Do_snipe_frame : (int * int * int * int * int * int) -> int array Effect.t  (* returns path state *)
   | Do_any_robot_dying_frame : bool Effect.t
@@ -2845,4 +2846,62 @@ let do_ai_frame_d2
           else current_gun := 1);
       with Early_return -> ());
       pack_result ()))
+;;
+
+(* ----------------------------------------------------------------------- *)
+(* check_object_object_intersection: return true if placing an object of
+   given size at pos intersects any player/robot/control center in the segment.
+   Uses Fetch_segment_data and Fetch_object_data effects. *)
+let check_object_object_intersection ~pos:(px, py, pz) ~size ~segnum ~n_objects =
+  let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+  let first_object = seg_data.(86) in
+  let curobjnum = ref first_object in
+  let result = ref 0 in
+  (try
+     while !curobjnum <> -1 do
+       let ob = !curobjnum in
+       if ob < 0 || ob >= n_objects then (
+         curobjnum := -1)
+       else begin
+         let ob_data = Effect.perform (Ox_fvi.Fetch_object_data ob) in
+         let ob_type = ob_data.(0) in
+         let ob_px = ob_data.(3) in
+         let ob_py = ob_data.(4) in
+         let ob_pz = ob_data.(5) in
+         let ob_size = ob_data.(6) in
+         let ob_next = ob_data.(7) in
+         if ob_type = obj_player || ob_type = obj_robot || ob_type = obj_cntrlcen then begin
+           let dist = Ox_math.vm_vec_dist_quick
+                        ~a:(px, py, pz) ~b:(ob_px, ob_py, ob_pz) in
+           if dist < size + ob_size then (
+             result := 1;
+             raise Exit)
+         end;
+         curobjnum := ob_next
+       end
+     done
+   with Exit -> ());
+  !result
+;;
+
+(* -- init_ai_for_ship ---------------------------------------------------- *)
+(* Called each time the player starts a new ship.
+   Initializes all MAX_AI_CLOAK_INFO (8) entries with current game time,
+   player segment, and player position. *)
+
+let max_ai_cloak_info = 8
+
+let init_ai_for_ship ~game_time ~segnum ~pos_x ~pos_y ~pos_z =
+  (* Return 5 * MAX_AI_CLOAK_INFO values:
+     for each entry: [last_time, last_segment, pos_x, pos_y, pos_z] *)
+  let result = Array.create ~len:(5 * max_ai_cloak_info) 0 in
+  for i = 0 to max_ai_cloak_info - 1 do
+    let base = i * 5 in
+    result.(base + 0) <- game_time;
+    result.(base + 1) <- segnum;
+    result.(base + 2) <- pos_x;
+    result.(base + 3) <- pos_y;
+    result.(base + 4) <- pos_z
+  done;
+  result
 ;;

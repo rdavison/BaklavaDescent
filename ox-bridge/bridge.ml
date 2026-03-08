@@ -11,5 +11,11 @@ let () =
   Physics.register_callbacks ();
   Physics_sim.register_callbacks ();
   Robot.register_callbacks ();
-  Weapon.register_callbacks ()
+  Weapon.register_callbacks ();
+  Escort.register_callbacks ();
+  Gameseq.register_callbacks ();
+  Switch.register_callbacks ();
+  Wall.register_callbacks ();
+  Obj_mgmt.register_callbacks ();
+  Morph.register_callbacks ()
 ;;

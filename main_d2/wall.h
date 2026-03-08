@@ -167,6 +167,7 @@ extern int walls_bm_num[MAX_WALL_ANIMS];
 extern void wall_init();
 																							 
 // Automatically checks if a there is a doorway (i.e. can fly through)
+extern int check_transparency(segment *seg, int side);
 extern int wall_is_doorway ( segment *seg, int side );
 
 // Deteriorate appearance of wall. (Changes bitmap (paste-ons)) 

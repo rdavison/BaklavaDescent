@@ -515,9 +515,22 @@ void do_physics_sim(object* obj)
 				[](int seg1, int seg2) -> int {
 					return find_connect_side(&Segments[seg1], &Segments[seg2]);
 				},
-				// wall_is_doorway
-				[](int seg, int side) -> int {
-					return WALL_IS_DOORWAY(&Segments[seg], side);
+				// fetch_doorway_info: [children_side, wall_num, wall_type, wall_flags, wall_state, is_transparent]
+				[](int seg, int side, int32_t* out) {
+					segment* segp = &Segments[seg];
+					out[0] = segp->children[side];
+					out[1] = segp->sides[side].wall_num;
+					if (out[1] >= 0 && out[1] < Num_walls) {
+						wall* wp = &Walls[out[1]];
+						out[2] = wp->type;
+						out[3] = wp->flags;
+						out[4] = wp->state;
+					} else {
+						out[2] = -1;
+						out[3] = 0;
+						out[4] = 0;
+					}
+					out[5] = check_transparency(segp, side);
 				},
 				// create_abs_vertex_lists_and_dist
 				[](int seg, int side, int spx, int spy, int spz,

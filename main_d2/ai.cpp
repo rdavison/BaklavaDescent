@@ -241,6 +241,28 @@ fix	Dist_to_last_fired_upon_player_pos = 0;
 // --------------------------------------------------------------------------------------------------------------------
 void init_ai_frame(void)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int32_t out[6];
+		cd_ox_init_ai_frame(
+			Last_fired_upon_player_pos.x, Last_fired_upon_player_pos.y, Last_fired_upon_player_pos.z,
+			Believed_player_pos.x, Believed_player_pos.y, Believed_player_pos.z,
+			(CurrentLogicVersion == LogicVer::SHAREWARE) ? 1 : 0,
+			Players[Player_num].flags,
+			ConsoleObject->pos.x, ConsoleObject->pos.y, ConsoleObject->pos.z,
+			ConsoleObject->segnum,
+			Afterburner_charge,
+			Controls.afterburner_state,
+			out);
+		Dist_to_last_fired_upon_player_pos = out[0];
+		if (out[1]) {
+			Believed_player_seg = out[2];
+			Believed_player_pos.x = out[3];
+			Believed_player_pos.y = out[4];
+			Believed_player_pos.z = out[5];
+		}
+	}
+#else
 	Dist_to_last_fired_upon_player_pos = vm_vec_dist_quick(&Last_fired_upon_player_pos, &Believed_player_pos);
 
 	if (CurrentLogicVersion == LogicVer::SHAREWARE)
@@ -259,6 +281,7 @@ void init_ai_frame(void)
 			ai_do_cloak_stuff();
 		}
 	}
+#endif
 }
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -1967,6 +1990,23 @@ void ai_do_cloak_stuff(void)
 //	Returns false if awareness is considered too puny to add, else returns true.
 int add_awareness_event(object* objp, int type)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out[7];
+	int result = cd_ox_add_awareness_event(
+		type, objp->id, objp->segnum,
+		objp->pos.x, objp->pos.y, objp->pos.z,
+		Num_awareness_events, 1, /* is_d2=1 */
+		out);
+	if (out[1]) { /* should_store */
+		Awareness_events[Num_awareness_events].segnum = out[2];
+		Awareness_events[Num_awareness_events].pos.x = out[3];
+		Awareness_events[Num_awareness_events].pos.y = out[4];
+		Awareness_events[Num_awareness_events].pos.z = out[5];
+		Awareness_events[Num_awareness_events].type = out[6];
+		Num_awareness_events++;
+	}
+	return result;
+#else
 	//	If player cloaked and hit a robot, then increase awareness
 	if ((type == PA_WEAPON_ROBOT_COLLISION) || (type == PA_WEAPON_WALL_COLLISION) || (type == PA_PLAYER_COLLISION))
 		ai_do_cloak_stuff();
@@ -1987,6 +2027,7 @@ int add_awareness_event(object* objp, int type)
 								// This just gets ignored, so you can just continue.
 	}
 	return 1;
+#endif
 
 }
 
@@ -1995,6 +2036,24 @@ int add_awareness_event(object* objp, int type)
 //	The object (probably player or weapon) which created the awareness is objp.
 void create_awareness_event(object* objp, int type)
 {
+#ifdef USE_OX_BRIDGE
+	int32_t out[7];
+	cd_ox_create_awareness_event(
+		type, objp->id, objp->segnum,
+		objp->pos.x, objp->pos.y, objp->pos.z,
+		Num_awareness_events, 1, /* is_d2=1 */
+		Game_mode, Overall_agitation,
+		out);
+	Overall_agitation = out[0];
+	if (out[1]) { /* should_store */
+		Awareness_events[Num_awareness_events].segnum = out[2];
+		Awareness_events[Num_awareness_events].pos.x = out[3];
+		Awareness_events[Num_awareness_events].pos.y = out[4];
+		Awareness_events[Num_awareness_events].pos.z = out[5];
+		Awareness_events[Num_awareness_events].type = out[6];
+		Num_awareness_events++;
+	}
+#else
 	//	If not in multiplayer, or in multiplayer with robots, do this, else unnecessary!
 	if (!(Game_mode & GM_MULTI) || (Game_mode & GM_MULTI_ROBOTS)) {
 		if (add_awareness_event(objp, type)) {
@@ -2004,6 +2063,7 @@ void create_awareness_event(object* objp, int type)
 				Overall_agitation = OVERALL_AGITATION_MAX;
 		}
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------------
@@ -2139,6 +2199,19 @@ extern fix Boss_invulnerable_dot;
 //	Initializations to be performed for all robots for a new level.
 void init_robots_for_level(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int32_t result[6];
+		cd_ox_init_robots_for_level_d2(Difficulty_level, result);
+		Overall_agitation = result[0];
+		Final_boss_is_dead = result[1];
+		Buddy_objnum = result[2];
+		Buddy_allowed_to_talk = result[3];
+		Boss_invulnerable_dot = result[4];
+		Boss_dying_start_time = result[5];
+		return;
+	}
+#endif
 	Overall_agitation = 0;
 	Final_boss_is_dead = 0;
 

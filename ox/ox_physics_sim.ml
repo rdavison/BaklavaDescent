@@ -43,8 +43,34 @@ let superprox_id = 38
 (* D2: MAX_OBJECT_VEL = i2f(100) *)
 let max_object_vel = 100 * f1_0
 
-(* WID_FLY_FLAG *)
+(* WID flags *)
 let wid_fly_flag = 1
+let wid_render_flag = 2
+let wid_rendpast_flag = 4
+let wid_external_flag = 8
+let wid_cloaked_flag = 16
+
+(* Composed WID values *)
+let wid_wall = wid_render_flag                                          (* 2 *)
+let wid_transparent_wall = wid_render_flag lor wid_rendpast_flag        (* 6 *)
+let wid_illusory_wall = wid_fly_flag lor wid_render_flag                (* 3 *)
+let wid_transillusory_wall = wid_fly_flag lor wid_render_flag lor wid_rendpast_flag (* 7 *)
+let wid_no_wall = wid_fly_flag lor wid_rendpast_flag                    (* 5 *)
+
+(* Wall types *)
+let wall_open = 4
+let wall_illusion = 3
+let wall_blastable = 1
+let wall_door = 2
+let wall_cloaked = 7
+
+(* Wall flags *)
+let wall_blasted = 1
+let wall_door_opened = 2
+let wall_illusion_off = 32
+
+(* Wall states *)
+let wall_door_opening = 1
 
 (* Max retries *)
 let max_fvi_segs = 100
@@ -106,7 +132,8 @@ type _ Effect.t +=
   | Compute_segment_center : int -> (int * int * int) Effect.t (* seg -> cx, cy, cz *)
   | Add_stuck_object : (int * int) -> unit Effect.t (* wall_seg, wall_side *)
   | Find_connect_side : (int * int) -> int Effect.t (* seg1, seg2 -> sidenum or -1 *)
-  | Wall_is_doorway : (int * int) -> int Effect.t (* seg, side -> doorway flags *)
+  | Fetch_doorway_info : (int * int) -> int array Effect.t
+    (* seg, side -> [children_side, wall_num, wall_type, wall_flags, wall_state, is_transparent] *)
   | Create_abs_vertex_lists_and_dist :
       (int * int * int * int * int)
       -> (* seg, side, start_px, start_py, start_pz *)
@@ -132,6 +159,50 @@ let make_ignore_list objs n =
   done;
   arr
 ;;
+
+(* -- wall_is_doorway (pure OCaml) ----------------------------------------- *)
+
+(* WALL_IS_DOORWAY macro + wall_is_doorway function, ported from C.
+   Fetches doorway info from C via effect, then applies pure logic.
+   D1 vs D2: macro returns different values for no-child case,
+   and D2 has WALL_CLOAKED type. *)
+let wall_is_doorway ~is_d2 ~segnum ~sidenum =
+  let info = Effect.perform (Fetch_doorway_info (segnum, sidenum)) in
+  let children_side = info.(0) in
+  let wall_num = info.(1) in
+  let wall_type = info.(2) in
+  let wall_flags = info.(3) in
+  let wall_state = info.(4) in
+  let is_transparent = info.(5) <> 0 in
+  (* Macro early exits *)
+  if children_side = -1 then
+    (if is_d2 then wid_render_flag else wid_wall)
+  else if children_side = -2 then
+    wid_external_flag
+  else if wall_num = -1 then
+    (if is_d2 then wid_fly_flag lor wid_rendpast_flag else wid_no_wall)
+  else
+    (* wall_is_doorway function body *)
+    if wall_type = wall_open then
+      wid_no_wall
+    else if wall_type = wall_illusion then
+      (if wall_flags land wall_illusion_off <> 0 then wid_no_wall
+       else if is_transparent then wid_transillusory_wall
+       else wid_illusory_wall)
+    else if wall_type = wall_blastable then
+      (if wall_flags land wall_blasted <> 0 then wid_transillusory_wall
+       else if is_transparent then wid_transparent_wall
+       else wid_wall)
+    else if wall_flags land wall_door_opened <> 0 then
+      wid_transillusory_wall
+    else if is_d2 && wall_type = wall_cloaked then
+      wid_render_flag lor wid_rendpast_flag lor wid_cloaked_flag
+    else if wall_type = wall_door && wall_state = wall_door_opening then
+      wid_transparent_wall
+    else if is_transparent then
+      wid_transparent_wall
+    else
+      wid_wall
 
 (* -- D1: do_physics_sim --------------------------------------------------- *)
 
@@ -578,7 +649,7 @@ let do_physics_sim_d1
       let sidenum = Effect.perform (Find_connect_side (!cur_segnum, orig_segnum)) in
       if sidenum <> -1
       then (
-        let doorway = Effect.perform (Wall_is_doorway (orig_segnum, sidenum)) in
+        let doorway = wall_is_doorway ~is_d2:false ~segnum:orig_segnum ~sidenum in
         if doorway land wid_fly_flag = 0
         then (
           let dist, norm_x, norm_y, norm_z =
@@ -1155,7 +1226,7 @@ let do_physics_sim_d2
       let sidenum = Effect.perform (Find_connect_side (!cur_segnum, orig_segnum)) in
       if sidenum <> -1
       then (
-        let doorway = Effect.perform (Wall_is_doorway (orig_segnum, sidenum)) in
+        let doorway = wall_is_doorway ~is_d2:true ~segnum:orig_segnum ~sidenum in
         if doorway land wid_fly_flag = 0
         then (
           let dist, norm_x, norm_y, norm_z =
