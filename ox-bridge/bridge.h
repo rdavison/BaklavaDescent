@@ -1641,6 +1641,16 @@ void cd_ox_register_matcen_create_effects(
     cd_effect_fc_fetch_matcen_create_data_fn fetch_data,
     cd_effect_fc_write_matcen_create_fn write_data);
 
+/* -- fuelcen_activate ---------------------------------------------------- */
+
+/* C entry point: calls OCaml fuelcen_activate */
+void cd_ox_fuelcen_activate(int segnum, int station_type);
+
+/* Set segment special effect registration */
+typedef void (*cd_effect_fc_set_segment_special_fn)(int segnum, int special);
+void cd_ox_register_fuelcen_activate_effects(
+    cd_effect_fc_set_segment_special_fn set_special);
+
 /* -- check_volatile_wall ------------------------------------------------- */
 
 typedef void (*cd_effect_cvw_apply_damage_fn)(int objnum, int damage);

@@ -264,6 +264,7 @@ static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
 static const value* g_fuelcen_create = NULL;
 static const value* g_matcen_create = NULL;
+static const value* g_fuelcen_activate = NULL;
 static const value* g_explode_wall = NULL;
 
 /* Fireball effect function pointers */
@@ -281,6 +282,7 @@ typedef void (*cd_effect_fc_fetch_matcen_create_data_fn)(int segnum, int32_t* ou
 typedef void (*cd_effect_fc_write_matcen_create_fn)(const int32_t* packed, int len);
 static cd_effect_fc_fetch_matcen_create_data_fn g_effect_fc_fetch_matcen_create_data = NULL;
 static cd_effect_fc_write_matcen_create_fn g_effect_fc_write_matcen_create = NULL;
+static cd_effect_fc_set_segment_special_fn g_effect_fc_set_segment_special = NULL;
 
 /* Switch effect function pointers */
 static cd_effect_sw_fetch_trigger_links_fn g_effect_sw_fetch_trigger_links = NULL;
@@ -764,6 +766,7 @@ int cd_ox_init_runtime(const char* executable_path)
 
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_matcen_create = caml_named_value("cd_matcen_create");
+    g_fuelcen_activate = caml_named_value("cd_fuelcen_activate");
     g_explode_wall = caml_named_value("cd_explode_wall");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_update_points = caml_named_value("cd_update_points");
@@ -945,6 +948,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_min_max
         || !g_fuelcen_create
         || !g_matcen_create
+        || !g_fuelcen_activate
         || !g_explode_wall)
     {
         return 1;
@@ -7110,6 +7114,32 @@ void cd_ox_matcen_create(int segnum)
     CAMLparam0();
 
     caml_callback(*g_matcen_create, Val_long(segnum));
+
+    CAMLreturn0;
+}
+
+/* -- fuelcen_activate ---------------------------------------------------- */
+
+void cd_ox_register_fuelcen_activate_effects(
+    cd_effect_fc_set_segment_special_fn set_special)
+{
+    g_effect_fc_set_segment_special = set_special;
+}
+
+CAMLprim value cd_ox_effect_fc_set_segment_special(value v_segnum, value v_special)
+{
+    if (g_effect_fc_set_segment_special)
+        g_effect_fc_set_segment_special(Int_val(v_segnum), Int_val(v_special));
+    return Val_unit;
+}
+
+/* cd_ox_fuelcen_activate: C entry point that calls into OCaml */
+void cd_ox_fuelcen_activate(int segnum, int station_type)
+{
+    cd_ox_require_ready("cd_ox_fuelcen_activate");
+    CAMLparam0();
+
+    caml_callback2(*g_fuelcen_activate, Val_long(segnum), Val_long(station_type));
 
     CAMLreturn0;
 }

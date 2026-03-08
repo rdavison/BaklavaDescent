@@ -313,7 +313,27 @@ void matcen_create(segment* segp)
 // Adds a segment that already is a special type into the Station array.
 void fuelcen_activate(segment* segp, int station_type)
 {
-	segment2* seg2p = &Segment2s[segp - Segments];
+	int segnum = (int)(segp - Segments);
+
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_fuelcen_activate_effects(
+				// set_segment_special: sets Segment2s[segnum].special = station_type
+				[](int seg, int special) {
+					Segment2s[seg].special = special;
+				});
+			registered = true;
+		}
+		if (cd_ox_is_ready()) {
+			cd_ox_fuelcen_activate(segnum, station_type);
+			return;
+		}
+	}
+#endif
+
+	segment2* seg2p = &Segment2s[segnum];
 
 	seg2p->special = station_type;
 

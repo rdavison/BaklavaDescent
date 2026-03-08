@@ -17,6 +17,7 @@ type _ Effect.t +=
   | Write_fuelcen_create : int array -> unit Effect.t
   | Fetch_matcen_create_data : int -> int array Effect.t
   | Write_matcen_create : int array -> unit Effect.t
+  | Set_segment_special : (int * int) -> unit Effect.t
 
 (* fuelcen_create: Turns a segment into a fully charged up fuel center.
    Takes segnum (segment index).
@@ -125,4 +126,17 @@ let matcen_create ~segnum =
        segnum_actual;        (* 11: RobotCenters[].segnum *)
        num_fuelcenters       (* 12: RobotCenters[].fuelcen_num *)
     |])
+;;
+
+(* fuelcen_activate: Adds a segment that already is a special type into the
+   Station array. Sets seg2p->special then dispatches to matcen_create or
+   fuelcen_create.
+   Takes segnum (segment index) and station_type. *)
+let fuelcen_activate ~segnum ~station_type =
+  (* seg2p->special = station_type *)
+  Effect.perform (Set_segment_special (segnum, station_type));
+  if station_type = segment_is_robotmaker then
+    matcen_create ~segnum
+  else
+    fuelcen_create ~segnum
 ;;

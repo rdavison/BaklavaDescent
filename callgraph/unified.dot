@@ -378,7 +378,7 @@ digraph callgraph {
   "fprintf" [label="fprintf\n(ai)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "free_object_slots" [label="free_object_slots\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "fseek" [label="fseek\n(object)", color=gray50, style=solid, fillcolor="white"];
-  "fuelcen_activate" [label="fuelcen_activate\n(fuelcen)", color=gray50, style=solid, fillcolor="white"];
+  "fuelcen_activate" [label="fuelcen_activate\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];
   "fuelcen_check_for_goal" [label="fuelcen_check_for_goal\n(fuelcen)", color=orange, style=filled, fillcolor="lightyellow"];
   "fuelcen_check_for_hoard_goal" [label="fuelcen_check_for_hoard_goal\n(fuelcen)", color=orange, style=filled, fillcolor="lightyellow"];
   "fuelcen_create" [label="fuelcen_create\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];

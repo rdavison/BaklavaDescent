@@ -482,46 +482,52 @@ define linkonce_odr noundef i32 @_Z3i2fi(i32 noundef %0) #0 !dbg !580 {
 define void @_Z16fuelcen_activateP7segmenti(ptr noundef %0, i32 noundef %1) #1 !dbg !588 {
   %3 = alloca ptr, align 8
   %4 = alloca i32, align 4
-  %5 = alloca ptr, align 8
+  %5 = alloca i32, align 4
+  %6 = alloca ptr, align 8
   store ptr %0, ptr %3, align 8
     #dbg_declare(ptr %3, !591, !DIExpression(), !592)
   store i32 %1, ptr %4, align 4
     #dbg_declare(ptr %4, !593, !DIExpression(), !594)
     #dbg_declare(ptr %5, !595, !DIExpression(), !596)
-  %6 = load ptr, ptr %3, align 8, !dbg !597
-  %7 = ptrtoint ptr %6 to i64, !dbg !598
-  %8 = sub i64 %7, ptrtoint (ptr @Segments to i64), !dbg !598
-  %9 = sdiv exact i64 %8, 512, !dbg !598
-  %10 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %9, !dbg !599
-  store ptr %10, ptr %5, align 8, !dbg !596
-  %11 = load i32, ptr %4, align 4, !dbg !600
-  %12 = trunc i32 %11 to i8, !dbg !600
-  %13 = load ptr, ptr %5, align 8, !dbg !601
-  %14 = getelementptr inbounds nuw %struct.segment2, ptr %13, i32 0, i32 0, !dbg !602
-  store i8 %12, ptr %14, align 4, !dbg !603
-  %15 = load ptr, ptr %5, align 8, !dbg !604
-  %16 = getelementptr inbounds nuw %struct.segment2, ptr %15, i32 0, i32 0, !dbg !606
-  %17 = load i8, ptr %16, align 4, !dbg !606
-  %18 = zext i8 %17 to i32, !dbg !604
-  %19 = icmp eq i32 %18, 4, !dbg !607
-  br i1 %19, label %20, label %22, !dbg !607
+  %7 = load ptr, ptr %3, align 8, !dbg !597
+  %8 = ptrtoint ptr %7 to i64, !dbg !598
+  %9 = sub i64 %8, ptrtoint (ptr @Segments to i64), !dbg !598
+  %10 = sdiv exact i64 %9, 512, !dbg !598
+  %11 = trunc i64 %10 to i32, !dbg !599
+  store i32 %11, ptr %5, align 4, !dbg !596
+    #dbg_declare(ptr %6, !600, !DIExpression(), !601)
+  %12 = load i32, ptr %5, align 4, !dbg !602
+  %13 = sext i32 %12 to i64, !dbg !603
+  %14 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %13, !dbg !603
+  store ptr %14, ptr %6, align 8, !dbg !601
+  %15 = load i32, ptr %4, align 4, !dbg !604
+  %16 = trunc i32 %15 to i8, !dbg !604
+  %17 = load ptr, ptr %6, align 8, !dbg !605
+  %18 = getelementptr inbounds nuw %struct.segment2, ptr %17, i32 0, i32 0, !dbg !606
+  store i8 %16, ptr %18, align 4, !dbg !607
+  %19 = load ptr, ptr %6, align 8, !dbg !608
+  %20 = getelementptr inbounds nuw %struct.segment2, ptr %19, i32 0, i32 0, !dbg !610
+  %21 = load i8, ptr %20, align 4, !dbg !610
+  %22 = zext i8 %21 to i32, !dbg !608
+  %23 = icmp eq i32 %22, 4, !dbg !611
+  br i1 %23, label %24, label %26, !dbg !611
 
-20:                                               ; preds = %2
-  %21 = load ptr, ptr %3, align 8, !dbg !608
-  call void @_Z13matcen_createP7segment(ptr noundef %21), !dbg !609
-  br label %24, !dbg !609
+24:                                               ; preds = %2
+  %25 = load ptr, ptr %3, align 8, !dbg !612
+  call void @_Z13matcen_createP7segment(ptr noundef %25), !dbg !613
+  br label %28, !dbg !613
 
-22:                                               ; preds = %2
-  %23 = load ptr, ptr %3, align 8, !dbg !610
-  call void @_Z14fuelcen_createP7segment(ptr noundef %23), !dbg !611
-  br label %24
+26:                                               ; preds = %2
+  %27 = load ptr, ptr %3, align 8, !dbg !614
+  call void @_Z14fuelcen_createP7segment(ptr noundef %27), !dbg !615
+  br label %28
 
-24:                                               ; preds = %22, %20
-  ret void, !dbg !612
+28:                                               ; preds = %26, %24
+  ret void, !dbg !616
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z14trigger_matceni(i32 noundef %0) #1 !dbg !613 {
+define void @_Z14trigger_matceni(i32 noundef %0) #1 !dbg !617 {
   %2 = alloca i32, align 4
   %3 = alloca ptr, align 8
   %4 = alloca %struct.vms_vector, align 4
@@ -529,165 +535,165 @@ define void @_Z14trigger_matceni(i32 noundef %0) #1 !dbg !613 {
   %6 = alloca ptr, align 8
   %7 = alloca i32, align 4
   store i32 %0, ptr %2, align 4
-    #dbg_declare(ptr %2, !616, !DIExpression(), !617)
-    #dbg_declare(ptr %3, !618, !DIExpression(), !619)
-  %8 = load i32, ptr %2, align 4, !dbg !620
-  %9 = sext i32 %8 to i64, !dbg !621
-  %10 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %9, !dbg !621
-  store ptr %10, ptr %3, align 8, !dbg !619
-    #dbg_declare(ptr %4, !622, !DIExpression(), !623)
-    #dbg_declare(ptr %5, !624, !DIExpression(), !625)
-    #dbg_declare(ptr %6, !626, !DIExpression(), !628)
-    #dbg_declare(ptr %7, !629, !DIExpression(), !630)
-  %11 = load i32, ptr %2, align 4, !dbg !631
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.6, i32 noundef %11), !dbg !631
-  %12 = load ptr, ptr %3, align 8, !dbg !632
-  %13 = getelementptr inbounds nuw %struct.segment2, ptr %12, i32 0, i32 0, !dbg !632
-  %14 = load i8, ptr %13, align 4, !dbg !632
-  %15 = zext i8 %14 to i32, !dbg !632
-  %16 = icmp eq i32 %15, 4, !dbg !632
-  %17 = zext i1 %16 to i32, !dbg !632
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %17, ptr noundef @.str.7, ptr noundef @.str.2, i32 noundef 344), !dbg !632
-  %18 = load ptr, ptr %3, align 8, !dbg !633
-  %19 = getelementptr inbounds nuw %struct.segment2, ptr %18, i32 0, i32 1, !dbg !633
-  %20 = load i8, ptr %19, align 1, !dbg !633
-  %21 = sext i8 %20 to i32, !dbg !633
-  %22 = load i32, ptr @Num_fuelcenters, align 4, !dbg !633
-  %23 = icmp slt i32 %21, %22, !dbg !633
-  %24 = zext i1 %23 to i32, !dbg !633
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %24, ptr noundef @.str.8, ptr noundef @.str.2, i32 noundef 345), !dbg !633
-  %25 = load ptr, ptr %3, align 8, !dbg !634
-  %26 = getelementptr inbounds nuw %struct.segment2, ptr %25, i32 0, i32 1, !dbg !634
-  %27 = load i8, ptr %26, align 1, !dbg !634
-  %28 = sext i8 %27 to i32, !dbg !634
-  %29 = icmp sge i32 %28, 0, !dbg !634
-  br i1 %29, label %30, label %37, !dbg !634
+    #dbg_declare(ptr %2, !620, !DIExpression(), !621)
+    #dbg_declare(ptr %3, !622, !DIExpression(), !623)
+  %8 = load i32, ptr %2, align 4, !dbg !624
+  %9 = sext i32 %8 to i64, !dbg !625
+  %10 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %9, !dbg !625
+  store ptr %10, ptr %3, align 8, !dbg !623
+    #dbg_declare(ptr %4, !626, !DIExpression(), !627)
+    #dbg_declare(ptr %5, !628, !DIExpression(), !629)
+    #dbg_declare(ptr %6, !630, !DIExpression(), !632)
+    #dbg_declare(ptr %7, !633, !DIExpression(), !634)
+  %11 = load i32, ptr %2, align 4, !dbg !635
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.6, i32 noundef %11), !dbg !635
+  %12 = load ptr, ptr %3, align 8, !dbg !636
+  %13 = getelementptr inbounds nuw %struct.segment2, ptr %12, i32 0, i32 0, !dbg !636
+  %14 = load i8, ptr %13, align 4, !dbg !636
+  %15 = zext i8 %14 to i32, !dbg !636
+  %16 = icmp eq i32 %15, 4, !dbg !636
+  %17 = zext i1 %16 to i32, !dbg !636
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %17, ptr noundef @.str.7, ptr noundef @.str.2, i32 noundef 364), !dbg !636
+  %18 = load ptr, ptr %3, align 8, !dbg !637
+  %19 = getelementptr inbounds nuw %struct.segment2, ptr %18, i32 0, i32 1, !dbg !637
+  %20 = load i8, ptr %19, align 1, !dbg !637
+  %21 = sext i8 %20 to i32, !dbg !637
+  %22 = load i32, ptr @Num_fuelcenters, align 4, !dbg !637
+  %23 = icmp slt i32 %21, %22, !dbg !637
+  %24 = zext i1 %23 to i32, !dbg !637
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %24, ptr noundef @.str.8, ptr noundef @.str.2, i32 noundef 365), !dbg !637
+  %25 = load ptr, ptr %3, align 8, !dbg !638
+  %26 = getelementptr inbounds nuw %struct.segment2, ptr %25, i32 0, i32 1, !dbg !638
+  %27 = load i8, ptr %26, align 1, !dbg !638
+  %28 = sext i8 %27 to i32, !dbg !638
+  %29 = icmp sge i32 %28, 0, !dbg !638
+  br i1 %29, label %30, label %37, !dbg !638
 
 30:                                               ; preds = %1
-  %31 = load ptr, ptr %3, align 8, !dbg !634
-  %32 = getelementptr inbounds nuw %struct.segment2, ptr %31, i32 0, i32 1, !dbg !634
-  %33 = load i8, ptr %32, align 1, !dbg !634
-  %34 = sext i8 %33 to i32, !dbg !634
-  %35 = load i32, ptr @Highest_segment_index, align 4, !dbg !634
-  %36 = icmp sle i32 %34, %35, !dbg !634
+  %31 = load ptr, ptr %3, align 8, !dbg !638
+  %32 = getelementptr inbounds nuw %struct.segment2, ptr %31, i32 0, i32 1, !dbg !638
+  %33 = load i8, ptr %32, align 1, !dbg !638
+  %34 = sext i8 %33 to i32, !dbg !638
+  %35 = load i32, ptr @Highest_segment_index, align 4, !dbg !638
+  %36 = icmp sle i32 %34, %35, !dbg !638
   br label %37
 
 37:                                               ; preds = %30, %1
-  %38 = phi i1 [ false, %1 ], [ %36, %30 ], !dbg !635
-  %39 = zext i1 %38 to i32, !dbg !634
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %39, ptr noundef @.str.9, ptr noundef @.str.2, i32 noundef 346), !dbg !634
-  %40 = load ptr, ptr %3, align 8, !dbg !636
-  %41 = getelementptr inbounds nuw %struct.segment2, ptr %40, i32 0, i32 1, !dbg !637
-  %42 = load i8, ptr %41, align 1, !dbg !637
-  %43 = sext i8 %42 to i64, !dbg !638
-  %44 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %43, !dbg !638
-  %45 = getelementptr inbounds nuw %struct.matcen_info, ptr %44, i32 0, i32 4, !dbg !639
-  %46 = load i16, ptr %45, align 2, !dbg !639
-  %47 = sext i16 %46 to i64, !dbg !640
-  %48 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %47, !dbg !640
-  store ptr %48, ptr %6, align 8, !dbg !641
-  %49 = load ptr, ptr %6, align 8, !dbg !642
-  %50 = getelementptr inbounds nuw %struct.FuelCenter, ptr %49, i32 0, i32 3, !dbg !644
-  %51 = load i8, ptr %50, align 1, !dbg !644
-  %52 = sext i8 %51 to i32, !dbg !642
-  %53 = icmp eq i32 %52, 1, !dbg !645
-  br i1 %53, label %54, label %55, !dbg !645
+  %38 = phi i1 [ false, %1 ], [ %36, %30 ], !dbg !639
+  %39 = zext i1 %38 to i32, !dbg !638
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %39, ptr noundef @.str.9, ptr noundef @.str.2, i32 noundef 366), !dbg !638
+  %40 = load ptr, ptr %3, align 8, !dbg !640
+  %41 = getelementptr inbounds nuw %struct.segment2, ptr %40, i32 0, i32 1, !dbg !641
+  %42 = load i8, ptr %41, align 1, !dbg !641
+  %43 = sext i8 %42 to i64, !dbg !642
+  %44 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %43, !dbg !642
+  %45 = getelementptr inbounds nuw %struct.matcen_info, ptr %44, i32 0, i32 4, !dbg !643
+  %46 = load i16, ptr %45, align 2, !dbg !643
+  %47 = sext i16 %46 to i64, !dbg !644
+  %48 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %47, !dbg !644
+  store ptr %48, ptr %6, align 8, !dbg !645
+  %49 = load ptr, ptr %6, align 8, !dbg !646
+  %50 = getelementptr inbounds nuw %struct.FuelCenter, ptr %49, i32 0, i32 3, !dbg !648
+  %51 = load i8, ptr %50, align 1, !dbg !648
+  %52 = sext i8 %51 to i32, !dbg !646
+  %53 = icmp eq i32 %52, 1, !dbg !649
+  br i1 %53, label %54, label %55, !dbg !649
 
 54:                                               ; preds = %37
-  br label %120, !dbg !646
+  br label %120, !dbg !650
 
 55:                                               ; preds = %37
-  %56 = load ptr, ptr %6, align 8, !dbg !647
-  %57 = getelementptr inbounds nuw %struct.FuelCenter, ptr %56, i32 0, i32 4, !dbg !649
-  %58 = load i8, ptr %57, align 2, !dbg !649
-  %59 = icmp ne i8 %58, 0, !dbg !647
-  br i1 %59, label %61, label %60, !dbg !650
+  %56 = load ptr, ptr %6, align 8, !dbg !651
+  %57 = getelementptr inbounds nuw %struct.FuelCenter, ptr %56, i32 0, i32 4, !dbg !653
+  %58 = load i8, ptr %57, align 2, !dbg !653
+  %59 = icmp ne i8 %58, 0, !dbg !651
+  br i1 %59, label %61, label %60, !dbg !654
 
 60:                                               ; preds = %55
-  br label %120, !dbg !651
+  br label %120, !dbg !655
 
 61:                                               ; preds = %55
-  %62 = load i32, ptr @Difficulty_level, align 4, !dbg !652
-  %63 = add nsw i32 %62, 1, !dbg !654
-  %64 = icmp slt i32 %63, 5, !dbg !655
-  br i1 %64, label %65, label %70, !dbg !655
+  %62 = load i32, ptr @Difficulty_level, align 4, !dbg !656
+  %63 = add nsw i32 %62, 1, !dbg !658
+  %64 = icmp slt i32 %63, 5, !dbg !659
+  br i1 %64, label %65, label %70, !dbg !659
 
 65:                                               ; preds = %61
-  %66 = load ptr, ptr %6, align 8, !dbg !656
-  %67 = getelementptr inbounds nuw %struct.FuelCenter, ptr %66, i32 0, i32 4, !dbg !657
-  %68 = load i8, ptr %67, align 2, !dbg !658
-  %69 = add i8 %68, -1, !dbg !658
-  store i8 %69, ptr %67, align 2, !dbg !658
-  br label %70, !dbg !656
+  %66 = load ptr, ptr %6, align 8, !dbg !660
+  %67 = getelementptr inbounds nuw %struct.FuelCenter, ptr %66, i32 0, i32 4, !dbg !661
+  %68 = load i8, ptr %67, align 2, !dbg !662
+  %69 = add i8 %68, -1, !dbg !662
+  store i8 %69, ptr %67, align 2, !dbg !662
+  br label %70, !dbg !660
 
 70:                                               ; preds = %65, %61
-  %71 = load ptr, ptr %6, align 8, !dbg !659
-  %72 = getelementptr inbounds nuw %struct.FuelCenter, ptr %71, i32 0, i32 8, !dbg !660
-  store i32 65536000, ptr %72, align 4, !dbg !661
-  %73 = load ptr, ptr %6, align 8, !dbg !662
-  %74 = getelementptr inbounds nuw %struct.FuelCenter, ptr %73, i32 0, i32 3, !dbg !663
-  store i8 1, ptr %74, align 1, !dbg !664
-  %75 = load i32, ptr @Difficulty_level, align 4, !dbg !665
-  %76 = add nsw i32 %75, 3, !dbg !666
-  %77 = call noundef i32 @_Z3i2fi(i32 noundef %76), !dbg !667
-  %78 = load ptr, ptr %6, align 8, !dbg !668
-  %79 = getelementptr inbounds nuw %struct.FuelCenter, ptr %78, i32 0, i32 6, !dbg !669
-  store i32 %77, ptr %79, align 4, !dbg !670
-  %80 = load i32, ptr @Difficulty_level, align 4, !dbg !671
-  %81 = mul nsw i32 2, %80, !dbg !671
-  %82 = sub nsw i32 30, %81, !dbg !671
-  %83 = call noundef i32 @_Z3i2fi(i32 noundef %82), !dbg !671
-  %84 = load ptr, ptr %6, align 8, !dbg !672
-  %85 = getelementptr inbounds nuw %struct.FuelCenter, ptr %84, i32 0, i32 9, !dbg !673
-  store i32 %83, ptr %85, align 4, !dbg !674
-  %86 = load ptr, ptr %6, align 8, !dbg !675
-  %87 = getelementptr inbounds nuw %struct.FuelCenter, ptr %86, i32 0, i32 10, !dbg !676
-  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %4, ptr align 4 %87, i64 12, i1 false), !dbg !677
-  %88 = load i32, ptr %2, align 4, !dbg !678
-  %89 = sext i32 %88 to i64, !dbg !679
-  %90 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %89, !dbg !679
-  %91 = getelementptr inbounds nuw %struct.segment, ptr %90, i32 0, i32 2, !dbg !680
-  %92 = getelementptr inbounds [8 x i16], ptr %91, i64 0, i64 0, !dbg !679
-  %93 = load i16, ptr %92, align 4, !dbg !679
-  %94 = sext i16 %93 to i64, !dbg !681
-  %95 = getelementptr inbounds [0 x %struct.vms_vector], ptr @Vertices, i64 0, i64 %94, !dbg !681
-  %96 = load ptr, ptr %6, align 8, !dbg !682
-  %97 = getelementptr inbounds nuw %struct.FuelCenter, ptr %96, i32 0, i32 10, !dbg !683
-  %98 = call noundef ptr @_Z10vm_vec_subP10vms_vectorS0_S0_(ptr noundef %5, ptr noundef %95, ptr noundef %97), !dbg !684
-  %99 = call noundef ptr @_Z17vm_vec_scale_add2P10vms_vectorS0_i(ptr noundef %4, ptr noundef %5, i32 noundef 32768), !dbg !685
-  %100 = load i32, ptr %2, align 4, !dbg !686
-  %101 = call noundef i32 @_Z10obj_createhhiP10vms_vectorP10vms_matrixihhh(i8 noundef zeroext 13, i8 noundef zeroext 0, i32 noundef %100, ptr noundef %4, ptr noundef null, i32 noundef 0, i8 noundef zeroext 14, i8 noundef zeroext 0, i8 noundef zeroext 0), !dbg !687
-  store i32 %101, ptr %7, align 4, !dbg !688
-  %102 = load i32, ptr %7, align 4, !dbg !689
-  %103 = icmp ne i32 %102, -1, !dbg !691
-  br i1 %103, label %104, label %119, !dbg !691
+  %71 = load ptr, ptr %6, align 8, !dbg !663
+  %72 = getelementptr inbounds nuw %struct.FuelCenter, ptr %71, i32 0, i32 8, !dbg !664
+  store i32 65536000, ptr %72, align 4, !dbg !665
+  %73 = load ptr, ptr %6, align 8, !dbg !666
+  %74 = getelementptr inbounds nuw %struct.FuelCenter, ptr %73, i32 0, i32 3, !dbg !667
+  store i8 1, ptr %74, align 1, !dbg !668
+  %75 = load i32, ptr @Difficulty_level, align 4, !dbg !669
+  %76 = add nsw i32 %75, 3, !dbg !670
+  %77 = call noundef i32 @_Z3i2fi(i32 noundef %76), !dbg !671
+  %78 = load ptr, ptr %6, align 8, !dbg !672
+  %79 = getelementptr inbounds nuw %struct.FuelCenter, ptr %78, i32 0, i32 6, !dbg !673
+  store i32 %77, ptr %79, align 4, !dbg !674
+  %80 = load i32, ptr @Difficulty_level, align 4, !dbg !675
+  %81 = mul nsw i32 2, %80, !dbg !675
+  %82 = sub nsw i32 30, %81, !dbg !675
+  %83 = call noundef i32 @_Z3i2fi(i32 noundef %82), !dbg !675
+  %84 = load ptr, ptr %6, align 8, !dbg !676
+  %85 = getelementptr inbounds nuw %struct.FuelCenter, ptr %84, i32 0, i32 9, !dbg !677
+  store i32 %83, ptr %85, align 4, !dbg !678
+  %86 = load ptr, ptr %6, align 8, !dbg !679
+  %87 = getelementptr inbounds nuw %struct.FuelCenter, ptr %86, i32 0, i32 10, !dbg !680
+  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %4, ptr align 4 %87, i64 12, i1 false), !dbg !681
+  %88 = load i32, ptr %2, align 4, !dbg !682
+  %89 = sext i32 %88 to i64, !dbg !683
+  %90 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %89, !dbg !683
+  %91 = getelementptr inbounds nuw %struct.segment, ptr %90, i32 0, i32 2, !dbg !684
+  %92 = getelementptr inbounds [8 x i16], ptr %91, i64 0, i64 0, !dbg !683
+  %93 = load i16, ptr %92, align 4, !dbg !683
+  %94 = sext i16 %93 to i64, !dbg !685
+  %95 = getelementptr inbounds [0 x %struct.vms_vector], ptr @Vertices, i64 0, i64 %94, !dbg !685
+  %96 = load ptr, ptr %6, align 8, !dbg !686
+  %97 = getelementptr inbounds nuw %struct.FuelCenter, ptr %96, i32 0, i32 10, !dbg !687
+  %98 = call noundef ptr @_Z10vm_vec_subP10vms_vectorS0_S0_(ptr noundef %5, ptr noundef %95, ptr noundef %97), !dbg !688
+  %99 = call noundef ptr @_Z17vm_vec_scale_add2P10vms_vectorS0_i(ptr noundef %4, ptr noundef %5, i32 noundef 32768), !dbg !689
+  %100 = load i32, ptr %2, align 4, !dbg !690
+  %101 = call noundef i32 @_Z10obj_createhhiP10vms_vectorP10vms_matrixihhh(i8 noundef zeroext 13, i8 noundef zeroext 0, i32 noundef %100, ptr noundef %4, ptr noundef null, i32 noundef 0, i8 noundef zeroext 14, i8 noundef zeroext 0, i8 noundef zeroext 0), !dbg !691
+  store i32 %101, ptr %7, align 4, !dbg !692
+  %102 = load i32, ptr %7, align 4, !dbg !693
+  %103 = icmp ne i32 %102, -1, !dbg !695
+  br i1 %103, label %104, label %119, !dbg !695
 
 104:                                              ; preds = %70
-  %105 = load i32, ptr @Difficulty_level, align 4, !dbg !692
-  %106 = mul nsw i32 2, %105, !dbg !692
-  %107 = sub nsw i32 30, %106, !dbg !692
-  %108 = call noundef i32 @_Z3i2fi(i32 noundef %107), !dbg !692
-  %109 = load i32, ptr %7, align 4, !dbg !694
-  %110 = sext i32 %109 to i64, !dbg !695
-  %111 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %110, !dbg !695
-  %112 = getelementptr inbounds nuw %struct.object, ptr %111, i32 0, i32 20, !dbg !696
-  store i32 %108, ptr %112, align 4, !dbg !697
-  %113 = call noundef i32 @_Z3i2fi(i32 noundef 8), !dbg !698
-  %114 = load i32, ptr %7, align 4, !dbg !699
-  %115 = sext i32 %114 to i64, !dbg !700
-  %116 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %115, !dbg !700
-  %117 = getelementptr inbounds nuw %struct.object, ptr %116, i32 0, i32 22, !dbg !701
-  %118 = getelementptr inbounds nuw %struct.light_info_s, ptr %117, i32 0, i32 0, !dbg !702
-  store i32 %113, ptr %118, align 4, !dbg !703
-  br label %120, !dbg !704
+  %105 = load i32, ptr @Difficulty_level, align 4, !dbg !696
+  %106 = mul nsw i32 2, %105, !dbg !696
+  %107 = sub nsw i32 30, %106, !dbg !696
+  %108 = call noundef i32 @_Z3i2fi(i32 noundef %107), !dbg !696
+  %109 = load i32, ptr %7, align 4, !dbg !698
+  %110 = sext i32 %109 to i64, !dbg !699
+  %111 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %110, !dbg !699
+  %112 = getelementptr inbounds nuw %struct.object, ptr %111, i32 0, i32 20, !dbg !700
+  store i32 %108, ptr %112, align 4, !dbg !701
+  %113 = call noundef i32 @_Z3i2fi(i32 noundef 8), !dbg !702
+  %114 = load i32, ptr %7, align 4, !dbg !703
+  %115 = sext i32 %114 to i64, !dbg !704
+  %116 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %115, !dbg !704
+  %117 = getelementptr inbounds nuw %struct.object, ptr %116, i32 0, i32 22, !dbg !705
+  %118 = getelementptr inbounds nuw %struct.light_info_s, ptr %117, i32 0, i32 0, !dbg !706
+  store i32 %113, ptr %118, align 4, !dbg !707
+  br label %120, !dbg !708
 
 119:                                              ; preds = %70
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 1, ptr noundef @.str.10), !dbg !705
-  call void @_Z4Int3v(), !dbg !707
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 1, ptr noundef @.str.10), !dbg !709
+  call void @_Z4Int3v(), !dbg !711
   br label %120
 
 120:                                              ; preds = %54, %60, %119, %104
-  ret void, !dbg !708
+  ret void, !dbg !712
 }
 
 declare void @_Z8_mprintfiPKcz(i32 noundef, ptr noundef, ...) #2
@@ -704,7 +710,7 @@ declare noundef i32 @_Z10obj_createhhiP10vms_vectorP10vms_matrixihhh(i8 noundef 
 declare void @_Z4Int3v() #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define noundef ptr @_Z18create_morph_robotP7segmentP10vms_vectori(ptr noundef %0, ptr noundef %1, i32 noundef %2) #1 !dbg !709 {
+define noundef ptr @_Z18create_morph_robotP7segmentP10vms_vectori(ptr noundef %0, ptr noundef %1, i32 noundef %2) #1 !dbg !713 {
   %4 = alloca ptr, align 8
   %5 = alloca ptr, align 8
   %6 = alloca ptr, align 8
@@ -713,151 +719,151 @@ define noundef ptr @_Z18create_morph_robotP7segmentP10vms_vectori(ptr noundef %0
   %9 = alloca ptr, align 8
   %10 = alloca i32, align 4
   store ptr %0, ptr %5, align 8
-    #dbg_declare(ptr %5, !845, !DIExpression(), !846)
+    #dbg_declare(ptr %5, !849, !DIExpression(), !850)
   store ptr %1, ptr %6, align 8
-    #dbg_declare(ptr %6, !847, !DIExpression(), !848)
+    #dbg_declare(ptr %6, !851, !DIExpression(), !852)
   store i32 %2, ptr %7, align 4
-    #dbg_declare(ptr %7, !849, !DIExpression(), !850)
-    #dbg_declare(ptr %8, !851, !DIExpression(), !852)
-    #dbg_declare(ptr %9, !853, !DIExpression(), !854)
-    #dbg_declare(ptr %10, !855, !DIExpression(), !856)
-  %11 = load i32, ptr @Player_num, align 4, !dbg !857
-  %12 = sext i32 %11 to i64, !dbg !858
-  %13 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %12, !dbg !858
-  %14 = getelementptr inbounds nuw %struct.player, ptr %13, i32 0, i32 31, !dbg !859
-  %15 = load i16, ptr %14, align 2, !dbg !860
-  %16 = add i16 %15, 1, !dbg !860
-  store i16 %16, ptr %14, align 2, !dbg !860
-  %17 = load i32, ptr @Player_num, align 4, !dbg !861
-  %18 = sext i32 %17 to i64, !dbg !862
-  %19 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %18, !dbg !862
-  %20 = getelementptr inbounds nuw %struct.player, ptr %19, i32 0, i32 32, !dbg !863
-  %21 = load i16, ptr %20, align 4, !dbg !864
-  %22 = add i16 %21, 1, !dbg !864
-  store i16 %22, ptr %20, align 4, !dbg !864
-  %23 = load i32, ptr %7, align 4, !dbg !865
-  %24 = trunc i32 %23 to i8, !dbg !865
-  %25 = load ptr, ptr %5, align 8, !dbg !866
-  %26 = ptrtoint ptr %25 to i64, !dbg !867
-  %27 = sub i64 %26, ptrtoint (ptr @Segments to i64), !dbg !867
-  %28 = sdiv exact i64 %27, 512, !dbg !867
-  %29 = trunc i64 %28 to i32, !dbg !866
-  %30 = load ptr, ptr %6, align 8, !dbg !868
-  %31 = load i32, ptr %7, align 4, !dbg !869
-  %32 = sext i32 %31 to i64, !dbg !870
-  %33 = getelementptr inbounds [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %32, !dbg !870
-  %34 = getelementptr inbounds nuw %struct.robot_info, ptr %33, i32 0, i32 0, !dbg !871
-  %35 = load i32, ptr %34, align 4, !dbg !871
-  %36 = sext i32 %35 to i64, !dbg !872
-  %37 = getelementptr inbounds [0 x %struct.polymodel], ptr @Polygon_models, i64 0, i64 %36, !dbg !872
-  %38 = getelementptr inbounds nuw %struct.polymodel, ptr %37, i32 0, i32 13, !dbg !873
-  %39 = load i32, ptr %38, align 4, !dbg !873
-  %40 = call noundef i32 @_Z10obj_createhhiP10vms_vectorP10vms_matrixihhh(i8 noundef zeroext 2, i8 noundef zeroext %24, i32 noundef %29, ptr noundef %30, ptr noundef @vmd_identity_matrix, i32 noundef %39, i8 noundef zeroext 1, i8 noundef zeroext 1, i8 noundef zeroext 1), !dbg !874
-  %41 = trunc i32 %40 to i16, !dbg !874
-  store i16 %41, ptr %8, align 2, !dbg !875
-  %42 = load i16, ptr %8, align 2, !dbg !876
-  %43 = sext i16 %42 to i32, !dbg !876
-  %44 = icmp slt i32 %43, 0, !dbg !878
-  br i1 %44, label %45, label %46, !dbg !878
+    #dbg_declare(ptr %7, !853, !DIExpression(), !854)
+    #dbg_declare(ptr %8, !855, !DIExpression(), !856)
+    #dbg_declare(ptr %9, !857, !DIExpression(), !858)
+    #dbg_declare(ptr %10, !859, !DIExpression(), !860)
+  %11 = load i32, ptr @Player_num, align 4, !dbg !861
+  %12 = sext i32 %11 to i64, !dbg !862
+  %13 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %12, !dbg !862
+  %14 = getelementptr inbounds nuw %struct.player, ptr %13, i32 0, i32 31, !dbg !863
+  %15 = load i16, ptr %14, align 2, !dbg !864
+  %16 = add i16 %15, 1, !dbg !864
+  store i16 %16, ptr %14, align 2, !dbg !864
+  %17 = load i32, ptr @Player_num, align 4, !dbg !865
+  %18 = sext i32 %17 to i64, !dbg !866
+  %19 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %18, !dbg !866
+  %20 = getelementptr inbounds nuw %struct.player, ptr %19, i32 0, i32 32, !dbg !867
+  %21 = load i16, ptr %20, align 4, !dbg !868
+  %22 = add i16 %21, 1, !dbg !868
+  store i16 %22, ptr %20, align 4, !dbg !868
+  %23 = load i32, ptr %7, align 4, !dbg !869
+  %24 = trunc i32 %23 to i8, !dbg !869
+  %25 = load ptr, ptr %5, align 8, !dbg !870
+  %26 = ptrtoint ptr %25 to i64, !dbg !871
+  %27 = sub i64 %26, ptrtoint (ptr @Segments to i64), !dbg !871
+  %28 = sdiv exact i64 %27, 512, !dbg !871
+  %29 = trunc i64 %28 to i32, !dbg !870
+  %30 = load ptr, ptr %6, align 8, !dbg !872
+  %31 = load i32, ptr %7, align 4, !dbg !873
+  %32 = sext i32 %31 to i64, !dbg !874
+  %33 = getelementptr inbounds [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %32, !dbg !874
+  %34 = getelementptr inbounds nuw %struct.robot_info, ptr %33, i32 0, i32 0, !dbg !875
+  %35 = load i32, ptr %34, align 4, !dbg !875
+  %36 = sext i32 %35 to i64, !dbg !876
+  %37 = getelementptr inbounds [0 x %struct.polymodel], ptr @Polygon_models, i64 0, i64 %36, !dbg !876
+  %38 = getelementptr inbounds nuw %struct.polymodel, ptr %37, i32 0, i32 13, !dbg !877
+  %39 = load i32, ptr %38, align 4, !dbg !877
+  %40 = call noundef i32 @_Z10obj_createhhiP10vms_vectorP10vms_matrixihhh(i8 noundef zeroext 2, i8 noundef zeroext %24, i32 noundef %29, ptr noundef %30, ptr noundef @vmd_identity_matrix, i32 noundef %39, i8 noundef zeroext 1, i8 noundef zeroext 1, i8 noundef zeroext 1), !dbg !878
+  %41 = trunc i32 %40 to i16, !dbg !878
+  store i16 %41, ptr %8, align 2, !dbg !879
+  %42 = load i16, ptr %8, align 2, !dbg !880
+  %43 = sext i16 %42 to i32, !dbg !880
+  %44 = icmp slt i32 %43, 0, !dbg !882
+  br i1 %44, label %45, label %46, !dbg !882
 
 45:                                               ; preds = %3
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 1, ptr noundef @.str.11), !dbg !879
-  call void @_Z4Int3v(), !dbg !881
-  store ptr null, ptr %4, align 8, !dbg !882
-  br label %121, !dbg !882
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 1, ptr noundef @.str.11), !dbg !883
+  call void @_Z4Int3v(), !dbg !885
+  store ptr null, ptr %4, align 8, !dbg !886
+  br label %121, !dbg !886
 
 46:                                               ; preds = %3
-  %47 = load i16, ptr %8, align 2, !dbg !883
-  %48 = sext i16 %47 to i64, !dbg !884
-  %49 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %48, !dbg !884
-  store ptr %49, ptr %9, align 8, !dbg !885
-  %50 = load ptr, ptr %9, align 8, !dbg !886
-  %51 = getelementptr inbounds nuw %struct.object, ptr %50, i32 0, i32 2, !dbg !887
-  %52 = load i8, ptr %51, align 1, !dbg !887
-  %53 = zext i8 %52 to i64, !dbg !888
-  %54 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %53, !dbg !888
-  %55 = getelementptr inbounds nuw %struct.robot_info, ptr %54, i32 0, i32 0, !dbg !889
-  %56 = load i32, ptr %55, align 4, !dbg !889
-  %57 = load ptr, ptr %9, align 8, !dbg !890
-  %58 = getelementptr inbounds nuw %struct.object, ptr %57, i32 0, i32 23, !dbg !891
-  %59 = getelementptr inbounds nuw %struct.polyobj_info, ptr %58, i32 0, i32 0, !dbg !892
-  store i32 %56, ptr %59, align 4, !dbg !893
-  %60 = load ptr, ptr %9, align 8, !dbg !894
-  %61 = getelementptr inbounds nuw %struct.object, ptr %60, i32 0, i32 23, !dbg !895
-  %62 = getelementptr inbounds nuw %struct.polyobj_info, ptr %61, i32 0, i32 2, !dbg !896
-  store i32 0, ptr %62, align 4, !dbg !897
-  %63 = load ptr, ptr %9, align 8, !dbg !898
-  %64 = getelementptr inbounds nuw %struct.object, ptr %63, i32 0, i32 2, !dbg !899
-  %65 = load i8, ptr %64, align 1, !dbg !899
-  %66 = zext i8 %65 to i64, !dbg !900
-  %67 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %66, !dbg !900
-  %68 = getelementptr inbounds nuw %struct.robot_info, ptr %67, i32 0, i32 20, !dbg !901
-  %69 = load i32, ptr %68, align 4, !dbg !901
-  %70 = load ptr, ptr %9, align 8, !dbg !902
-  %71 = getelementptr inbounds nuw %struct.object, ptr %70, i32 0, i32 21, !dbg !903
-  %72 = getelementptr inbounds nuw %struct.physics_info, ptr %71, i32 0, i32 2, !dbg !904
-  store i32 %69, ptr %72, align 4, !dbg !905
-  %73 = load ptr, ptr %9, align 8, !dbg !906
-  %74 = getelementptr inbounds nuw %struct.object, ptr %73, i32 0, i32 2, !dbg !907
-  %75 = load i8, ptr %74, align 1, !dbg !907
-  %76 = zext i8 %75 to i64, !dbg !908
-  %77 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %76, !dbg !908
-  %78 = getelementptr inbounds nuw %struct.robot_info, ptr %77, i32 0, i32 21, !dbg !909
-  %79 = load i32, ptr %78, align 4, !dbg !909
-  %80 = load ptr, ptr %9, align 8, !dbg !910
-  %81 = getelementptr inbounds nuw %struct.object, ptr %80, i32 0, i32 21, !dbg !911
-  %82 = getelementptr inbounds nuw %struct.physics_info, ptr %81, i32 0, i32 3, !dbg !912
-  store i32 %79, ptr %82, align 4, !dbg !913
-  %83 = load ptr, ptr %9, align 8, !dbg !914
-  %84 = getelementptr inbounds nuw %struct.object, ptr %83, i32 0, i32 21, !dbg !915
-  %85 = getelementptr inbounds nuw %struct.physics_info, ptr %84, i32 0, i32 8, !dbg !916
-  %86 = load i16, ptr %85, align 2, !dbg !917
-  %87 = zext i16 %86 to i32, !dbg !917
-  %88 = or i32 %87, 2, !dbg !917
-  %89 = trunc i32 %88 to i16, !dbg !917
-  store i16 %89, ptr %85, align 2, !dbg !917
-  %90 = load ptr, ptr %9, align 8, !dbg !918
-  %91 = getelementptr inbounds nuw %struct.object, ptr %90, i32 0, i32 2, !dbg !919
-  %92 = load i8, ptr %91, align 1, !dbg !919
-  %93 = zext i8 %92 to i64, !dbg !920
-  %94 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %93, !dbg !920
-  %95 = getelementptr inbounds nuw %struct.robot_info, ptr %94, i32 0, i32 19, !dbg !921
-  %96 = load i32, ptr %95, align 4, !dbg !921
-  %97 = load ptr, ptr %9, align 8, !dbg !922
-  %98 = getelementptr inbounds nuw %struct.object, ptr %97, i32 0, i32 14, !dbg !923
-  store i32 %96, ptr %98, align 4, !dbg !924
-  %99 = load ptr, ptr %9, align 8, !dbg !925
-  %100 = getelementptr inbounds nuw %struct.object, ptr %99, i32 0, i32 2, !dbg !926
-  %101 = load i8, ptr %100, align 1, !dbg !926
-  %102 = zext i8 %101 to i64, !dbg !927
-  %103 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %102, !dbg !927
-  %104 = getelementptr inbounds nuw %struct.robot_info, ptr %103, i32 0, i32 48, !dbg !928
-  %105 = load i8, ptr %104, align 2, !dbg !928
-  %106 = zext i8 %105 to i32, !dbg !927
-  store i32 %106, ptr %10, align 4, !dbg !929
-  %107 = load ptr, ptr %9, align 8, !dbg !930
-  %108 = ptrtoint ptr %107 to i64, !dbg !931
-  %109 = sub i64 %108, ptrtoint (ptr @Objects to i64), !dbg !931
-  %110 = sdiv exact i64 %109, 268, !dbg !931
-  %111 = trunc i64 %110 to i32, !dbg !930
-  %112 = load i32, ptr %10, align 4, !dbg !932
-  call void @_Z14init_ai_objectiii(i32 noundef %111, i32 noundef %112, i32 noundef -1), !dbg !933
-  %113 = load ptr, ptr %9, align 8, !dbg !934
-  call void @_Z21create_n_segment_pathP6objectii(ptr noundef %113, i32 noundef 6, i32 noundef -1), !dbg !935
-  %114 = load i32, ptr %10, align 4, !dbg !936
-  %115 = call noundef i32 @_Z19ai_behavior_to_modei(i32 noundef %114), !dbg !937
-  %116 = load i16, ptr %8, align 2, !dbg !938
-  %117 = sext i16 %116 to i64, !dbg !939
-  %118 = getelementptr inbounds [350 x %struct.ai_local], ptr @Ai_local_info, i64 0, i64 %117, !dbg !939
-  %119 = getelementptr inbounds nuw %struct.ai_local, ptr %118, i32 0, i32 3, !dbg !940
-  store i32 %115, ptr %119, align 4, !dbg !941
-  %120 = load ptr, ptr %9, align 8, !dbg !942
-  store ptr %120, ptr %4, align 8, !dbg !943
-  br label %121, !dbg !943
+  %47 = load i16, ptr %8, align 2, !dbg !887
+  %48 = sext i16 %47 to i64, !dbg !888
+  %49 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %48, !dbg !888
+  store ptr %49, ptr %9, align 8, !dbg !889
+  %50 = load ptr, ptr %9, align 8, !dbg !890
+  %51 = getelementptr inbounds nuw %struct.object, ptr %50, i32 0, i32 2, !dbg !891
+  %52 = load i8, ptr %51, align 1, !dbg !891
+  %53 = zext i8 %52 to i64, !dbg !892
+  %54 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %53, !dbg !892
+  %55 = getelementptr inbounds nuw %struct.robot_info, ptr %54, i32 0, i32 0, !dbg !893
+  %56 = load i32, ptr %55, align 4, !dbg !893
+  %57 = load ptr, ptr %9, align 8, !dbg !894
+  %58 = getelementptr inbounds nuw %struct.object, ptr %57, i32 0, i32 23, !dbg !895
+  %59 = getelementptr inbounds nuw %struct.polyobj_info, ptr %58, i32 0, i32 0, !dbg !896
+  store i32 %56, ptr %59, align 4, !dbg !897
+  %60 = load ptr, ptr %9, align 8, !dbg !898
+  %61 = getelementptr inbounds nuw %struct.object, ptr %60, i32 0, i32 23, !dbg !899
+  %62 = getelementptr inbounds nuw %struct.polyobj_info, ptr %61, i32 0, i32 2, !dbg !900
+  store i32 0, ptr %62, align 4, !dbg !901
+  %63 = load ptr, ptr %9, align 8, !dbg !902
+  %64 = getelementptr inbounds nuw %struct.object, ptr %63, i32 0, i32 2, !dbg !903
+  %65 = load i8, ptr %64, align 1, !dbg !903
+  %66 = zext i8 %65 to i64, !dbg !904
+  %67 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %66, !dbg !904
+  %68 = getelementptr inbounds nuw %struct.robot_info, ptr %67, i32 0, i32 20, !dbg !905
+  %69 = load i32, ptr %68, align 4, !dbg !905
+  %70 = load ptr, ptr %9, align 8, !dbg !906
+  %71 = getelementptr inbounds nuw %struct.object, ptr %70, i32 0, i32 21, !dbg !907
+  %72 = getelementptr inbounds nuw %struct.physics_info, ptr %71, i32 0, i32 2, !dbg !908
+  store i32 %69, ptr %72, align 4, !dbg !909
+  %73 = load ptr, ptr %9, align 8, !dbg !910
+  %74 = getelementptr inbounds nuw %struct.object, ptr %73, i32 0, i32 2, !dbg !911
+  %75 = load i8, ptr %74, align 1, !dbg !911
+  %76 = zext i8 %75 to i64, !dbg !912
+  %77 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %76, !dbg !912
+  %78 = getelementptr inbounds nuw %struct.robot_info, ptr %77, i32 0, i32 21, !dbg !913
+  %79 = load i32, ptr %78, align 4, !dbg !913
+  %80 = load ptr, ptr %9, align 8, !dbg !914
+  %81 = getelementptr inbounds nuw %struct.object, ptr %80, i32 0, i32 21, !dbg !915
+  %82 = getelementptr inbounds nuw %struct.physics_info, ptr %81, i32 0, i32 3, !dbg !916
+  store i32 %79, ptr %82, align 4, !dbg !917
+  %83 = load ptr, ptr %9, align 8, !dbg !918
+  %84 = getelementptr inbounds nuw %struct.object, ptr %83, i32 0, i32 21, !dbg !919
+  %85 = getelementptr inbounds nuw %struct.physics_info, ptr %84, i32 0, i32 8, !dbg !920
+  %86 = load i16, ptr %85, align 2, !dbg !921
+  %87 = zext i16 %86 to i32, !dbg !921
+  %88 = or i32 %87, 2, !dbg !921
+  %89 = trunc i32 %88 to i16, !dbg !921
+  store i16 %89, ptr %85, align 2, !dbg !921
+  %90 = load ptr, ptr %9, align 8, !dbg !922
+  %91 = getelementptr inbounds nuw %struct.object, ptr %90, i32 0, i32 2, !dbg !923
+  %92 = load i8, ptr %91, align 1, !dbg !923
+  %93 = zext i8 %92 to i64, !dbg !924
+  %94 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %93, !dbg !924
+  %95 = getelementptr inbounds nuw %struct.robot_info, ptr %94, i32 0, i32 19, !dbg !925
+  %96 = load i32, ptr %95, align 4, !dbg !925
+  %97 = load ptr, ptr %9, align 8, !dbg !926
+  %98 = getelementptr inbounds nuw %struct.object, ptr %97, i32 0, i32 14, !dbg !927
+  store i32 %96, ptr %98, align 4, !dbg !928
+  %99 = load ptr, ptr %9, align 8, !dbg !929
+  %100 = getelementptr inbounds nuw %struct.object, ptr %99, i32 0, i32 2, !dbg !930
+  %101 = load i8, ptr %100, align 1, !dbg !930
+  %102 = zext i8 %101 to i64, !dbg !931
+  %103 = getelementptr inbounds nuw [0 x %struct.robot_info], ptr @Robot_info, i64 0, i64 %102, !dbg !931
+  %104 = getelementptr inbounds nuw %struct.robot_info, ptr %103, i32 0, i32 48, !dbg !932
+  %105 = load i8, ptr %104, align 2, !dbg !932
+  %106 = zext i8 %105 to i32, !dbg !931
+  store i32 %106, ptr %10, align 4, !dbg !933
+  %107 = load ptr, ptr %9, align 8, !dbg !934
+  %108 = ptrtoint ptr %107 to i64, !dbg !935
+  %109 = sub i64 %108, ptrtoint (ptr @Objects to i64), !dbg !935
+  %110 = sdiv exact i64 %109, 268, !dbg !935
+  %111 = trunc i64 %110 to i32, !dbg !934
+  %112 = load i32, ptr %10, align 4, !dbg !936
+  call void @_Z14init_ai_objectiii(i32 noundef %111, i32 noundef %112, i32 noundef -1), !dbg !937
+  %113 = load ptr, ptr %9, align 8, !dbg !938
+  call void @_Z21create_n_segment_pathP6objectii(ptr noundef %113, i32 noundef 6, i32 noundef -1), !dbg !939
+  %114 = load i32, ptr %10, align 4, !dbg !940
+  %115 = call noundef i32 @_Z19ai_behavior_to_modei(i32 noundef %114), !dbg !941
+  %116 = load i16, ptr %8, align 2, !dbg !942
+  %117 = sext i16 %116 to i64, !dbg !943
+  %118 = getelementptr inbounds [350 x %struct.ai_local], ptr @Ai_local_info, i64 0, i64 %117, !dbg !943
+  %119 = getelementptr inbounds nuw %struct.ai_local, ptr %118, i32 0, i32 3, !dbg !944
+  store i32 %115, ptr %119, align 4, !dbg !945
+  %120 = load ptr, ptr %9, align 8, !dbg !946
+  store ptr %120, ptr %4, align 8, !dbg !947
+  br label %121, !dbg !947
 
 121:                                              ; preds = %46, %45
-  %122 = load ptr, ptr %4, align 8, !dbg !944
-  ret ptr %122, !dbg !944
+  %122 = load ptr, ptr %4, align 8, !dbg !948
+  ret ptr %122, !dbg !948
 }
 
 declare void @_Z14init_ai_objectiii(i32 noundef, i32 noundef, i32 noundef) #2
@@ -867,7 +873,7 @@ declare void @_Z21create_n_segment_pathP6objectii(ptr noundef, i32 noundef, i32 
 declare noundef i32 @_Z19ai_behavior_to_modei(i32 noundef) #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z15robotmaker_procP10FuelCenter(ptr noundef %0) #1 !dbg !945 {
+define void @_Z15robotmaker_procP10FuelCenter(ptr noundef %0) #1 !dbg !949 {
   %2 = alloca ptr, align 8
   %3 = alloca i32, align 4
   %4 = alloca %struct.vms_vector, align 4
@@ -888,668 +894,668 @@ define void @_Z15robotmaker_procP10FuelCenter(ptr noundef %0) #1 !dbg !945 {
   %19 = alloca i32, align 4
   %20 = alloca i32, align 4
   store ptr %0, ptr %2, align 8
-    #dbg_declare(ptr %2, !948, !DIExpression(), !949)
-    #dbg_declare(ptr %3, !950, !DIExpression(), !951)
-    #dbg_declare(ptr %4, !952, !DIExpression(), !953)
-    #dbg_declare(ptr %5, !954, !DIExpression(), !955)
-    #dbg_declare(ptr %6, !956, !DIExpression(), !957)
-    #dbg_declare(ptr %7, !958, !DIExpression(), !959)
-    #dbg_declare(ptr %8, !960, !DIExpression(), !961)
-    #dbg_declare(ptr %9, !962, !DIExpression(), !963)
-    #dbg_declare(ptr %10, !964, !DIExpression(), !965)
-  %21 = load ptr, ptr %2, align 8, !dbg !966
-  %22 = getelementptr inbounds nuw %struct.FuelCenter, ptr %21, i32 0, i32 3, !dbg !968
-  %23 = load i8, ptr %22, align 1, !dbg !968
-  %24 = sext i8 %23 to i32, !dbg !966
-  %25 = icmp eq i32 %24, 0, !dbg !969
-  br i1 %25, label %26, label %27, !dbg !969
+    #dbg_declare(ptr %2, !952, !DIExpression(), !953)
+    #dbg_declare(ptr %3, !954, !DIExpression(), !955)
+    #dbg_declare(ptr %4, !956, !DIExpression(), !957)
+    #dbg_declare(ptr %5, !958, !DIExpression(), !959)
+    #dbg_declare(ptr %6, !960, !DIExpression(), !961)
+    #dbg_declare(ptr %7, !962, !DIExpression(), !963)
+    #dbg_declare(ptr %8, !964, !DIExpression(), !965)
+    #dbg_declare(ptr %9, !966, !DIExpression(), !967)
+    #dbg_declare(ptr %10, !968, !DIExpression(), !969)
+  %21 = load ptr, ptr %2, align 8, !dbg !970
+  %22 = getelementptr inbounds nuw %struct.FuelCenter, ptr %21, i32 0, i32 3, !dbg !972
+  %23 = load i8, ptr %22, align 1, !dbg !972
+  %24 = sext i8 %23 to i32, !dbg !970
+  %25 = icmp eq i32 %24, 0, !dbg !973
+  br i1 %25, label %26, label %27, !dbg !973
 
 26:                                               ; preds = %1
-  br label %451, !dbg !970
+  br label %451, !dbg !974
 
 27:                                               ; preds = %1
-  %28 = load ptr, ptr %2, align 8, !dbg !971
-  %29 = getelementptr inbounds nuw %struct.FuelCenter, ptr %28, i32 0, i32 9, !dbg !973
-  %30 = load i32, ptr %29, align 4, !dbg !973
-  %31 = icmp sgt i32 %30, 0, !dbg !974
-  br i1 %31, label %32, label %50, !dbg !974
+  %28 = load ptr, ptr %2, align 8, !dbg !975
+  %29 = getelementptr inbounds nuw %struct.FuelCenter, ptr %28, i32 0, i32 9, !dbg !977
+  %30 = load i32, ptr %29, align 4, !dbg !977
+  %31 = icmp sgt i32 %30, 0, !dbg !978
+  br i1 %31, label %32, label %50, !dbg !978
 
 32:                                               ; preds = %27
-  %33 = load i32, ptr @FrameTime, align 4, !dbg !975
-  %34 = load ptr, ptr %2, align 8, !dbg !977
-  %35 = getelementptr inbounds nuw %struct.FuelCenter, ptr %34, i32 0, i32 9, !dbg !978
-  %36 = load i32, ptr %35, align 4, !dbg !979
-  %37 = sub nsw i32 %36, %33, !dbg !979
-  store i32 %37, ptr %35, align 4, !dbg !979
-  %38 = load ptr, ptr %2, align 8, !dbg !980
-  %39 = getelementptr inbounds nuw %struct.FuelCenter, ptr %38, i32 0, i32 9, !dbg !982
-  %40 = load i32, ptr %39, align 4, !dbg !982
-  %41 = icmp sle i32 %40, 0, !dbg !983
-  br i1 %41, label %42, label %49, !dbg !983
+  %33 = load i32, ptr @FrameTime, align 4, !dbg !979
+  %34 = load ptr, ptr %2, align 8, !dbg !981
+  %35 = getelementptr inbounds nuw %struct.FuelCenter, ptr %34, i32 0, i32 9, !dbg !982
+  %36 = load i32, ptr %35, align 4, !dbg !983
+  %37 = sub nsw i32 %36, %33, !dbg !983
+  store i32 %37, ptr %35, align 4, !dbg !983
+  %38 = load ptr, ptr %2, align 8, !dbg !984
+  %39 = getelementptr inbounds nuw %struct.FuelCenter, ptr %38, i32 0, i32 9, !dbg !986
+  %40 = load i32, ptr %39, align 4, !dbg !986
+  %41 = icmp sle i32 %40, 0, !dbg !987
+  br i1 %41, label %42, label %49, !dbg !987
 
 42:                                               ; preds = %32
-  %43 = load ptr, ptr %2, align 8, !dbg !984
-  %44 = ptrtoint ptr %43 to i64, !dbg !984
-  %45 = sub i64 %44, ptrtoint (ptr @Station to i64), !dbg !984
-  %46 = sdiv exact i64 %45, 40, !dbg !984
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.12, i64 noundef %46), !dbg !984
-  %47 = load ptr, ptr %2, align 8, !dbg !986
-  %48 = getelementptr inbounds nuw %struct.FuelCenter, ptr %47, i32 0, i32 3, !dbg !987
-  store i8 0, ptr %48, align 1, !dbg !988
-  br label %49, !dbg !989
+  %43 = load ptr, ptr %2, align 8, !dbg !988
+  %44 = ptrtoint ptr %43 to i64, !dbg !988
+  %45 = sub i64 %44, ptrtoint (ptr @Station to i64), !dbg !988
+  %46 = sdiv exact i64 %45, 40, !dbg !988
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.12, i64 noundef %46), !dbg !988
+  %47 = load ptr, ptr %2, align 8, !dbg !990
+  %48 = getelementptr inbounds nuw %struct.FuelCenter, ptr %47, i32 0, i32 3, !dbg !991
+  store i8 0, ptr %48, align 1, !dbg !992
+  br label %49, !dbg !993
 
 49:                                               ; preds = %42, %32
-  br label %50, !dbg !990
+  br label %50, !dbg !994
 
 50:                                               ; preds = %49, %27
-  %51 = load ptr, ptr %2, align 8, !dbg !991
-  %52 = getelementptr inbounds nuw %struct.FuelCenter, ptr %51, i32 0, i32 6, !dbg !993
-  %53 = load i32, ptr %52, align 4, !dbg !993
-  %54 = icmp sle i32 %53, 0, !dbg !994
-  br i1 %54, label %55, label %56, !dbg !994
+  %51 = load ptr, ptr %2, align 8, !dbg !995
+  %52 = getelementptr inbounds nuw %struct.FuelCenter, ptr %51, i32 0, i32 6, !dbg !997
+  %53 = load i32, ptr %52, align 4, !dbg !997
+  %54 = icmp sle i32 %53, 0, !dbg !998
+  br i1 %54, label %55, label %56, !dbg !998
 
 55:                                               ; preds = %50
-  br label %451, !dbg !995
+  br label %451, !dbg !999
 
 56:                                               ; preds = %50
-  %57 = load ptr, ptr %2, align 8, !dbg !997
-  %58 = getelementptr inbounds nuw %struct.FuelCenter, ptr %57, i32 0, i32 1, !dbg !998
-  %59 = load i32, ptr %58, align 4, !dbg !998
-  %60 = sext i32 %59 to i64, !dbg !999
-  %61 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %60, !dbg !999
-  %62 = getelementptr inbounds nuw %struct.segment2, ptr %61, i32 0, i32 1, !dbg !1000
-  %63 = load i8, ptr %62, align 1, !dbg !1000
-  %64 = sext i8 %63 to i32, !dbg !999
-  store i32 %64, ptr %5, align 4, !dbg !1001
-  %65 = load i32, ptr %5, align 4, !dbg !1002
-  %66 = icmp eq i32 %65, -1, !dbg !1004
-  br i1 %66, label %67, label %71, !dbg !1004
+  %57 = load ptr, ptr %2, align 8, !dbg !1001
+  %58 = getelementptr inbounds nuw %struct.FuelCenter, ptr %57, i32 0, i32 1, !dbg !1002
+  %59 = load i32, ptr %58, align 4, !dbg !1002
+  %60 = sext i32 %59 to i64, !dbg !1003
+  %61 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %60, !dbg !1003
+  %62 = getelementptr inbounds nuw %struct.segment2, ptr %61, i32 0, i32 1, !dbg !1004
+  %63 = load i8, ptr %62, align 1, !dbg !1004
+  %64 = sext i8 %63 to i32, !dbg !1003
+  store i32 %64, ptr %5, align 4, !dbg !1005
+  %65 = load i32, ptr %5, align 4, !dbg !1006
+  %66 = icmp eq i32 %65, -1, !dbg !1008
+  br i1 %66, label %67, label %71, !dbg !1008
 
 67:                                               ; preds = %56
-  %68 = load ptr, ptr %2, align 8, !dbg !1005
-  %69 = getelementptr inbounds nuw %struct.FuelCenter, ptr %68, i32 0, i32 1, !dbg !1005
-  %70 = load i32, ptr %69, align 4, !dbg !1005
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.13, i32 noundef %70), !dbg !1005
-  br label %451, !dbg !1007
+  %68 = load ptr, ptr %2, align 8, !dbg !1009
+  %69 = getelementptr inbounds nuw %struct.FuelCenter, ptr %68, i32 0, i32 1, !dbg !1009
+  %70 = load i32, ptr %69, align 4, !dbg !1009
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.13, i32 noundef %70), !dbg !1009
+  br label %451, !dbg !1011
 
 71:                                               ; preds = %56
-  %72 = load i32, ptr %5, align 4, !dbg !1008
-  %73 = sext i32 %72 to i64, !dbg !1010
-  %74 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %73, !dbg !1010
-  %75 = getelementptr inbounds nuw %struct.matcen_info, ptr %74, i32 0, i32 0, !dbg !1011
-  %76 = getelementptr inbounds [2 x i32], ptr %75, i64 0, i64 0, !dbg !1010
-  %77 = load i32, ptr %76, align 4, !dbg !1010
-  %78 = icmp eq i32 %77, 0, !dbg !1012
-  br i1 %78, label %79, label %88, !dbg !1013
+  %72 = load i32, ptr %5, align 4, !dbg !1012
+  %73 = sext i32 %72 to i64, !dbg !1014
+  %74 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %73, !dbg !1014
+  %75 = getelementptr inbounds nuw %struct.matcen_info, ptr %74, i32 0, i32 0, !dbg !1015
+  %76 = getelementptr inbounds [2 x i32], ptr %75, i64 0, i64 0, !dbg !1014
+  %77 = load i32, ptr %76, align 4, !dbg !1014
+  %78 = icmp eq i32 %77, 0, !dbg !1016
+  br i1 %78, label %79, label %88, !dbg !1017
 
 79:                                               ; preds = %71
-  %80 = load i32, ptr %5, align 4, !dbg !1014
-  %81 = sext i32 %80 to i64, !dbg !1015
-  %82 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %81, !dbg !1015
-  %83 = getelementptr inbounds nuw %struct.matcen_info, ptr %82, i32 0, i32 0, !dbg !1016
-  %84 = getelementptr inbounds [2 x i32], ptr %83, i64 0, i64 1, !dbg !1015
-  %85 = load i32, ptr %84, align 4, !dbg !1015
-  %86 = icmp eq i32 %85, 0, !dbg !1017
-  br i1 %86, label %87, label %88, !dbg !1013
+  %80 = load i32, ptr %5, align 4, !dbg !1018
+  %81 = sext i32 %80 to i64, !dbg !1019
+  %82 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %81, !dbg !1019
+  %83 = getelementptr inbounds nuw %struct.matcen_info, ptr %82, i32 0, i32 0, !dbg !1020
+  %84 = getelementptr inbounds [2 x i32], ptr %83, i64 0, i64 1, !dbg !1019
+  %85 = load i32, ptr %84, align 4, !dbg !1019
+  %86 = icmp eq i32 %85, 0, !dbg !1021
+  br i1 %86, label %87, label %88, !dbg !1017
 
 87:                                               ; preds = %79
-  br label %451, !dbg !1018
+  br label %451, !dbg !1022
 
 88:                                               ; preds = %79, %71
-  %89 = load i32, ptr @Player_num, align 4, !dbg !1020
-  %90 = sext i32 %89 to i64, !dbg !1022
-  %91 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %90, !dbg !1022
-  %92 = getelementptr inbounds nuw %struct.player, ptr %91, i32 0, i32 31, !dbg !1023
-  %93 = load i16, ptr %92, align 2, !dbg !1023
-  %94 = sext i16 %93 to i32, !dbg !1022
-  %95 = load i32, ptr @Player_num, align 4, !dbg !1024
-  %96 = sext i32 %95 to i64, !dbg !1025
-  %97 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %96, !dbg !1025
-  %98 = getelementptr inbounds nuw %struct.player, ptr %97, i32 0, i32 29, !dbg !1026
-  %99 = load i16, ptr %98, align 2, !dbg !1026
-  %100 = sext i16 %99 to i32, !dbg !1025
-  %101 = sub nsw i32 %94, %100, !dbg !1027
-  %102 = load i32, ptr @Gamesave_num_org_robots, align 4, !dbg !1028
-  %103 = load i32, ptr @Num_extry_robots, align 4, !dbg !1029
-  %104 = add nsw i32 %102, %103, !dbg !1030
-  %105 = icmp sge i32 %101, %104, !dbg !1031
-  br i1 %105, label %106, label %114, !dbg !1031
+  %89 = load i32, ptr @Player_num, align 4, !dbg !1024
+  %90 = sext i32 %89 to i64, !dbg !1026
+  %91 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %90, !dbg !1026
+  %92 = getelementptr inbounds nuw %struct.player, ptr %91, i32 0, i32 31, !dbg !1027
+  %93 = load i16, ptr %92, align 2, !dbg !1027
+  %94 = sext i16 %93 to i32, !dbg !1026
+  %95 = load i32, ptr @Player_num, align 4, !dbg !1028
+  %96 = sext i32 %95 to i64, !dbg !1029
+  %97 = getelementptr inbounds [12 x %struct.player], ptr @Players, i64 0, i64 %96, !dbg !1029
+  %98 = getelementptr inbounds nuw %struct.player, ptr %97, i32 0, i32 29, !dbg !1030
+  %99 = load i16, ptr %98, align 2, !dbg !1030
+  %100 = sext i16 %99 to i32, !dbg !1029
+  %101 = sub nsw i32 %94, %100, !dbg !1031
+  %102 = load i32, ptr @Gamesave_num_org_robots, align 4, !dbg !1032
+  %103 = load i32, ptr @Num_extry_robots, align 4, !dbg !1033
+  %104 = add nsw i32 %102, %103, !dbg !1034
+  %105 = icmp sge i32 %101, %104, !dbg !1035
+  br i1 %105, label %106, label %114, !dbg !1035
 
 106:                                              ; preds = %88
-  %107 = load i32, ptr @FrameCount, align 4, !dbg !1032
-  %108 = load i32, ptr @FrameCount_last_msg, align 4, !dbg !1035
-  %109 = add nsw i32 %108, 20, !dbg !1036
-  %110 = icmp sgt i32 %107, %109, !dbg !1037
-  br i1 %110, label %111, label %113, !dbg !1037
+  %107 = load i32, ptr @FrameCount, align 4, !dbg !1036
+  %108 = load i32, ptr @FrameCount_last_msg, align 4, !dbg !1039
+  %109 = add nsw i32 %108, 20, !dbg !1040
+  %110 = icmp sgt i32 %107, %109, !dbg !1041
+  br i1 %110, label %111, label %113, !dbg !1041
 
 111:                                              ; preds = %106
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.14), !dbg !1038
-  %112 = load i32, ptr @FrameCount, align 4, !dbg !1040
-  store i32 %112, ptr @FrameCount_last_msg, align 4, !dbg !1041
-  br label %113, !dbg !1042
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.14), !dbg !1042
+  %112 = load i32, ptr @FrameCount, align 4, !dbg !1044
+  store i32 %112, ptr @FrameCount_last_msg, align 4, !dbg !1045
+  br label %113, !dbg !1046
 
 113:                                              ; preds = %111, %106
-  br label %451, !dbg !1043
+  br label %451, !dbg !1047
 
 114:                                              ; preds = %88
-  %115 = load i32, ptr @FrameTime, align 4, !dbg !1044
-  %116 = load ptr, ptr %2, align 8, !dbg !1045
-  %117 = getelementptr inbounds nuw %struct.FuelCenter, ptr %116, i32 0, i32 8, !dbg !1046
-  %118 = load i32, ptr %117, align 4, !dbg !1047
-  %119 = add nsw i32 %118, %115, !dbg !1047
-  store i32 %119, ptr %117, align 4, !dbg !1047
-  %120 = load ptr, ptr %2, align 8, !dbg !1048
-  %121 = getelementptr inbounds nuw %struct.FuelCenter, ptr %120, i32 0, i32 2, !dbg !1049
-  %122 = load i8, ptr %121, align 4, !dbg !1049
-  %123 = sext i8 %122 to i32, !dbg !1048
+  %115 = load i32, ptr @FrameTime, align 4, !dbg !1048
+  %116 = load ptr, ptr %2, align 8, !dbg !1049
+  %117 = getelementptr inbounds nuw %struct.FuelCenter, ptr %116, i32 0, i32 8, !dbg !1050
+  %118 = load i32, ptr %117, align 4, !dbg !1051
+  %119 = add nsw i32 %118, %115, !dbg !1051
+  store i32 %119, ptr %117, align 4, !dbg !1051
+  %120 = load ptr, ptr %2, align 8, !dbg !1052
+  %121 = getelementptr inbounds nuw %struct.FuelCenter, ptr %120, i32 0, i32 2, !dbg !1053
+  %122 = load i8, ptr %121, align 4, !dbg !1053
+  %123 = sext i8 %122 to i32, !dbg !1052
   switch i32 %123, label %446 [
     i32 0, label %124
     i32 1, label %313
-  ], !dbg !1050
+  ], !dbg !1054
 
 124:                                              ; preds = %114
-  %125 = load i32, ptr @Game_mode, align 4, !dbg !1051
-  %126 = and i32 %125, 38, !dbg !1054
-  %127 = icmp ne i32 %126, 0, !dbg !1051
-  br i1 %127, label %128, label %130, !dbg !1051
+  %125 = load i32, ptr @Game_mode, align 4, !dbg !1055
+  %126 = and i32 %125, 38, !dbg !1058
+  %127 = icmp ne i32 %126, 0, !dbg !1055
+  br i1 %127, label %128, label %130, !dbg !1055
 
 128:                                              ; preds = %124
-  %129 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1055
-  store i32 %129, ptr %9, align 4, !dbg !1057
-  br label %157, !dbg !1058
+  %129 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1059
+  store i32 %129, ptr %9, align 4, !dbg !1061
+  br label %157, !dbg !1062
 
 130:                                              ; preds = %124
-  %131 = load ptr, ptr @ConsoleObject, align 8, !dbg !1059
-  %132 = getelementptr inbounds nuw %struct.object, ptr %131, i32 0, i32 11, !dbg !1061
-  %133 = load ptr, ptr %2, align 8, !dbg !1062
-  %134 = getelementptr inbounds nuw %struct.FuelCenter, ptr %133, i32 0, i32 10, !dbg !1063
-  %135 = call noundef i32 @_Z17vm_vec_dist_quickP10vms_vectorS0_(ptr noundef %132, ptr noundef %134), !dbg !1064
-  store i32 %135, ptr %3, align 4, !dbg !1065
-  %136 = load i32, ptr %3, align 4, !dbg !1066
-  %137 = sdiv i32 %136, 64, !dbg !1067
-  %138 = call noundef i32 @_Z6P_Randv(), !dbg !1068
-  %139 = mul nsw i32 %138, 2, !dbg !1069
-  %140 = add nsw i32 %137, %139, !dbg !1070
-  %141 = add nsw i32 %140, 131072, !dbg !1071
-  store i32 %141, ptr %9, align 4, !dbg !1072
-  %142 = load i32, ptr %9, align 4, !dbg !1073
-  %143 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1075
-  %144 = icmp sgt i32 %142, %143, !dbg !1076
-  br i1 %144, label %145, label %149, !dbg !1076
+  %131 = load ptr, ptr @ConsoleObject, align 8, !dbg !1063
+  %132 = getelementptr inbounds nuw %struct.object, ptr %131, i32 0, i32 11, !dbg !1065
+  %133 = load ptr, ptr %2, align 8, !dbg !1066
+  %134 = getelementptr inbounds nuw %struct.FuelCenter, ptr %133, i32 0, i32 10, !dbg !1067
+  %135 = call noundef i32 @_Z17vm_vec_dist_quickP10vms_vectorS0_(ptr noundef %132, ptr noundef %134), !dbg !1068
+  store i32 %135, ptr %3, align 4, !dbg !1069
+  %136 = load i32, ptr %3, align 4, !dbg !1070
+  %137 = sdiv i32 %136, 64, !dbg !1071
+  %138 = call noundef i32 @_Z6P_Randv(), !dbg !1072
+  %139 = mul nsw i32 %138, 2, !dbg !1073
+  %140 = add nsw i32 %137, %139, !dbg !1074
+  %141 = add nsw i32 %140, 131072, !dbg !1075
+  store i32 %141, ptr %9, align 4, !dbg !1076
+  %142 = load i32, ptr %9, align 4, !dbg !1077
+  %143 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1079
+  %144 = icmp sgt i32 %142, %143, !dbg !1080
+  br i1 %144, label %145, label %149, !dbg !1080
 
 145:                                              ; preds = %130
-  %146 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1077
-  %147 = call noundef i32 @_Z6P_Randv(), !dbg !1078
-  %148 = add nsw i32 %146, %147, !dbg !1079
-  store i32 %148, ptr %9, align 4, !dbg !1080
-  br label %149, !dbg !1081
+  %146 = call noundef i32 @_Z3i2fi(i32 noundef 5), !dbg !1081
+  %147 = call noundef i32 @_Z6P_Randv(), !dbg !1082
+  %148 = add nsw i32 %146, %147, !dbg !1083
+  store i32 %148, ptr %9, align 4, !dbg !1084
+  br label %149, !dbg !1085
 
 149:                                              ; preds = %145, %130
-  %150 = load i32, ptr %9, align 4, !dbg !1082
-  %151 = icmp slt i32 %150, 131072, !dbg !1084
-  br i1 %151, label %152, label %156, !dbg !1084
+  %150 = load i32, ptr %9, align 4, !dbg !1086
+  %151 = icmp slt i32 %150, 131072, !dbg !1088
+  br i1 %151, label %152, label %156, !dbg !1088
 
 152:                                              ; preds = %149
-  %153 = call noundef i32 @_Z6P_Randv(), !dbg !1085
-  %154 = mul nsw i32 %153, 2, !dbg !1086
-  %155 = add nsw i32 98304, %154, !dbg !1087
-  store i32 %155, ptr %9, align 4, !dbg !1088
-  br label %156, !dbg !1089
+  %153 = call noundef i32 @_Z6P_Randv(), !dbg !1089
+  %154 = mul nsw i32 %153, 2, !dbg !1090
+  %155 = add nsw i32 98304, %154, !dbg !1091
+  store i32 %155, ptr %9, align 4, !dbg !1092
+  br label %156, !dbg !1093
 
 156:                                              ; preds = %152, %149
   br label %157
 
 157:                                              ; preds = %156, %128
-  %158 = load ptr, ptr %2, align 8, !dbg !1090
-  %159 = getelementptr inbounds nuw %struct.FuelCenter, ptr %158, i32 0, i32 8, !dbg !1092
-  %160 = load i32, ptr %159, align 4, !dbg !1092
-  %161 = load i32, ptr %9, align 4, !dbg !1093
-  %162 = icmp sgt i32 %160, %161, !dbg !1094
-  br i1 %162, label %163, label %312, !dbg !1094
+  %158 = load ptr, ptr %2, align 8, !dbg !1094
+  %159 = getelementptr inbounds nuw %struct.FuelCenter, ptr %158, i32 0, i32 8, !dbg !1096
+  %160 = load i32, ptr %159, align 4, !dbg !1096
+  %161 = load i32, ptr %9, align 4, !dbg !1097
+  %162 = icmp sgt i32 %160, %161, !dbg !1098
+  br i1 %162, label %163, label %312, !dbg !1098
 
 163:                                              ; preds = %157
-    #dbg_declare(ptr %11, !1095, !DIExpression(), !1097)
-  store i32 0, ptr %11, align 4, !dbg !1097
-    #dbg_declare(ptr %12, !1098, !DIExpression(), !1099)
-    #dbg_declare(ptr %13, !1100, !DIExpression(), !1101)
-  %164 = load ptr, ptr %2, align 8, !dbg !1102
-  %165 = ptrtoint ptr %164 to i64, !dbg !1103
-  %166 = sub i64 %165, ptrtoint (ptr @Station to i64), !dbg !1103
-  %167 = sdiv exact i64 %166, 40, !dbg !1103
-  %168 = trunc i64 %167 to i32, !dbg !1102
-  store i32 %168, ptr %13, align 4, !dbg !1101
-    #dbg_declare(ptr %14, !1104, !DIExpression(), !1105)
-  store i32 0, ptr %12, align 4, !dbg !1106
-  br label %169, !dbg !1108
+    #dbg_declare(ptr %11, !1099, !DIExpression(), !1101)
+  store i32 0, ptr %11, align 4, !dbg !1101
+    #dbg_declare(ptr %12, !1102, !DIExpression(), !1103)
+    #dbg_declare(ptr %13, !1104, !DIExpression(), !1105)
+  %164 = load ptr, ptr %2, align 8, !dbg !1106
+  %165 = ptrtoint ptr %164 to i64, !dbg !1107
+  %166 = sub i64 %165, ptrtoint (ptr @Station to i64), !dbg !1107
+  %167 = sdiv exact i64 %166, 40, !dbg !1107
+  %168 = trunc i64 %167 to i32, !dbg !1106
+  store i32 %168, ptr %13, align 4, !dbg !1105
+    #dbg_declare(ptr %14, !1108, !DIExpression(), !1109)
+  store i32 0, ptr %12, align 4, !dbg !1110
+  br label %169, !dbg !1112
 
 169:                                              ; preds = %198, %163
-  %170 = load i32, ptr %12, align 4, !dbg !1109
-  %171 = load i32, ptr @Highest_object_index, align 4, !dbg !1111
-  %172 = icmp sle i32 %170, %171, !dbg !1112
-  br i1 %172, label %173, label %201, !dbg !1113
+  %170 = load i32, ptr %12, align 4, !dbg !1113
+  %171 = load i32, ptr @Highest_object_index, align 4, !dbg !1115
+  %172 = icmp sle i32 %170, %171, !dbg !1116
+  br i1 %172, label %173, label %201, !dbg !1117
 
 173:                                              ; preds = %169
-  %174 = load i32, ptr %12, align 4, !dbg !1114
-  %175 = sext i32 %174 to i64, !dbg !1116
-  %176 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %175, !dbg !1116
-  %177 = getelementptr inbounds nuw %struct.object, ptr %176, i32 0, i32 1, !dbg !1117
-  %178 = load i8, ptr %177, align 4, !dbg !1117
-  %179 = zext i8 %178 to i32, !dbg !1116
-  %180 = icmp eq i32 %179, 2, !dbg !1118
-  br i1 %180, label %181, label %197, !dbg !1118
+  %174 = load i32, ptr %12, align 4, !dbg !1118
+  %175 = sext i32 %174 to i64, !dbg !1120
+  %176 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %175, !dbg !1120
+  %177 = getelementptr inbounds nuw %struct.object, ptr %176, i32 0, i32 1, !dbg !1121
+  %178 = load i8, ptr %177, align 4, !dbg !1121
+  %179 = zext i8 %178 to i32, !dbg !1120
+  %180 = icmp eq i32 %179, 2, !dbg !1122
+  br i1 %180, label %181, label %197, !dbg !1122
 
 181:                                              ; preds = %173
-  %182 = load i32, ptr %12, align 4, !dbg !1119
-  %183 = sext i32 %182 to i64, !dbg !1121
-  %184 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %183, !dbg !1121
-  %185 = getelementptr inbounds nuw %struct.object, ptr %184, i32 0, i32 19, !dbg !1122
-  %186 = load i8, ptr %185, align 1, !dbg !1122
-  %187 = sext i8 %186 to i32, !dbg !1121
-  %188 = xor i32 %187, 128, !dbg !1123
-  %189 = trunc i32 %188 to i8, !dbg !1124
-  %190 = sext i8 %189 to i32, !dbg !1125
-  %191 = load i32, ptr %13, align 4, !dbg !1126
-  %192 = icmp eq i32 %190, %191, !dbg !1127
-  br i1 %192, label %193, label %196, !dbg !1127
+  %182 = load i32, ptr %12, align 4, !dbg !1123
+  %183 = sext i32 %182 to i64, !dbg !1125
+  %184 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %183, !dbg !1125
+  %185 = getelementptr inbounds nuw %struct.object, ptr %184, i32 0, i32 19, !dbg !1126
+  %186 = load i8, ptr %185, align 1, !dbg !1126
+  %187 = sext i8 %186 to i32, !dbg !1125
+  %188 = xor i32 %187, 128, !dbg !1127
+  %189 = trunc i32 %188 to i8, !dbg !1128
+  %190 = sext i8 %189 to i32, !dbg !1129
+  %191 = load i32, ptr %13, align 4, !dbg !1130
+  %192 = icmp eq i32 %190, %191, !dbg !1131
+  br i1 %192, label %193, label %196, !dbg !1131
 
 193:                                              ; preds = %181
-  %194 = load i32, ptr %11, align 4, !dbg !1128
-  %195 = add nsw i32 %194, 1, !dbg !1128
-  store i32 %195, ptr %11, align 4, !dbg !1128
-  br label %196, !dbg !1129
+  %194 = load i32, ptr %11, align 4, !dbg !1132
+  %195 = add nsw i32 %194, 1, !dbg !1132
+  store i32 %195, ptr %11, align 4, !dbg !1132
+  br label %196, !dbg !1133
 
 196:                                              ; preds = %193, %181
-  br label %197, !dbg !1126
+  br label %197, !dbg !1130
 
 197:                                              ; preds = %196, %173
-  br label %198, !dbg !1130
+  br label %198, !dbg !1134
 
 198:                                              ; preds = %197
-  %199 = load i32, ptr %12, align 4, !dbg !1131
-  %200 = add nsw i32 %199, 1, !dbg !1131
-  store i32 %200, ptr %12, align 4, !dbg !1131
-  br label %169, !dbg !1132, !llvm.loop !1133
+  %199 = load i32, ptr %12, align 4, !dbg !1135
+  %200 = add nsw i32 %199, 1, !dbg !1135
+  store i32 %200, ptr %12, align 4, !dbg !1135
+  br label %169, !dbg !1136, !llvm.loop !1137
 
 201:                                              ; preds = %169
-  %202 = load i32, ptr %11, align 4, !dbg !1135
-  %203 = load i32, ptr @Difficulty_level, align 4, !dbg !1137
-  %204 = add nsw i32 %203, 3, !dbg !1138
-  %205 = icmp sgt i32 %202, %204, !dbg !1139
-  br i1 %205, label %206, label %213, !dbg !1139
+  %202 = load i32, ptr %11, align 4, !dbg !1139
+  %203 = load i32, ptr @Difficulty_level, align 4, !dbg !1141
+  %204 = add nsw i32 %203, 3, !dbg !1142
+  %205 = icmp sgt i32 %202, %204, !dbg !1143
+  br i1 %205, label %206, label %213, !dbg !1143
 
 206:                                              ; preds = %201
-  %207 = load i32, ptr %13, align 4, !dbg !1140
-  %208 = load i32, ptr %11, align 4, !dbg !1140
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.15, i32 noundef %207, i32 noundef %208), !dbg !1140
-  %209 = load ptr, ptr %2, align 8, !dbg !1142
-  %210 = getelementptr inbounds nuw %struct.FuelCenter, ptr %209, i32 0, i32 8, !dbg !1143
-  %211 = load i32, ptr %210, align 4, !dbg !1144
-  %212 = sdiv i32 %211, 2, !dbg !1144
-  store i32 %212, ptr %210, align 4, !dbg !1144
-  br label %451, !dbg !1145
+  %207 = load i32, ptr %13, align 4, !dbg !1144
+  %208 = load i32, ptr %11, align 4, !dbg !1144
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.15, i32 noundef %207, i32 noundef %208), !dbg !1144
+  %209 = load ptr, ptr %2, align 8, !dbg !1146
+  %210 = getelementptr inbounds nuw %struct.FuelCenter, ptr %209, i32 0, i32 8, !dbg !1147
+  %211 = load i32, ptr %210, align 4, !dbg !1148
+  %212 = sdiv i32 %211, 2, !dbg !1148
+  store i32 %212, ptr %210, align 4, !dbg !1148
+  br label %451, !dbg !1149
 
 213:                                              ; preds = %201
-  store i32 0, ptr %11, align 4, !dbg !1146
-  %214 = load ptr, ptr %2, align 8, !dbg !1147
-  %215 = getelementptr inbounds nuw %struct.FuelCenter, ptr %214, i32 0, i32 1, !dbg !1148
-  %216 = load i32, ptr %215, align 4, !dbg !1148
-  store i32 %216, ptr %6, align 4, !dbg !1149
-  %217 = load i32, ptr %6, align 4, !dbg !1150
-  %218 = sext i32 %217 to i64, !dbg !1152
-  %219 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %218, !dbg !1152
-  %220 = getelementptr inbounds nuw %struct.segment, ptr %219, i32 0, i32 3, !dbg !1153
-  %221 = load i32, ptr %220, align 4, !dbg !1153
-  store i32 %221, ptr %7, align 4, !dbg !1154
-  br label %222, !dbg !1155
+  store i32 0, ptr %11, align 4, !dbg !1150
+  %214 = load ptr, ptr %2, align 8, !dbg !1151
+  %215 = getelementptr inbounds nuw %struct.FuelCenter, ptr %214, i32 0, i32 1, !dbg !1152
+  %216 = load i32, ptr %215, align 4, !dbg !1152
+  store i32 %216, ptr %6, align 4, !dbg !1153
+  %217 = load i32, ptr %6, align 4, !dbg !1154
+  %218 = sext i32 %217 to i64, !dbg !1156
+  %219 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %218, !dbg !1156
+  %220 = getelementptr inbounds nuw %struct.segment, ptr %219, i32 0, i32 3, !dbg !1157
+  %221 = load i32, ptr %220, align 4, !dbg !1157
+  store i32 %221, ptr %7, align 4, !dbg !1158
+  br label %222, !dbg !1159
 
 222:                                              ; preds = %266, %213
-  %223 = load i32, ptr %7, align 4, !dbg !1156
-  %224 = icmp ne i32 %223, -1, !dbg !1158
-  br i1 %224, label %225, label %273, !dbg !1159
+  %223 = load i32, ptr %7, align 4, !dbg !1160
+  %224 = icmp ne i32 %223, -1, !dbg !1162
+  br i1 %224, label %225, label %273, !dbg !1163
 
 225:                                              ; preds = %222
-  %226 = load i32, ptr %11, align 4, !dbg !1160
-  %227 = add nsw i32 %226, 1, !dbg !1160
-  store i32 %227, ptr %11, align 4, !dbg !1160
-  %228 = load i32, ptr %11, align 4, !dbg !1162
-  %229 = icmp sgt i32 %228, 350, !dbg !1164
-  br i1 %229, label %230, label %232, !dbg !1164
+  %226 = load i32, ptr %11, align 4, !dbg !1164
+  %227 = add nsw i32 %226, 1, !dbg !1164
+  store i32 %227, ptr %11, align 4, !dbg !1164
+  %228 = load i32, ptr %11, align 4, !dbg !1166
+  %229 = icmp sgt i32 %228, 350, !dbg !1168
+  br i1 %229, label %230, label %232, !dbg !1168
 
 230:                                              ; preds = %225
-  %231 = load i32, ptr %6, align 4, !dbg !1165
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.16, i32 noundef %231), !dbg !1165
-  call void @_Z4Int3v(), !dbg !1167
-  br label %451, !dbg !1168
+  %231 = load i32, ptr %6, align 4, !dbg !1169
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.16, i32 noundef %231), !dbg !1169
+  call void @_Z4Int3v(), !dbg !1171
+  br label %451, !dbg !1172
 
 232:                                              ; preds = %225
-  %233 = load i32, ptr %7, align 4, !dbg !1169
-  %234 = sext i32 %233 to i64, !dbg !1171
-  %235 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %234, !dbg !1171
-  %236 = getelementptr inbounds nuw %struct.object, ptr %235, i32 0, i32 1, !dbg !1172
-  %237 = load i8, ptr %236, align 4, !dbg !1172
-  %238 = zext i8 %237 to i32, !dbg !1171
-  %239 = icmp eq i32 %238, 2, !dbg !1173
-  br i1 %239, label %240, label %248, !dbg !1173
+  %233 = load i32, ptr %7, align 4, !dbg !1173
+  %234 = sext i32 %233 to i64, !dbg !1175
+  %235 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %234, !dbg !1175
+  %236 = getelementptr inbounds nuw %struct.object, ptr %235, i32 0, i32 1, !dbg !1176
+  %237 = load i8, ptr %236, align 4, !dbg !1176
+  %238 = zext i8 %237 to i32, !dbg !1175
+  %239 = icmp eq i32 %238, 2, !dbg !1177
+  br i1 %239, label %240, label %248, !dbg !1177
 
 240:                                              ; preds = %232
-  %241 = load i32, ptr %7, align 4, !dbg !1174
-  %242 = sext i32 %241 to i64, !dbg !1176
-  %243 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %242, !dbg !1176
-  call void @_Z40collide_robot_and_materialization_centerP6object(ptr noundef %243), !dbg !1177
-  %244 = load i32, ptr %9, align 4, !dbg !1178
-  %245 = sdiv i32 %244, 2, !dbg !1179
-  %246 = load ptr, ptr %2, align 8, !dbg !1180
-  %247 = getelementptr inbounds nuw %struct.FuelCenter, ptr %246, i32 0, i32 8, !dbg !1181
-  store i32 %245, ptr %247, align 4, !dbg !1182
-  br label %451, !dbg !1183
+  %241 = load i32, ptr %7, align 4, !dbg !1178
+  %242 = sext i32 %241 to i64, !dbg !1180
+  %243 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %242, !dbg !1180
+  call void @_Z40collide_robot_and_materialization_centerP6object(ptr noundef %243), !dbg !1181
+  %244 = load i32, ptr %9, align 4, !dbg !1182
+  %245 = sdiv i32 %244, 2, !dbg !1183
+  %246 = load ptr, ptr %2, align 8, !dbg !1184
+  %247 = getelementptr inbounds nuw %struct.FuelCenter, ptr %246, i32 0, i32 8, !dbg !1185
+  store i32 %245, ptr %247, align 4, !dbg !1186
+  br label %451, !dbg !1187
 
 248:                                              ; preds = %232
-  %249 = load i32, ptr %7, align 4, !dbg !1184
-  %250 = sext i32 %249 to i64, !dbg !1186
-  %251 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %250, !dbg !1186
-  %252 = getelementptr inbounds nuw %struct.object, ptr %251, i32 0, i32 1, !dbg !1187
-  %253 = load i8, ptr %252, align 4, !dbg !1187
-  %254 = zext i8 %253 to i32, !dbg !1186
-  %255 = icmp eq i32 %254, 4, !dbg !1188
-  br i1 %255, label %256, label %264, !dbg !1188
+  %249 = load i32, ptr %7, align 4, !dbg !1188
+  %250 = sext i32 %249 to i64, !dbg !1190
+  %251 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %250, !dbg !1190
+  %252 = getelementptr inbounds nuw %struct.object, ptr %251, i32 0, i32 1, !dbg !1191
+  %253 = load i8, ptr %252, align 4, !dbg !1191
+  %254 = zext i8 %253 to i32, !dbg !1190
+  %255 = icmp eq i32 %254, 4, !dbg !1192
+  br i1 %255, label %256, label %264, !dbg !1192
 
 256:                                              ; preds = %248
-  %257 = load i32, ptr %7, align 4, !dbg !1189
-  %258 = sext i32 %257 to i64, !dbg !1191
-  %259 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %258, !dbg !1191
-  call void @_Z41collide_player_and_materialization_centerP6object(ptr noundef %259), !dbg !1192
-  %260 = load i32, ptr %9, align 4, !dbg !1193
-  %261 = sdiv i32 %260, 2, !dbg !1194
-  %262 = load ptr, ptr %2, align 8, !dbg !1195
-  %263 = getelementptr inbounds nuw %struct.FuelCenter, ptr %262, i32 0, i32 8, !dbg !1196
-  store i32 %261, ptr %263, align 4, !dbg !1197
-  br label %451, !dbg !1198
+  %257 = load i32, ptr %7, align 4, !dbg !1193
+  %258 = sext i32 %257 to i64, !dbg !1195
+  %259 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %258, !dbg !1195
+  call void @_Z41collide_player_and_materialization_centerP6object(ptr noundef %259), !dbg !1196
+  %260 = load i32, ptr %9, align 4, !dbg !1197
+  %261 = sdiv i32 %260, 2, !dbg !1198
+  %262 = load ptr, ptr %2, align 8, !dbg !1199
+  %263 = getelementptr inbounds nuw %struct.FuelCenter, ptr %262, i32 0, i32 8, !dbg !1200
+  store i32 %261, ptr %263, align 4, !dbg !1201
+  br label %451, !dbg !1202
 
 264:                                              ; preds = %248
   br label %265
 
 265:                                              ; preds = %264
-  br label %266, !dbg !1199
+  br label %266, !dbg !1203
 
 266:                                              ; preds = %265
-  %267 = load i32, ptr %7, align 4, !dbg !1200
-  %268 = sext i32 %267 to i64, !dbg !1201
-  %269 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %268, !dbg !1201
-  %270 = getelementptr inbounds nuw %struct.object, ptr %269, i32 0, i32 3, !dbg !1202
-  %271 = load i16, ptr %270, align 2, !dbg !1202
-  %272 = sext i16 %271 to i32, !dbg !1201
-  store i32 %272, ptr %7, align 4, !dbg !1203
-  br label %222, !dbg !1204, !llvm.loop !1205
+  %267 = load i32, ptr %7, align 4, !dbg !1204
+  %268 = sext i32 %267 to i64, !dbg !1205
+  %269 = getelementptr inbounds [0 x %struct.object], ptr @Objects, i64 0, i64 %268, !dbg !1205
+  %270 = getelementptr inbounds nuw %struct.object, ptr %269, i32 0, i32 3, !dbg !1206
+  %271 = load i16, ptr %270, align 2, !dbg !1206
+  %272 = sext i16 %271 to i32, !dbg !1205
+  store i32 %272, ptr %7, align 4, !dbg !1207
+  br label %222, !dbg !1208, !llvm.loop !1209
 
 273:                                              ; preds = %222
-  %274 = load ptr, ptr %2, align 8, !dbg !1207
-  %275 = getelementptr inbounds nuw %struct.FuelCenter, ptr %274, i32 0, i32 1, !dbg !1208
-  %276 = load i32, ptr %275, align 4, !dbg !1208
-  %277 = sext i32 %276 to i64, !dbg !1209
-  %278 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %277, !dbg !1209
-  call void @_Z22compute_segment_centerP10vms_vectorP7segment(ptr noundef %4, ptr noundef %278), !dbg !1210
-  %279 = load ptr, ptr %2, align 8, !dbg !1211
-  %280 = getelementptr inbounds nuw %struct.FuelCenter, ptr %279, i32 0, i32 1, !dbg !1212
-  %281 = load i32, ptr %280, align 4, !dbg !1212
-  %282 = trunc i32 %281 to i16, !dbg !1211
-  %283 = call noundef i32 @_Z3i2fi(i32 noundef 10), !dbg !1213
-  %284 = call noundef ptr @_Z23object_create_explosionsP10vms_vectorii(i16 noundef signext %282, ptr noundef %4, i32 noundef %283, i32 noundef 10), !dbg !1214
-  store ptr %284, ptr %14, align 8, !dbg !1215
-  %285 = load ptr, ptr %14, align 8, !dbg !1216
-  %286 = icmp ne ptr %285, null, !dbg !1216
-  br i1 %286, label %287, label %295, !dbg !1216
+  %274 = load ptr, ptr %2, align 8, !dbg !1211
+  %275 = getelementptr inbounds nuw %struct.FuelCenter, ptr %274, i32 0, i32 1, !dbg !1212
+  %276 = load i32, ptr %275, align 4, !dbg !1212
+  %277 = sext i32 %276 to i64, !dbg !1213
+  %278 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %277, !dbg !1213
+  call void @_Z22compute_segment_centerP10vms_vectorP7segment(ptr noundef %4, ptr noundef %278), !dbg !1214
+  %279 = load ptr, ptr %2, align 8, !dbg !1215
+  %280 = getelementptr inbounds nuw %struct.FuelCenter, ptr %279, i32 0, i32 1, !dbg !1216
+  %281 = load i32, ptr %280, align 4, !dbg !1216
+  %282 = trunc i32 %281 to i16, !dbg !1215
+  %283 = call noundef i32 @_Z3i2fi(i32 noundef 10), !dbg !1217
+  %284 = call noundef ptr @_Z23object_create_explosionsP10vms_vectorii(i16 noundef signext %282, ptr noundef %4, i32 noundef %283, i32 noundef 10), !dbg !1218
+  store ptr %284, ptr %14, align 8, !dbg !1219
+  %285 = load ptr, ptr %14, align 8, !dbg !1220
+  %286 = icmp ne ptr %285, null, !dbg !1220
+  br i1 %286, label %287, label %295, !dbg !1220
 
 287:                                              ; preds = %273
-  %288 = load ptr, ptr %14, align 8, !dbg !1218
-  %289 = getelementptr inbounds nuw %struct.object, ptr %288, i32 0, i32 12, !dbg !1219
-  %290 = load ptr, ptr %2, align 8, !dbg !1220
-  %291 = getelementptr inbounds nuw %struct.FuelCenter, ptr %290, i32 0, i32 1, !dbg !1221
-  %292 = load i32, ptr %291, align 4, !dbg !1221
-  %293 = sext i32 %292 to i64, !dbg !1222
-  %294 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %293, !dbg !1222
-  call void @_Z27extract_orient_from_segmentP10vms_matrixP7segment(ptr noundef %289, ptr noundef %294), !dbg !1223
-  br label %295, !dbg !1223
+  %288 = load ptr, ptr %14, align 8, !dbg !1222
+  %289 = getelementptr inbounds nuw %struct.object, ptr %288, i32 0, i32 12, !dbg !1223
+  %290 = load ptr, ptr %2, align 8, !dbg !1224
+  %291 = getelementptr inbounds nuw %struct.FuelCenter, ptr %290, i32 0, i32 1, !dbg !1225
+  %292 = load i32, ptr %291, align 4, !dbg !1225
+  %293 = sext i32 %292 to i64, !dbg !1226
+  %294 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %293, !dbg !1226
+  call void @_Z27extract_orient_from_segmentP10vms_matrixP7segment(ptr noundef %289, ptr noundef %294), !dbg !1227
+  br label %295, !dbg !1227
 
 295:                                              ; preds = %287, %273
-  %296 = load i16, ptr getelementptr inbounds nuw (%struct.vclip, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), i32 0, i32 4), align 4, !dbg !1224
-  %297 = sext i16 %296 to i32, !dbg !1226
-  %298 = icmp sgt i32 %297, -1, !dbg !1227
-  br i1 %298, label %299, label %307, !dbg !1227
+  %296 = load i16, ptr getelementptr inbounds nuw (%struct.vclip, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), i32 0, i32 4), align 4, !dbg !1228
+  %297 = sext i16 %296 to i32, !dbg !1230
+  %298 = icmp sgt i32 %297, -1, !dbg !1231
+  br i1 %298, label %299, label %307, !dbg !1231
 
 299:                                              ; preds = %295
-  %300 = load i16, ptr getelementptr inbounds nuw (%struct.vclip, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), i32 0, i32 4), align 4, !dbg !1228
-  %301 = sext i16 %300 to i32, !dbg !1230
-  %302 = load ptr, ptr %2, align 8, !dbg !1231
-  %303 = getelementptr inbounds nuw %struct.FuelCenter, ptr %302, i32 0, i32 1, !dbg !1232
-  %304 = load i32, ptr %303, align 4, !dbg !1232
-  %305 = trunc i32 %304 to i16, !dbg !1231
-  %306 = call noundef i32 @_Z22digi_link_sound_to_posissP10vms_vectorii(i32 noundef %301, i16 noundef signext %305, i16 noundef signext 0, ptr noundef %4, i32 noundef 0, i32 noundef 65536), !dbg !1233
-  br label %307, !dbg !1234
+  %300 = load i16, ptr getelementptr inbounds nuw (%struct.vclip, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), i32 0, i32 4), align 4, !dbg !1232
+  %301 = sext i16 %300 to i32, !dbg !1234
+  %302 = load ptr, ptr %2, align 8, !dbg !1235
+  %303 = getelementptr inbounds nuw %struct.FuelCenter, ptr %302, i32 0, i32 1, !dbg !1236
+  %304 = load i32, ptr %303, align 4, !dbg !1236
+  %305 = trunc i32 %304 to i16, !dbg !1235
+  %306 = call noundef i32 @_Z22digi_link_sound_to_posissP10vms_vectorii(i32 noundef %301, i16 noundef signext %305, i16 noundef signext 0, ptr noundef %4, i32 noundef 0, i32 noundef 65536), !dbg !1237
+  br label %307, !dbg !1238
 
 307:                                              ; preds = %299, %295
-  %308 = load ptr, ptr %2, align 8, !dbg !1235
-  %309 = getelementptr inbounds nuw %struct.FuelCenter, ptr %308, i32 0, i32 2, !dbg !1236
-  store i8 1, ptr %309, align 4, !dbg !1237
-  %310 = load ptr, ptr %2, align 8, !dbg !1238
-  %311 = getelementptr inbounds nuw %struct.FuelCenter, ptr %310, i32 0, i32 8, !dbg !1239
-  store i32 0, ptr %311, align 4, !dbg !1240
-  br label %312, !dbg !1241
+  %308 = load ptr, ptr %2, align 8, !dbg !1239
+  %309 = getelementptr inbounds nuw %struct.FuelCenter, ptr %308, i32 0, i32 2, !dbg !1240
+  store i8 1, ptr %309, align 4, !dbg !1241
+  %310 = load ptr, ptr %2, align 8, !dbg !1242
+  %311 = getelementptr inbounds nuw %struct.FuelCenter, ptr %310, i32 0, i32 8, !dbg !1243
+  store i32 0, ptr %311, align 4, !dbg !1244
+  br label %312, !dbg !1245
 
 312:                                              ; preds = %307, %157
-  br label %451, !dbg !1242
+  br label %451, !dbg !1246
 
 313:                                              ; preds = %114
-  %314 = load ptr, ptr %2, align 8, !dbg !1243
-  %315 = getelementptr inbounds nuw %struct.FuelCenter, ptr %314, i32 0, i32 8, !dbg !1245
-  %316 = load i32, ptr %315, align 4, !dbg !1245
-  %317 = load i32, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), align 4, !dbg !1246
-  %318 = sdiv i32 %317, 2, !dbg !1247
-  %319 = icmp sgt i32 %316, %318, !dbg !1248
-  br i1 %319, label %320, label %445, !dbg !1248
+  %314 = load ptr, ptr %2, align 8, !dbg !1247
+  %315 = getelementptr inbounds nuw %struct.FuelCenter, ptr %314, i32 0, i32 8, !dbg !1249
+  %316 = load i32, ptr %315, align 4, !dbg !1249
+  %317 = load i32, ptr getelementptr inbounds ([110 x %struct.vclip], ptr @Vclip, i64 0, i64 10), align 4, !dbg !1250
+  %318 = sdiv i32 %317, 2, !dbg !1251
+  %319 = icmp sgt i32 %316, %318, !dbg !1252
+  br i1 %319, label %320, label %445, !dbg !1252
 
 320:                                              ; preds = %313
-  %321 = load i32, ptr @EnergyToCreateOneRobot, align 4, !dbg !1249
-  %322 = load ptr, ptr %2, align 8, !dbg !1251
-  %323 = getelementptr inbounds nuw %struct.FuelCenter, ptr %322, i32 0, i32 6, !dbg !1252
-  %324 = load i32, ptr %323, align 4, !dbg !1253
-  %325 = sub nsw i32 %324, %321, !dbg !1253
-  store i32 %325, ptr %323, align 4, !dbg !1253
-  %326 = load ptr, ptr %2, align 8, !dbg !1254
-  %327 = getelementptr inbounds nuw %struct.FuelCenter, ptr %326, i32 0, i32 2, !dbg !1255
-  store i8 0, ptr %327, align 4, !dbg !1256
-  %328 = load ptr, ptr %2, align 8, !dbg !1257
-  %329 = getelementptr inbounds nuw %struct.FuelCenter, ptr %328, i32 0, i32 8, !dbg !1258
-  store i32 0, ptr %329, align 4, !dbg !1259
-  %330 = load ptr, ptr %2, align 8, !dbg !1260
-  %331 = getelementptr inbounds nuw %struct.FuelCenter, ptr %330, i32 0, i32 1, !dbg !1261
-  %332 = load i32, ptr %331, align 4, !dbg !1261
-  %333 = sext i32 %332 to i64, !dbg !1262
-  %334 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %333, !dbg !1262
-  call void @_Z22compute_segment_centerP10vms_vectorP7segment(ptr noundef %4, ptr noundef %334), !dbg !1263
-  %335 = load i32, ptr %5, align 4, !dbg !1264
-  %336 = sext i32 %335 to i64, !dbg !1266
-  %337 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %336, !dbg !1266
-  %338 = getelementptr inbounds nuw %struct.matcen_info, ptr %337, i32 0, i32 0, !dbg !1267
-  %339 = getelementptr inbounds [2 x i32], ptr %338, i64 0, i64 0, !dbg !1266
-  %340 = load i32, ptr %339, align 4, !dbg !1266
-  %341 = icmp ne i32 %340, 0, !dbg !1268
-  br i1 %341, label %350, label %342, !dbg !1269
+  %321 = load i32, ptr @EnergyToCreateOneRobot, align 4, !dbg !1253
+  %322 = load ptr, ptr %2, align 8, !dbg !1255
+  %323 = getelementptr inbounds nuw %struct.FuelCenter, ptr %322, i32 0, i32 6, !dbg !1256
+  %324 = load i32, ptr %323, align 4, !dbg !1257
+  %325 = sub nsw i32 %324, %321, !dbg !1257
+  store i32 %325, ptr %323, align 4, !dbg !1257
+  %326 = load ptr, ptr %2, align 8, !dbg !1258
+  %327 = getelementptr inbounds nuw %struct.FuelCenter, ptr %326, i32 0, i32 2, !dbg !1259
+  store i8 0, ptr %327, align 4, !dbg !1260
+  %328 = load ptr, ptr %2, align 8, !dbg !1261
+  %329 = getelementptr inbounds nuw %struct.FuelCenter, ptr %328, i32 0, i32 8, !dbg !1262
+  store i32 0, ptr %329, align 4, !dbg !1263
+  %330 = load ptr, ptr %2, align 8, !dbg !1264
+  %331 = getelementptr inbounds nuw %struct.FuelCenter, ptr %330, i32 0, i32 1, !dbg !1265
+  %332 = load i32, ptr %331, align 4, !dbg !1265
+  %333 = sext i32 %332 to i64, !dbg !1266
+  %334 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %333, !dbg !1266
+  call void @_Z22compute_segment_centerP10vms_vectorP7segment(ptr noundef %4, ptr noundef %334), !dbg !1267
+  %335 = load i32, ptr %5, align 4, !dbg !1268
+  %336 = sext i32 %335 to i64, !dbg !1270
+  %337 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %336, !dbg !1270
+  %338 = getelementptr inbounds nuw %struct.matcen_info, ptr %337, i32 0, i32 0, !dbg !1271
+  %339 = getelementptr inbounds [2 x i32], ptr %338, i64 0, i64 0, !dbg !1270
+  %340 = load i32, ptr %339, align 4, !dbg !1270
+  %341 = icmp ne i32 %340, 0, !dbg !1272
+  br i1 %341, label %350, label %342, !dbg !1273
 
 342:                                              ; preds = %320
-  %343 = load i32, ptr %5, align 4, !dbg !1270
-  %344 = sext i32 %343 to i64, !dbg !1271
-  %345 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %344, !dbg !1271
-  %346 = getelementptr inbounds nuw %struct.matcen_info, ptr %345, i32 0, i32 0, !dbg !1272
-  %347 = getelementptr inbounds [2 x i32], ptr %346, i64 0, i64 1, !dbg !1271
-  %348 = load i32, ptr %347, align 4, !dbg !1271
-  %349 = icmp ne i32 %348, 0, !dbg !1273
-  br i1 %349, label %350, label %444, !dbg !1269
+  %343 = load i32, ptr %5, align 4, !dbg !1274
+  %344 = sext i32 %343 to i64, !dbg !1275
+  %345 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %344, !dbg !1275
+  %346 = getelementptr inbounds nuw %struct.matcen_info, ptr %345, i32 0, i32 0, !dbg !1276
+  %347 = getelementptr inbounds [2 x i32], ptr %346, i64 0, i64 1, !dbg !1275
+  %348 = load i32, ptr %347, align 4, !dbg !1275
+  %349 = icmp ne i32 %348, 0, !dbg !1277
+  br i1 %349, label %350, label %444, !dbg !1273
 
 350:                                              ; preds = %342, %320
-    #dbg_declare(ptr %15, !1274, !DIExpression(), !1276)
-    #dbg_declare(ptr %16, !1277, !DIExpression(), !1278)
-    #dbg_declare(ptr %17, !1279, !DIExpression(), !1283)
-    #dbg_declare(ptr %18, !1284, !DIExpression(), !1285)
-    #dbg_declare(ptr %19, !1286, !DIExpression(), !1287)
-    #dbg_declare(ptr %20, !1288, !DIExpression(), !1289)
-  store i32 0, ptr %18, align 4, !dbg !1290
-  store i32 0, ptr %20, align 4, !dbg !1291
-  br label %351, !dbg !1293
+    #dbg_declare(ptr %15, !1278, !DIExpression(), !1280)
+    #dbg_declare(ptr %16, !1281, !DIExpression(), !1282)
+    #dbg_declare(ptr %17, !1283, !DIExpression(), !1287)
+    #dbg_declare(ptr %18, !1288, !DIExpression(), !1289)
+    #dbg_declare(ptr %19, !1290, !DIExpression(), !1291)
+    #dbg_declare(ptr %20, !1292, !DIExpression(), !1293)
+  store i32 0, ptr %18, align 4, !dbg !1294
+  store i32 0, ptr %20, align 4, !dbg !1295
+  br label %351, !dbg !1297
 
 351:                                              ; preds = %385, %350
-  %352 = load i32, ptr %20, align 4, !dbg !1294
-  %353 = icmp slt i32 %352, 2, !dbg !1296
-  br i1 %353, label %354, label %388, !dbg !1297
+  %352 = load i32, ptr %20, align 4, !dbg !1298
+  %353 = icmp slt i32 %352, 2, !dbg !1300
+  br i1 %353, label %354, label %388, !dbg !1301
 
 354:                                              ; preds = %351
-  %355 = load i32, ptr %20, align 4, !dbg !1298
-  %356 = mul nsw i32 %355, 32, !dbg !1300
-  store i32 %356, ptr %19, align 4, !dbg !1301
-  %357 = load i32, ptr %5, align 4, !dbg !1302
-  %358 = sext i32 %357 to i64, !dbg !1303
-  %359 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %358, !dbg !1303
-  %360 = getelementptr inbounds nuw %struct.matcen_info, ptr %359, i32 0, i32 0, !dbg !1304
-  %361 = load i32, ptr %20, align 4, !dbg !1305
-  %362 = sext i32 %361 to i64, !dbg !1303
-  %363 = getelementptr inbounds [2 x i32], ptr %360, i64 0, i64 %362, !dbg !1303
-  %364 = load i32, ptr %363, align 4, !dbg !1303
-  store i32 %364, ptr %16, align 4, !dbg !1306
-  br label %365, !dbg !1307
+  %355 = load i32, ptr %20, align 4, !dbg !1302
+  %356 = mul nsw i32 %355, 32, !dbg !1304
+  store i32 %356, ptr %19, align 4, !dbg !1305
+  %357 = load i32, ptr %5, align 4, !dbg !1306
+  %358 = sext i32 %357 to i64, !dbg !1307
+  %359 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %358, !dbg !1307
+  %360 = getelementptr inbounds nuw %struct.matcen_info, ptr %359, i32 0, i32 0, !dbg !1308
+  %361 = load i32, ptr %20, align 4, !dbg !1309
+  %362 = sext i32 %361 to i64, !dbg !1307
+  %363 = getelementptr inbounds [2 x i32], ptr %360, i64 0, i64 %362, !dbg !1307
+  %364 = load i32, ptr %363, align 4, !dbg !1307
+  store i32 %364, ptr %16, align 4, !dbg !1310
+  br label %365, !dbg !1311
 
 365:                                              ; preds = %379, %354
-  %366 = load i32, ptr %16, align 4, !dbg !1308
-  %367 = icmp ne i32 %366, 0, !dbg !1308
-  br i1 %367, label %368, label %384, !dbg !1307
+  %366 = load i32, ptr %16, align 4, !dbg !1312
+  %367 = icmp ne i32 %366, 0, !dbg !1312
+  br i1 %367, label %368, label %384, !dbg !1311
 
 368:                                              ; preds = %365
-  %369 = load i32, ptr %16, align 4, !dbg !1309
-  %370 = and i32 %369, 1, !dbg !1312
-  %371 = icmp ne i32 %370, 0, !dbg !1309
-  br i1 %371, label %372, label %379, !dbg !1309
+  %369 = load i32, ptr %16, align 4, !dbg !1313
+  %370 = and i32 %369, 1, !dbg !1316
+  %371 = icmp ne i32 %370, 0, !dbg !1313
+  br i1 %371, label %372, label %379, !dbg !1313
 
 372:                                              ; preds = %368
-  %373 = load i32, ptr %19, align 4, !dbg !1313
-  %374 = trunc i32 %373 to i8, !dbg !1313
-  %375 = load i32, ptr %18, align 4, !dbg !1314
-  %376 = add nsw i32 %375, 1, !dbg !1314
-  store i32 %376, ptr %18, align 4, !dbg !1314
-  %377 = sext i32 %375 to i64, !dbg !1315
-  %378 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 %377, !dbg !1315
-  store i8 %374, ptr %378, align 1, !dbg !1316
-  br label %379, !dbg !1315
+  %373 = load i32, ptr %19, align 4, !dbg !1317
+  %374 = trunc i32 %373 to i8, !dbg !1317
+  %375 = load i32, ptr %18, align 4, !dbg !1318
+  %376 = add nsw i32 %375, 1, !dbg !1318
+  store i32 %376, ptr %18, align 4, !dbg !1318
+  %377 = sext i32 %375 to i64, !dbg !1319
+  %378 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 %377, !dbg !1319
+  store i8 %374, ptr %378, align 1, !dbg !1320
+  br label %379, !dbg !1319
 
 379:                                              ; preds = %372, %368
-  %380 = load i32, ptr %16, align 4, !dbg !1317
-  %381 = lshr i32 %380, 1, !dbg !1317
-  store i32 %381, ptr %16, align 4, !dbg !1317
-  %382 = load i32, ptr %19, align 4, !dbg !1318
-  %383 = add nsw i32 %382, 1, !dbg !1318
-  store i32 %383, ptr %19, align 4, !dbg !1318
-  br label %365, !dbg !1307, !llvm.loop !1319
+  %380 = load i32, ptr %16, align 4, !dbg !1321
+  %381 = lshr i32 %380, 1, !dbg !1321
+  store i32 %381, ptr %16, align 4, !dbg !1321
+  %382 = load i32, ptr %19, align 4, !dbg !1322
+  %383 = add nsw i32 %382, 1, !dbg !1322
+  store i32 %383, ptr %19, align 4, !dbg !1322
+  br label %365, !dbg !1311, !llvm.loop !1323
 
 384:                                              ; preds = %365
-  br label %385, !dbg !1321
+  br label %385, !dbg !1325
 
 385:                                              ; preds = %384
-  %386 = load i32, ptr %20, align 4, !dbg !1322
-  %387 = add nsw i32 %386, 1, !dbg !1322
-  store i32 %387, ptr %20, align 4, !dbg !1322
-  br label %351, !dbg !1323, !llvm.loop !1324
+  %386 = load i32, ptr %20, align 4, !dbg !1326
+  %387 = add nsw i32 %386, 1, !dbg !1326
+  store i32 %387, ptr %20, align 4, !dbg !1326
+  br label %351, !dbg !1327, !llvm.loop !1328
 
 388:                                              ; preds = %351
-  %389 = load i32, ptr %18, align 4, !dbg !1326
-  %390 = icmp eq i32 %389, 1, !dbg !1328
-  br i1 %390, label %391, label %395, !dbg !1328
+  %389 = load i32, ptr %18, align 4, !dbg !1330
+  %390 = icmp eq i32 %389, 1, !dbg !1332
+  br i1 %390, label %391, label %395, !dbg !1332
 
 391:                                              ; preds = %388
-  %392 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 0, !dbg !1329
-  %393 = load i8, ptr %392, align 1, !dbg !1329
-  %394 = sext i8 %393 to i32, !dbg !1329
-  store i32 %394, ptr %15, align 4, !dbg !1330
-  br label %404, !dbg !1331
+  %392 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 0, !dbg !1333
+  %393 = load i8, ptr %392, align 1, !dbg !1333
+  %394 = sext i8 %393 to i32, !dbg !1333
+  store i32 %394, ptr %15, align 4, !dbg !1334
+  br label %404, !dbg !1335
 
 395:                                              ; preds = %388
-  %396 = call noundef i32 @_Z6P_Randv(), !dbg !1332
-  %397 = load i32, ptr %18, align 4, !dbg !1333
-  %398 = mul nsw i32 %396, %397, !dbg !1334
-  %399 = sdiv i32 %398, 32768, !dbg !1335
-  %400 = sext i32 %399 to i64, !dbg !1336
-  %401 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 %400, !dbg !1336
-  %402 = load i8, ptr %401, align 1, !dbg !1336
-  %403 = sext i8 %402 to i32, !dbg !1336
-  store i32 %403, ptr %15, align 4, !dbg !1337
+  %396 = call noundef i32 @_Z6P_Randv(), !dbg !1336
+  %397 = load i32, ptr %18, align 4, !dbg !1337
+  %398 = mul nsw i32 %396, %397, !dbg !1338
+  %399 = sdiv i32 %398, 32768, !dbg !1339
+  %400 = sext i32 %399 to i64, !dbg !1340
+  %401 = getelementptr inbounds [64 x i8], ptr %17, i64 0, i64 %400, !dbg !1340
+  %402 = load i8, ptr %401, align 1, !dbg !1340
+  %403 = sext i8 %402 to i32, !dbg !1340
+  store i32 %403, ptr %15, align 4, !dbg !1341
   br label %404
 
 404:                                              ; preds = %395, %391
-  %405 = load i32, ptr %15, align 4, !dbg !1338
-  %406 = load ptr, ptr %2, align 8, !dbg !1338
-  %407 = getelementptr inbounds nuw %struct.FuelCenter, ptr %406, i32 0, i32 1, !dbg !1338
-  %408 = load i32, ptr %407, align 4, !dbg !1338
-  %409 = load ptr, ptr %2, align 8, !dbg !1338
-  %410 = getelementptr inbounds nuw %struct.FuelCenter, ptr %409, i32 0, i32 6, !dbg !1338
-  %411 = load i32, ptr %410, align 4, !dbg !1338
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.17, i32 noundef %405, i32 noundef %408, i32 noundef %411), !dbg !1338
-  %412 = load ptr, ptr %2, align 8, !dbg !1339
-  %413 = getelementptr inbounds nuw %struct.FuelCenter, ptr %412, i32 0, i32 1, !dbg !1340
-  %414 = load i32, ptr %413, align 4, !dbg !1340
-  %415 = sext i32 %414 to i64, !dbg !1341
-  %416 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %415, !dbg !1341
-  %417 = load i32, ptr %15, align 4, !dbg !1342
-  %418 = call noundef ptr @_Z18create_morph_robotP7segmentP10vms_vectori(ptr noundef %416, ptr noundef %4, i32 noundef %417), !dbg !1343
-  store ptr %418, ptr %8, align 8, !dbg !1344
-  %419 = load ptr, ptr %8, align 8, !dbg !1345
-  %420 = icmp ne ptr %419, null, !dbg !1347
-  br i1 %420, label %421, label %442, !dbg !1347
+  %405 = load i32, ptr %15, align 4, !dbg !1342
+  %406 = load ptr, ptr %2, align 8, !dbg !1342
+  %407 = getelementptr inbounds nuw %struct.FuelCenter, ptr %406, i32 0, i32 1, !dbg !1342
+  %408 = load i32, ptr %407, align 4, !dbg !1342
+  %409 = load ptr, ptr %2, align 8, !dbg !1342
+  %410 = getelementptr inbounds nuw %struct.FuelCenter, ptr %409, i32 0, i32 6, !dbg !1342
+  %411 = load i32, ptr %410, align 4, !dbg !1342
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.17, i32 noundef %405, i32 noundef %408, i32 noundef %411), !dbg !1342
+  %412 = load ptr, ptr %2, align 8, !dbg !1343
+  %413 = getelementptr inbounds nuw %struct.FuelCenter, ptr %412, i32 0, i32 1, !dbg !1344
+  %414 = load i32, ptr %413, align 4, !dbg !1344
+  %415 = sext i32 %414 to i64, !dbg !1345
+  %416 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %415, !dbg !1345
+  %417 = load i32, ptr %15, align 4, !dbg !1346
+  %418 = call noundef ptr @_Z18create_morph_robotP7segmentP10vms_vectori(ptr noundef %416, ptr noundef %4, i32 noundef %417), !dbg !1347
+  store ptr %418, ptr %8, align 8, !dbg !1348
+  %419 = load ptr, ptr %8, align 8, !dbg !1349
+  %420 = icmp ne ptr %419, null, !dbg !1351
+  br i1 %420, label %421, label %442, !dbg !1351
 
 421:                                              ; preds = %404
-  %422 = load ptr, ptr %2, align 8, !dbg !1348
-  %423 = ptrtoint ptr %422 to i64, !dbg !1350
-  %424 = sub i64 %423, ptrtoint (ptr @Station to i64), !dbg !1350
-  %425 = sdiv exact i64 %424, 40, !dbg !1350
-  %426 = or i64 %425, 128, !dbg !1351
-  %427 = trunc i64 %426 to i8, !dbg !1348
-  %428 = load ptr, ptr %8, align 8, !dbg !1352
-  %429 = getelementptr inbounds nuw %struct.object, ptr %428, i32 0, i32 19, !dbg !1353
-  store i8 %427, ptr %429, align 1, !dbg !1354
-  %430 = load ptr, ptr @ConsoleObject, align 8, !dbg !1355
-  %431 = getelementptr inbounds nuw %struct.object, ptr %430, i32 0, i32 11, !dbg !1356
-  %432 = load ptr, ptr %8, align 8, !dbg !1357
-  %433 = getelementptr inbounds nuw %struct.object, ptr %432, i32 0, i32 11, !dbg !1358
-  %434 = call noundef ptr @_Z10vm_vec_subP10vms_vectorS0_S0_(ptr noundef %10, ptr noundef %431, ptr noundef %433), !dbg !1359
-  %435 = load ptr, ptr %8, align 8, !dbg !1360
-  %436 = getelementptr inbounds nuw %struct.object, ptr %435, i32 0, i32 12, !dbg !1361
-  %437 = load ptr, ptr %8, align 8, !dbg !1362
-  %438 = getelementptr inbounds nuw %struct.object, ptr %437, i32 0, i32 12, !dbg !1363
-  %439 = getelementptr inbounds nuw %struct.vms_matrix, ptr %438, i32 0, i32 1, !dbg !1364
-  %440 = call noundef ptr @_Z18vm_vector_2_matrixP10vms_matrixP10vms_vectorS2_S2_(ptr noundef %436, ptr noundef %10, ptr noundef %439, ptr noundef null), !dbg !1365
-  %441 = load ptr, ptr %8, align 8, !dbg !1366
-  call void @_Z11morph_startP6object(ptr noundef %441), !dbg !1367
-  br label %443, !dbg !1368
+  %422 = load ptr, ptr %2, align 8, !dbg !1352
+  %423 = ptrtoint ptr %422 to i64, !dbg !1354
+  %424 = sub i64 %423, ptrtoint (ptr @Station to i64), !dbg !1354
+  %425 = sdiv exact i64 %424, 40, !dbg !1354
+  %426 = or i64 %425, 128, !dbg !1355
+  %427 = trunc i64 %426 to i8, !dbg !1352
+  %428 = load ptr, ptr %8, align 8, !dbg !1356
+  %429 = getelementptr inbounds nuw %struct.object, ptr %428, i32 0, i32 19, !dbg !1357
+  store i8 %427, ptr %429, align 1, !dbg !1358
+  %430 = load ptr, ptr @ConsoleObject, align 8, !dbg !1359
+  %431 = getelementptr inbounds nuw %struct.object, ptr %430, i32 0, i32 11, !dbg !1360
+  %432 = load ptr, ptr %8, align 8, !dbg !1361
+  %433 = getelementptr inbounds nuw %struct.object, ptr %432, i32 0, i32 11, !dbg !1362
+  %434 = call noundef ptr @_Z10vm_vec_subP10vms_vectorS0_S0_(ptr noundef %10, ptr noundef %431, ptr noundef %433), !dbg !1363
+  %435 = load ptr, ptr %8, align 8, !dbg !1364
+  %436 = getelementptr inbounds nuw %struct.object, ptr %435, i32 0, i32 12, !dbg !1365
+  %437 = load ptr, ptr %8, align 8, !dbg !1366
+  %438 = getelementptr inbounds nuw %struct.object, ptr %437, i32 0, i32 12, !dbg !1367
+  %439 = getelementptr inbounds nuw %struct.vms_matrix, ptr %438, i32 0, i32 1, !dbg !1368
+  %440 = call noundef ptr @_Z18vm_vector_2_matrixP10vms_matrixP10vms_vectorS2_S2_(ptr noundef %436, ptr noundef %10, ptr noundef %439, ptr noundef null), !dbg !1369
+  %441 = load ptr, ptr %8, align 8, !dbg !1370
+  call void @_Z11morph_startP6object(ptr noundef %441), !dbg !1371
+  br label %443, !dbg !1372
 
 442:                                              ; preds = %404
-  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.18), !dbg !1369
+  call void (i32, ptr, ...) @_Z8_mprintfiPKcz(i32 noundef 0, ptr noundef @.str.18), !dbg !1373
   br label %443
 
 443:                                              ; preds = %442, %421
-  br label %444, !dbg !1370
+  br label %444, !dbg !1374
 
 444:                                              ; preds = %443, %342
-  br label %445, !dbg !1371
+  br label %445, !dbg !1375
 
 445:                                              ; preds = %444, %313
-  br label %451, !dbg !1372
+  br label %451, !dbg !1376
 
 446:                                              ; preds = %114
-  %447 = load ptr, ptr %2, align 8, !dbg !1373
-  %448 = getelementptr inbounds nuw %struct.FuelCenter, ptr %447, i32 0, i32 2, !dbg !1374
-  store i8 0, ptr %448, align 4, !dbg !1375
-  %449 = load ptr, ptr %2, align 8, !dbg !1376
-  %450 = getelementptr inbounds nuw %struct.FuelCenter, ptr %449, i32 0, i32 8, !dbg !1377
-  store i32 0, ptr %450, align 4, !dbg !1378
-  br label %451, !dbg !1379
+  %447 = load ptr, ptr %2, align 8, !dbg !1377
+  %448 = getelementptr inbounds nuw %struct.FuelCenter, ptr %447, i32 0, i32 2, !dbg !1378
+  store i8 0, ptr %448, align 4, !dbg !1379
+  %449 = load ptr, ptr %2, align 8, !dbg !1380
+  %450 = getelementptr inbounds nuw %struct.FuelCenter, ptr %449, i32 0, i32 8, !dbg !1381
+  store i32 0, ptr %450, align 4, !dbg !1382
+  br label %451, !dbg !1383
 
 451:                                              ; preds = %26, %55, %67, %87, %113, %206, %230, %240, %256, %446, %445, %312
-  ret void, !dbg !1380
+  ret void, !dbg !1384
 }
 
 declare noundef i32 @_Z17vm_vec_dist_quickP10vms_vectorS0_(ptr noundef, ptr noundef) #2
@@ -1571,136 +1577,136 @@ declare noundef ptr @_Z18vm_vector_2_matrixP10vms_matrixP10vms_vectorS2_S2_(ptr 
 declare void @_Z11morph_startP6object(ptr noundef) #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z18fuelcen_update_allv() #1 !dbg !1381 {
+define void @_Z18fuelcen_update_allv() #1 !dbg !1385 {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
-    #dbg_declare(ptr %1, !1382, !DIExpression(), !1383)
-    #dbg_declare(ptr %2, !1384, !DIExpression(), !1385)
-  %3 = load i32, ptr @FrameTime, align 4, !dbg !1386
-  %4 = load i32, ptr @Fuelcen_refill_speed, align 4, !dbg !1387
-  %5 = call noundef i32 @_Z6fixmulii(i32 noundef %3, i32 noundef %4), !dbg !1388
-  store i32 %5, ptr %2, align 4, !dbg !1389
-  store i32 0, ptr %1, align 4, !dbg !1390
-  br label %6, !dbg !1392
+    #dbg_declare(ptr %1, !1386, !DIExpression(), !1387)
+    #dbg_declare(ptr %2, !1388, !DIExpression(), !1389)
+  %3 = load i32, ptr @FrameTime, align 4, !dbg !1390
+  %4 = load i32, ptr @Fuelcen_refill_speed, align 4, !dbg !1391
+  %5 = call noundef i32 @_Z6fixmulii(i32 noundef %3, i32 noundef %4), !dbg !1392
+  store i32 %5, ptr %2, align 4, !dbg !1393
+  store i32 0, ptr %1, align 4, !dbg !1394
+  br label %6, !dbg !1396
 
 6:                                                ; preds = %97, %0
-  %7 = load i32, ptr %1, align 4, !dbg !1393
-  %8 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1395
-  %9 = icmp slt i32 %7, %8, !dbg !1396
-  br i1 %9, label %10, label %100, !dbg !1397
+  %7 = load i32, ptr %1, align 4, !dbg !1397
+  %8 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1399
+  %9 = icmp slt i32 %7, %8, !dbg !1400
+  br i1 %9, label %10, label %100, !dbg !1401
 
 10:                                               ; preds = %6
-  %11 = load i32, ptr %1, align 4, !dbg !1398
-  %12 = sext i32 %11 to i64, !dbg !1401
-  %13 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %12, !dbg !1401
-  %14 = getelementptr inbounds nuw %struct.FuelCenter, ptr %13, i32 0, i32 0, !dbg !1402
-  %15 = load i32, ptr %14, align 4, !dbg !1402
-  %16 = icmp eq i32 %15, 4, !dbg !1403
-  br i1 %16, label %17, label %26, !dbg !1403
+  %11 = load i32, ptr %1, align 4, !dbg !1402
+  %12 = sext i32 %11 to i64, !dbg !1405
+  %13 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %12, !dbg !1405
+  %14 = getelementptr inbounds nuw %struct.FuelCenter, ptr %13, i32 0, i32 0, !dbg !1406
+  %15 = load i32, ptr %14, align 4, !dbg !1406
+  %16 = icmp eq i32 %15, 4, !dbg !1407
+  br i1 %16, label %17, label %26, !dbg !1407
 
 17:                                               ; preds = %10
-  %18 = load i32, ptr @Game_suspended, align 4, !dbg !1404
-  %19 = and i32 %18, 1, !dbg !1407
-  %20 = icmp ne i32 %19, 0, !dbg !1408
-  br i1 %20, label %25, label %21, !dbg !1409
+  %18 = load i32, ptr @Game_suspended, align 4, !dbg !1408
+  %19 = and i32 %18, 1, !dbg !1411
+  %20 = icmp ne i32 %19, 0, !dbg !1412
+  br i1 %20, label %25, label %21, !dbg !1413
 
 21:                                               ; preds = %17
-  %22 = load i32, ptr %1, align 4, !dbg !1410
-  %23 = sext i32 %22 to i64, !dbg !1411
-  %24 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %23, !dbg !1411
-  call void @_Z15robotmaker_procP10FuelCenter(ptr noundef %24), !dbg !1412
-  br label %25, !dbg !1412
+  %22 = load i32, ptr %1, align 4, !dbg !1414
+  %23 = sext i32 %22 to i64, !dbg !1415
+  %24 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %23, !dbg !1415
+  call void @_Z15robotmaker_procP10FuelCenter(ptr noundef %24), !dbg !1416
+  br label %25, !dbg !1416
 
 25:                                               ; preds = %21, %17
-  br label %96, !dbg !1413
+  br label %96, !dbg !1417
 
 26:                                               ; preds = %10
-  %27 = load i32, ptr %1, align 4, !dbg !1414
-  %28 = sext i32 %27 to i64, !dbg !1416
-  %29 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %28, !dbg !1416
-  %30 = getelementptr inbounds nuw %struct.FuelCenter, ptr %29, i32 0, i32 0, !dbg !1417
-  %31 = load i32, ptr %30, align 4, !dbg !1417
-  %32 = icmp eq i32 %31, 3, !dbg !1418
-  br i1 %32, label %33, label %34, !dbg !1418
+  %27 = load i32, ptr %1, align 4, !dbg !1418
+  %28 = sext i32 %27 to i64, !dbg !1420
+  %29 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %28, !dbg !1420
+  %30 = getelementptr inbounds nuw %struct.FuelCenter, ptr %29, i32 0, i32 0, !dbg !1421
+  %31 = load i32, ptr %30, align 4, !dbg !1421
+  %32 = icmp eq i32 %31, 3, !dbg !1422
+  br i1 %32, label %33, label %34, !dbg !1422
 
 33:                                               ; preds = %26
-  br label %95, !dbg !1419
+  br label %95, !dbg !1423
 
 34:                                               ; preds = %26
-  %35 = load i32, ptr %1, align 4, !dbg !1421
-  %36 = sext i32 %35 to i64, !dbg !1423
-  %37 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %36, !dbg !1423
-  %38 = getelementptr inbounds nuw %struct.FuelCenter, ptr %37, i32 0, i32 7, !dbg !1424
-  %39 = load i32, ptr %38, align 4, !dbg !1424
-  %40 = icmp sgt i32 %39, 0, !dbg !1425
-  br i1 %40, label %41, label %94, !dbg !1426
+  %35 = load i32, ptr %1, align 4, !dbg !1425
+  %36 = sext i32 %35 to i64, !dbg !1427
+  %37 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %36, !dbg !1427
+  %38 = getelementptr inbounds nuw %struct.FuelCenter, ptr %37, i32 0, i32 7, !dbg !1428
+  %39 = load i32, ptr %38, align 4, !dbg !1428
+  %40 = icmp sgt i32 %39, 0, !dbg !1429
+  br i1 %40, label %41, label %94, !dbg !1430
 
 41:                                               ; preds = %34
-  %42 = load ptr, ptr @PlayerSegment, align 8, !dbg !1427
-  %43 = load i32, ptr %1, align 4, !dbg !1428
-  %44 = sext i32 %43 to i64, !dbg !1429
-  %45 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %44, !dbg !1429
-  %46 = getelementptr inbounds nuw %struct.FuelCenter, ptr %45, i32 0, i32 1, !dbg !1430
-  %47 = load i32, ptr %46, align 4, !dbg !1430
-  %48 = sext i32 %47 to i64, !dbg !1431
-  %49 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %48, !dbg !1431
-  %50 = icmp ne ptr %42, %49, !dbg !1432
-  br i1 %50, label %51, label %94, !dbg !1426
+  %42 = load ptr, ptr @PlayerSegment, align 8, !dbg !1431
+  %43 = load i32, ptr %1, align 4, !dbg !1432
+  %44 = sext i32 %43 to i64, !dbg !1433
+  %45 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %44, !dbg !1433
+  %46 = getelementptr inbounds nuw %struct.FuelCenter, ptr %45, i32 0, i32 1, !dbg !1434
+  %47 = load i32, ptr %46, align 4, !dbg !1434
+  %48 = sext i32 %47 to i64, !dbg !1435
+  %49 = getelementptr inbounds [0 x %struct.segment], ptr @Segments, i64 0, i64 %48, !dbg !1435
+  %50 = icmp ne ptr %42, %49, !dbg !1436
+  br i1 %50, label %51, label %94, !dbg !1430
 
 51:                                               ; preds = %41
-  %52 = load i32, ptr %1, align 4, !dbg !1433
-  %53 = sext i32 %52 to i64, !dbg !1436
-  %54 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %53, !dbg !1436
-  %55 = getelementptr inbounds nuw %struct.FuelCenter, ptr %54, i32 0, i32 6, !dbg !1437
-  %56 = load i32, ptr %55, align 4, !dbg !1437
-  %57 = load i32, ptr %1, align 4, !dbg !1438
-  %58 = sext i32 %57 to i64, !dbg !1439
-  %59 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %58, !dbg !1439
-  %60 = getelementptr inbounds nuw %struct.FuelCenter, ptr %59, i32 0, i32 7, !dbg !1440
-  %61 = load i32, ptr %60, align 4, !dbg !1440
-  %62 = icmp slt i32 %56, %61, !dbg !1441
-  br i1 %62, label %63, label %93, !dbg !1441
+  %52 = load i32, ptr %1, align 4, !dbg !1437
+  %53 = sext i32 %52 to i64, !dbg !1440
+  %54 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %53, !dbg !1440
+  %55 = getelementptr inbounds nuw %struct.FuelCenter, ptr %54, i32 0, i32 6, !dbg !1441
+  %56 = load i32, ptr %55, align 4, !dbg !1441
+  %57 = load i32, ptr %1, align 4, !dbg !1442
+  %58 = sext i32 %57 to i64, !dbg !1443
+  %59 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %58, !dbg !1443
+  %60 = getelementptr inbounds nuw %struct.FuelCenter, ptr %59, i32 0, i32 7, !dbg !1444
+  %61 = load i32, ptr %60, align 4, !dbg !1444
+  %62 = icmp slt i32 %56, %61, !dbg !1445
+  br i1 %62, label %63, label %93, !dbg !1445
 
 63:                                               ; preds = %51
-  %64 = load i32, ptr %2, align 4, !dbg !1442
-  %65 = load i32, ptr %1, align 4, !dbg !1444
-  %66 = sext i32 %65 to i64, !dbg !1445
-  %67 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %66, !dbg !1445
-  %68 = getelementptr inbounds nuw %struct.FuelCenter, ptr %67, i32 0, i32 6, !dbg !1446
-  %69 = load i32, ptr %68, align 4, !dbg !1447
-  %70 = add nsw i32 %69, %64, !dbg !1447
-  store i32 %70, ptr %68, align 4, !dbg !1447
-  %71 = load i32, ptr %1, align 4, !dbg !1448
-  %72 = sext i32 %71 to i64, !dbg !1450
-  %73 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %72, !dbg !1450
-  %74 = getelementptr inbounds nuw %struct.FuelCenter, ptr %73, i32 0, i32 6, !dbg !1451
-  %75 = load i32, ptr %74, align 4, !dbg !1451
-  %76 = load i32, ptr %1, align 4, !dbg !1452
-  %77 = sext i32 %76 to i64, !dbg !1453
-  %78 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %77, !dbg !1453
-  %79 = getelementptr inbounds nuw %struct.FuelCenter, ptr %78, i32 0, i32 7, !dbg !1454
-  %80 = load i32, ptr %79, align 4, !dbg !1454
-  %81 = icmp sge i32 %75, %80, !dbg !1455
-  br i1 %81, label %82, label %92, !dbg !1455
+  %64 = load i32, ptr %2, align 4, !dbg !1446
+  %65 = load i32, ptr %1, align 4, !dbg !1448
+  %66 = sext i32 %65 to i64, !dbg !1449
+  %67 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %66, !dbg !1449
+  %68 = getelementptr inbounds nuw %struct.FuelCenter, ptr %67, i32 0, i32 6, !dbg !1450
+  %69 = load i32, ptr %68, align 4, !dbg !1451
+  %70 = add nsw i32 %69, %64, !dbg !1451
+  store i32 %70, ptr %68, align 4, !dbg !1451
+  %71 = load i32, ptr %1, align 4, !dbg !1452
+  %72 = sext i32 %71 to i64, !dbg !1454
+  %73 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %72, !dbg !1454
+  %74 = getelementptr inbounds nuw %struct.FuelCenter, ptr %73, i32 0, i32 6, !dbg !1455
+  %75 = load i32, ptr %74, align 4, !dbg !1455
+  %76 = load i32, ptr %1, align 4, !dbg !1456
+  %77 = sext i32 %76 to i64, !dbg !1457
+  %78 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %77, !dbg !1457
+  %79 = getelementptr inbounds nuw %struct.FuelCenter, ptr %78, i32 0, i32 7, !dbg !1458
+  %80 = load i32, ptr %79, align 4, !dbg !1458
+  %81 = icmp sge i32 %75, %80, !dbg !1459
+  br i1 %81, label %82, label %92, !dbg !1459
 
 82:                                               ; preds = %63
-  %83 = load i32, ptr %1, align 4, !dbg !1456
-  %84 = sext i32 %83 to i64, !dbg !1458
-  %85 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %84, !dbg !1458
-  %86 = getelementptr inbounds nuw %struct.FuelCenter, ptr %85, i32 0, i32 7, !dbg !1459
-  %87 = load i32, ptr %86, align 4, !dbg !1459
-  %88 = load i32, ptr %1, align 4, !dbg !1460
-  %89 = sext i32 %88 to i64, !dbg !1461
-  %90 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %89, !dbg !1461
-  %91 = getelementptr inbounds nuw %struct.FuelCenter, ptr %90, i32 0, i32 6, !dbg !1462
-  store i32 %87, ptr %91, align 4, !dbg !1463
-  br label %92, !dbg !1464
+  %83 = load i32, ptr %1, align 4, !dbg !1460
+  %84 = sext i32 %83 to i64, !dbg !1462
+  %85 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %84, !dbg !1462
+  %86 = getelementptr inbounds nuw %struct.FuelCenter, ptr %85, i32 0, i32 7, !dbg !1463
+  %87 = load i32, ptr %86, align 4, !dbg !1463
+  %88 = load i32, ptr %1, align 4, !dbg !1464
+  %89 = sext i32 %88 to i64, !dbg !1465
+  %90 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %89, !dbg !1465
+  %91 = getelementptr inbounds nuw %struct.FuelCenter, ptr %90, i32 0, i32 6, !dbg !1466
+  store i32 %87, ptr %91, align 4, !dbg !1467
+  br label %92, !dbg !1468
 
 92:                                               ; preds = %82, %63
-  br label %93, !dbg !1465
+  br label %93, !dbg !1469
 
 93:                                               ; preds = %92, %51
-  br label %94, !dbg !1466
+  br label %94, !dbg !1470
 
 94:                                               ; preds = %93, %41, %34
   br label %95
@@ -1709,34 +1715,34 @@ define void @_Z18fuelcen_update_allv() #1 !dbg !1381 {
   br label %96
 
 96:                                               ; preds = %95, %25
-  br label %97, !dbg !1467
+  br label %97, !dbg !1471
 
 97:                                               ; preds = %96
-  %98 = load i32, ptr %1, align 4, !dbg !1468
-  %99 = add nsw i32 %98, 1, !dbg !1468
-  store i32 %99, ptr %1, align 4, !dbg !1468
-  br label %6, !dbg !1469, !llvm.loop !1470
+  %98 = load i32, ptr %1, align 4, !dbg !1472
+  %99 = add nsw i32 %98, 1, !dbg !1472
+  store i32 %99, ptr %1, align 4, !dbg !1472
+  br label %6, !dbg !1473, !llvm.loop !1474
 
 100:                                              ; preds = %6
-  ret void, !dbg !1472
+  ret void, !dbg !1476
 }
 
 ; Function Attrs: mustprogress noinline nounwind ssp uwtable(sync)
-define linkonce_odr noundef i32 @_Z6fixmulii(i32 noundef %0, i32 noundef %1) #0 !dbg !1473 {
+define linkonce_odr noundef i32 @_Z6fixmulii(i32 noundef %0, i32 noundef %1) #0 !dbg !1477 {
   %3 = alloca i32, align 4
   %4 = alloca i32, align 4
   store i32 %0, ptr %3, align 4
-    #dbg_declare(ptr %3, !1476, !DIExpression(), !1477)
+    #dbg_declare(ptr %3, !1480, !DIExpression(), !1481)
   store i32 %1, ptr %4, align 4
-    #dbg_declare(ptr %4, !1478, !DIExpression(), !1479)
-  %5 = load i32, ptr %3, align 4, !dbg !1480
-  %6 = sext i32 %5 to i64, !dbg !1480
-  %7 = load i32, ptr %4, align 4, !dbg !1481
-  %8 = sext i32 %7 to i64, !dbg !1481
-  %9 = mul nsw i64 %6, %8, !dbg !1482
-  %10 = ashr i64 %9, 16, !dbg !1483
-  %11 = trunc i64 %10 to i32, !dbg !1484
-  ret i32 %11, !dbg !1485
+    #dbg_declare(ptr %4, !1482, !DIExpression(), !1483)
+  %5 = load i32, ptr %3, align 4, !dbg !1484
+  %6 = sext i32 %5 to i64, !dbg !1484
+  %7 = load i32, ptr %4, align 4, !dbg !1485
+  %8 = sext i32 %7 to i64, !dbg !1485
+  %9 = mul nsw i64 %6, %8, !dbg !1486
+  %10 = ashr i64 %9, 16, !dbg !1487
+  %11 = trunc i64 %10 to i32, !dbg !1488
+  ret i32 %11, !dbg !1489
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
@@ -1747,95 +1753,95 @@ define noundef i32 @_Z17fuelcen_give_fuelP7segmenti(ptr noundef %0, i32 noundef 
   %6 = alloca ptr, align 8
   %7 = alloca i32, align 4
   store ptr %0, ptr %4, align 8
-    #dbg_declare(ptr %4, !1486, !DIExpression(), !1487)
+    #dbg_declare(ptr %4, !1490, !DIExpression(), !1491)
   store i32 %1, ptr %5, align 4
-    #dbg_declare(ptr %5, !1488, !DIExpression(), !1489)
-    #dbg_declare(ptr %6, !1490, !DIExpression(), !1491)
-  %8 = load ptr, ptr %4, align 8, !dbg !1492
-  %9 = ptrtoint ptr %8 to i64, !dbg !1493
-  %10 = sub i64 %9, ptrtoint (ptr @Segments to i64), !dbg !1493
-  %11 = sdiv exact i64 %10, 512, !dbg !1493
-  %12 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %11, !dbg !1494
-  store ptr %12, ptr %6, align 8, !dbg !1491
-  %13 = load ptr, ptr %4, align 8, !dbg !1495
-  %14 = icmp ne ptr %13, null, !dbg !1495
-  %15 = zext i1 %14 to i32, !dbg !1495
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %15, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 762), !dbg !1495
-  %16 = load ptr, ptr %4, align 8, !dbg !1496
-  store ptr %16, ptr @PlayerSegment, align 8, !dbg !1497
-  %17 = load ptr, ptr %4, align 8, !dbg !1498
-  %18 = icmp ne ptr %17, null, !dbg !1500
-  br i1 %18, label %19, label %52, !dbg !1501
+    #dbg_declare(ptr %5, !1492, !DIExpression(), !1493)
+    #dbg_declare(ptr %6, !1494, !DIExpression(), !1495)
+  %8 = load ptr, ptr %4, align 8, !dbg !1496
+  %9 = ptrtoint ptr %8 to i64, !dbg !1497
+  %10 = sub i64 %9, ptrtoint (ptr @Segments to i64), !dbg !1497
+  %11 = sdiv exact i64 %10, 512, !dbg !1497
+  %12 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %11, !dbg !1498
+  store ptr %12, ptr %6, align 8, !dbg !1495
+  %13 = load ptr, ptr %4, align 8, !dbg !1499
+  %14 = icmp ne ptr %13, null, !dbg !1499
+  %15 = zext i1 %14 to i32, !dbg !1499
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %15, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 782), !dbg !1499
+  %16 = load ptr, ptr %4, align 8, !dbg !1500
+  store ptr %16, ptr @PlayerSegment, align 8, !dbg !1501
+  %17 = load ptr, ptr %4, align 8, !dbg !1502
+  %18 = icmp ne ptr %17, null, !dbg !1504
+  br i1 %18, label %19, label %52, !dbg !1505
 
 19:                                               ; preds = %2
-  %20 = load ptr, ptr %6, align 8, !dbg !1502
-  %21 = getelementptr inbounds nuw %struct.segment2, ptr %20, i32 0, i32 0, !dbg !1503
-  %22 = load i8, ptr %21, align 4, !dbg !1503
-  %23 = zext i8 %22 to i32, !dbg !1502
-  %24 = icmp eq i32 %23, 1, !dbg !1504
-  br i1 %24, label %25, label %52, !dbg !1501
+  %20 = load ptr, ptr %6, align 8, !dbg !1506
+  %21 = getelementptr inbounds nuw %struct.segment2, ptr %20, i32 0, i32 0, !dbg !1507
+  %22 = load i8, ptr %21, align 4, !dbg !1507
+  %23 = zext i8 %22 to i32, !dbg !1506
+  %24 = icmp eq i32 %23, 1, !dbg !1508
+  br i1 %24, label %25, label %52, !dbg !1505
 
 25:                                               ; preds = %19
-    #dbg_declare(ptr %7, !1505, !DIExpression(), !1507)
-  call void @_Z31detect_escort_goal_accomplishedi(i32 noundef -4), !dbg !1508
-  %26 = load i32, ptr %5, align 4, !dbg !1509
-  %27 = icmp sle i32 %26, 0, !dbg !1511
-  br i1 %27, label %28, label %29, !dbg !1511
+    #dbg_declare(ptr %7, !1509, !DIExpression(), !1511)
+  call void @_Z31detect_escort_goal_accomplishedi(i32 noundef -4), !dbg !1512
+  %26 = load i32, ptr %5, align 4, !dbg !1513
+  %27 = icmp sle i32 %26, 0, !dbg !1515
+  br i1 %27, label %28, label %29, !dbg !1515
 
 28:                                               ; preds = %25
-  store i32 0, ptr %3, align 4, !dbg !1512
-  br label %53, !dbg !1512
+  store i32 0, ptr %3, align 4, !dbg !1516
+  br label %53, !dbg !1516
 
 29:                                               ; preds = %25
-  %30 = load i32, ptr @FrameTime, align 4, !dbg !1514
-  %31 = load i32, ptr @Fuelcen_give_amount, align 4, !dbg !1515
-  %32 = call noundef i32 @_Z6fixmulii(i32 noundef %30, i32 noundef %31), !dbg !1516
-  store i32 %32, ptr %7, align 4, !dbg !1517
-  %33 = load i32, ptr %7, align 4, !dbg !1518
-  %34 = load i32, ptr %5, align 4, !dbg !1520
-  %35 = icmp sgt i32 %33, %34, !dbg !1521
-  br i1 %35, label %36, label %38, !dbg !1521
+  %30 = load i32, ptr @FrameTime, align 4, !dbg !1518
+  %31 = load i32, ptr @Fuelcen_give_amount, align 4, !dbg !1519
+  %32 = call noundef i32 @_Z6fixmulii(i32 noundef %30, i32 noundef %31), !dbg !1520
+  store i32 %32, ptr %7, align 4, !dbg !1521
+  %33 = load i32, ptr %7, align 4, !dbg !1522
+  %34 = load i32, ptr %5, align 4, !dbg !1524
+  %35 = icmp sgt i32 %33, %34, !dbg !1525
+  br i1 %35, label %36, label %38, !dbg !1525
 
 36:                                               ; preds = %29
-  %37 = load i32, ptr %5, align 4, !dbg !1522
-  store i32 %37, ptr %7, align 4, !dbg !1523
-  br label %38, !dbg !1524
+  %37 = load i32, ptr %5, align 4, !dbg !1526
+  store i32 %37, ptr %7, align 4, !dbg !1527
+  br label %38, !dbg !1528
 
 38:                                               ; preds = %36, %29
-  %39 = load i32, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1525
-  %40 = load i32, ptr @GameTime, align 4, !dbg !1527
-  %41 = icmp sgt i32 %39, %40, !dbg !1528
-  br i1 %41, label %42, label %43, !dbg !1528
+  %39 = load i32, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1529
+  %40 = load i32, ptr @GameTime, align 4, !dbg !1531
+  %41 = icmp sgt i32 %39, %40, !dbg !1532
+  br i1 %41, label %42, label %43, !dbg !1532
 
 42:                                               ; preds = %38
-  store i32 0, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1529
-  br label %43, !dbg !1530
+  store i32 0, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1533
+  br label %43, !dbg !1534
 
 43:                                               ; preds = %42, %38
-  %44 = load i32, ptr @GameTime, align 4, !dbg !1531
-  %45 = load i32, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1533
-  %46 = add nsw i32 %45, 16384, !dbg !1534
-  %47 = icmp sgt i32 %44, %46, !dbg !1535
-  br i1 %47, label %48, label %50, !dbg !1535
+  %44 = load i32, ptr @GameTime, align 4, !dbg !1535
+  %45 = load i32, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1537
+  %46 = add nsw i32 %45, 16384, !dbg !1538
+  %47 = icmp sgt i32 %44, %46, !dbg !1539
+  br i1 %47, label %48, label %50, !dbg !1539
 
 48:                                               ; preds = %43
-  call void @_Z16digi_play_sampleii(i32 noundef 62, i32 noundef 32768), !dbg !1536
-  %49 = load i32, ptr @GameTime, align 4, !dbg !1538
-  store i32 %49, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1539
-  br label %50, !dbg !1540
+  call void @_Z16digi_play_sampleii(i32 noundef 62, i32 noundef 32768), !dbg !1540
+  %49 = load i32, ptr @GameTime, align 4, !dbg !1542
+  store i32 %49, ptr @_ZZ17fuelcen_give_fuelP7segmentiE14last_play_time, align 4, !dbg !1543
+  br label %50, !dbg !1544
 
 50:                                               ; preds = %48, %43
-  %51 = load i32, ptr %7, align 4, !dbg !1541
-  store i32 %51, ptr %3, align 4, !dbg !1542
-  br label %53, !dbg !1542
+  %51 = load i32, ptr %7, align 4, !dbg !1545
+  store i32 %51, ptr %3, align 4, !dbg !1546
+  br label %53, !dbg !1546
 
 52:                                               ; preds = %19, %2
-  store i32 0, ptr %3, align 4, !dbg !1543
-  br label %53, !dbg !1543
+  store i32 0, ptr %3, align 4, !dbg !1547
+  br label %53, !dbg !1547
 
 53:                                               ; preds = %52, %50, %28
-  %54 = load i32, ptr %3, align 4, !dbg !1545
-  ret i32 %54, !dbg !1545
+  %54 = load i32, ptr %3, align 4, !dbg !1549
+  ret i32 %54, !dbg !1549
 }
 
 declare void @_Z31detect_escort_goal_accomplishedi(i32 noundef) #2
@@ -1843,314 +1849,314 @@ declare void @_Z31detect_escort_goal_accomplishedi(i32 noundef) #2
 declare void @_Z16digi_play_sampleii(i32 noundef, i32 noundef) #2
 
 ; Function Attrs: mustprogress noinline nounwind ssp uwtable(sync)
-define void @_Z15disable_matcensv() #0 !dbg !1546 {
+define void @_Z15disable_matcensv() #0 !dbg !1550 {
   %1 = alloca i32, align 4
-    #dbg_declare(ptr %1, !1547, !DIExpression(), !1548)
-  store i32 0, ptr %1, align 4, !dbg !1549
-  br label %2, !dbg !1551
+    #dbg_declare(ptr %1, !1551, !DIExpression(), !1552)
+  store i32 0, ptr %1, align 4, !dbg !1553
+  br label %2, !dbg !1555
 
 2:                                                ; preds = %15, %0
-  %3 = load i32, ptr %1, align 4, !dbg !1552
-  %4 = load i32, ptr @Num_robot_centers, align 4, !dbg !1554
-  %5 = icmp slt i32 %3, %4, !dbg !1555
-  br i1 %5, label %6, label %18, !dbg !1556
+  %3 = load i32, ptr %1, align 4, !dbg !1556
+  %4 = load i32, ptr @Num_robot_centers, align 4, !dbg !1558
+  %5 = icmp slt i32 %3, %4, !dbg !1559
+  br i1 %5, label %6, label %18, !dbg !1560
 
 6:                                                ; preds = %2
-  %7 = load i32, ptr %1, align 4, !dbg !1557
-  %8 = sext i32 %7 to i64, !dbg !1559
-  %9 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %8, !dbg !1559
-  %10 = getelementptr inbounds nuw %struct.FuelCenter, ptr %9, i32 0, i32 3, !dbg !1560
-  store i8 0, ptr %10, align 1, !dbg !1561
-  %11 = load i32, ptr %1, align 4, !dbg !1562
-  %12 = sext i32 %11 to i64, !dbg !1563
-  %13 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %12, !dbg !1563
-  %14 = getelementptr inbounds nuw %struct.FuelCenter, ptr %13, i32 0, i32 9, !dbg !1564
-  store i32 0, ptr %14, align 4, !dbg !1565
-  br label %15, !dbg !1566
+  %7 = load i32, ptr %1, align 4, !dbg !1561
+  %8 = sext i32 %7 to i64, !dbg !1563
+  %9 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %8, !dbg !1563
+  %10 = getelementptr inbounds nuw %struct.FuelCenter, ptr %9, i32 0, i32 3, !dbg !1564
+  store i8 0, ptr %10, align 1, !dbg !1565
+  %11 = load i32, ptr %1, align 4, !dbg !1566
+  %12 = sext i32 %11 to i64, !dbg !1567
+  %13 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %12, !dbg !1567
+  %14 = getelementptr inbounds nuw %struct.FuelCenter, ptr %13, i32 0, i32 9, !dbg !1568
+  store i32 0, ptr %14, align 4, !dbg !1569
+  br label %15, !dbg !1570
 
 15:                                               ; preds = %6
-  %16 = load i32, ptr %1, align 4, !dbg !1567
-  %17 = add nsw i32 %16, 1, !dbg !1567
-  store i32 %17, ptr %1, align 4, !dbg !1567
-  br label %2, !dbg !1568, !llvm.loop !1569
+  %16 = load i32, ptr %1, align 4, !dbg !1571
+  %17 = add nsw i32 %16, 1, !dbg !1571
+  store i32 %17, ptr %1, align 4, !dbg !1571
+  br label %2, !dbg !1572, !llvm.loop !1573
 
 18:                                               ; preds = %2
-  ret void, !dbg !1571
+  ret void, !dbg !1575
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z16init_all_matcensv() #1 !dbg !1572 {
+define void @_Z16init_all_matcensv() #1 !dbg !1576 {
   %1 = alloca i32, align 4
   %2 = alloca i32, align 4
   %3 = alloca i32, align 4
-    #dbg_declare(ptr %1, !1573, !DIExpression(), !1574)
-  store i32 0, ptr %1, align 4, !dbg !1575
-  br label %4, !dbg !1577
+    #dbg_declare(ptr %1, !1577, !DIExpression(), !1578)
+  store i32 0, ptr %1, align 4, !dbg !1579
+  br label %4, !dbg !1581
 
 4:                                                ; preds = %53, %0
-  %5 = load i32, ptr %1, align 4, !dbg !1578
-  %6 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1580
-  %7 = icmp slt i32 %5, %6, !dbg !1581
-  br i1 %7, label %8, label %56, !dbg !1582
+  %5 = load i32, ptr %1, align 4, !dbg !1582
+  %6 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1584
+  %7 = icmp slt i32 %5, %6, !dbg !1585
+  br i1 %7, label %8, label %56, !dbg !1586
 
 8:                                                ; preds = %4
-  %9 = load i32, ptr %1, align 4, !dbg !1583
-  %10 = sext i32 %9 to i64, !dbg !1585
-  %11 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %10, !dbg !1585
-  %12 = getelementptr inbounds nuw %struct.FuelCenter, ptr %11, i32 0, i32 0, !dbg !1586
-  %13 = load i32, ptr %12, align 4, !dbg !1586
-  %14 = icmp eq i32 %13, 4, !dbg !1587
-  br i1 %14, label %15, label %52, !dbg !1587
+  %9 = load i32, ptr %1, align 4, !dbg !1587
+  %10 = sext i32 %9 to i64, !dbg !1589
+  %11 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %10, !dbg !1589
+  %12 = getelementptr inbounds nuw %struct.FuelCenter, ptr %11, i32 0, i32 0, !dbg !1590
+  %13 = load i32, ptr %12, align 4, !dbg !1590
+  %14 = icmp eq i32 %13, 4, !dbg !1591
+  br i1 %14, label %15, label %52, !dbg !1591
 
 15:                                               ; preds = %8
-  %16 = load i32, ptr %1, align 4, !dbg !1588
-  %17 = sext i32 %16 to i64, !dbg !1590
-  %18 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %17, !dbg !1590
-  %19 = getelementptr inbounds nuw %struct.FuelCenter, ptr %18, i32 0, i32 4, !dbg !1591
-  store i8 3, ptr %19, align 2, !dbg !1592
-  %20 = load i32, ptr %1, align 4, !dbg !1593
-  %21 = sext i32 %20 to i64, !dbg !1594
-  %22 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %21, !dbg !1594
-  %23 = getelementptr inbounds nuw %struct.FuelCenter, ptr %22, i32 0, i32 3, !dbg !1595
-  store i8 0, ptr %23, align 1, !dbg !1596
-  %24 = load i32, ptr %1, align 4, !dbg !1597
-  %25 = sext i32 %24 to i64, !dbg !1598
-  %26 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %25, !dbg !1598
-  %27 = getelementptr inbounds nuw %struct.FuelCenter, ptr %26, i32 0, i32 9, !dbg !1599
-  store i32 0, ptr %27, align 4, !dbg !1600
-    #dbg_declare(ptr %2, !1601, !DIExpression(), !1603)
-  store i32 0, ptr %2, align 4, !dbg !1604
-  br label %28, !dbg !1606
+  %16 = load i32, ptr %1, align 4, !dbg !1592
+  %17 = sext i32 %16 to i64, !dbg !1594
+  %18 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %17, !dbg !1594
+  %19 = getelementptr inbounds nuw %struct.FuelCenter, ptr %18, i32 0, i32 4, !dbg !1595
+  store i8 3, ptr %19, align 2, !dbg !1596
+  %20 = load i32, ptr %1, align 4, !dbg !1597
+  %21 = sext i32 %20 to i64, !dbg !1598
+  %22 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %21, !dbg !1598
+  %23 = getelementptr inbounds nuw %struct.FuelCenter, ptr %22, i32 0, i32 3, !dbg !1599
+  store i8 0, ptr %23, align 1, !dbg !1600
+  %24 = load i32, ptr %1, align 4, !dbg !1601
+  %25 = sext i32 %24 to i64, !dbg !1602
+  %26 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %25, !dbg !1602
+  %27 = getelementptr inbounds nuw %struct.FuelCenter, ptr %26, i32 0, i32 9, !dbg !1603
+  store i32 0, ptr %27, align 4, !dbg !1604
+    #dbg_declare(ptr %2, !1605, !DIExpression(), !1607)
+  store i32 0, ptr %2, align 4, !dbg !1608
+  br label %28, !dbg !1610
 
 28:                                               ; preds = %43, %15
-  %29 = load i32, ptr %2, align 4, !dbg !1607
-  %30 = load i32, ptr @Num_robot_centers, align 4, !dbg !1609
-  %31 = icmp slt i32 %29, %30, !dbg !1610
-  br i1 %31, label %32, label %46, !dbg !1611
+  %29 = load i32, ptr %2, align 4, !dbg !1611
+  %30 = load i32, ptr @Num_robot_centers, align 4, !dbg !1613
+  %31 = icmp slt i32 %29, %30, !dbg !1614
+  br i1 %31, label %32, label %46, !dbg !1615
 
 32:                                               ; preds = %28
-  %33 = load i32, ptr %2, align 4, !dbg !1612
-  %34 = sext i32 %33 to i64, !dbg !1615
-  %35 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %34, !dbg !1615
-  %36 = getelementptr inbounds nuw %struct.matcen_info, ptr %35, i32 0, i32 4, !dbg !1616
-  %37 = load i16, ptr %36, align 2, !dbg !1616
-  %38 = sext i16 %37 to i32, !dbg !1615
-  %39 = load i32, ptr %1, align 4, !dbg !1617
-  %40 = icmp eq i32 %38, %39, !dbg !1618
-  br i1 %40, label %41, label %42, !dbg !1618
+  %33 = load i32, ptr %2, align 4, !dbg !1616
+  %34 = sext i32 %33 to i64, !dbg !1619
+  %35 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %34, !dbg !1619
+  %36 = getelementptr inbounds nuw %struct.matcen_info, ptr %35, i32 0, i32 4, !dbg !1620
+  %37 = load i16, ptr %36, align 2, !dbg !1620
+  %38 = sext i16 %37 to i32, !dbg !1619
+  %39 = load i32, ptr %1, align 4, !dbg !1621
+  %40 = icmp eq i32 %38, %39, !dbg !1622
+  br i1 %40, label %41, label %42, !dbg !1622
 
 41:                                               ; preds = %32
-  br label %47, !dbg !1619
+  br label %47, !dbg !1623
 
 42:                                               ; preds = %32
-  br label %43, !dbg !1620
+  br label %43, !dbg !1624
 
 43:                                               ; preds = %42
-  %44 = load i32, ptr %2, align 4, !dbg !1621
-  %45 = add nsw i32 %44, 1, !dbg !1621
-  store i32 %45, ptr %2, align 4, !dbg !1621
-  br label %28, !dbg !1622, !llvm.loop !1623
+  %44 = load i32, ptr %2, align 4, !dbg !1625
+  %45 = add nsw i32 %44, 1, !dbg !1625
+  store i32 %45, ptr %2, align 4, !dbg !1625
+  br label %28, !dbg !1626, !llvm.loop !1627
 
 46:                                               ; preds = %28
-  br label %47, !dbg !1625
+  br label %47, !dbg !1629
 
 47:                                               ; preds = %46, %41
-  %48 = load i32, ptr %2, align 4, !dbg !1625
-  %49 = load i32, ptr @Num_robot_centers, align 4, !dbg !1625
-  %50 = icmp ne i32 %48, %49, !dbg !1625
-  %51 = zext i1 %50 to i32, !dbg !1625
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %51, ptr noundef @.str.20, ptr noundef @.str.2, i32 noundef 1181), !dbg !1625
-  br label %52, !dbg !1626
+  %48 = load i32, ptr %2, align 4, !dbg !1629
+  %49 = load i32, ptr @Num_robot_centers, align 4, !dbg !1629
+  %50 = icmp ne i32 %48, %49, !dbg !1629
+  %51 = zext i1 %50 to i32, !dbg !1629
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %51, ptr noundef @.str.20, ptr noundef @.str.2, i32 noundef 1201), !dbg !1629
+  br label %52, !dbg !1630
 
 52:                                               ; preds = %47, %8
-  br label %53, !dbg !1627
+  br label %53, !dbg !1631
 
 53:                                               ; preds = %52
-  %54 = load i32, ptr %1, align 4, !dbg !1628
-  %55 = add nsw i32 %54, 1, !dbg !1628
-  store i32 %55, ptr %1, align 4, !dbg !1628
-  br label %4, !dbg !1629, !llvm.loop !1630
+  %54 = load i32, ptr %1, align 4, !dbg !1632
+  %55 = add nsw i32 %54, 1, !dbg !1632
+  store i32 %55, ptr %1, align 4, !dbg !1632
+  br label %4, !dbg !1633, !llvm.loop !1634
 
 56:                                               ; preds = %4
-  store i32 0, ptr %1, align 4, !dbg !1632
-  br label %57, !dbg !1634
+  store i32 0, ptr %1, align 4, !dbg !1636
+  br label %57, !dbg !1638
 
 57:                                               ; preds = %79, %56
-  %58 = load i32, ptr %1, align 4, !dbg !1635
-  %59 = load i32, ptr @Num_robot_centers, align 4, !dbg !1637
-  %60 = icmp slt i32 %58, %59, !dbg !1638
-  br i1 %60, label %61, label %82, !dbg !1639
+  %58 = load i32, ptr %1, align 4, !dbg !1639
+  %59 = load i32, ptr @Num_robot_centers, align 4, !dbg !1641
+  %60 = icmp slt i32 %58, %59, !dbg !1642
+  br i1 %60, label %61, label %82, !dbg !1643
 
 61:                                               ; preds = %57
-    #dbg_declare(ptr %3, !1640, !DIExpression(), !1642)
-  %62 = load i32, ptr %1, align 4, !dbg !1643
-  %63 = sext i32 %62 to i64, !dbg !1644
-  %64 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %63, !dbg !1644
-  %65 = getelementptr inbounds nuw %struct.matcen_info, ptr %64, i32 0, i32 4, !dbg !1645
-  %66 = load i16, ptr %65, align 2, !dbg !1645
-  %67 = sext i16 %66 to i32, !dbg !1644
-  store i32 %67, ptr %3, align 4, !dbg !1642
-  %68 = load i32, ptr %3, align 4, !dbg !1646
-  %69 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1646
-  %70 = icmp slt i32 %68, %69, !dbg !1646
-  %71 = zext i1 %70 to i32, !dbg !1646
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %71, ptr noundef @.str.21, ptr noundef @.str.2, i32 noundef 1192), !dbg !1646
-  %72 = load i32, ptr %3, align 4, !dbg !1647
-  %73 = sext i32 %72 to i64, !dbg !1647
-  %74 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %73, !dbg !1647
-  %75 = getelementptr inbounds nuw %struct.FuelCenter, ptr %74, i32 0, i32 0, !dbg !1647
-  %76 = load i32, ptr %75, align 4, !dbg !1647
-  %77 = icmp eq i32 %76, 4, !dbg !1647
-  %78 = zext i1 %77 to i32, !dbg !1647
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %78, ptr noundef @.str.22, ptr noundef @.str.2, i32 noundef 1193), !dbg !1647
-  br label %79, !dbg !1648
+    #dbg_declare(ptr %3, !1644, !DIExpression(), !1646)
+  %62 = load i32, ptr %1, align 4, !dbg !1647
+  %63 = sext i32 %62 to i64, !dbg !1648
+  %64 = getelementptr inbounds [20 x %struct.matcen_info], ptr @RobotCenters, i64 0, i64 %63, !dbg !1648
+  %65 = getelementptr inbounds nuw %struct.matcen_info, ptr %64, i32 0, i32 4, !dbg !1649
+  %66 = load i16, ptr %65, align 2, !dbg !1649
+  %67 = sext i16 %66 to i32, !dbg !1648
+  store i32 %67, ptr %3, align 4, !dbg !1646
+  %68 = load i32, ptr %3, align 4, !dbg !1650
+  %69 = load i32, ptr @Num_fuelcenters, align 4, !dbg !1650
+  %70 = icmp slt i32 %68, %69, !dbg !1650
+  %71 = zext i1 %70 to i32, !dbg !1650
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %71, ptr noundef @.str.21, ptr noundef @.str.2, i32 noundef 1212), !dbg !1650
+  %72 = load i32, ptr %3, align 4, !dbg !1651
+  %73 = sext i32 %72 to i64, !dbg !1651
+  %74 = getelementptr inbounds [70 x %struct.FuelCenter], ptr @Station, i64 0, i64 %73, !dbg !1651
+  %75 = getelementptr inbounds nuw %struct.FuelCenter, ptr %74, i32 0, i32 0, !dbg !1651
+  %76 = load i32, ptr %75, align 4, !dbg !1651
+  %77 = icmp eq i32 %76, 4, !dbg !1651
+  %78 = zext i1 %77 to i32, !dbg !1651
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %78, ptr noundef @.str.22, ptr noundef @.str.2, i32 noundef 1213), !dbg !1651
+  br label %79, !dbg !1652
 
 79:                                               ; preds = %61
-  %80 = load i32, ptr %1, align 4, !dbg !1649
-  %81 = add nsw i32 %80, 1, !dbg !1649
-  store i32 %81, ptr %1, align 4, !dbg !1649
-  br label %57, !dbg !1650, !llvm.loop !1651
+  %80 = load i32, ptr %1, align 4, !dbg !1653
+  %81 = add nsw i32 %80, 1, !dbg !1653
+  store i32 %81, ptr %1, align 4, !dbg !1653
+  br label %57, !dbg !1654, !llvm.loop !1655
 
 82:                                               ; preds = %57
-  ret void, !dbg !1653
+  ret void, !dbg !1657
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z22fuelcen_check_for_goalP7segment(ptr noundef %0) #1 !dbg !1654 {
+define void @_Z22fuelcen_check_for_goalP7segment(ptr noundef %0) #1 !dbg !1658 {
   %2 = alloca ptr, align 8
   %3 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
-    #dbg_declare(ptr %2, !1655, !DIExpression(), !1656)
-    #dbg_declare(ptr %3, !1657, !DIExpression(), !1658)
-  %4 = load ptr, ptr %2, align 8, !dbg !1659
-  %5 = ptrtoint ptr %4 to i64, !dbg !1660
-  %6 = sub i64 %5, ptrtoint (ptr @Segments to i64), !dbg !1660
-  %7 = sdiv exact i64 %6, 512, !dbg !1660
-  %8 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %7, !dbg !1661
-  store ptr %8, ptr %3, align 8, !dbg !1658
-  %9 = load ptr, ptr %2, align 8, !dbg !1662
-  %10 = icmp ne ptr %9, null, !dbg !1662
-  %11 = zext i1 %10 to i32, !dbg !1662
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %11, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 1204), !dbg !1662
-  %12 = load i32, ptr @Game_mode, align 4, !dbg !1663
-  %13 = and i32 %12, 512, !dbg !1663
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %13, ptr noundef @.str.23, ptr noundef @.str.2, i32 noundef 1205), !dbg !1663
-  %14 = load ptr, ptr %3, align 8, !dbg !1664
-  %15 = getelementptr inbounds nuw %struct.segment2, ptr %14, i32 0, i32 0, !dbg !1666
-  %16 = load i8, ptr %15, align 4, !dbg !1666
-  %17 = zext i8 %16 to i32, !dbg !1664
-  %18 = icmp eq i32 %17, 5, !dbg !1667
-  br i1 %18, label %19, label %20, !dbg !1667
+    #dbg_declare(ptr %2, !1659, !DIExpression(), !1660)
+    #dbg_declare(ptr %3, !1661, !DIExpression(), !1662)
+  %4 = load ptr, ptr %2, align 8, !dbg !1663
+  %5 = ptrtoint ptr %4 to i64, !dbg !1664
+  %6 = sub i64 %5, ptrtoint (ptr @Segments to i64), !dbg !1664
+  %7 = sdiv exact i64 %6, 512, !dbg !1664
+  %8 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %7, !dbg !1665
+  store ptr %8, ptr %3, align 8, !dbg !1662
+  %9 = load ptr, ptr %2, align 8, !dbg !1666
+  %10 = icmp ne ptr %9, null, !dbg !1666
+  %11 = zext i1 %10 to i32, !dbg !1666
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %11, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 1224), !dbg !1666
+  %12 = load i32, ptr @Game_mode, align 4, !dbg !1667
+  %13 = and i32 %12, 512, !dbg !1667
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %13, ptr noundef @.str.23, ptr noundef @.str.2, i32 noundef 1225), !dbg !1667
+  %14 = load ptr, ptr %3, align 8, !dbg !1668
+  %15 = getelementptr inbounds nuw %struct.segment2, ptr %14, i32 0, i32 0, !dbg !1670
+  %16 = load i8, ptr %15, align 4, !dbg !1670
+  %17 = zext i8 %16 to i32, !dbg !1668
+  %18 = icmp eq i32 %17, 5, !dbg !1671
+  br i1 %18, label %19, label %20, !dbg !1671
 
 19:                                               ; preds = %1
-  br label %20, !dbg !1668
+  br label %20, !dbg !1672
 
 20:                                               ; preds = %19, %1
-  %21 = load ptr, ptr %3, align 8, !dbg !1670
-  %22 = getelementptr inbounds nuw %struct.segment2, ptr %21, i32 0, i32 0, !dbg !1672
-  %23 = load i8, ptr %22, align 4, !dbg !1672
-  %24 = zext i8 %23 to i32, !dbg !1670
-  %25 = icmp eq i32 %24, 6, !dbg !1673
-  br i1 %25, label %26, label %27, !dbg !1673
+  %21 = load ptr, ptr %3, align 8, !dbg !1674
+  %22 = getelementptr inbounds nuw %struct.segment2, ptr %21, i32 0, i32 0, !dbg !1676
+  %23 = load i8, ptr %22, align 4, !dbg !1676
+  %24 = zext i8 %23 to i32, !dbg !1674
+  %25 = icmp eq i32 %24, 6, !dbg !1677
+  br i1 %25, label %26, label %27, !dbg !1677
 
 26:                                               ; preds = %20
-  br label %27, !dbg !1674
+  br label %27, !dbg !1678
 
 27:                                               ; preds = %26, %20
-  ret void, !dbg !1676
+  ret void, !dbg !1680
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z28fuelcen_check_for_hoard_goalP7segment(ptr noundef %0) #1 !dbg !1677 {
+define void @_Z28fuelcen_check_for_hoard_goalP7segment(ptr noundef %0) #1 !dbg !1681 {
   %2 = alloca ptr, align 8
   %3 = alloca ptr, align 8
   store ptr %0, ptr %2, align 8
-    #dbg_declare(ptr %2, !1678, !DIExpression(), !1679)
-    #dbg_declare(ptr %3, !1680, !DIExpression(), !1681)
-  %4 = load ptr, ptr %2, align 8, !dbg !1682
-  %5 = ptrtoint ptr %4 to i64, !dbg !1683
-  %6 = sub i64 %5, ptrtoint (ptr @Segments to i64), !dbg !1683
-  %7 = sdiv exact i64 %6, 512, !dbg !1683
-  %8 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %7, !dbg !1684
-  store ptr %8, ptr %3, align 8, !dbg !1681
-  %9 = load ptr, ptr %2, align 8, !dbg !1685
-  %10 = icmp ne ptr %9, null, !dbg !1685
-  %11 = zext i1 %10 to i32, !dbg !1685
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %11, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 1238), !dbg !1685
-  %12 = load i32, ptr @Game_mode, align 4, !dbg !1686
-  %13 = and i32 %12, 1024, !dbg !1686
-  call void @_Z7_AssertiPKcS0_i(i32 noundef %13, ptr noundef @.str.24, ptr noundef @.str.2, i32 noundef 1239), !dbg !1686
-  %14 = load i32, ptr @Player_is_dead, align 4, !dbg !1687
-  %15 = icmp ne i32 %14, 0, !dbg !1687
-  br i1 %15, label %16, label %17, !dbg !1687
+    #dbg_declare(ptr %2, !1682, !DIExpression(), !1683)
+    #dbg_declare(ptr %3, !1684, !DIExpression(), !1685)
+  %4 = load ptr, ptr %2, align 8, !dbg !1686
+  %5 = ptrtoint ptr %4 to i64, !dbg !1687
+  %6 = sub i64 %5, ptrtoint (ptr @Segments to i64), !dbg !1687
+  %7 = sdiv exact i64 %6, 512, !dbg !1687
+  %8 = getelementptr inbounds [0 x %struct.segment2], ptr @Segment2s, i64 0, i64 %7, !dbg !1688
+  store ptr %8, ptr %3, align 8, !dbg !1685
+  %9 = load ptr, ptr %2, align 8, !dbg !1689
+  %10 = icmp ne ptr %9, null, !dbg !1689
+  %11 = zext i1 %10 to i32, !dbg !1689
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %11, ptr noundef @.str.19, ptr noundef @.str.2, i32 noundef 1258), !dbg !1689
+  %12 = load i32, ptr @Game_mode, align 4, !dbg !1690
+  %13 = and i32 %12, 1024, !dbg !1690
+  call void @_Z7_AssertiPKcS0_i(i32 noundef %13, ptr noundef @.str.24, ptr noundef @.str.2, i32 noundef 1259), !dbg !1690
+  %14 = load i32, ptr @Player_is_dead, align 4, !dbg !1691
+  %15 = icmp ne i32 %14, 0, !dbg !1691
+  br i1 %15, label %16, label %17, !dbg !1691
 
 16:                                               ; preds = %1
-  br label %30, !dbg !1689
+  br label %30, !dbg !1693
 
 17:                                               ; preds = %1
-  %18 = load ptr, ptr %3, align 8, !dbg !1690
-  %19 = getelementptr inbounds nuw %struct.segment2, ptr %18, i32 0, i32 0, !dbg !1692
-  %20 = load i8, ptr %19, align 4, !dbg !1692
-  %21 = zext i8 %20 to i32, !dbg !1690
-  %22 = icmp eq i32 %21, 5, !dbg !1693
-  br i1 %22, label %29, label %23, !dbg !1694
+  %18 = load ptr, ptr %3, align 8, !dbg !1694
+  %19 = getelementptr inbounds nuw %struct.segment2, ptr %18, i32 0, i32 0, !dbg !1696
+  %20 = load i8, ptr %19, align 4, !dbg !1696
+  %21 = zext i8 %20 to i32, !dbg !1694
+  %22 = icmp eq i32 %21, 5, !dbg !1697
+  br i1 %22, label %29, label %23, !dbg !1698
 
 23:                                               ; preds = %17
-  %24 = load ptr, ptr %3, align 8, !dbg !1695
-  %25 = getelementptr inbounds nuw %struct.segment2, ptr %24, i32 0, i32 0, !dbg !1696
-  %26 = load i8, ptr %25, align 4, !dbg !1696
-  %27 = zext i8 %26 to i32, !dbg !1695
-  %28 = icmp eq i32 %27, 6, !dbg !1697
-  br i1 %28, label %29, label %30, !dbg !1694
+  %24 = load ptr, ptr %3, align 8, !dbg !1699
+  %25 = getelementptr inbounds nuw %struct.segment2, ptr %24, i32 0, i32 0, !dbg !1700
+  %26 = load i8, ptr %25, align 4, !dbg !1700
+  %27 = zext i8 %26 to i32, !dbg !1699
+  %28 = icmp eq i32 %27, 6, !dbg !1701
+  br i1 %28, label %29, label %30, !dbg !1698
 
 29:                                               ; preds = %23, %17
-  br label %30, !dbg !1698
+  br label %30, !dbg !1702
 
 30:                                               ; preds = %16, %29, %23
-  ret void, !dbg !1700
+  ret void, !dbg !1704
 }
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z11read_matcenP11matcen_infoP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1701 {
+define void @_Z11read_matcenP11matcen_infoP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1705 {
   %3 = alloca ptr, align 8
   %4 = alloca ptr, align 8
   store ptr %0, ptr %3, align 8
-    #dbg_declare(ptr %3, !1762, !DIExpression(), !1763)
+    #dbg_declare(ptr %3, !1766, !DIExpression(), !1767)
   store ptr %1, ptr %4, align 8
-    #dbg_declare(ptr %4, !1764, !DIExpression(), !1765)
-  %5 = load ptr, ptr %4, align 8, !dbg !1766
-  %6 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %5), !dbg !1767
-  %7 = load ptr, ptr %3, align 8, !dbg !1768
-  %8 = getelementptr inbounds nuw %struct.matcen_info, ptr %7, i32 0, i32 0, !dbg !1769
-  %9 = getelementptr inbounds [2 x i32], ptr %8, i64 0, i64 0, !dbg !1768
-  store i32 %6, ptr %9, align 4, !dbg !1770
-  %10 = load ptr, ptr %4, align 8, !dbg !1771
-  %11 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %10), !dbg !1772
-  %12 = load ptr, ptr %3, align 8, !dbg !1773
-  %13 = getelementptr inbounds nuw %struct.matcen_info, ptr %12, i32 0, i32 0, !dbg !1774
-  %14 = getelementptr inbounds [2 x i32], ptr %13, i64 0, i64 1, !dbg !1773
-  store i32 %11, ptr %14, align 4, !dbg !1775
-  %15 = load ptr, ptr %4, align 8, !dbg !1776
-  %16 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %15), !dbg !1777
-  %17 = load ptr, ptr %3, align 8, !dbg !1778
-  %18 = getelementptr inbounds nuw %struct.matcen_info, ptr %17, i32 0, i32 1, !dbg !1779
-  store i32 %16, ptr %18, align 4, !dbg !1780
-  %19 = load ptr, ptr %4, align 8, !dbg !1781
-  %20 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %19), !dbg !1782
-  %21 = load ptr, ptr %3, align 8, !dbg !1783
-  %22 = getelementptr inbounds nuw %struct.matcen_info, ptr %21, i32 0, i32 2, !dbg !1784
-  store i32 %20, ptr %22, align 4, !dbg !1785
-  %23 = load ptr, ptr %4, align 8, !dbg !1786
-  %24 = call noundef signext i16 @_Z15file_read_shortP7__sFILE(ptr noundef %23), !dbg !1787
-  %25 = load ptr, ptr %3, align 8, !dbg !1788
-  %26 = getelementptr inbounds nuw %struct.matcen_info, ptr %25, i32 0, i32 3, !dbg !1789
-  store i16 %24, ptr %26, align 4, !dbg !1790
-  %27 = load ptr, ptr %4, align 8, !dbg !1791
-  %28 = call noundef signext i16 @_Z15file_read_shortP7__sFILE(ptr noundef %27), !dbg !1792
-  %29 = load ptr, ptr %3, align 8, !dbg !1793
-  %30 = getelementptr inbounds nuw %struct.matcen_info, ptr %29, i32 0, i32 4, !dbg !1794
-  store i16 %28, ptr %30, align 2, !dbg !1795
-  ret void, !dbg !1796
+    #dbg_declare(ptr %4, !1768, !DIExpression(), !1769)
+  %5 = load ptr, ptr %4, align 8, !dbg !1770
+  %6 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %5), !dbg !1771
+  %7 = load ptr, ptr %3, align 8, !dbg !1772
+  %8 = getelementptr inbounds nuw %struct.matcen_info, ptr %7, i32 0, i32 0, !dbg !1773
+  %9 = getelementptr inbounds [2 x i32], ptr %8, i64 0, i64 0, !dbg !1772
+  store i32 %6, ptr %9, align 4, !dbg !1774
+  %10 = load ptr, ptr %4, align 8, !dbg !1775
+  %11 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %10), !dbg !1776
+  %12 = load ptr, ptr %3, align 8, !dbg !1777
+  %13 = getelementptr inbounds nuw %struct.matcen_info, ptr %12, i32 0, i32 0, !dbg !1778
+  %14 = getelementptr inbounds [2 x i32], ptr %13, i64 0, i64 1, !dbg !1777
+  store i32 %11, ptr %14, align 4, !dbg !1779
+  %15 = load ptr, ptr %4, align 8, !dbg !1780
+  %16 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %15), !dbg !1781
+  %17 = load ptr, ptr %3, align 8, !dbg !1782
+  %18 = getelementptr inbounds nuw %struct.matcen_info, ptr %17, i32 0, i32 1, !dbg !1783
+  store i32 %16, ptr %18, align 4, !dbg !1784
+  %19 = load ptr, ptr %4, align 8, !dbg !1785
+  %20 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %19), !dbg !1786
+  %21 = load ptr, ptr %3, align 8, !dbg !1787
+  %22 = getelementptr inbounds nuw %struct.matcen_info, ptr %21, i32 0, i32 2, !dbg !1788
+  store i32 %20, ptr %22, align 4, !dbg !1789
+  %23 = load ptr, ptr %4, align 8, !dbg !1790
+  %24 = call noundef signext i16 @_Z15file_read_shortP7__sFILE(ptr noundef %23), !dbg !1791
+  %25 = load ptr, ptr %3, align 8, !dbg !1792
+  %26 = getelementptr inbounds nuw %struct.matcen_info, ptr %25, i32 0, i32 3, !dbg !1793
+  store i16 %24, ptr %26, align 4, !dbg !1794
+  %27 = load ptr, ptr %4, align 8, !dbg !1795
+  %28 = call noundef signext i16 @_Z15file_read_shortP7__sFILE(ptr noundef %27), !dbg !1796
+  %29 = load ptr, ptr %3, align 8, !dbg !1797
+  %30 = getelementptr inbounds nuw %struct.matcen_info, ptr %29, i32 0, i32 4, !dbg !1798
+  store i16 %28, ptr %30, align 2, !dbg !1799
+  ret void, !dbg !1800
 }
 
 declare noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef) #2
@@ -2158,46 +2164,46 @@ declare noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef) #2
 declare noundef signext i16 @_Z15file_read_shortP7__sFILE(ptr noundef) #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z12write_matcenP11matcen_infoP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1797 {
+define void @_Z12write_matcenP11matcen_infoP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1801 {
   %3 = alloca ptr, align 8
   %4 = alloca ptr, align 8
   store ptr %0, ptr %3, align 8
-    #dbg_declare(ptr %3, !1798, !DIExpression(), !1799)
+    #dbg_declare(ptr %3, !1802, !DIExpression(), !1803)
   store ptr %1, ptr %4, align 8
-    #dbg_declare(ptr %4, !1800, !DIExpression(), !1801)
-  %5 = load ptr, ptr %4, align 8, !dbg !1802
-  %6 = load ptr, ptr %3, align 8, !dbg !1803
-  %7 = getelementptr inbounds nuw %struct.matcen_info, ptr %6, i32 0, i32 0, !dbg !1804
-  %8 = getelementptr inbounds [2 x i32], ptr %7, i64 0, i64 0, !dbg !1803
-  %9 = load i32, ptr %8, align 4, !dbg !1803
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %5, i32 noundef %9), !dbg !1805
-  %10 = load ptr, ptr %4, align 8, !dbg !1806
-  %11 = load ptr, ptr %3, align 8, !dbg !1807
-  %12 = getelementptr inbounds nuw %struct.matcen_info, ptr %11, i32 0, i32 0, !dbg !1808
-  %13 = getelementptr inbounds [2 x i32], ptr %12, i64 0, i64 1, !dbg !1807
-  %14 = load i32, ptr %13, align 4, !dbg !1807
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %10, i32 noundef %14), !dbg !1809
-  %15 = load ptr, ptr %4, align 8, !dbg !1810
-  %16 = load ptr, ptr %3, align 8, !dbg !1811
-  %17 = getelementptr inbounds nuw %struct.matcen_info, ptr %16, i32 0, i32 1, !dbg !1812
-  %18 = load i32, ptr %17, align 4, !dbg !1812
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %15, i32 noundef %18), !dbg !1813
-  %19 = load ptr, ptr %4, align 8, !dbg !1814
-  %20 = load ptr, ptr %3, align 8, !dbg !1815
-  %21 = getelementptr inbounds nuw %struct.matcen_info, ptr %20, i32 0, i32 2, !dbg !1816
-  %22 = load i32, ptr %21, align 4, !dbg !1816
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %19, i32 noundef %22), !dbg !1817
-  %23 = load ptr, ptr %4, align 8, !dbg !1818
-  %24 = load ptr, ptr %3, align 8, !dbg !1819
-  %25 = getelementptr inbounds nuw %struct.matcen_info, ptr %24, i32 0, i32 3, !dbg !1820
-  %26 = load i16, ptr %25, align 4, !dbg !1820
-  call void @_Z16file_write_shortP7__sFILEs(ptr noundef %23, i16 noundef signext %26), !dbg !1821
-  %27 = load ptr, ptr %4, align 8, !dbg !1822
-  %28 = load ptr, ptr %3, align 8, !dbg !1823
-  %29 = getelementptr inbounds nuw %struct.matcen_info, ptr %28, i32 0, i32 4, !dbg !1824
-  %30 = load i16, ptr %29, align 2, !dbg !1824
-  call void @_Z16file_write_shortP7__sFILEs(ptr noundef %27, i16 noundef signext %30), !dbg !1825
-  ret void, !dbg !1826
+    #dbg_declare(ptr %4, !1804, !DIExpression(), !1805)
+  %5 = load ptr, ptr %4, align 8, !dbg !1806
+  %6 = load ptr, ptr %3, align 8, !dbg !1807
+  %7 = getelementptr inbounds nuw %struct.matcen_info, ptr %6, i32 0, i32 0, !dbg !1808
+  %8 = getelementptr inbounds [2 x i32], ptr %7, i64 0, i64 0, !dbg !1807
+  %9 = load i32, ptr %8, align 4, !dbg !1807
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %5, i32 noundef %9), !dbg !1809
+  %10 = load ptr, ptr %4, align 8, !dbg !1810
+  %11 = load ptr, ptr %3, align 8, !dbg !1811
+  %12 = getelementptr inbounds nuw %struct.matcen_info, ptr %11, i32 0, i32 0, !dbg !1812
+  %13 = getelementptr inbounds [2 x i32], ptr %12, i64 0, i64 1, !dbg !1811
+  %14 = load i32, ptr %13, align 4, !dbg !1811
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %10, i32 noundef %14), !dbg !1813
+  %15 = load ptr, ptr %4, align 8, !dbg !1814
+  %16 = load ptr, ptr %3, align 8, !dbg !1815
+  %17 = getelementptr inbounds nuw %struct.matcen_info, ptr %16, i32 0, i32 1, !dbg !1816
+  %18 = load i32, ptr %17, align 4, !dbg !1816
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %15, i32 noundef %18), !dbg !1817
+  %19 = load ptr, ptr %4, align 8, !dbg !1818
+  %20 = load ptr, ptr %3, align 8, !dbg !1819
+  %21 = getelementptr inbounds nuw %struct.matcen_info, ptr %20, i32 0, i32 2, !dbg !1820
+  %22 = load i32, ptr %21, align 4, !dbg !1820
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %19, i32 noundef %22), !dbg !1821
+  %23 = load ptr, ptr %4, align 8, !dbg !1822
+  %24 = load ptr, ptr %3, align 8, !dbg !1823
+  %25 = getelementptr inbounds nuw %struct.matcen_info, ptr %24, i32 0, i32 3, !dbg !1824
+  %26 = load i16, ptr %25, align 4, !dbg !1824
+  call void @_Z16file_write_shortP7__sFILEs(ptr noundef %23, i16 noundef signext %26), !dbg !1825
+  %27 = load ptr, ptr %4, align 8, !dbg !1826
+  %28 = load ptr, ptr %3, align 8, !dbg !1827
+  %29 = getelementptr inbounds nuw %struct.matcen_info, ptr %28, i32 0, i32 4, !dbg !1828
+  %30 = load i16, ptr %29, align 2, !dbg !1828
+  call void @_Z16file_write_shortP7__sFILEs(ptr noundef %27, i16 noundef signext %30), !dbg !1829
+  ret void, !dbg !1830
 }
 
 declare void @_Z14file_write_intP7__sFILEi(ptr noundef, i32 noundef) #2
@@ -2205,163 +2211,163 @@ declare void @_Z14file_write_intP7__sFILEi(ptr noundef, i32 noundef) #2
 declare void @_Z16file_write_shortP7__sFILEs(ptr noundef, i16 noundef signext) #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z12read_fuelcenP10FuelCenterP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1827 {
+define void @_Z12read_fuelcenP10FuelCenterP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1831 {
   %3 = alloca ptr, align 8
   %4 = alloca ptr, align 8
   store ptr %0, ptr %3, align 8
-    #dbg_declare(ptr %3, !1830, !DIExpression(), !1831)
+    #dbg_declare(ptr %3, !1834, !DIExpression(), !1835)
   store ptr %1, ptr %4, align 8
-    #dbg_declare(ptr %4, !1832, !DIExpression(), !1833)
-  %5 = load ptr, ptr %4, align 8, !dbg !1834
-  %6 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %5), !dbg !1835
-  %7 = load ptr, ptr %3, align 8, !dbg !1836
-  %8 = getelementptr inbounds nuw %struct.FuelCenter, ptr %7, i32 0, i32 0, !dbg !1837
-  store i32 %6, ptr %8, align 4, !dbg !1838
-  %9 = load ptr, ptr %4, align 8, !dbg !1839
-  %10 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %9), !dbg !1840
-  %11 = load ptr, ptr %3, align 8, !dbg !1841
-  %12 = getelementptr inbounds nuw %struct.FuelCenter, ptr %11, i32 0, i32 1, !dbg !1842
-  store i32 %10, ptr %12, align 4, !dbg !1843
-  %13 = load ptr, ptr %4, align 8, !dbg !1844
-  %14 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %13), !dbg !1845
-  %15 = load ptr, ptr %3, align 8, !dbg !1846
-  %16 = getelementptr inbounds nuw %struct.FuelCenter, ptr %15, i32 0, i32 2, !dbg !1847
-  store i8 %14, ptr %16, align 4, !dbg !1848
-  %17 = load ptr, ptr %4, align 8, !dbg !1849
-  %18 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %17), !dbg !1850
-  %19 = load ptr, ptr %3, align 8, !dbg !1851
-  %20 = getelementptr inbounds nuw %struct.FuelCenter, ptr %19, i32 0, i32 3, !dbg !1852
-  store i8 %18, ptr %20, align 1, !dbg !1853
-  %21 = load ptr, ptr %4, align 8, !dbg !1854
-  %22 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %21), !dbg !1855
-  %23 = load ptr, ptr %3, align 8, !dbg !1856
-  %24 = getelementptr inbounds nuw %struct.FuelCenter, ptr %23, i32 0, i32 4, !dbg !1857
-  store i8 %22, ptr %24, align 2, !dbg !1858
-  %25 = load ptr, ptr %4, align 8, !dbg !1859
-  %26 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %25), !dbg !1860
-  %27 = load ptr, ptr %3, align 8, !dbg !1861
-  %28 = getelementptr inbounds nuw %struct.FuelCenter, ptr %27, i32 0, i32 5, !dbg !1862
-  store i8 %26, ptr %28, align 1, !dbg !1863
-  %29 = load ptr, ptr %4, align 8, !dbg !1864
-  %30 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %29), !dbg !1865
-  %31 = load ptr, ptr %3, align 8, !dbg !1866
-  %32 = getelementptr inbounds nuw %struct.FuelCenter, ptr %31, i32 0, i32 6, !dbg !1867
-  store i32 %30, ptr %32, align 4, !dbg !1868
-  %33 = load ptr, ptr %4, align 8, !dbg !1869
-  %34 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %33), !dbg !1870
-  %35 = load ptr, ptr %3, align 8, !dbg !1871
-  %36 = getelementptr inbounds nuw %struct.FuelCenter, ptr %35, i32 0, i32 7, !dbg !1872
-  store i32 %34, ptr %36, align 4, !dbg !1873
-  %37 = load ptr, ptr %4, align 8, !dbg !1874
-  %38 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %37), !dbg !1875
-  %39 = load ptr, ptr %3, align 8, !dbg !1876
-  %40 = getelementptr inbounds nuw %struct.FuelCenter, ptr %39, i32 0, i32 8, !dbg !1877
-  store i32 %38, ptr %40, align 4, !dbg !1878
-  %41 = load ptr, ptr %4, align 8, !dbg !1879
-  %42 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %41), !dbg !1880
-  %43 = load ptr, ptr %3, align 8, !dbg !1881
-  %44 = getelementptr inbounds nuw %struct.FuelCenter, ptr %43, i32 0, i32 9, !dbg !1882
-  store i32 %42, ptr %44, align 4, !dbg !1883
-  %45 = load ptr, ptr %4, align 8, !dbg !1884
-  %46 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %45), !dbg !1885
-  %47 = load ptr, ptr %3, align 8, !dbg !1886
-  %48 = getelementptr inbounds nuw %struct.FuelCenter, ptr %47, i32 0, i32 10, !dbg !1887
-  %49 = getelementptr inbounds nuw %struct.vms_vector, ptr %48, i32 0, i32 0, !dbg !1888
-  store i32 %46, ptr %49, align 4, !dbg !1889
-  %50 = load ptr, ptr %4, align 8, !dbg !1890
-  %51 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %50), !dbg !1891
-  %52 = load ptr, ptr %3, align 8, !dbg !1892
-  %53 = getelementptr inbounds nuw %struct.FuelCenter, ptr %52, i32 0, i32 10, !dbg !1893
-  %54 = getelementptr inbounds nuw %struct.vms_vector, ptr %53, i32 0, i32 1, !dbg !1894
-  store i32 %51, ptr %54, align 4, !dbg !1895
-  %55 = load ptr, ptr %4, align 8, !dbg !1896
-  %56 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %55), !dbg !1897
-  %57 = load ptr, ptr %3, align 8, !dbg !1898
-  %58 = getelementptr inbounds nuw %struct.FuelCenter, ptr %57, i32 0, i32 10, !dbg !1899
-  %59 = getelementptr inbounds nuw %struct.vms_vector, ptr %58, i32 0, i32 2, !dbg !1900
-  store i32 %56, ptr %59, align 4, !dbg !1901
-  ret void, !dbg !1902
+    #dbg_declare(ptr %4, !1836, !DIExpression(), !1837)
+  %5 = load ptr, ptr %4, align 8, !dbg !1838
+  %6 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %5), !dbg !1839
+  %7 = load ptr, ptr %3, align 8, !dbg !1840
+  %8 = getelementptr inbounds nuw %struct.FuelCenter, ptr %7, i32 0, i32 0, !dbg !1841
+  store i32 %6, ptr %8, align 4, !dbg !1842
+  %9 = load ptr, ptr %4, align 8, !dbg !1843
+  %10 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %9), !dbg !1844
+  %11 = load ptr, ptr %3, align 8, !dbg !1845
+  %12 = getelementptr inbounds nuw %struct.FuelCenter, ptr %11, i32 0, i32 1, !dbg !1846
+  store i32 %10, ptr %12, align 4, !dbg !1847
+  %13 = load ptr, ptr %4, align 8, !dbg !1848
+  %14 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %13), !dbg !1849
+  %15 = load ptr, ptr %3, align 8, !dbg !1850
+  %16 = getelementptr inbounds nuw %struct.FuelCenter, ptr %15, i32 0, i32 2, !dbg !1851
+  store i8 %14, ptr %16, align 4, !dbg !1852
+  %17 = load ptr, ptr %4, align 8, !dbg !1853
+  %18 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %17), !dbg !1854
+  %19 = load ptr, ptr %3, align 8, !dbg !1855
+  %20 = getelementptr inbounds nuw %struct.FuelCenter, ptr %19, i32 0, i32 3, !dbg !1856
+  store i8 %18, ptr %20, align 1, !dbg !1857
+  %21 = load ptr, ptr %4, align 8, !dbg !1858
+  %22 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %21), !dbg !1859
+  %23 = load ptr, ptr %3, align 8, !dbg !1860
+  %24 = getelementptr inbounds nuw %struct.FuelCenter, ptr %23, i32 0, i32 4, !dbg !1861
+  store i8 %22, ptr %24, align 2, !dbg !1862
+  %25 = load ptr, ptr %4, align 8, !dbg !1863
+  %26 = call noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef %25), !dbg !1864
+  %27 = load ptr, ptr %3, align 8, !dbg !1865
+  %28 = getelementptr inbounds nuw %struct.FuelCenter, ptr %27, i32 0, i32 5, !dbg !1866
+  store i8 %26, ptr %28, align 1, !dbg !1867
+  %29 = load ptr, ptr %4, align 8, !dbg !1868
+  %30 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %29), !dbg !1869
+  %31 = load ptr, ptr %3, align 8, !dbg !1870
+  %32 = getelementptr inbounds nuw %struct.FuelCenter, ptr %31, i32 0, i32 6, !dbg !1871
+  store i32 %30, ptr %32, align 4, !dbg !1872
+  %33 = load ptr, ptr %4, align 8, !dbg !1873
+  %34 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %33), !dbg !1874
+  %35 = load ptr, ptr %3, align 8, !dbg !1875
+  %36 = getelementptr inbounds nuw %struct.FuelCenter, ptr %35, i32 0, i32 7, !dbg !1876
+  store i32 %34, ptr %36, align 4, !dbg !1877
+  %37 = load ptr, ptr %4, align 8, !dbg !1878
+  %38 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %37), !dbg !1879
+  %39 = load ptr, ptr %3, align 8, !dbg !1880
+  %40 = getelementptr inbounds nuw %struct.FuelCenter, ptr %39, i32 0, i32 8, !dbg !1881
+  store i32 %38, ptr %40, align 4, !dbg !1882
+  %41 = load ptr, ptr %4, align 8, !dbg !1883
+  %42 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %41), !dbg !1884
+  %43 = load ptr, ptr %3, align 8, !dbg !1885
+  %44 = getelementptr inbounds nuw %struct.FuelCenter, ptr %43, i32 0, i32 9, !dbg !1886
+  store i32 %42, ptr %44, align 4, !dbg !1887
+  %45 = load ptr, ptr %4, align 8, !dbg !1888
+  %46 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %45), !dbg !1889
+  %47 = load ptr, ptr %3, align 8, !dbg !1890
+  %48 = getelementptr inbounds nuw %struct.FuelCenter, ptr %47, i32 0, i32 10, !dbg !1891
+  %49 = getelementptr inbounds nuw %struct.vms_vector, ptr %48, i32 0, i32 0, !dbg !1892
+  store i32 %46, ptr %49, align 4, !dbg !1893
+  %50 = load ptr, ptr %4, align 8, !dbg !1894
+  %51 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %50), !dbg !1895
+  %52 = load ptr, ptr %3, align 8, !dbg !1896
+  %53 = getelementptr inbounds nuw %struct.FuelCenter, ptr %52, i32 0, i32 10, !dbg !1897
+  %54 = getelementptr inbounds nuw %struct.vms_vector, ptr %53, i32 0, i32 1, !dbg !1898
+  store i32 %51, ptr %54, align 4, !dbg !1899
+  %55 = load ptr, ptr %4, align 8, !dbg !1900
+  %56 = call noundef i32 @_Z13file_read_intP7__sFILE(ptr noundef %55), !dbg !1901
+  %57 = load ptr, ptr %3, align 8, !dbg !1902
+  %58 = getelementptr inbounds nuw %struct.FuelCenter, ptr %57, i32 0, i32 10, !dbg !1903
+  %59 = getelementptr inbounds nuw %struct.vms_vector, ptr %58, i32 0, i32 2, !dbg !1904
+  store i32 %56, ptr %59, align 4, !dbg !1905
+  ret void, !dbg !1906
 }
 
 declare noundef zeroext i8 @_Z14file_read_byteP7__sFILE(ptr noundef) #2
 
 ; Function Attrs: mustprogress noinline ssp uwtable(sync)
-define void @_Z13write_fuelcenP10FuelCenterP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1903 {
+define void @_Z13write_fuelcenP10FuelCenterP7__sFILE(ptr noundef %0, ptr noundef %1) #1 !dbg !1907 {
   %3 = alloca ptr, align 8
   %4 = alloca ptr, align 8
   store ptr %0, ptr %3, align 8
-    #dbg_declare(ptr %3, !1904, !DIExpression(), !1905)
+    #dbg_declare(ptr %3, !1908, !DIExpression(), !1909)
   store ptr %1, ptr %4, align 8
-    #dbg_declare(ptr %4, !1906, !DIExpression(), !1907)
-  %5 = load ptr, ptr %4, align 8, !dbg !1908
-  %6 = load ptr, ptr %3, align 8, !dbg !1909
-  %7 = getelementptr inbounds nuw %struct.FuelCenter, ptr %6, i32 0, i32 0, !dbg !1910
-  %8 = load i32, ptr %7, align 4, !dbg !1910
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %5, i32 noundef %8), !dbg !1911
-  %9 = load ptr, ptr %4, align 8, !dbg !1912
-  %10 = load ptr, ptr %3, align 8, !dbg !1913
-  %11 = getelementptr inbounds nuw %struct.FuelCenter, ptr %10, i32 0, i32 1, !dbg !1914
-  %12 = load i32, ptr %11, align 4, !dbg !1914
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %9, i32 noundef %12), !dbg !1915
-  %13 = load ptr, ptr %4, align 8, !dbg !1916
-  %14 = load ptr, ptr %3, align 8, !dbg !1917
-  %15 = getelementptr inbounds nuw %struct.FuelCenter, ptr %14, i32 0, i32 2, !dbg !1918
-  %16 = load i8, ptr %15, align 4, !dbg !1918
-  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %13, i8 noundef zeroext %16), !dbg !1919
-  %17 = load ptr, ptr %4, align 8, !dbg !1920
-  %18 = load ptr, ptr %3, align 8, !dbg !1921
-  %19 = getelementptr inbounds nuw %struct.FuelCenter, ptr %18, i32 0, i32 3, !dbg !1922
-  %20 = load i8, ptr %19, align 1, !dbg !1922
-  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %17, i8 noundef zeroext %20), !dbg !1923
-  %21 = load ptr, ptr %4, align 8, !dbg !1924
-  %22 = load ptr, ptr %3, align 8, !dbg !1925
-  %23 = getelementptr inbounds nuw %struct.FuelCenter, ptr %22, i32 0, i32 4, !dbg !1926
-  %24 = load i8, ptr %23, align 2, !dbg !1926
-  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %21, i8 noundef zeroext %24), !dbg !1927
-  %25 = load ptr, ptr %4, align 8, !dbg !1928
-  %26 = load ptr, ptr %3, align 8, !dbg !1929
-  %27 = getelementptr inbounds nuw %struct.FuelCenter, ptr %26, i32 0, i32 5, !dbg !1930
-  %28 = load i8, ptr %27, align 1, !dbg !1930
-  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %25, i8 noundef zeroext %28), !dbg !1931
-  %29 = load ptr, ptr %4, align 8, !dbg !1932
-  %30 = load ptr, ptr %3, align 8, !dbg !1933
-  %31 = getelementptr inbounds nuw %struct.FuelCenter, ptr %30, i32 0, i32 6, !dbg !1934
-  %32 = load i32, ptr %31, align 4, !dbg !1934
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %29, i32 noundef %32), !dbg !1935
-  %33 = load ptr, ptr %4, align 8, !dbg !1936
-  %34 = load ptr, ptr %3, align 8, !dbg !1937
-  %35 = getelementptr inbounds nuw %struct.FuelCenter, ptr %34, i32 0, i32 7, !dbg !1938
-  %36 = load i32, ptr %35, align 4, !dbg !1938
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %33, i32 noundef %36), !dbg !1939
-  %37 = load ptr, ptr %4, align 8, !dbg !1940
-  %38 = load ptr, ptr %3, align 8, !dbg !1941
-  %39 = getelementptr inbounds nuw %struct.FuelCenter, ptr %38, i32 0, i32 8, !dbg !1942
-  %40 = load i32, ptr %39, align 4, !dbg !1942
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %37, i32 noundef %40), !dbg !1943
-  %41 = load ptr, ptr %4, align 8, !dbg !1944
-  %42 = load ptr, ptr %3, align 8, !dbg !1945
-  %43 = getelementptr inbounds nuw %struct.FuelCenter, ptr %42, i32 0, i32 9, !dbg !1946
-  %44 = load i32, ptr %43, align 4, !dbg !1946
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %41, i32 noundef %44), !dbg !1947
-  %45 = load ptr, ptr %4, align 8, !dbg !1948
-  %46 = load ptr, ptr %3, align 8, !dbg !1949
-  %47 = getelementptr inbounds nuw %struct.FuelCenter, ptr %46, i32 0, i32 10, !dbg !1950
-  %48 = getelementptr inbounds nuw %struct.vms_vector, ptr %47, i32 0, i32 0, !dbg !1951
-  %49 = load i32, ptr %48, align 4, !dbg !1951
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %45, i32 noundef %49), !dbg !1952
-  %50 = load ptr, ptr %4, align 8, !dbg !1953
-  %51 = load ptr, ptr %3, align 8, !dbg !1954
-  %52 = getelementptr inbounds nuw %struct.FuelCenter, ptr %51, i32 0, i32 10, !dbg !1955
-  %53 = getelementptr inbounds nuw %struct.vms_vector, ptr %52, i32 0, i32 1, !dbg !1956
-  %54 = load i32, ptr %53, align 4, !dbg !1956
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %50, i32 noundef %54), !dbg !1957
-  %55 = load ptr, ptr %4, align 8, !dbg !1958
-  %56 = load ptr, ptr %3, align 8, !dbg !1959
-  %57 = getelementptr inbounds nuw %struct.FuelCenter, ptr %56, i32 0, i32 10, !dbg !1960
-  %58 = getelementptr inbounds nuw %struct.vms_vector, ptr %57, i32 0, i32 2, !dbg !1961
-  %59 = load i32, ptr %58, align 4, !dbg !1961
-  call void @_Z14file_write_intP7__sFILEi(ptr noundef %55, i32 noundef %59), !dbg !1962
-  ret void, !dbg !1963
+    #dbg_declare(ptr %4, !1910, !DIExpression(), !1911)
+  %5 = load ptr, ptr %4, align 8, !dbg !1912
+  %6 = load ptr, ptr %3, align 8, !dbg !1913
+  %7 = getelementptr inbounds nuw %struct.FuelCenter, ptr %6, i32 0, i32 0, !dbg !1914
+  %8 = load i32, ptr %7, align 4, !dbg !1914
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %5, i32 noundef %8), !dbg !1915
+  %9 = load ptr, ptr %4, align 8, !dbg !1916
+  %10 = load ptr, ptr %3, align 8, !dbg !1917
+  %11 = getelementptr inbounds nuw %struct.FuelCenter, ptr %10, i32 0, i32 1, !dbg !1918
+  %12 = load i32, ptr %11, align 4, !dbg !1918
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %9, i32 noundef %12), !dbg !1919
+  %13 = load ptr, ptr %4, align 8, !dbg !1920
+  %14 = load ptr, ptr %3, align 8, !dbg !1921
+  %15 = getelementptr inbounds nuw %struct.FuelCenter, ptr %14, i32 0, i32 2, !dbg !1922
+  %16 = load i8, ptr %15, align 4, !dbg !1922
+  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %13, i8 noundef zeroext %16), !dbg !1923
+  %17 = load ptr, ptr %4, align 8, !dbg !1924
+  %18 = load ptr, ptr %3, align 8, !dbg !1925
+  %19 = getelementptr inbounds nuw %struct.FuelCenter, ptr %18, i32 0, i32 3, !dbg !1926
+  %20 = load i8, ptr %19, align 1, !dbg !1926
+  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %17, i8 noundef zeroext %20), !dbg !1927
+  %21 = load ptr, ptr %4, align 8, !dbg !1928
+  %22 = load ptr, ptr %3, align 8, !dbg !1929
+  %23 = getelementptr inbounds nuw %struct.FuelCenter, ptr %22, i32 0, i32 4, !dbg !1930
+  %24 = load i8, ptr %23, align 2, !dbg !1930
+  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %21, i8 noundef zeroext %24), !dbg !1931
+  %25 = load ptr, ptr %4, align 8, !dbg !1932
+  %26 = load ptr, ptr %3, align 8, !dbg !1933
+  %27 = getelementptr inbounds nuw %struct.FuelCenter, ptr %26, i32 0, i32 5, !dbg !1934
+  %28 = load i8, ptr %27, align 1, !dbg !1934
+  call void @_Z15file_write_byteP7__sFILEh(ptr noundef %25, i8 noundef zeroext %28), !dbg !1935
+  %29 = load ptr, ptr %4, align 8, !dbg !1936
+  %30 = load ptr, ptr %3, align 8, !dbg !1937
+  %31 = getelementptr inbounds nuw %struct.FuelCenter, ptr %30, i32 0, i32 6, !dbg !1938
+  %32 = load i32, ptr %31, align 4, !dbg !1938
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %29, i32 noundef %32), !dbg !1939
+  %33 = load ptr, ptr %4, align 8, !dbg !1940
+  %34 = load ptr, ptr %3, align 8, !dbg !1941
+  %35 = getelementptr inbounds nuw %struct.FuelCenter, ptr %34, i32 0, i32 7, !dbg !1942
+  %36 = load i32, ptr %35, align 4, !dbg !1942
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %33, i32 noundef %36), !dbg !1943
+  %37 = load ptr, ptr %4, align 8, !dbg !1944
+  %38 = load ptr, ptr %3, align 8, !dbg !1945
+  %39 = getelementptr inbounds nuw %struct.FuelCenter, ptr %38, i32 0, i32 8, !dbg !1946
+  %40 = load i32, ptr %39, align 4, !dbg !1946
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %37, i32 noundef %40), !dbg !1947
+  %41 = load ptr, ptr %4, align 8, !dbg !1948
+  %42 = load ptr, ptr %3, align 8, !dbg !1949
+  %43 = getelementptr inbounds nuw %struct.FuelCenter, ptr %42, i32 0, i32 9, !dbg !1950
+  %44 = load i32, ptr %43, align 4, !dbg !1950
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %41, i32 noundef %44), !dbg !1951
+  %45 = load ptr, ptr %4, align 8, !dbg !1952
+  %46 = load ptr, ptr %3, align 8, !dbg !1953
+  %47 = getelementptr inbounds nuw %struct.FuelCenter, ptr %46, i32 0, i32 10, !dbg !1954
+  %48 = getelementptr inbounds nuw %struct.vms_vector, ptr %47, i32 0, i32 0, !dbg !1955
+  %49 = load i32, ptr %48, align 4, !dbg !1955
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %45, i32 noundef %49), !dbg !1956
+  %50 = load ptr, ptr %4, align 8, !dbg !1957
+  %51 = load ptr, ptr %3, align 8, !dbg !1958
+  %52 = getelementptr inbounds nuw %struct.FuelCenter, ptr %51, i32 0, i32 10, !dbg !1959
+  %53 = getelementptr inbounds nuw %struct.vms_vector, ptr %52, i32 0, i32 1, !dbg !1960
+  %54 = load i32, ptr %53, align 4, !dbg !1960
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %50, i32 noundef %54), !dbg !1961
+  %55 = load ptr, ptr %4, align 8, !dbg !1962
+  %56 = load ptr, ptr %3, align 8, !dbg !1963
+  %57 = getelementptr inbounds nuw %struct.FuelCenter, ptr %56, i32 0, i32 10, !dbg !1964
+  %58 = getelementptr inbounds nuw %struct.vms_vector, ptr %57, i32 0, i32 2, !dbg !1965
+  %59 = load i32, ptr %58, align 4, !dbg !1965
+  call void @_Z14file_write_intP7__sFILEi(ptr noundef %55, i32 noundef %59), !dbg !1966
+  ret void, !dbg !1967
 }
 
 declare void @_Z15file_write_byteP7__sFILEh(ptr noundef, i8 noundef zeroext) #2
@@ -2378,7 +2384,7 @@ attributes #3 = { nocallback nofree nounwind willreturn memory(argmem: readwrite
 !0 = !DIGlobalVariableExpression(var: !1, expr: !DIExpression())
 !1 = distinct !DIGlobalVariable(name: "Fuelcen_refill_speed", scope: !2, file: !15, line: 54, type: !16, isLocal: false, isDefinition: true)
 !2 = distinct !DICompileUnit(language: DW_LANG_C_plus_plus_14, file: !3, producer: "Homebrew clang version 20.1.8", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug, retainedTypes: !4, globals: !12, imports: !241, splitDebugInlining: false, nameTableKind: Apple, sysroot: "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk", sdk: "MacOSX15.sdk")
-!3 = !DIFile(filename: "/Users/richard/code/ChocolateDescent/main_d2/fuelcen.cpp", directory: "/Users/richard/code/ChocolateDescent/build-c-ref", checksumkind: CSK_MD5, checksum: "5e637ced3edb182184f10025f24c000f")
+!3 = !DIFile(filename: "/Users/richard/code/ChocolateDescent/main_d2/fuelcen.cpp", directory: "/Users/richard/code/ChocolateDescent/build-c-ref", checksumkind: CSK_MD5, checksum: "5ee8c9aee80dcb6228b2039717465d28")
 !4 = !{!5, !6, !9}
 !5 = !DIBasicType(name: "int", size: 32, encoding: DW_ATE_signed)
 !6 = !DIDerivedType(tag: DW_TAG_typedef, name: "int8_t", file: !7, line: 30, baseType: !8)
@@ -2390,7 +2396,7 @@ attributes #3 = { nocallback nofree nounwind willreturn memory(argmem: readwrite
 !12 = !{!0, !13, !20, !22, !24, !42, !44, !70, !72, !113, !120, !125, !130, !135, !140, !142, !147, !152, !157, !162, !167, !172, !174, !176, !178, !183, !188, !193, !198, !203, !208, !214, !219, !224, !229, !234, !236, !238}
 !13 = !DIGlobalVariableExpression(var: !14, expr: !DIExpression())
 !14 = distinct !DIGlobalVariable(name: "Fuelcen_give_amount", scope: !2, file: !15, line: 55, type: !16, isLocal: false, isDefinition: true)
-!15 = !DIFile(filename: "main_d2/fuelcen.cpp", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "5e637ced3edb182184f10025f24c000f")
+!15 = !DIFile(filename: "main_d2/fuelcen.cpp", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "5ee8c9aee80dcb6228b2039717465d28")
 !16 = !DIDerivedType(tag: DW_TAG_typedef, name: "fix", file: !17, line: 20, baseType: !18)
 !17 = !DIFile(filename: "./fix/fix.h", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "c5006a11bf8b4cb7d963898499eda13a")
 !18 = !DIDerivedType(tag: DW_TAG_typedef, name: "int32_t", file: !19, line: 30, baseType: !5)
@@ -2518,101 +2524,101 @@ attributes #3 = { nocallback nofree nounwind willreturn memory(argmem: readwrite
 !140 = !DIGlobalVariableExpression(var: !141, expr: !DIExpression())
 !141 = distinct !DIGlobalVariable(scope: null, file: !15, line: 281, type: !115, isLocal: true, isDefinition: true)
 !142 = !DIGlobalVariableExpression(var: !143, expr: !DIExpression())
-!143 = distinct !DIGlobalVariable(scope: null, file: !15, line: 342, type: !144, isLocal: true, isDefinition: true)
+!143 = distinct !DIGlobalVariable(scope: null, file: !15, line: 362, type: !144, isLocal: true, isDefinition: true)
 !144 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 224, elements: !145)
 !145 = !{!146}
 !146 = !DISubrange(count: 28)
 !147 = !DIGlobalVariableExpression(var: !148, expr: !DIExpression())
-!148 = distinct !DIGlobalVariable(scope: null, file: !15, line: 344, type: !149, isLocal: true, isDefinition: true)
+!148 = distinct !DIGlobalVariable(scope: null, file: !15, line: 364, type: !149, isLocal: true, isDefinition: true)
 !149 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 320, elements: !150)
 !150 = !{!151}
 !151 = !DISubrange(count: 40)
 !152 = !DIGlobalVariableExpression(var: !153, expr: !DIExpression())
-!153 = distinct !DIGlobalVariable(scope: null, file: !15, line: 345, type: !154, isLocal: true, isDefinition: true)
+!153 = distinct !DIGlobalVariable(scope: null, file: !15, line: 365, type: !154, isLocal: true, isDefinition: true)
 !154 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 288, elements: !155)
 !155 = !{!156}
 !156 = !DISubrange(count: 36)
 !157 = !DIGlobalVariableExpression(var: !158, expr: !DIExpression())
-!158 = distinct !DIGlobalVariable(scope: null, file: !15, line: 346, type: !159, isLocal: true, isDefinition: true)
+!158 = distinct !DIGlobalVariable(scope: null, file: !15, line: 366, type: !159, isLocal: true, isDefinition: true)
 !159 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 584, elements: !160)
 !160 = !{!161}
 !161 = !DISubrange(count: 73)
 !162 = !DIGlobalVariableExpression(var: !163, expr: !DIExpression())
-!163 = distinct !DIGlobalVariable(scope: null, file: !15, line: 375, type: !164, isLocal: true, isDefinition: true)
+!163 = distinct !DIGlobalVariable(scope: null, file: !15, line: 395, type: !164, isLocal: true, isDefinition: true)
 !164 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 336, elements: !165)
 !165 = !{!166}
 !166 = !DISubrange(count: 42)
 !167 = !DIGlobalVariableExpression(var: !168, expr: !DIExpression())
-!168 = distinct !DIGlobalVariable(scope: null, file: !15, line: 446, type: !169, isLocal: true, isDefinition: true)
+!168 = distinct !DIGlobalVariable(scope: null, file: !15, line: 466, type: !169, isLocal: true, isDefinition: true)
 !169 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 352, elements: !170)
 !170 = !{!171}
 !171 = !DISubrange(count: 44)
 !172 = !DIGlobalVariableExpression(var: !173, expr: !DIExpression())
-!173 = distinct !DIGlobalVariable(name: "Num_extry_robots", scope: !2, file: !15, line: 478, type: !5, isLocal: false, isDefinition: true)
+!173 = distinct !DIGlobalVariable(name: "Num_extry_robots", scope: !2, file: !15, line: 498, type: !5, isLocal: false, isDefinition: true)
 !174 = !DIGlobalVariableExpression(var: !175, expr: !DIExpression())
-!175 = distinct !DIGlobalVariable(name: "FrameCount_last_msg", scope: !2, file: !15, line: 481, type: !5, isLocal: false, isDefinition: true)
+!175 = distinct !DIGlobalVariable(name: "FrameCount_last_msg", scope: !2, file: !15, line: 501, type: !5, isLocal: false, isDefinition: true)
 !176 = !DIGlobalVariableExpression(var: !177, expr: !DIExpression())
-!177 = distinct !DIGlobalVariable(scope: null, file: !15, line: 502, type: !127, isLocal: true, isDefinition: true)
+!177 = distinct !DIGlobalVariable(scope: null, file: !15, line: 522, type: !127, isLocal: true, isDefinition: true)
 !178 = !DIGlobalVariableExpression(var: !179, expr: !DIExpression())
-!179 = distinct !DIGlobalVariable(scope: null, file: !15, line: 531, type: !180, isLocal: true, isDefinition: true)
+!179 = distinct !DIGlobalVariable(scope: null, file: !15, line: 551, type: !180, isLocal: true, isDefinition: true)
 !180 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 248, elements: !181)
 !181 = !{!182}
 !182 = !DISubrange(count: 31)
 !183 = !DIGlobalVariableExpression(var: !184, expr: !DIExpression())
-!184 = distinct !DIGlobalVariable(scope: null, file: !15, line: 546, type: !185, isLocal: true, isDefinition: true)
+!184 = distinct !DIGlobalVariable(scope: null, file: !15, line: 566, type: !185, isLocal: true, isDefinition: true)
 !185 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 272, elements: !186)
 !186 = !{!187}
 !187 = !DISubrange(count: 34)
 !188 = !DIGlobalVariableExpression(var: !189, expr: !DIExpression())
-!189 = distinct !DIGlobalVariable(scope: null, file: !15, line: 589, type: !190, isLocal: true, isDefinition: true)
+!189 = distinct !DIGlobalVariable(scope: null, file: !15, line: 609, type: !190, isLocal: true, isDefinition: true)
 !190 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 448, elements: !191)
 !191 = !{!192}
 !192 = !DISubrange(count: 56)
 !193 = !DIGlobalVariableExpression(var: !194, expr: !DIExpression())
-!194 = distinct !DIGlobalVariable(scope: null, file: !15, line: 602, type: !195, isLocal: true, isDefinition: true)
+!194 = distinct !DIGlobalVariable(scope: null, file: !15, line: 622, type: !195, isLocal: true, isDefinition: true)
 !195 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 312, elements: !196)
 !196 = !{!197}
 !197 = !DISubrange(count: 39)
 !198 = !DIGlobalVariableExpression(var: !199, expr: !DIExpression())
-!199 = distinct !DIGlobalVariable(scope: null, file: !15, line: 674, type: !200, isLocal: true, isDefinition: true)
+!199 = distinct !DIGlobalVariable(scope: null, file: !15, line: 694, type: !200, isLocal: true, isDefinition: true)
 !200 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 392, elements: !201)
 !201 = !{!202}
 !202 = !DISubrange(count: 49)
 !203 = !DIGlobalVariableExpression(var: !204, expr: !DIExpression())
-!204 = distinct !DIGlobalVariable(scope: null, file: !15, line: 694, type: !205, isLocal: true, isDefinition: true)
+!204 = distinct !DIGlobalVariable(scope: null, file: !15, line: 714, type: !205, isLocal: true, isDefinition: true)
 !205 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 496, elements: !206)
 !206 = !{!207}
 !207 = !DISubrange(count: 62)
 !208 = !DIGlobalVariableExpression(var: !209, expr: !DIExpression())
-!209 = distinct !DIGlobalVariable(name: "last_play_time", scope: !210, file: !15, line: 760, type: !16, isLocal: true, isDefinition: true)
-!210 = distinct !DISubprogram(name: "fuelcen_give_fuel", linkageName: "_Z17fuelcen_give_fuelP7segmenti", scope: !15, file: !15, line: 756, type: !211, scopeLine: 757, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!209 = distinct !DIGlobalVariable(name: "last_play_time", scope: !210, file: !15, line: 780, type: !16, isLocal: true, isDefinition: true)
+!210 = distinct !DISubprogram(name: "fuelcen_give_fuel", linkageName: "_Z17fuelcen_give_fuelP7segmenti", scope: !15, file: !15, line: 776, type: !211, scopeLine: 777, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
 !211 = !DISubroutineType(types: !212)
 !212 = !{!16, !74, !16}
 !213 = !{}
 !214 = !DIGlobalVariableExpression(var: !215, expr: !DIExpression())
-!215 = distinct !DIGlobalVariable(scope: null, file: !15, line: 762, type: !216, isLocal: true, isDefinition: true)
+!215 = distinct !DIGlobalVariable(scope: null, file: !15, line: 782, type: !216, isLocal: true, isDefinition: true)
 !216 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 104, elements: !217)
 !217 = !{!218}
 !218 = !DISubrange(count: 13)
 !219 = !DIGlobalVariableExpression(var: !220, expr: !DIExpression())
-!220 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1181, type: !221, isLocal: true, isDefinition: true)
+!220 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1201, type: !221, isLocal: true, isDefinition: true)
 !221 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 184, elements: !222)
 !222 = !{!223}
 !223 = !DISubrange(count: 23)
 !224 = !DIGlobalVariableExpression(var: !225, expr: !DIExpression())
-!225 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1192, type: !226, isLocal: true, isDefinition: true)
+!225 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1212, type: !226, isLocal: true, isDefinition: true)
 !226 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 240, elements: !227)
 !227 = !{!228}
 !228 = !DISubrange(count: 30)
 !229 = !DIGlobalVariableExpression(var: !230, expr: !DIExpression())
-!230 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1193, type: !231, isLocal: true, isDefinition: true)
+!230 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1213, type: !231, isLocal: true, isDefinition: true)
 !231 = !DICompositeType(tag: DW_TAG_array_type, baseType: !116, size: 408, elements: !232)
 !232 = !{!233}
 !233 = !DISubrange(count: 51)
 !234 = !DIGlobalVariableExpression(var: !235, expr: !DIExpression())
-!235 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1205, type: !221, isLocal: true, isDefinition: true)
+!235 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1225, type: !221, isLocal: true, isDefinition: true)
 !236 = !DIGlobalVariableExpression(var: !237, expr: !DIExpression())
-!237 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1239, type: !137, isLocal: true, isDefinition: true)
+!237 = distinct !DIGlobalVariable(scope: null, file: !15, line: 1259, type: !137, isLocal: true, isDefinition: true)
 !238 = !DIGlobalVariableExpression(var: !239, expr: !DIExpression(DW_OP_constu, 16, DW_OP_stack_value))
 !239 = distinct !DIGlobalVariable(name: "FRACBITS", scope: !2, file: !17, line: 18, type: !240, isLocal: true, isDefinition: true)
 !240 = !DIDerivedType(tag: DW_TAG_const_type, baseType: !5)
@@ -2970,1372 +2976,1376 @@ attributes #3 = { nocallback nofree nounwind willreturn memory(argmem: readwrite
 !592 = !DILocation(line: 314, column: 32, scope: !588)
 !593 = !DILocalVariable(name: "station_type", arg: 2, scope: !588, file: !15, line: 314, type: !5)
 !594 = !DILocation(line: 314, column: 42, scope: !588)
-!595 = !DILocalVariable(name: "seg2p", scope: !588, file: !15, line: 316, type: !409)
-!596 = !DILocation(line: 316, column: 12, scope: !588)
-!597 = !DILocation(line: 316, column: 31, scope: !588)
-!598 = !DILocation(line: 316, column: 36, scope: !588)
-!599 = !DILocation(line: 316, column: 21, scope: !588)
-!600 = !DILocation(line: 318, column: 19, scope: !588)
-!601 = !DILocation(line: 318, column: 2, scope: !588)
-!602 = !DILocation(line: 318, column: 9, scope: !588)
-!603 = !DILocation(line: 318, column: 17, scope: !588)
-!604 = !DILocation(line: 320, column: 6, scope: !605)
-!605 = distinct !DILexicalBlock(scope: !588, file: !15, line: 320, column: 6)
-!606 = !DILocation(line: 320, column: 13, scope: !605)
-!607 = !DILocation(line: 320, column: 21, scope: !605)
-!608 = !DILocation(line: 321, column: 17, scope: !605)
-!609 = !DILocation(line: 321, column: 3, scope: !605)
-!610 = !DILocation(line: 323, column: 18, scope: !605)
-!611 = !DILocation(line: 323, column: 3, scope: !605)
-!612 = !DILocation(line: 325, column: 1, scope: !588)
-!613 = distinct !DISubprogram(name: "trigger_matcen", linkageName: "_Z14trigger_matceni", scope: !15, file: !15, line: 334, type: !614, scopeLine: 335, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!614 = !DISubroutineType(types: !615)
-!615 = !{null, !5}
-!616 = !DILocalVariable(name: "segnum", arg: 1, scope: !613, file: !15, line: 334, type: !5)
-!617 = !DILocation(line: 334, column: 25, scope: !613)
-!618 = !DILocalVariable(name: "seg2p", scope: !613, file: !15, line: 337, type: !409)
-!619 = !DILocation(line: 337, column: 12, scope: !613)
-!620 = !DILocation(line: 337, column: 31, scope: !613)
-!621 = !DILocation(line: 337, column: 21, scope: !613)
-!622 = !DILocalVariable(name: "pos", scope: !613, file: !15, line: 338, type: !61)
-!623 = !DILocation(line: 338, column: 13, scope: !613)
-!624 = !DILocalVariable(name: "delta", scope: !613, file: !15, line: 338, type: !61)
-!625 = !DILocation(line: 338, column: 18, scope: !613)
-!626 = !DILocalVariable(name: "robotcen", scope: !613, file: !15, line: 339, type: !627)
-!627 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !47, size: 64)
-!628 = !DILocation(line: 339, column: 14, scope: !613)
-!629 = !DILocalVariable(name: "objnum", scope: !613, file: !15, line: 340, type: !5)
-!630 = !DILocation(line: 340, column: 8, scope: !613)
-!631 = !DILocation(line: 342, column: 2, scope: !613)
-!632 = !DILocation(line: 344, column: 2, scope: !613)
-!633 = !DILocation(line: 345, column: 2, scope: !613)
-!634 = !DILocation(line: 346, column: 2, scope: !613)
-!635 = !DILocation(line: 0, scope: !613)
-!636 = !DILocation(line: 348, column: 35, scope: !613)
-!637 = !DILocation(line: 348, column: 42, scope: !613)
-!638 = !DILocation(line: 348, column: 22, scope: !613)
-!639 = !DILocation(line: 348, column: 54, scope: !613)
-!640 = !DILocation(line: 348, column: 14, scope: !613)
-!641 = !DILocation(line: 348, column: 11, scope: !613)
-!642 = !DILocation(line: 350, column: 6, scope: !643)
-!643 = distinct !DILexicalBlock(scope: !613, file: !15, line: 350, column: 6)
-!644 = !DILocation(line: 350, column: 16, scope: !643)
-!645 = !DILocation(line: 350, column: 24, scope: !643)
-!646 = !DILocation(line: 351, column: 3, scope: !643)
-!647 = !DILocation(line: 353, column: 7, scope: !648)
-!648 = distinct !DILexicalBlock(scope: !613, file: !15, line: 353, column: 6)
-!649 = !DILocation(line: 353, column: 17, scope: !648)
-!650 = !DILocation(line: 353, column: 6, scope: !648)
-!651 = !DILocation(line: 354, column: 3, scope: !648)
-!652 = !DILocation(line: 357, column: 6, scope: !653)
-!653 = distinct !DILexicalBlock(scope: !613, file: !15, line: 357, column: 6)
-!654 = !DILocation(line: 357, column: 23, scope: !653)
-!655 = !DILocation(line: 357, column: 27, scope: !653)
-!656 = !DILocation(line: 358, column: 3, scope: !653)
-!657 = !DILocation(line: 358, column: 13, scope: !653)
-!658 = !DILocation(line: 358, column: 18, scope: !653)
-!659 = !DILocation(line: 360, column: 2, scope: !613)
-!660 = !DILocation(line: 360, column: 12, scope: !613)
-!661 = !DILocation(line: 360, column: 18, scope: !613)
-!662 = !DILocation(line: 361, column: 2, scope: !613)
-!663 = !DILocation(line: 361, column: 12, scope: !613)
-!664 = !DILocation(line: 361, column: 20, scope: !613)
-!665 = !DILocation(line: 362, column: 27, scope: !613)
-!666 = !DILocation(line: 362, column: 44, scope: !613)
-!667 = !DILocation(line: 362, column: 23, scope: !613)
-!668 = !DILocation(line: 362, column: 2, scope: !613)
-!669 = !DILocation(line: 362, column: 12, scope: !613)
-!670 = !DILocation(line: 362, column: 21, scope: !613)
-!671 = !DILocation(line: 363, column: 27, scope: !613)
-!672 = !DILocation(line: 363, column: 2, scope: !613)
-!673 = !DILocation(line: 363, column: 12, scope: !613)
-!674 = !DILocation(line: 363, column: 25, scope: !613)
-!675 = !DILocation(line: 366, column: 8, scope: !613)
-!676 = !DILocation(line: 366, column: 18, scope: !613)
-!677 = !DILocation(line: 366, column: 6, scope: !613)
-!678 = !DILocation(line: 367, column: 40, scope: !613)
-!679 = !DILocation(line: 367, column: 31, scope: !613)
-!680 = !DILocation(line: 367, column: 48, scope: !613)
-!681 = !DILocation(line: 367, column: 22, scope: !613)
-!682 = !DILocation(line: 367, column: 60, scope: !613)
-!683 = !DILocation(line: 367, column: 70, scope: !613)
-!684 = !DILocation(line: 367, column: 2, scope: !613)
-!685 = !DILocation(line: 368, column: 2, scope: !613)
-!686 = !DILocation(line: 369, column: 36, scope: !613)
-!687 = !DILocation(line: 369, column: 11, scope: !613)
-!688 = !DILocation(line: 369, column: 9, scope: !613)
-!689 = !DILocation(line: 370, column: 6, scope: !690)
-!690 = distinct !DILexicalBlock(scope: !613, file: !15, line: 370, column: 6)
-!691 = !DILocation(line: 370, column: 13, scope: !690)
-!692 = !DILocation(line: 371, column: 30, scope: !693)
-!693 = distinct !DILexicalBlock(scope: !690, file: !15, line: 370, column: 20)
-!694 = !DILocation(line: 371, column: 11, scope: !693)
-!695 = !DILocation(line: 371, column: 3, scope: !693)
-!696 = !DILocation(line: 371, column: 19, scope: !693)
-!697 = !DILocation(line: 371, column: 28, scope: !693)
-!698 = !DILocation(line: 372, column: 48, scope: !693)
-!699 = !DILocation(line: 372, column: 11, scope: !693)
-!700 = !DILocation(line: 372, column: 3, scope: !693)
-!701 = !DILocation(line: 372, column: 19, scope: !693)
-!702 = !DILocation(line: 372, column: 36, scope: !693)
-!703 = !DILocation(line: 372, column: 46, scope: !693)
-!704 = !DILocation(line: 373, column: 2, scope: !693)
-!705 = !DILocation(line: 375, column: 3, scope: !706)
-!706 = distinct !DILexicalBlock(scope: !690, file: !15, line: 374, column: 7)
-!707 = !DILocation(line: 376, column: 3, scope: !706)
-!708 = !DILocation(line: 379, column: 1, scope: !613)
-!709 = distinct !DISubprogram(name: "create_morph_robot", linkageName: "_Z18create_morph_robotP7segmentP10vms_vectori", scope: !15, file: !15, line: 432, type: !710, scopeLine: 433, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!710 = !DISubroutineType(types: !711)
-!711 = !{!712, !74, !844, !5}
-!712 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !713, size: 64)
-!713 = !DIDerivedType(tag: DW_TAG_typedef, name: "object", file: !714, line: 259, baseType: !715)
-!714 = !DIFile(filename: "main_d2/object.h", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "1f2325d356aae4b692933d2aae4f3afd")
-!715 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "object", file: !714, line: 210, size: 2144, flags: DIFlagTypePassByValue, elements: !716, identifier: "_ZTS6object")
-!716 = !{!717, !718, !719, !720, !721, !722, !723, !724, !725, !726, !727, !728, !729, !736, !737, !738, !739, !740, !741, !742, !743, !744, !762, !816}
-!717 = !DIDerivedType(tag: DW_TAG_member, name: "signature", scope: !715, file: !714, line: 212, baseType: !5, size: 32)
-!718 = !DIDerivedType(tag: DW_TAG_member, name: "type", scope: !715, file: !714, line: 213, baseType: !86, size: 8, offset: 32)
-!719 = !DIDerivedType(tag: DW_TAG_member, name: "id", scope: !715, file: !714, line: 214, baseType: !86, size: 8, offset: 40)
-!720 = !DIDerivedType(tag: DW_TAG_member, name: "next", scope: !715, file: !714, line: 215, baseType: !38, size: 16, offset: 48)
-!721 = !DIDerivedType(tag: DW_TAG_member, name: "prev", scope: !715, file: !714, line: 215, baseType: !38, size: 16, offset: 64)
-!722 = !DIDerivedType(tag: DW_TAG_member, name: "control_type", scope: !715, file: !714, line: 216, baseType: !86, size: 8, offset: 80)
-!723 = !DIDerivedType(tag: DW_TAG_member, name: "movement_type", scope: !715, file: !714, line: 217, baseType: !86, size: 8, offset: 88)
-!724 = !DIDerivedType(tag: DW_TAG_member, name: "render_type", scope: !715, file: !714, line: 218, baseType: !86, size: 8, offset: 96)
-!725 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !715, file: !714, line: 219, baseType: !86, size: 8, offset: 104)
-!726 = !DIDerivedType(tag: DW_TAG_member, name: "segnum", scope: !715, file: !714, line: 220, baseType: !38, size: 16, offset: 112)
-!727 = !DIDerivedType(tag: DW_TAG_member, name: "attached_obj", scope: !715, file: !714, line: 221, baseType: !38, size: 16, offset: 128)
-!728 = !DIDerivedType(tag: DW_TAG_member, name: "pos", scope: !715, file: !714, line: 222, baseType: !61, size: 96, offset: 160)
-!729 = !DIDerivedType(tag: DW_TAG_member, name: "orient", scope: !715, file: !714, line: 223, baseType: !730, size: 288, offset: 256)
-!730 = !DIDerivedType(tag: DW_TAG_typedef, name: "vms_matrix", file: !62, line: 47, baseType: !731)
-!731 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vms_matrix", file: !62, line: 44, size: 288, flags: DIFlagTypePassByValue, elements: !732, identifier: "_ZTS10vms_matrix")
-!732 = !{!733, !734, !735}
-!733 = !DIDerivedType(tag: DW_TAG_member, name: "rvec", scope: !731, file: !62, line: 46, baseType: !61, size: 96)
-!734 = !DIDerivedType(tag: DW_TAG_member, name: "uvec", scope: !731, file: !62, line: 46, baseType: !61, size: 96, offset: 96)
-!735 = !DIDerivedType(tag: DW_TAG_member, name: "fvec", scope: !731, file: !62, line: 46, baseType: !61, size: 96, offset: 192)
-!736 = !DIDerivedType(tag: DW_TAG_member, name: "size", scope: !715, file: !714, line: 224, baseType: !16, size: 32, offset: 544)
-!737 = !DIDerivedType(tag: DW_TAG_member, name: "shields", scope: !715, file: !714, line: 225, baseType: !16, size: 32, offset: 576)
-!738 = !DIDerivedType(tag: DW_TAG_member, name: "last_pos", scope: !715, file: !714, line: 226, baseType: !61, size: 96, offset: 608)
-!739 = !DIDerivedType(tag: DW_TAG_member, name: "contains_type", scope: !715, file: !714, line: 227, baseType: !6, size: 8, offset: 704)
-!740 = !DIDerivedType(tag: DW_TAG_member, name: "contains_id", scope: !715, file: !714, line: 228, baseType: !6, size: 8, offset: 712)
-!741 = !DIDerivedType(tag: DW_TAG_member, name: "contains_count", scope: !715, file: !714, line: 229, baseType: !6, size: 8, offset: 720)
-!742 = !DIDerivedType(tag: DW_TAG_member, name: "matcen_creator", scope: !715, file: !714, line: 230, baseType: !6, size: 8, offset: 728)
-!743 = !DIDerivedType(tag: DW_TAG_member, name: "lifeleft", scope: !715, file: !714, line: 231, baseType: !16, size: 32, offset: 736)
-!744 = !DIDerivedType(tag: DW_TAG_member, name: "mtype", scope: !715, file: !714, line: 240, baseType: !745, size: 512, offset: 768)
-!745 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !715, file: !714, line: 236, size: 512, flags: DIFlagTypePassByValue, elements: !746, identifier: "_ZTSN6objectUt_E")
-!746 = !{!747, !761}
-!747 = !DIDerivedType(tag: DW_TAG_member, name: "phys_info", scope: !745, file: !714, line: 238, baseType: !748, size: 512)
-!748 = !DIDerivedType(tag: DW_TAG_typedef, name: "physics_info", file: !714, line: 153, baseType: !749)
-!749 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "physics_info", file: !714, line: 142, size: 512, flags: DIFlagTypePassByValue, elements: !750, identifier: "_ZTS12physics_info")
-!750 = !{!751, !752, !753, !754, !755, !756, !757, !758, !760}
-!751 = !DIDerivedType(tag: DW_TAG_member, name: "velocity", scope: !749, file: !714, line: 144, baseType: !61, size: 96)
-!752 = !DIDerivedType(tag: DW_TAG_member, name: "thrust", scope: !749, file: !714, line: 145, baseType: !61, size: 96, offset: 96)
-!753 = !DIDerivedType(tag: DW_TAG_member, name: "mass", scope: !749, file: !714, line: 146, baseType: !16, size: 32, offset: 192)
-!754 = !DIDerivedType(tag: DW_TAG_member, name: "drag", scope: !749, file: !714, line: 147, baseType: !16, size: 32, offset: 224)
-!755 = !DIDerivedType(tag: DW_TAG_member, name: "brakes", scope: !749, file: !714, line: 148, baseType: !16, size: 32, offset: 256)
-!756 = !DIDerivedType(tag: DW_TAG_member, name: "rotvel", scope: !749, file: !714, line: 149, baseType: !61, size: 96, offset: 288)
-!757 = !DIDerivedType(tag: DW_TAG_member, name: "rotthrust", scope: !749, file: !714, line: 150, baseType: !61, size: 96, offset: 384)
-!758 = !DIDerivedType(tag: DW_TAG_member, name: "turnroll", scope: !749, file: !714, line: 151, baseType: !759, size: 16, offset: 480)
-!759 = !DIDerivedType(tag: DW_TAG_typedef, name: "fixang", file: !17, line: 21, baseType: !38)
-!760 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !749, file: !714, line: 152, baseType: !253, size: 16, offset: 496)
-!761 = !DIDerivedType(tag: DW_TAG_member, name: "spin_rate", scope: !745, file: !714, line: 239, baseType: !61, size: 96)
-!762 = !DIDerivedType(tag: DW_TAG_member, name: "ctype", scope: !715, file: !714, line: 250, baseType: !763, size: 256, offset: 1280)
-!763 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !715, file: !714, line: 243, size: 256, flags: DIFlagTypePassByValue, elements: !764, identifier: "_ZTSN6objectUt0_E")
-!764 = !{!765, !776, !786, !804, !809}
-!765 = !DIDerivedType(tag: DW_TAG_member, name: "laser_info", scope: !763, file: !714, line: 245, baseType: !766, size: 160)
-!766 = !DIDerivedType(tag: DW_TAG_typedef, name: "laser_info_t", file: !714, line: 166, baseType: !767)
-!767 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "laser_info_s", file: !714, line: 157, size: 160, flags: DIFlagTypePassByValue, elements: !768, identifier: "_ZTS12laser_info_s")
-!768 = !{!769, !770, !771, !772, !773, !774, !775}
-!769 = !DIDerivedType(tag: DW_TAG_member, name: "parent_type", scope: !767, file: !714, line: 159, baseType: !38, size: 16)
-!770 = !DIDerivedType(tag: DW_TAG_member, name: "parent_num", scope: !767, file: !714, line: 160, baseType: !38, size: 16, offset: 16)
-!771 = !DIDerivedType(tag: DW_TAG_member, name: "parent_signature", scope: !767, file: !714, line: 161, baseType: !5, size: 32, offset: 32)
-!772 = !DIDerivedType(tag: DW_TAG_member, name: "creation_time", scope: !767, file: !714, line: 162, baseType: !16, size: 32, offset: 64)
-!773 = !DIDerivedType(tag: DW_TAG_member, name: "last_hitobj", scope: !767, file: !714, line: 163, baseType: !38, size: 16, offset: 96)
-!774 = !DIDerivedType(tag: DW_TAG_member, name: "track_goal", scope: !767, file: !714, line: 164, baseType: !38, size: 16, offset: 112)
-!775 = !DIDerivedType(tag: DW_TAG_member, name: "multiplier", scope: !767, file: !714, line: 165, baseType: !16, size: 32, offset: 128)
-!776 = !DIDerivedType(tag: DW_TAG_member, name: "expl_info", scope: !763, file: !714, line: 246, baseType: !777, size: 128)
-!777 = !DIDerivedType(tag: DW_TAG_typedef, name: "explosion_info", file: !714, line: 176, baseType: !778)
-!778 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "explosion_info", file: !714, line: 168, size: 128, flags: DIFlagTypePassByValue, elements: !779, identifier: "_ZTS14explosion_info")
-!779 = !{!780, !781, !782, !783, !784, !785}
-!780 = !DIDerivedType(tag: DW_TAG_member, name: "spawn_time", scope: !778, file: !714, line: 170, baseType: !16, size: 32)
-!781 = !DIDerivedType(tag: DW_TAG_member, name: "delete_time", scope: !778, file: !714, line: 171, baseType: !16, size: 32, offset: 32)
-!782 = !DIDerivedType(tag: DW_TAG_member, name: "delete_objnum", scope: !778, file: !714, line: 172, baseType: !38, size: 16, offset: 64)
-!783 = !DIDerivedType(tag: DW_TAG_member, name: "attach_parent", scope: !778, file: !714, line: 173, baseType: !38, size: 16, offset: 80)
-!784 = !DIDerivedType(tag: DW_TAG_member, name: "prev_attach", scope: !778, file: !714, line: 174, baseType: !38, size: 16, offset: 96)
-!785 = !DIDerivedType(tag: DW_TAG_member, name: "next_attach", scope: !778, file: !714, line: 175, baseType: !38, size: 16, offset: 112)
-!786 = !DIDerivedType(tag: DW_TAG_member, name: "ai_info", scope: !763, file: !714, line: 247, baseType: !787, size: 256)
-!787 = !DIDerivedType(tag: DW_TAG_typedef, name: "ai_static", file: !788, line: 144, baseType: !789)
-!788 = !DIFile(filename: "main_d2/aistruct.h", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "d122430e792a0ddc0f9eaa08ad217628")
-!789 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "ai_static", file: !788, line: 127, size: 256, flags: DIFlagTypePassByValue, elements: !790, identifier: "_ZTS9ai_static")
-!790 = !{!791, !792, !796, !797, !798, !799, !800, !801, !802, !803}
-!791 = !DIDerivedType(tag: DW_TAG_member, name: "behavior", scope: !789, file: !788, line: 128, baseType: !86, size: 8)
-!792 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !789, file: !788, line: 129, baseType: !793, size: 88, offset: 8)
-!793 = !DICompositeType(tag: DW_TAG_array_type, baseType: !6, size: 88, elements: !794)
-!794 = !{!795}
-!795 = !DISubrange(count: 11)
-!796 = !DIDerivedType(tag: DW_TAG_member, name: "hide_segment", scope: !789, file: !788, line: 130, baseType: !38, size: 16, offset: 96)
-!797 = !DIDerivedType(tag: DW_TAG_member, name: "hide_index", scope: !789, file: !788, line: 131, baseType: !38, size: 16, offset: 112)
-!798 = !DIDerivedType(tag: DW_TAG_member, name: "path_length", scope: !789, file: !788, line: 132, baseType: !38, size: 16, offset: 128)
-!799 = !DIDerivedType(tag: DW_TAG_member, name: "cur_path_index", scope: !789, file: !788, line: 133, baseType: !6, size: 8, offset: 144)
-!800 = !DIDerivedType(tag: DW_TAG_member, name: "dying_sound_playing", scope: !789, file: !788, line: 134, baseType: !6, size: 8, offset: 152)
-!801 = !DIDerivedType(tag: DW_TAG_member, name: "danger_laser_num", scope: !789, file: !788, line: 139, baseType: !38, size: 16, offset: 160)
-!802 = !DIDerivedType(tag: DW_TAG_member, name: "danger_laser_signature", scope: !789, file: !788, line: 140, baseType: !5, size: 32, offset: 192)
-!803 = !DIDerivedType(tag: DW_TAG_member, name: "dying_start_time", scope: !789, file: !788, line: 141, baseType: !16, size: 32, offset: 224)
-!804 = !DIDerivedType(tag: DW_TAG_member, name: "light_info", scope: !763, file: !714, line: 248, baseType: !805, size: 32)
-!805 = !DIDerivedType(tag: DW_TAG_typedef, name: "light_info_t", file: !714, line: 181, baseType: !806)
-!806 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "light_info_s", file: !714, line: 178, size: 32, flags: DIFlagTypePassByValue, elements: !807, identifier: "_ZTS12light_info_s")
-!807 = !{!808}
-!808 = !DIDerivedType(tag: DW_TAG_member, name: "intensity", scope: !806, file: !714, line: 180, baseType: !16, size: 32)
-!809 = !DIDerivedType(tag: DW_TAG_member, name: "powerup_info", scope: !763, file: !714, line: 249, baseType: !810, size: 96)
-!810 = !DIDerivedType(tag: DW_TAG_typedef, name: "powerup_info_t", file: !714, line: 190, baseType: !811)
-!811 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "powerup_info_s", file: !714, line: 185, size: 96, flags: DIFlagTypePassByValue, elements: !812, identifier: "_ZTS14powerup_info_s")
-!812 = !{!813, !814, !815}
-!813 = !DIDerivedType(tag: DW_TAG_member, name: "count", scope: !811, file: !714, line: 187, baseType: !5, size: 32)
-!814 = !DIDerivedType(tag: DW_TAG_member, name: "creation_time", scope: !811, file: !714, line: 188, baseType: !16, size: 32, offset: 32)
-!815 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !811, file: !714, line: 189, baseType: !5, size: 32, offset: 64)
-!816 = !DIDerivedType(tag: DW_TAG_member, name: "rtype", scope: !715, file: !714, line: 257, baseType: !817, size: 608, offset: 1536)
-!817 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !715, file: !714, line: 253, size: 608, flags: DIFlagTypePassByValue, elements: !818, identifier: "_ZTSN6objectUt1_E")
-!818 = !{!819, !837}
-!819 = !DIDerivedType(tag: DW_TAG_member, name: "pobj_info", scope: !817, file: !714, line: 255, baseType: !820, size: 608)
-!820 = !DIDerivedType(tag: DW_TAG_typedef, name: "polyobj_info", file: !714, line: 208, baseType: !821)
-!821 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "polyobj_info", file: !714, line: 201, size: 608, flags: DIFlagTypePassByValue, elements: !822, identifier: "_ZTS12polyobj_info")
-!822 = !{!823, !824, !834, !835, !836}
-!823 = !DIDerivedType(tag: DW_TAG_member, name: "model_num", scope: !821, file: !714, line: 203, baseType: !5, size: 32)
-!824 = !DIDerivedType(tag: DW_TAG_member, name: "anim_angles", scope: !821, file: !714, line: 204, baseType: !825, size: 480, offset: 32)
-!825 = !DICompositeType(tag: DW_TAG_array_type, baseType: !826, size: 480, elements: !832)
-!826 = !DIDerivedType(tag: DW_TAG_typedef, name: "vms_angvec", file: !62, line: 40, baseType: !827)
-!827 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vms_angvec", file: !62, line: 37, size: 48, flags: DIFlagTypePassByValue, elements: !828, identifier: "_ZTS10vms_angvec")
-!828 = !{!829, !830, !831}
-!829 = !DIDerivedType(tag: DW_TAG_member, name: "p", scope: !827, file: !62, line: 39, baseType: !759, size: 16)
-!830 = !DIDerivedType(tag: DW_TAG_member, name: "b", scope: !827, file: !62, line: 39, baseType: !759, size: 16, offset: 16)
-!831 = !DIDerivedType(tag: DW_TAG_member, name: "h", scope: !827, file: !62, line: 39, baseType: !759, size: 16, offset: 32)
-!832 = !{!833}
-!833 = !DISubrange(count: 10)
-!834 = !DIDerivedType(tag: DW_TAG_member, name: "subobj_flags", scope: !821, file: !714, line: 205, baseType: !5, size: 32, offset: 512)
-!835 = !DIDerivedType(tag: DW_TAG_member, name: "tmap_override", scope: !821, file: !714, line: 206, baseType: !5, size: 32, offset: 544)
-!836 = !DIDerivedType(tag: DW_TAG_member, name: "alt_textures", scope: !821, file: !714, line: 207, baseType: !5, size: 32, offset: 576)
-!837 = !DIDerivedType(tag: DW_TAG_member, name: "vclip_info", scope: !817, file: !714, line: 256, baseType: !838, size: 96)
-!838 = !DIDerivedType(tag: DW_TAG_typedef, name: "vclip_info_t", file: !714, line: 197, baseType: !839)
-!839 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vclip_info_s", file: !714, line: 192, size: 96, flags: DIFlagTypePassByValue, elements: !840, identifier: "_ZTS12vclip_info_s")
-!840 = !{!841, !842, !843}
-!841 = !DIDerivedType(tag: DW_TAG_member, name: "vclip_num", scope: !839, file: !714, line: 194, baseType: !5, size: 32)
-!842 = !DIDerivedType(tag: DW_TAG_member, name: "frametime", scope: !839, file: !714, line: 195, baseType: !16, size: 32, offset: 32)
-!843 = !DIDerivedType(tag: DW_TAG_member, name: "framenum", scope: !839, file: !714, line: 196, baseType: !6, size: 8, offset: 64)
-!844 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !61, size: 64)
-!845 = !DILocalVariable(name: "segp", arg: 1, scope: !709, file: !15, line: 432, type: !74)
-!846 = !DILocation(line: 432, column: 37, scope: !709)
-!847 = !DILocalVariable(name: "object_pos", arg: 2, scope: !709, file: !15, line: 432, type: !844)
-!848 = !DILocation(line: 432, column: 55, scope: !709)
-!849 = !DILocalVariable(name: "object_id", arg: 3, scope: !709, file: !15, line: 432, type: !5)
-!850 = !DILocation(line: 432, column: 71, scope: !709)
-!851 = !DILocalVariable(name: "objnum", scope: !709, file: !15, line: 434, type: !38)
-!852 = !DILocation(line: 434, column: 9, scope: !709)
-!853 = !DILocalVariable(name: "obj", scope: !709, file: !15, line: 435, type: !712)
-!854 = !DILocation(line: 435, column: 10, scope: !709)
-!855 = !DILocalVariable(name: "default_behavior", scope: !709, file: !15, line: 436, type: !5)
-!856 = !DILocation(line: 436, column: 7, scope: !709)
-!857 = !DILocation(line: 438, column: 10, scope: !709)
-!858 = !DILocation(line: 438, column: 2, scope: !709)
-!859 = !DILocation(line: 438, column: 22, scope: !709)
-!860 = !DILocation(line: 438, column: 38, scope: !709)
-!861 = !DILocation(line: 439, column: 10, scope: !709)
-!862 = !DILocation(line: 439, column: 2, scope: !709)
-!863 = !DILocation(line: 439, column: 22, scope: !709)
-!864 = !DILocation(line: 439, column: 38, scope: !709)
-!865 = !DILocation(line: 441, column: 33, scope: !709)
-!866 = !DILocation(line: 441, column: 44, scope: !709)
-!867 = !DILocation(line: 441, column: 49, scope: !709)
-!868 = !DILocation(line: 441, column: 61, scope: !709)
-!869 = !DILocation(line: 442, column: 51, scope: !709)
-!870 = !DILocation(line: 442, column: 40, scope: !709)
-!871 = !DILocation(line: 442, column: 62, scope: !709)
-!872 = !DILocation(line: 442, column: 25, scope: !709)
-!873 = !DILocation(line: 442, column: 73, scope: !709)
-!874 = !DILocation(line: 441, column: 11, scope: !709)
-!875 = !DILocation(line: 441, column: 9, scope: !709)
-!876 = !DILocation(line: 445, column: 6, scope: !877)
-!877 = distinct !DILexicalBlock(scope: !709, file: !15, line: 445, column: 6)
-!878 = !DILocation(line: 445, column: 13, scope: !877)
-!879 = !DILocation(line: 446, column: 3, scope: !880)
-!880 = distinct !DILexicalBlock(scope: !877, file: !15, line: 445, column: 18)
-!881 = !DILocation(line: 447, column: 3, scope: !880)
-!882 = !DILocation(line: 448, column: 3, scope: !880)
-!883 = !DILocation(line: 451, column: 17, scope: !709)
-!884 = !DILocation(line: 451, column: 9, scope: !709)
-!885 = !DILocation(line: 451, column: 6, scope: !709)
-!886 = !DILocation(line: 455, column: 46, scope: !709)
-!887 = !DILocation(line: 455, column: 51, scope: !709)
-!888 = !DILocation(line: 455, column: 35, scope: !709)
-!889 = !DILocation(line: 455, column: 55, scope: !709)
-!890 = !DILocation(line: 455, column: 2, scope: !709)
-!891 = !DILocation(line: 455, column: 7, scope: !709)
-!892 = !DILocation(line: 455, column: 23, scope: !709)
-!893 = !DILocation(line: 455, column: 33, scope: !709)
-!894 = !DILocation(line: 456, column: 2, scope: !709)
-!895 = !DILocation(line: 456, column: 7, scope: !709)
-!896 = !DILocation(line: 456, column: 23, scope: !709)
-!897 = !DILocation(line: 456, column: 36, scope: !709)
-!898 = !DILocation(line: 460, column: 41, scope: !709)
-!899 = !DILocation(line: 460, column: 46, scope: !709)
-!900 = !DILocation(line: 460, column: 30, scope: !709)
-!901 = !DILocation(line: 460, column: 50, scope: !709)
-!902 = !DILocation(line: 460, column: 2, scope: !709)
-!903 = !DILocation(line: 460, column: 7, scope: !709)
-!904 = !DILocation(line: 460, column: 23, scope: !709)
-!905 = !DILocation(line: 460, column: 28, scope: !709)
-!906 = !DILocation(line: 461, column: 41, scope: !709)
-!907 = !DILocation(line: 461, column: 46, scope: !709)
-!908 = !DILocation(line: 461, column: 30, scope: !709)
-!909 = !DILocation(line: 461, column: 50, scope: !709)
-!910 = !DILocation(line: 461, column: 2, scope: !709)
-!911 = !DILocation(line: 461, column: 7, scope: !709)
-!912 = !DILocation(line: 461, column: 23, scope: !709)
-!913 = !DILocation(line: 461, column: 28, scope: !709)
-!914 = !DILocation(line: 463, column: 2, scope: !709)
-!915 = !DILocation(line: 463, column: 7, scope: !709)
-!916 = !DILocation(line: 463, column: 23, scope: !709)
-!917 = !DILocation(line: 463, column: 29, scope: !709)
-!918 = !DILocation(line: 465, column: 28, scope: !709)
-!919 = !DILocation(line: 465, column: 33, scope: !709)
-!920 = !DILocation(line: 465, column: 17, scope: !709)
-!921 = !DILocation(line: 465, column: 37, scope: !709)
-!922 = !DILocation(line: 465, column: 2, scope: !709)
-!923 = !DILocation(line: 465, column: 7, scope: !709)
-!924 = !DILocation(line: 465, column: 15, scope: !709)
-!925 = !DILocation(line: 467, column: 32, scope: !709)
-!926 = !DILocation(line: 467, column: 37, scope: !709)
-!927 = !DILocation(line: 467, column: 21, scope: !709)
-!928 = !DILocation(line: 467, column: 41, scope: !709)
-!929 = !DILocation(line: 467, column: 19, scope: !709)
-!930 = !DILocation(line: 469, column: 17, scope: !709)
-!931 = !DILocation(line: 469, column: 21, scope: !709)
-!932 = !DILocation(line: 469, column: 32, scope: !709)
-!933 = !DILocation(line: 469, column: 2, scope: !709)
-!934 = !DILocation(line: 471, column: 24, scope: !709)
-!935 = !DILocation(line: 471, column: 2, scope: !709)
-!936 = !DILocation(line: 473, column: 51, scope: !709)
-!937 = !DILocation(line: 473, column: 31, scope: !709)
-!938 = !DILocation(line: 473, column: 16, scope: !709)
-!939 = !DILocation(line: 473, column: 2, scope: !709)
-!940 = !DILocation(line: 473, column: 24, scope: !709)
-!941 = !DILocation(line: 473, column: 29, scope: !709)
-!942 = !DILocation(line: 475, column: 9, scope: !709)
-!943 = !DILocation(line: 475, column: 2, scope: !709)
-!944 = !DILocation(line: 476, column: 1, scope: !709)
-!945 = distinct !DISubprogram(name: "robotmaker_proc", linkageName: "_Z15robotmaker_procP10FuelCenter", scope: !15, file: !15, line: 485, type: !946, scopeLine: 486, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!946 = !DISubroutineType(types: !947)
-!947 = !{null, !627}
-!948 = !DILocalVariable(name: "robotcen", arg: 1, scope: !945, file: !15, line: 485, type: !627)
-!949 = !DILocation(line: 485, column: 34, scope: !945)
-!950 = !DILocalVariable(name: "dist_to_player", scope: !945, file: !15, line: 487, type: !16)
-!951 = !DILocation(line: 487, column: 7, scope: !945)
-!952 = !DILocalVariable(name: "cur_object_loc", scope: !945, file: !15, line: 488, type: !61)
-!953 = !DILocation(line: 488, column: 13, scope: !945)
-!954 = !DILocalVariable(name: "matcen_num", scope: !945, file: !15, line: 489, type: !5)
-!955 = !DILocation(line: 489, column: 7, scope: !945)
-!956 = !DILocalVariable(name: "segnum", scope: !945, file: !15, line: 489, type: !5)
-!957 = !DILocation(line: 489, column: 19, scope: !945)
-!958 = !DILocalVariable(name: "objnum", scope: !945, file: !15, line: 489, type: !5)
-!959 = !DILocation(line: 489, column: 27, scope: !945)
-!960 = !DILocalVariable(name: "obj", scope: !945, file: !15, line: 490, type: !712)
-!961 = !DILocation(line: 490, column: 10, scope: !945)
-!962 = !DILocalVariable(name: "top_time", scope: !945, file: !15, line: 491, type: !16)
-!963 = !DILocation(line: 491, column: 7, scope: !945)
-!964 = !DILocalVariable(name: "direction", scope: !945, file: !15, line: 492, type: !61)
-!965 = !DILocation(line: 492, column: 13, scope: !945)
-!966 = !DILocation(line: 494, column: 6, scope: !967)
-!967 = distinct !DILexicalBlock(scope: !945, file: !15, line: 494, column: 6)
-!968 = !DILocation(line: 494, column: 16, scope: !967)
-!969 = !DILocation(line: 494, column: 24, scope: !967)
-!970 = !DILocation(line: 495, column: 3, scope: !967)
-!971 = !DILocation(line: 497, column: 6, scope: !972)
-!972 = distinct !DILexicalBlock(scope: !945, file: !15, line: 497, column: 6)
-!973 = !DILocation(line: 497, column: 16, scope: !972)
-!974 = !DILocation(line: 497, column: 29, scope: !972)
-!975 = !DILocation(line: 499, column: 29, scope: !976)
-!976 = distinct !DILexicalBlock(scope: !972, file: !15, line: 498, column: 2)
-!977 = !DILocation(line: 499, column: 3, scope: !976)
-!978 = !DILocation(line: 499, column: 13, scope: !976)
-!979 = !DILocation(line: 499, column: 26, scope: !976)
-!980 = !DILocation(line: 500, column: 7, scope: !981)
-!981 = distinct !DILexicalBlock(scope: !976, file: !15, line: 500, column: 7)
-!982 = !DILocation(line: 500, column: 17, scope: !981)
-!983 = !DILocation(line: 500, column: 30, scope: !981)
-!984 = !DILocation(line: 502, column: 4, scope: !985)
-!985 = distinct !DILexicalBlock(scope: !981, file: !15, line: 501, column: 3)
-!986 = !DILocation(line: 503, column: 4, scope: !985)
-!987 = !DILocation(line: 503, column: 14, scope: !985)
-!988 = !DILocation(line: 503, column: 22, scope: !985)
-!989 = !DILocation(line: 504, column: 3, scope: !985)
-!990 = !DILocation(line: 505, column: 2, scope: !976)
-!991 = !DILocation(line: 521, column: 6, scope: !992)
-!992 = distinct !DILexicalBlock(scope: !945, file: !15, line: 521, column: 6)
-!993 = !DILocation(line: 521, column: 16, scope: !992)
-!994 = !DILocation(line: 521, column: 25, scope: !992)
-!995 = !DILocation(line: 523, column: 3, scope: !996)
-!996 = distinct !DILexicalBlock(scope: !992, file: !15, line: 522, column: 2)
-!997 = !DILocation(line: 526, column: 25, scope: !945)
-!998 = !DILocation(line: 526, column: 35, scope: !945)
-!999 = !DILocation(line: 526, column: 15, scope: !945)
-!1000 = !DILocation(line: 526, column: 43, scope: !945)
-!1001 = !DILocation(line: 526, column: 13, scope: !945)
-!1002 = !DILocation(line: 529, column: 6, scope: !1003)
-!1003 = distinct !DILexicalBlock(scope: !945, file: !15, line: 529, column: 6)
-!1004 = !DILocation(line: 529, column: 17, scope: !1003)
-!1005 = !DILocation(line: 531, column: 3, scope: !1006)
-!1006 = distinct !DILexicalBlock(scope: !1003, file: !15, line: 530, column: 2)
-!1007 = !DILocation(line: 532, column: 3, scope: !1006)
-!1008 = !DILocation(line: 535, column: 19, scope: !1009)
-!1009 = distinct !DILexicalBlock(scope: !945, file: !15, line: 535, column: 6)
-!1010 = !DILocation(line: 535, column: 6, scope: !1009)
-!1011 = !DILocation(line: 535, column: 31, scope: !1009)
-!1012 = !DILocation(line: 535, column: 46, scope: !1009)
-!1013 = !DILocation(line: 535, column: 51, scope: !1009)
-!1014 = !DILocation(line: 535, column: 67, scope: !1009)
-!1015 = !DILocation(line: 535, column: 54, scope: !1009)
-!1016 = !DILocation(line: 535, column: 79, scope: !1009)
-!1017 = !DILocation(line: 535, column: 94, scope: !1009)
-!1018 = !DILocation(line: 537, column: 3, scope: !1019)
-!1019 = distinct !DILexicalBlock(scope: !1009, file: !15, line: 535, column: 100)
-!1020 = !DILocation(line: 542, column: 15, scope: !1021)
-!1021 = distinct !DILexicalBlock(scope: !945, file: !15, line: 542, column: 6)
-!1022 = !DILocation(line: 542, column: 7, scope: !1021)
-!1023 = !DILocation(line: 542, column: 27, scope: !1021)
-!1024 = !DILocation(line: 542, column: 54, scope: !1021)
-!1025 = !DILocation(line: 542, column: 46, scope: !1021)
-!1026 = !DILocation(line: 542, column: 66, scope: !1021)
-!1027 = !DILocation(line: 542, column: 44, scope: !1021)
-!1028 = !DILocation(line: 542, column: 87, scope: !1021)
-!1029 = !DILocation(line: 542, column: 113, scope: !1021)
-!1030 = !DILocation(line: 542, column: 111, scope: !1021)
-!1031 = !DILocation(line: 542, column: 83, scope: !1021)
-!1032 = !DILocation(line: 544, column: 7, scope: !1033)
-!1033 = distinct !DILexicalBlock(scope: !1034, file: !15, line: 544, column: 7)
-!1034 = distinct !DILexicalBlock(scope: !1021, file: !15, line: 542, column: 132)
-!1035 = !DILocation(line: 544, column: 20, scope: !1033)
-!1036 = !DILocation(line: 544, column: 40, scope: !1033)
-!1037 = !DILocation(line: 544, column: 18, scope: !1033)
-!1038 = !DILocation(line: 546, column: 4, scope: !1039)
-!1039 = distinct !DILexicalBlock(scope: !1033, file: !15, line: 545, column: 3)
-!1040 = !DILocation(line: 547, column: 26, scope: !1039)
-!1041 = !DILocation(line: 547, column: 24, scope: !1039)
-!1042 = !DILocation(line: 548, column: 3, scope: !1039)
-!1043 = !DILocation(line: 550, column: 3, scope: !1034)
-!1044 = !DILocation(line: 553, column: 21, scope: !945)
-!1045 = !DILocation(line: 553, column: 2, scope: !945)
-!1046 = !DILocation(line: 553, column: 12, scope: !945)
-!1047 = !DILocation(line: 553, column: 18, scope: !945)
-!1048 = !DILocation(line: 555, column: 10, scope: !945)
-!1049 = !DILocation(line: 555, column: 20, scope: !945)
-!1050 = !DILocation(line: 555, column: 2, scope: !945)
-!1051 = !DILocation(line: 558, column: 7, scope: !1052)
-!1052 = distinct !DILexicalBlock(scope: !1053, file: !15, line: 558, column: 7)
-!1053 = distinct !DILexicalBlock(scope: !945, file: !15, line: 556, column: 2)
-!1054 = !DILocation(line: 558, column: 17, scope: !1052)
-!1055 = !DILocation(line: 560, column: 15, scope: !1056)
-!1056 = distinct !DILexicalBlock(scope: !1052, file: !15, line: 559, column: 3)
-!1057 = !DILocation(line: 560, column: 13, scope: !1056)
-!1058 = !DILocation(line: 561, column: 3, scope: !1056)
-!1059 = !DILocation(line: 564, column: 40, scope: !1060)
-!1060 = distinct !DILexicalBlock(scope: !1052, file: !15, line: 563, column: 3)
-!1061 = !DILocation(line: 564, column: 55, scope: !1060)
-!1062 = !DILocation(line: 564, column: 61, scope: !1060)
-!1063 = !DILocation(line: 564, column: 71, scope: !1060)
-!1064 = !DILocation(line: 564, column: 21, scope: !1060)
-!1065 = !DILocation(line: 564, column: 19, scope: !1060)
-!1066 = !DILocation(line: 565, column: 15, scope: !1060)
-!1067 = !DILocation(line: 565, column: 30, scope: !1060)
-!1068 = !DILocation(line: 565, column: 37, scope: !1060)
-!1069 = !DILocation(line: 565, column: 46, scope: !1060)
-!1070 = !DILocation(line: 565, column: 35, scope: !1060)
-!1071 = !DILocation(line: 565, column: 50, scope: !1060)
-!1072 = !DILocation(line: 565, column: 13, scope: !1060)
-!1073 = !DILocation(line: 566, column: 8, scope: !1074)
-!1074 = distinct !DILexicalBlock(scope: !1060, file: !15, line: 566, column: 8)
-!1075 = !DILocation(line: 566, column: 19, scope: !1074)
-!1076 = !DILocation(line: 566, column: 17, scope: !1074)
-!1077 = !DILocation(line: 567, column: 16, scope: !1074)
-!1078 = !DILocation(line: 567, column: 33, scope: !1074)
-!1079 = !DILocation(line: 567, column: 31, scope: !1074)
-!1080 = !DILocation(line: 567, column: 14, scope: !1074)
-!1081 = !DILocation(line: 567, column: 5, scope: !1074)
-!1082 = !DILocation(line: 568, column: 8, scope: !1083)
-!1083 = distinct !DILexicalBlock(scope: !1060, file: !15, line: 568, column: 8)
-!1084 = !DILocation(line: 568, column: 17, scope: !1083)
-!1085 = !DILocation(line: 569, column: 31, scope: !1083)
-!1086 = !DILocation(line: 569, column: 40, scope: !1083)
-!1087 = !DILocation(line: 569, column: 29, scope: !1083)
-!1088 = !DILocation(line: 569, column: 14, scope: !1083)
-!1089 = !DILocation(line: 569, column: 5, scope: !1083)
-!1090 = !DILocation(line: 574, column: 7, scope: !1091)
-!1091 = distinct !DILexicalBlock(scope: !1053, file: !15, line: 574, column: 7)
-!1092 = !DILocation(line: 574, column: 17, scope: !1091)
-!1093 = !DILocation(line: 574, column: 25, scope: !1091)
-!1094 = !DILocation(line: 574, column: 23, scope: !1091)
-!1095 = !DILocalVariable(name: "count", scope: !1096, file: !15, line: 576, type: !5)
-!1096 = distinct !DILexicalBlock(scope: !1091, file: !15, line: 575, column: 3)
-!1097 = !DILocation(line: 576, column: 8, scope: !1096)
-!1098 = !DILocalVariable(name: "i", scope: !1096, file: !15, line: 577, type: !5)
-!1099 = !DILocation(line: 577, column: 8, scope: !1096)
-!1100 = !DILocalVariable(name: "my_station_num", scope: !1096, file: !15, line: 577, type: !5)
-!1101 = !DILocation(line: 577, column: 11, scope: !1096)
-!1102 = !DILocation(line: 577, column: 28, scope: !1096)
-!1103 = !DILocation(line: 577, column: 37, scope: !1096)
-!1104 = !DILocalVariable(name: "obj", scope: !1096, file: !15, line: 578, type: !712)
-!1105 = !DILocation(line: 578, column: 12, scope: !1096)
-!1106 = !DILocation(line: 581, column: 11, scope: !1107)
-!1107 = distinct !DILexicalBlock(scope: !1096, file: !15, line: 581, column: 4)
-!1108 = !DILocation(line: 581, column: 9, scope: !1107)
-!1109 = !DILocation(line: 581, column: 16, scope: !1110)
-!1110 = distinct !DILexicalBlock(scope: !1107, file: !15, line: 581, column: 4)
-!1111 = !DILocation(line: 581, column: 21, scope: !1110)
-!1112 = !DILocation(line: 581, column: 18, scope: !1110)
-!1113 = !DILocation(line: 581, column: 4, scope: !1107)
-!1114 = !DILocation(line: 582, column: 17, scope: !1115)
-!1115 = distinct !DILexicalBlock(scope: !1110, file: !15, line: 582, column: 9)
-!1116 = !DILocation(line: 582, column: 9, scope: !1115)
-!1117 = !DILocation(line: 582, column: 20, scope: !1115)
-!1118 = !DILocation(line: 582, column: 25, scope: !1115)
-!1119 = !DILocation(line: 585, column: 27, scope: !1120)
-!1120 = distinct !DILexicalBlock(scope: !1115, file: !15, line: 585, column: 10)
-!1121 = !DILocation(line: 585, column: 19, scope: !1120)
-!1122 = !DILocation(line: 585, column: 30, scope: !1120)
-!1123 = !DILocation(line: 585, column: 45, scope: !1120)
-!1124 = !DILocation(line: 585, column: 18, scope: !1120)
-!1125 = !DILocation(line: 585, column: 10, scope: !1120)
-!1126 = !DILocation(line: 585, column: 56, scope: !1120)
-!1127 = !DILocation(line: 585, column: 53, scope: !1120)
-!1128 = !DILocation(line: 586, column: 12, scope: !1120)
-!1129 = !DILocation(line: 586, column: 7, scope: !1120)
-!1130 = !DILocation(line: 582, column: 28, scope: !1115)
-!1131 = !DILocation(line: 581, column: 44, scope: !1110)
-!1132 = !DILocation(line: 581, column: 4, scope: !1110)
-!1133 = distinct !{!1133, !1113, !1134, !363}
-!1134 = !DILocation(line: 586, column: 12, scope: !1107)
-!1135 = !DILocation(line: 587, column: 8, scope: !1136)
-!1136 = distinct !DILexicalBlock(scope: !1096, file: !15, line: 587, column: 8)
-!1137 = !DILocation(line: 587, column: 16, scope: !1136)
-!1138 = !DILocation(line: 587, column: 33, scope: !1136)
-!1139 = !DILocation(line: 587, column: 14, scope: !1136)
-!1140 = !DILocation(line: 589, column: 5, scope: !1141)
-!1141 = distinct !DILexicalBlock(scope: !1136, file: !15, line: 588, column: 4)
-!1142 = !DILocation(line: 590, column: 5, scope: !1141)
-!1143 = !DILocation(line: 590, column: 15, scope: !1141)
-!1144 = !DILocation(line: 590, column: 21, scope: !1141)
-!1145 = !DILocation(line: 591, column: 5, scope: !1141)
-!1146 = !DILocation(line: 595, column: 10, scope: !1096)
-!1147 = !DILocation(line: 596, column: 13, scope: !1096)
-!1148 = !DILocation(line: 596, column: 23, scope: !1096)
-!1149 = !DILocation(line: 596, column: 11, scope: !1096)
-!1150 = !DILocation(line: 597, column: 27, scope: !1151)
-!1151 = distinct !DILexicalBlock(scope: !1096, file: !15, line: 597, column: 4)
-!1152 = !DILocation(line: 597, column: 18, scope: !1151)
-!1153 = !DILocation(line: 597, column: 35, scope: !1151)
-!1154 = !DILocation(line: 597, column: 16, scope: !1151)
-!1155 = !DILocation(line: 597, column: 9, scope: !1151)
-!1156 = !DILocation(line: 597, column: 44, scope: !1157)
-!1157 = distinct !DILexicalBlock(scope: !1151, file: !15, line: 597, column: 4)
-!1158 = !DILocation(line: 597, column: 51, scope: !1157)
-!1159 = !DILocation(line: 597, column: 4, scope: !1151)
-!1160 = !DILocation(line: 599, column: 10, scope: !1161)
-!1161 = distinct !DILexicalBlock(scope: !1157, file: !15, line: 598, column: 4)
-!1162 = !DILocation(line: 600, column: 9, scope: !1163)
-!1163 = distinct !DILexicalBlock(scope: !1161, file: !15, line: 600, column: 9)
-!1164 = !DILocation(line: 600, column: 15, scope: !1163)
-!1165 = !DILocation(line: 602, column: 6, scope: !1166)
-!1166 = distinct !DILexicalBlock(scope: !1163, file: !15, line: 601, column: 5)
-!1167 = !DILocation(line: 603, column: 6, scope: !1166)
-!1168 = !DILocation(line: 604, column: 6, scope: !1166)
-!1169 = !DILocation(line: 606, column: 17, scope: !1170)
-!1170 = distinct !DILexicalBlock(scope: !1161, file: !15, line: 606, column: 9)
-!1171 = !DILocation(line: 606, column: 9, scope: !1170)
-!1172 = !DILocation(line: 606, column: 25, scope: !1170)
-!1173 = !DILocation(line: 606, column: 30, scope: !1170)
-!1174 = !DILocation(line: 608, column: 56, scope: !1175)
-!1175 = distinct !DILexicalBlock(scope: !1170, file: !15, line: 607, column: 5)
-!1176 = !DILocation(line: 608, column: 48, scope: !1175)
-!1177 = !DILocation(line: 608, column: 6, scope: !1175)
-!1178 = !DILocation(line: 609, column: 24, scope: !1175)
-!1179 = !DILocation(line: 609, column: 33, scope: !1175)
-!1180 = !DILocation(line: 609, column: 6, scope: !1175)
-!1181 = !DILocation(line: 609, column: 16, scope: !1175)
-!1182 = !DILocation(line: 609, column: 22, scope: !1175)
-!1183 = !DILocation(line: 610, column: 6, scope: !1175)
-!1184 = !DILocation(line: 612, column: 22, scope: !1185)
-!1185 = distinct !DILexicalBlock(scope: !1170, file: !15, line: 612, column: 14)
-!1186 = !DILocation(line: 612, column: 14, scope: !1185)
-!1187 = !DILocation(line: 612, column: 30, scope: !1185)
-!1188 = !DILocation(line: 612, column: 35, scope: !1185)
-!1189 = !DILocation(line: 614, column: 57, scope: !1190)
-!1190 = distinct !DILexicalBlock(scope: !1185, file: !15, line: 613, column: 5)
-!1191 = !DILocation(line: 614, column: 49, scope: !1190)
-!1192 = !DILocation(line: 614, column: 6, scope: !1190)
-!1193 = !DILocation(line: 615, column: 24, scope: !1190)
-!1194 = !DILocation(line: 615, column: 33, scope: !1190)
-!1195 = !DILocation(line: 615, column: 6, scope: !1190)
-!1196 = !DILocation(line: 615, column: 16, scope: !1190)
-!1197 = !DILocation(line: 615, column: 22, scope: !1190)
-!1198 = !DILocation(line: 616, column: 6, scope: !1190)
-!1199 = !DILocation(line: 618, column: 4, scope: !1161)
-!1200 = !DILocation(line: 597, column: 75, scope: !1157)
-!1201 = !DILocation(line: 597, column: 67, scope: !1157)
-!1202 = !DILocation(line: 597, column: 83, scope: !1157)
-!1203 = !DILocation(line: 597, column: 65, scope: !1157)
-!1204 = !DILocation(line: 597, column: 4, scope: !1157)
-!1205 = distinct !{!1205, !1159, !1206, !363}
-!1206 = !DILocation(line: 618, column: 4, scope: !1151)
-!1207 = !DILocation(line: 620, column: 54, scope: !1096)
-!1208 = !DILocation(line: 620, column: 64, scope: !1096)
-!1209 = !DILocation(line: 620, column: 45, scope: !1096)
-!1210 = !DILocation(line: 620, column: 4, scope: !1096)
-!1211 = !DILocation(line: 622, column: 34, scope: !1096)
-!1212 = !DILocation(line: 622, column: 44, scope: !1096)
-!1213 = !DILocation(line: 622, column: 69, scope: !1096)
-!1214 = !DILocation(line: 622, column: 10, scope: !1096)
-!1215 = !DILocation(line: 622, column: 8, scope: !1096)
-!1216 = !DILocation(line: 624, column: 8, scope: !1217)
-!1217 = distinct !DILexicalBlock(scope: !1096, file: !15, line: 624, column: 8)
-!1218 = !DILocation(line: 625, column: 34, scope: !1217)
-!1219 = !DILocation(line: 625, column: 39, scope: !1217)
-!1220 = !DILocation(line: 625, column: 57, scope: !1217)
-!1221 = !DILocation(line: 625, column: 67, scope: !1217)
-!1222 = !DILocation(line: 625, column: 48, scope: !1217)
-!1223 = !DILocation(line: 625, column: 5, scope: !1217)
-!1224 = !DILocation(line: 627, column: 36, scope: !1225)
-!1225 = distinct !DILexicalBlock(scope: !1096, file: !15, line: 627, column: 8)
-!1226 = !DILocation(line: 627, column: 8, scope: !1225)
-!1227 = !DILocation(line: 627, column: 46, scope: !1225)
-!1228 = !DILocation(line: 629, column: 56, scope: !1229)
-!1229 = distinct !DILexicalBlock(scope: !1225, file: !15, line: 628, column: 4)
-!1230 = !DILocation(line: 629, column: 28, scope: !1229)
-!1231 = !DILocation(line: 629, column: 67, scope: !1229)
-!1232 = !DILocation(line: 629, column: 77, scope: !1229)
-!1233 = !DILocation(line: 629, column: 5, scope: !1229)
-!1234 = !DILocation(line: 630, column: 4, scope: !1229)
-!1235 = !DILocation(line: 631, column: 4, scope: !1096)
-!1236 = !DILocation(line: 631, column: 14, scope: !1096)
-!1237 = !DILocation(line: 631, column: 19, scope: !1096)
-!1238 = !DILocation(line: 632, column: 4, scope: !1096)
-!1239 = !DILocation(line: 632, column: 14, scope: !1096)
-!1240 = !DILocation(line: 632, column: 20, scope: !1096)
-!1241 = !DILocation(line: 634, column: 3, scope: !1096)
-!1242 = !DILocation(line: 635, column: 3, scope: !1053)
-!1243 = !DILocation(line: 637, column: 7, scope: !1244)
-!1244 = distinct !DILexicalBlock(scope: !1053, file: !15, line: 637, column: 7)
-!1245 = !DILocation(line: 637, column: 17, scope: !1244)
-!1246 = !DILocation(line: 637, column: 54, scope: !1244)
-!1247 = !DILocation(line: 637, column: 64, scope: !1244)
-!1248 = !DILocation(line: 637, column: 23, scope: !1244)
-!1249 = !DILocation(line: 639, column: 26, scope: !1250)
-!1250 = distinct !DILexicalBlock(scope: !1244, file: !15, line: 637, column: 70)
-!1251 = !DILocation(line: 639, column: 4, scope: !1250)
-!1252 = !DILocation(line: 639, column: 14, scope: !1250)
-!1253 = !DILocation(line: 639, column: 23, scope: !1250)
-!1254 = !DILocation(line: 640, column: 4, scope: !1250)
-!1255 = !DILocation(line: 640, column: 14, scope: !1250)
-!1256 = !DILocation(line: 640, column: 19, scope: !1250)
-!1257 = !DILocation(line: 642, column: 4, scope: !1250)
-!1258 = !DILocation(line: 642, column: 14, scope: !1250)
-!1259 = !DILocation(line: 642, column: 20, scope: !1250)
-!1260 = !DILocation(line: 643, column: 54, scope: !1250)
-!1261 = !DILocation(line: 643, column: 64, scope: !1250)
-!1262 = !DILocation(line: 643, column: 45, scope: !1250)
-!1263 = !DILocation(line: 643, column: 4, scope: !1250)
-!1264 = !DILocation(line: 646, column: 21, scope: !1265)
-!1265 = distinct !DILexicalBlock(scope: !1250, file: !15, line: 646, column: 8)
-!1266 = !DILocation(line: 646, column: 8, scope: !1265)
-!1267 = !DILocation(line: 646, column: 33, scope: !1265)
-!1268 = !DILocation(line: 646, column: 48, scope: !1265)
-!1269 = !DILocation(line: 646, column: 53, scope: !1265)
-!1270 = !DILocation(line: 646, column: 69, scope: !1265)
-!1271 = !DILocation(line: 646, column: 56, scope: !1265)
-!1272 = !DILocation(line: 646, column: 81, scope: !1265)
-!1273 = !DILocation(line: 646, column: 96, scope: !1265)
-!1274 = !DILocalVariable(name: "type", scope: !1275, file: !15, line: 647, type: !5)
-!1275 = distinct !DILexicalBlock(scope: !1265, file: !15, line: 646, column: 102)
-!1276 = !DILocation(line: 647, column: 9, scope: !1275)
-!1277 = !DILocalVariable(name: "flags", scope: !1275, file: !15, line: 648, type: !257)
-!1278 = !DILocation(line: 648, column: 14, scope: !1275)
-!1279 = !DILocalVariable(name: "legal_types", scope: !1275, file: !15, line: 649, type: !1280)
-!1280 = !DICompositeType(tag: DW_TAG_array_type, baseType: !6, size: 512, elements: !1281)
-!1281 = !{!1282}
-!1282 = !DISubrange(count: 64)
-!1283 = !DILocation(line: 649, column: 12, scope: !1275)
-!1284 = !DILocalVariable(name: "num_types", scope: !1275, file: !15, line: 650, type: !5)
-!1285 = !DILocation(line: 650, column: 9, scope: !1275)
-!1286 = !DILocalVariable(name: "robot_index", scope: !1275, file: !15, line: 650, type: !5)
-!1287 = !DILocation(line: 650, column: 20, scope: !1275)
-!1288 = !DILocalVariable(name: "i", scope: !1275, file: !15, line: 650, type: !5)
-!1289 = !DILocation(line: 650, column: 33, scope: !1275)
-!1290 = !DILocation(line: 652, column: 15, scope: !1275)
-!1291 = !DILocation(line: 653, column: 12, scope: !1292)
-!1292 = distinct !DILexicalBlock(scope: !1275, file: !15, line: 653, column: 5)
-!1293 = !DILocation(line: 653, column: 10, scope: !1292)
-!1294 = !DILocation(line: 653, column: 17, scope: !1295)
-!1295 = distinct !DILexicalBlock(scope: !1292, file: !15, line: 653, column: 5)
-!1296 = !DILocation(line: 653, column: 19, scope: !1295)
-!1297 = !DILocation(line: 653, column: 5, scope: !1292)
-!1298 = !DILocation(line: 654, column: 20, scope: !1299)
-!1299 = distinct !DILexicalBlock(scope: !1295, file: !15, line: 653, column: 29)
-!1300 = !DILocation(line: 654, column: 22, scope: !1299)
-!1301 = !DILocation(line: 654, column: 18, scope: !1299)
-!1302 = !DILocation(line: 655, column: 27, scope: !1299)
-!1303 = !DILocation(line: 655, column: 14, scope: !1299)
-!1304 = !DILocation(line: 655, column: 39, scope: !1299)
-!1305 = !DILocation(line: 655, column: 51, scope: !1299)
-!1306 = !DILocation(line: 655, column: 12, scope: !1299)
-!1307 = !DILocation(line: 656, column: 6, scope: !1299)
-!1308 = !DILocation(line: 656, column: 13, scope: !1299)
-!1309 = !DILocation(line: 657, column: 11, scope: !1310)
-!1310 = distinct !DILexicalBlock(scope: !1311, file: !15, line: 657, column: 11)
-!1311 = distinct !DILexicalBlock(scope: !1299, file: !15, line: 656, column: 20)
-!1312 = !DILocation(line: 657, column: 17, scope: !1310)
-!1313 = !DILocation(line: 658, column: 35, scope: !1310)
-!1314 = !DILocation(line: 658, column: 29, scope: !1310)
-!1315 = !DILocation(line: 658, column: 8, scope: !1310)
-!1316 = !DILocation(line: 658, column: 33, scope: !1310)
-!1317 = !DILocation(line: 659, column: 13, scope: !1311)
-!1318 = !DILocation(line: 660, column: 18, scope: !1311)
-!1319 = distinct !{!1319, !1307, !1320, !363}
-!1320 = !DILocation(line: 661, column: 6, scope: !1299)
-!1321 = !DILocation(line: 662, column: 5, scope: !1299)
-!1322 = !DILocation(line: 653, column: 25, scope: !1295)
-!1323 = !DILocation(line: 653, column: 5, scope: !1295)
-!1324 = distinct !{!1324, !1297, !1325, !363}
-!1325 = !DILocation(line: 662, column: 5, scope: !1292)
-!1326 = !DILocation(line: 669, column: 9, scope: !1327)
-!1327 = distinct !DILexicalBlock(scope: !1275, file: !15, line: 669, column: 9)
-!1328 = !DILocation(line: 669, column: 19, scope: !1327)
-!1329 = !DILocation(line: 670, column: 13, scope: !1327)
-!1330 = !DILocation(line: 670, column: 11, scope: !1327)
-!1331 = !DILocation(line: 670, column: 6, scope: !1327)
-!1332 = !DILocation(line: 672, column: 26, scope: !1327)
-!1333 = !DILocation(line: 672, column: 37, scope: !1327)
-!1334 = !DILocation(line: 672, column: 35, scope: !1327)
-!1335 = !DILocation(line: 672, column: 48, scope: !1327)
-!1336 = !DILocation(line: 672, column: 13, scope: !1327)
-!1337 = !DILocation(line: 672, column: 11, scope: !1327)
-!1338 = !DILocation(line: 674, column: 5, scope: !1275)
-!1339 = !DILocation(line: 675, column: 40, scope: !1275)
-!1340 = !DILocation(line: 675, column: 50, scope: !1275)
-!1341 = !DILocation(line: 675, column: 31, scope: !1275)
-!1342 = !DILocation(line: 675, column: 76, scope: !1275)
-!1343 = !DILocation(line: 675, column: 11, scope: !1275)
-!1344 = !DILocation(line: 675, column: 9, scope: !1275)
-!1345 = !DILocation(line: 676, column: 9, scope: !1346)
-!1346 = distinct !DILexicalBlock(scope: !1275, file: !15, line: 676, column: 9)
-!1347 = !DILocation(line: 676, column: 13, scope: !1346)
-!1348 = !DILocation(line: 683, column: 28, scope: !1349)
-!1349 = distinct !DILexicalBlock(scope: !1346, file: !15, line: 676, column: 22)
-!1350 = !DILocation(line: 683, column: 37, scope: !1349)
-!1351 = !DILocation(line: 683, column: 47, scope: !1349)
-!1352 = !DILocation(line: 683, column: 6, scope: !1349)
-!1353 = !DILocation(line: 683, column: 11, scope: !1349)
-!1354 = !DILocation(line: 683, column: 26, scope: !1349)
-!1355 = !DILocation(line: 686, column: 30, scope: !1349)
-!1356 = !DILocation(line: 686, column: 45, scope: !1349)
-!1357 = !DILocation(line: 686, column: 51, scope: !1349)
-!1358 = !DILocation(line: 686, column: 56, scope: !1349)
-!1359 = !DILocation(line: 686, column: 6, scope: !1349)
-!1360 = !DILocation(line: 687, column: 26, scope: !1349)
-!1361 = !DILocation(line: 687, column: 31, scope: !1349)
-!1362 = !DILocation(line: 687, column: 52, scope: !1349)
-!1363 = !DILocation(line: 687, column: 57, scope: !1349)
-!1364 = !DILocation(line: 687, column: 64, scope: !1349)
-!1365 = !DILocation(line: 687, column: 6, scope: !1349)
-!1366 = !DILocation(line: 689, column: 18, scope: !1349)
-!1367 = !DILocation(line: 689, column: 6, scope: !1349)
-!1368 = !DILocation(line: 692, column: 5, scope: !1349)
-!1369 = !DILocation(line: 694, column: 6, scope: !1346)
-!1370 = !DILocation(line: 696, column: 4, scope: !1275)
-!1371 = !DILocation(line: 698, column: 3, scope: !1250)
-!1372 = !DILocation(line: 699, column: 3, scope: !1053)
-!1373 = !DILocation(line: 701, column: 3, scope: !1053)
-!1374 = !DILocation(line: 701, column: 13, scope: !1053)
-!1375 = !DILocation(line: 701, column: 18, scope: !1053)
-!1376 = !DILocation(line: 702, column: 3, scope: !1053)
-!1377 = !DILocation(line: 702, column: 13, scope: !1053)
-!1378 = !DILocation(line: 702, column: 19, scope: !1053)
-!1379 = !DILocation(line: 703, column: 2, scope: !1053)
-!1380 = !DILocation(line: 704, column: 1, scope: !945)
-!1381 = distinct !DISubprogram(name: "fuelcen_update_all", linkageName: "_Z18fuelcen_update_allv", scope: !15, file: !15, line: 711, type: !343, scopeLine: 712, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1382 = !DILocalVariable(name: "i", scope: !1381, file: !15, line: 713, type: !5)
-!1383 = !DILocation(line: 713, column: 6, scope: !1381)
-!1384 = !DILocalVariable(name: "AmountToreplenish", scope: !1381, file: !15, line: 714, type: !16)
-!1385 = !DILocation(line: 714, column: 6, scope: !1381)
-!1386 = !DILocation(line: 716, column: 29, scope: !1381)
-!1387 = !DILocation(line: 716, column: 40, scope: !1381)
-!1388 = !DILocation(line: 716, column: 22, scope: !1381)
-!1389 = !DILocation(line: 716, column: 20, scope: !1381)
-!1390 = !DILocation(line: 718, column: 9, scope: !1391)
-!1391 = distinct !DILexicalBlock(scope: !1381, file: !15, line: 718, column: 2)
-!1392 = !DILocation(line: 718, column: 7, scope: !1391)
-!1393 = !DILocation(line: 718, column: 14, scope: !1394)
-!1394 = distinct !DILexicalBlock(scope: !1391, file: !15, line: 718, column: 2)
-!1395 = !DILocation(line: 718, column: 18, scope: !1394)
-!1396 = !DILocation(line: 718, column: 16, scope: !1394)
-!1397 = !DILocation(line: 718, column: 2, scope: !1391)
-!1398 = !DILocation(line: 719, column: 15, scope: !1399)
-!1399 = distinct !DILexicalBlock(scope: !1400, file: !15, line: 719, column: 7)
-!1400 = distinct !DILexicalBlock(scope: !1394, file: !15, line: 718, column: 40)
-!1401 = !DILocation(line: 719, column: 7, scope: !1399)
-!1402 = !DILocation(line: 719, column: 18, scope: !1399)
-!1403 = !DILocation(line: 719, column: 23, scope: !1399)
-!1404 = !DILocation(line: 720, column: 10, scope: !1405)
-!1405 = distinct !DILexicalBlock(scope: !1406, file: !15, line: 720, column: 8)
-!1406 = distinct !DILexicalBlock(scope: !1399, file: !15, line: 719, column: 49)
-!1407 = !DILocation(line: 720, column: 25, scope: !1405)
-!1408 = !DILocation(line: 720, column: 9, scope: !1405)
-!1409 = !DILocation(line: 720, column: 8, scope: !1405)
-!1410 = !DILocation(line: 721, column: 30, scope: !1405)
-!1411 = !DILocation(line: 721, column: 22, scope: !1405)
-!1412 = !DILocation(line: 721, column: 5, scope: !1405)
-!1413 = !DILocation(line: 722, column: 3, scope: !1406)
-!1414 = !DILocation(line: 723, column: 20, scope: !1415)
-!1415 = distinct !DILexicalBlock(scope: !1399, file: !15, line: 723, column: 12)
-!1416 = !DILocation(line: 723, column: 12, scope: !1415)
-!1417 = !DILocation(line: 723, column: 23, scope: !1415)
-!1418 = !DILocation(line: 723, column: 28, scope: !1415)
-!1419 = !DILocation(line: 726, column: 3, scope: !1420)
-!1420 = distinct !DILexicalBlock(scope: !1415, file: !15, line: 723, column: 54)
-!1421 = !DILocation(line: 727, column: 21, scope: !1422)
-!1422 = distinct !DILexicalBlock(scope: !1415, file: !15, line: 727, column: 12)
-!1423 = !DILocation(line: 727, column: 13, scope: !1422)
-!1424 = !DILocation(line: 727, column: 24, scope: !1422)
-!1425 = !DILocation(line: 727, column: 36, scope: !1422)
-!1426 = !DILocation(line: 727, column: 41, scope: !1422)
-!1427 = !DILocation(line: 727, column: 45, scope: !1422)
-!1428 = !DILocation(line: 727, column: 80, scope: !1422)
-!1429 = !DILocation(line: 727, column: 72, scope: !1422)
-!1430 = !DILocation(line: 727, column: 83, scope: !1422)
-!1431 = !DILocation(line: 727, column: 63, scope: !1422)
-!1432 = !DILocation(line: 727, column: 59, scope: !1422)
-!1433 = !DILocation(line: 728, column: 16, scope: !1434)
-!1434 = distinct !DILexicalBlock(scope: !1435, file: !15, line: 728, column: 8)
-!1435 = distinct !DILexicalBlock(scope: !1422, file: !15, line: 727, column: 93)
-!1436 = !DILocation(line: 728, column: 8, scope: !1434)
-!1437 = !DILocation(line: 728, column: 19, scope: !1434)
-!1438 = !DILocation(line: 728, column: 38, scope: !1434)
-!1439 = !DILocation(line: 728, column: 30, scope: !1434)
-!1440 = !DILocation(line: 728, column: 41, scope: !1434)
-!1441 = !DILocation(line: 728, column: 28, scope: !1434)
-!1442 = !DILocation(line: 729, column: 28, scope: !1443)
-!1443 = distinct !DILexicalBlock(scope: !1434, file: !15, line: 728, column: 54)
-!1444 = !DILocation(line: 729, column: 13, scope: !1443)
-!1445 = !DILocation(line: 729, column: 5, scope: !1443)
-!1446 = !DILocation(line: 729, column: 16, scope: !1443)
-!1447 = !DILocation(line: 729, column: 25, scope: !1443)
-!1448 = !DILocation(line: 731, column: 17, scope: !1449)
-!1449 = distinct !DILexicalBlock(scope: !1443, file: !15, line: 731, column: 9)
-!1450 = !DILocation(line: 731, column: 9, scope: !1449)
-!1451 = !DILocation(line: 731, column: 20, scope: !1449)
-!1452 = !DILocation(line: 731, column: 40, scope: !1449)
-!1453 = !DILocation(line: 731, column: 32, scope: !1449)
-!1454 = !DILocation(line: 731, column: 43, scope: !1449)
-!1455 = !DILocation(line: 731, column: 29, scope: !1449)
-!1456 = !DILocation(line: 732, column: 36, scope: !1457)
-!1457 = distinct !DILexicalBlock(scope: !1449, file: !15, line: 731, column: 56)
-!1458 = !DILocation(line: 732, column: 28, scope: !1457)
-!1459 = !DILocation(line: 732, column: 39, scope: !1457)
-!1460 = !DILocation(line: 732, column: 14, scope: !1457)
-!1461 = !DILocation(line: 732, column: 6, scope: !1457)
-!1462 = !DILocation(line: 732, column: 17, scope: !1457)
-!1463 = !DILocation(line: 732, column: 26, scope: !1457)
-!1464 = !DILocation(line: 734, column: 5, scope: !1457)
-!1465 = !DILocation(line: 735, column: 4, scope: !1443)
-!1466 = !DILocation(line: 736, column: 3, scope: !1435)
-!1467 = !DILocation(line: 737, column: 2, scope: !1400)
-!1468 = !DILocation(line: 718, column: 36, scope: !1394)
-!1469 = !DILocation(line: 718, column: 2, scope: !1394)
-!1470 = distinct !{!1470, !1397, !1471, !363}
-!1471 = !DILocation(line: 737, column: 2, scope: !1391)
-!1472 = !DILocation(line: 738, column: 1, scope: !1381)
-!1473 = distinct !DISubprogram(name: "fixmul", linkageName: "_Z6fixmulii", scope: !17, file: !17, line: 83, type: !1474, scopeLine: 84, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1474 = !DISubroutineType(types: !1475)
-!1475 = !{!16, !16, !16}
-!1476 = !DILocalVariable(name: "a", arg: 1, scope: !1473, file: !17, line: 83, type: !16)
-!1477 = !DILocation(line: 83, column: 26, scope: !1473)
-!1478 = !DILocalVariable(name: "b", arg: 2, scope: !1473, file: !17, line: 83, type: !16)
-!1479 = !DILocation(line: 83, column: 33, scope: !1473)
-!1480 = !DILocation(line: 85, column: 19, scope: !1473)
-!1481 = !DILocation(line: 85, column: 32, scope: !1473)
-!1482 = !DILocation(line: 85, column: 21, scope: !1473)
-!1483 = !DILocation(line: 85, column: 35, scope: !1473)
-!1484 = !DILocation(line: 85, column: 9, scope: !1473)
-!1485 = !DILocation(line: 85, column: 2, scope: !1473)
-!1486 = !DILocalVariable(name: "segp", arg: 1, scope: !210, file: !15, line: 756, type: !74)
-!1487 = !DILocation(line: 756, column: 32, scope: !210)
-!1488 = !DILocalVariable(name: "MaxAmountCanTake", arg: 2, scope: !210, file: !15, line: 756, type: !16)
-!1489 = !DILocation(line: 756, column: 42, scope: !210)
-!1490 = !DILocalVariable(name: "seg2p", scope: !210, file: !15, line: 758, type: !409)
-!1491 = !DILocation(line: 758, column: 12, scope: !210)
-!1492 = !DILocation(line: 758, column: 31, scope: !210)
-!1493 = !DILocation(line: 758, column: 36, scope: !210)
-!1494 = !DILocation(line: 758, column: 21, scope: !210)
-!1495 = !DILocation(line: 762, column: 2, scope: !210)
-!1496 = !DILocation(line: 764, column: 18, scope: !210)
-!1497 = !DILocation(line: 764, column: 16, scope: !210)
-!1498 = !DILocation(line: 766, column: 7, scope: !1499)
-!1499 = distinct !DILexicalBlock(scope: !210, file: !15, line: 766, column: 6)
-!1500 = !DILocation(line: 766, column: 6, scope: !1499)
-!1501 = !DILocation(line: 766, column: 13, scope: !1499)
-!1502 = !DILocation(line: 766, column: 17, scope: !1499)
-!1503 = !DILocation(line: 766, column: 24, scope: !1499)
-!1504 = !DILocation(line: 766, column: 32, scope: !1499)
-!1505 = !DILocalVariable(name: "amount", scope: !1506, file: !15, line: 767, type: !16)
-!1506 = distinct !DILexicalBlock(scope: !1499, file: !15, line: 766, column: 56)
-!1507 = !DILocation(line: 767, column: 7, scope: !1506)
-!1508 = !DILocation(line: 769, column: 3, scope: !1506)
-!1509 = !DILocation(line: 781, column: 7, scope: !1510)
-!1510 = distinct !DILexicalBlock(scope: !1506, file: !15, line: 781, column: 7)
-!1511 = !DILocation(line: 781, column: 24, scope: !1510)
-!1512 = !DILocation(line: 783, column: 4, scope: !1513)
-!1513 = distinct !DILexicalBlock(scope: !1510, file: !15, line: 781, column: 30)
-!1514 = !DILocation(line: 786, column: 19, scope: !1506)
-!1515 = !DILocation(line: 786, column: 30, scope: !1506)
-!1516 = !DILocation(line: 786, column: 12, scope: !1506)
-!1517 = !DILocation(line: 786, column: 10, scope: !1506)
-!1518 = !DILocation(line: 788, column: 7, scope: !1519)
-!1519 = distinct !DILexicalBlock(scope: !1506, file: !15, line: 788, column: 7)
-!1520 = !DILocation(line: 788, column: 16, scope: !1519)
-!1521 = !DILocation(line: 788, column: 14, scope: !1519)
-!1522 = !DILocation(line: 789, column: 13, scope: !1519)
-!1523 = !DILocation(line: 789, column: 11, scope: !1519)
-!1524 = !DILocation(line: 789, column: 4, scope: !1519)
-!1525 = !DILocation(line: 799, column: 7, scope: !1526)
-!1526 = distinct !DILexicalBlock(scope: !1506, file: !15, line: 799, column: 7)
-!1527 = !DILocation(line: 799, column: 24, scope: !1526)
-!1528 = !DILocation(line: 799, column: 22, scope: !1526)
-!1529 = !DILocation(line: 800, column: 19, scope: !1526)
-!1530 = !DILocation(line: 800, column: 4, scope: !1526)
-!1531 = !DILocation(line: 802, column: 7, scope: !1532)
-!1532 = distinct !DILexicalBlock(scope: !1506, file: !15, line: 802, column: 7)
-!1533 = !DILocation(line: 802, column: 18, scope: !1532)
-!1534 = !DILocation(line: 802, column: 33, scope: !1532)
-!1535 = !DILocation(line: 802, column: 16, scope: !1532)
-!1536 = !DILocation(line: 804, column: 4, scope: !1537)
-!1537 = distinct !DILexicalBlock(scope: !1532, file: !15, line: 802, column: 56)
-!1538 = !DILocation(line: 810, column: 21, scope: !1537)
-!1539 = !DILocation(line: 810, column: 19, scope: !1537)
-!1540 = !DILocation(line: 811, column: 3, scope: !1537)
-!1541 = !DILocation(line: 815, column: 10, scope: !1506)
-!1542 = !DILocation(line: 815, column: 3, scope: !1506)
-!1543 = !DILocation(line: 819, column: 3, scope: !1544)
-!1544 = distinct !DILexicalBlock(scope: !1499, file: !15, line: 818, column: 7)
-!1545 = !DILocation(line: 821, column: 1, scope: !210)
-!1546 = distinct !DISubprogram(name: "disable_matcens", linkageName: "_Z15disable_matcensv", scope: !15, file: !15, line: 1151, type: !343, scopeLine: 1152, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1547 = !DILocalVariable(name: "i", scope: !1546, file: !15, line: 1153, type: !5)
-!1548 = !DILocation(line: 1153, column: 6, scope: !1546)
-!1549 = !DILocation(line: 1155, column: 9, scope: !1550)
-!1550 = distinct !DILexicalBlock(scope: !1546, file: !15, line: 1155, column: 2)
-!1551 = !DILocation(line: 1155, column: 7, scope: !1550)
-!1552 = !DILocation(line: 1155, column: 14, scope: !1553)
-!1553 = distinct !DILexicalBlock(scope: !1550, file: !15, line: 1155, column: 2)
-!1554 = !DILocation(line: 1155, column: 18, scope: !1553)
-!1555 = !DILocation(line: 1155, column: 16, scope: !1553)
-!1556 = !DILocation(line: 1155, column: 2, scope: !1550)
-!1557 = !DILocation(line: 1156, column: 11, scope: !1558)
-!1558 = distinct !DILexicalBlock(scope: !1553, file: !15, line: 1155, column: 42)
-!1559 = !DILocation(line: 1156, column: 3, scope: !1558)
-!1560 = !DILocation(line: 1156, column: 14, scope: !1558)
-!1561 = !DILocation(line: 1156, column: 22, scope: !1558)
-!1562 = !DILocation(line: 1157, column: 11, scope: !1558)
-!1563 = !DILocation(line: 1157, column: 3, scope: !1558)
-!1564 = !DILocation(line: 1157, column: 14, scope: !1558)
-!1565 = !DILocation(line: 1157, column: 27, scope: !1558)
-!1566 = !DILocation(line: 1158, column: 2, scope: !1558)
-!1567 = !DILocation(line: 1155, column: 38, scope: !1553)
-!1568 = !DILocation(line: 1155, column: 2, scope: !1553)
-!1569 = distinct !{!1569, !1556, !1570, !363}
-!1570 = !DILocation(line: 1158, column: 2, scope: !1550)
-!1571 = !DILocation(line: 1159, column: 1, scope: !1546)
-!1572 = distinct !DISubprogram(name: "init_all_matcens", linkageName: "_Z16init_all_matcensv", scope: !15, file: !15, line: 1164, type: !343, scopeLine: 1165, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1573 = !DILocalVariable(name: "i", scope: !1572, file: !15, line: 1166, type: !5)
-!1574 = !DILocation(line: 1166, column: 6, scope: !1572)
-!1575 = !DILocation(line: 1168, column: 9, scope: !1576)
-!1576 = distinct !DILexicalBlock(scope: !1572, file: !15, line: 1168, column: 2)
-!1577 = !DILocation(line: 1168, column: 7, scope: !1576)
-!1578 = !DILocation(line: 1168, column: 14, scope: !1579)
-!1579 = distinct !DILexicalBlock(scope: !1576, file: !15, line: 1168, column: 2)
-!1580 = !DILocation(line: 1168, column: 18, scope: !1579)
-!1581 = !DILocation(line: 1168, column: 16, scope: !1579)
-!1582 = !DILocation(line: 1168, column: 2, scope: !1576)
-!1583 = !DILocation(line: 1169, column: 15, scope: !1584)
-!1584 = distinct !DILexicalBlock(scope: !1579, file: !15, line: 1169, column: 7)
-!1585 = !DILocation(line: 1169, column: 7, scope: !1584)
-!1586 = !DILocation(line: 1169, column: 18, scope: !1584)
-!1587 = !DILocation(line: 1169, column: 23, scope: !1584)
-!1588 = !DILocation(line: 1170, column: 12, scope: !1589)
-!1589 = distinct !DILexicalBlock(scope: !1584, file: !15, line: 1169, column: 49)
-!1590 = !DILocation(line: 1170, column: 4, scope: !1589)
-!1591 = !DILocation(line: 1170, column: 15, scope: !1589)
-!1592 = !DILocation(line: 1170, column: 21, scope: !1589)
-!1593 = !DILocation(line: 1171, column: 12, scope: !1589)
-!1594 = !DILocation(line: 1171, column: 4, scope: !1589)
-!1595 = !DILocation(line: 1171, column: 15, scope: !1589)
-!1596 = !DILocation(line: 1171, column: 23, scope: !1589)
-!1597 = !DILocation(line: 1172, column: 12, scope: !1589)
-!1598 = !DILocation(line: 1172, column: 4, scope: !1589)
-!1599 = !DILocation(line: 1172, column: 15, scope: !1589)
-!1600 = !DILocation(line: 1172, column: 28, scope: !1589)
-!1601 = !DILocalVariable(name: "j", scope: !1602, file: !15, line: 1176, type: !5)
-!1602 = distinct !DILexicalBlock(scope: !1589, file: !15, line: 1174, column: 4)
-!1603 = !DILocation(line: 1176, column: 9, scope: !1602)
-!1604 = !DILocation(line: 1177, column: 12, scope: !1605)
-!1605 = distinct !DILexicalBlock(scope: !1602, file: !15, line: 1177, column: 5)
-!1606 = !DILocation(line: 1177, column: 10, scope: !1605)
-!1607 = !DILocation(line: 1177, column: 17, scope: !1608)
-!1608 = distinct !DILexicalBlock(scope: !1605, file: !15, line: 1177, column: 5)
-!1609 = !DILocation(line: 1177, column: 21, scope: !1608)
-!1610 = !DILocation(line: 1177, column: 19, scope: !1608)
-!1611 = !DILocation(line: 1177, column: 5, scope: !1605)
-!1612 = !DILocation(line: 1178, column: 23, scope: !1613)
-!1613 = distinct !DILexicalBlock(scope: !1614, file: !15, line: 1178, column: 10)
-!1614 = distinct !DILexicalBlock(scope: !1608, file: !15, line: 1177, column: 45)
-!1615 = !DILocation(line: 1178, column: 10, scope: !1613)
-!1616 = !DILocation(line: 1178, column: 26, scope: !1613)
-!1617 = !DILocation(line: 1178, column: 41, scope: !1613)
-!1618 = !DILocation(line: 1178, column: 38, scope: !1613)
-!1619 = !DILocation(line: 1179, column: 7, scope: !1613)
-!1620 = !DILocation(line: 1180, column: 5, scope: !1614)
-!1621 = !DILocation(line: 1177, column: 41, scope: !1608)
-!1622 = !DILocation(line: 1177, column: 5, scope: !1608)
-!1623 = distinct !{!1623, !1611, !1624, !363}
-!1624 = !DILocation(line: 1180, column: 5, scope: !1605)
-!1625 = !DILocation(line: 1181, column: 5, scope: !1602)
-!1626 = !DILocation(line: 1185, column: 3, scope: !1589)
-!1627 = !DILocation(line: 1169, column: 26, scope: !1584)
-!1628 = !DILocation(line: 1168, column: 36, scope: !1579)
-!1629 = !DILocation(line: 1168, column: 2, scope: !1579)
-!1630 = distinct !{!1630, !1582, !1631, !363}
-!1631 = !DILocation(line: 1185, column: 3, scope: !1576)
-!1632 = !DILocation(line: 1189, column: 9, scope: !1633)
-!1633 = distinct !DILexicalBlock(scope: !1572, file: !15, line: 1189, column: 2)
-!1634 = !DILocation(line: 1189, column: 7, scope: !1633)
-!1635 = !DILocation(line: 1189, column: 14, scope: !1636)
-!1636 = distinct !DILexicalBlock(scope: !1633, file: !15, line: 1189, column: 2)
-!1637 = !DILocation(line: 1189, column: 18, scope: !1636)
-!1638 = !DILocation(line: 1189, column: 16, scope: !1636)
-!1639 = !DILocation(line: 1189, column: 2, scope: !1633)
-!1640 = !DILocalVariable(name: "fuelcen_num", scope: !1641, file: !15, line: 1190, type: !5)
-!1641 = distinct !DILexicalBlock(scope: !1636, file: !15, line: 1189, column: 42)
-!1642 = !DILocation(line: 1190, column: 7, scope: !1641)
-!1643 = !DILocation(line: 1190, column: 34, scope: !1641)
-!1644 = !DILocation(line: 1190, column: 21, scope: !1641)
-!1645 = !DILocation(line: 1190, column: 37, scope: !1641)
-!1646 = !DILocation(line: 1192, column: 3, scope: !1641)
-!1647 = !DILocation(line: 1193, column: 3, scope: !1641)
-!1648 = !DILocation(line: 1194, column: 2, scope: !1641)
-!1649 = !DILocation(line: 1189, column: 38, scope: !1636)
-!1650 = !DILocation(line: 1189, column: 2, scope: !1636)
-!1651 = distinct !{!1651, !1639, !1652, !363}
-!1652 = !DILocation(line: 1194, column: 2, scope: !1633)
-!1653 = !DILocation(line: 1197, column: 1, scope: !1572)
-!1654 = distinct !DISubprogram(name: "fuelcen_check_for_goal", linkageName: "_Z22fuelcen_check_for_goalP7segment", scope: !15, file: !15, line: 1200, type: !399, scopeLine: 1201, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1655 = !DILocalVariable(name: "segp", arg: 1, scope: !1654, file: !15, line: 1200, type: !74)
-!1656 = !DILocation(line: 1200, column: 38, scope: !1654)
-!1657 = !DILocalVariable(name: "seg2p", scope: !1654, file: !15, line: 1202, type: !409)
-!1658 = !DILocation(line: 1202, column: 12, scope: !1654)
-!1659 = !DILocation(line: 1202, column: 31, scope: !1654)
-!1660 = !DILocation(line: 1202, column: 36, scope: !1654)
-!1661 = !DILocation(line: 1202, column: 21, scope: !1654)
-!1662 = !DILocation(line: 1204, column: 2, scope: !1654)
-!1663 = !DILocation(line: 1205, column: 2, scope: !1654)
-!1664 = !DILocation(line: 1207, column: 6, scope: !1665)
-!1665 = distinct !DILexicalBlock(scope: !1654, file: !15, line: 1207, column: 6)
-!1666 = !DILocation(line: 1207, column: 13, scope: !1665)
-!1667 = !DILocation(line: 1207, column: 21, scope: !1665)
-!1668 = !DILocation(line: 1219, column: 2, scope: !1669)
-!1669 = distinct !DILexicalBlock(scope: !1665, file: !15, line: 1208, column: 2)
-!1670 = !DILocation(line: 1220, column: 6, scope: !1671)
-!1671 = distinct !DILexicalBlock(scope: !1654, file: !15, line: 1220, column: 6)
-!1672 = !DILocation(line: 1220, column: 13, scope: !1671)
-!1673 = !DILocation(line: 1220, column: 21, scope: !1671)
-!1674 = !DILocation(line: 1231, column: 2, scope: !1675)
-!1675 = distinct !DILexicalBlock(scope: !1671, file: !15, line: 1221, column: 2)
-!1676 = !DILocation(line: 1232, column: 1, scope: !1654)
-!1677 = distinct !DISubprogram(name: "fuelcen_check_for_hoard_goal", linkageName: "_Z28fuelcen_check_for_hoard_goalP7segment", scope: !15, file: !15, line: 1234, type: !399, scopeLine: 1235, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1678 = !DILocalVariable(name: "segp", arg: 1, scope: !1677, file: !15, line: 1234, type: !74)
-!1679 = !DILocation(line: 1234, column: 44, scope: !1677)
-!1680 = !DILocalVariable(name: "seg2p", scope: !1677, file: !15, line: 1236, type: !409)
-!1681 = !DILocation(line: 1236, column: 12, scope: !1677)
-!1682 = !DILocation(line: 1236, column: 31, scope: !1677)
-!1683 = !DILocation(line: 1236, column: 36, scope: !1677)
-!1684 = !DILocation(line: 1236, column: 21, scope: !1677)
-!1685 = !DILocation(line: 1238, column: 2, scope: !1677)
-!1686 = !DILocation(line: 1239, column: 2, scope: !1677)
-!1687 = !DILocation(line: 1241, column: 6, scope: !1688)
-!1688 = distinct !DILexicalBlock(scope: !1677, file: !15, line: 1241, column: 6)
-!1689 = !DILocation(line: 1242, column: 3, scope: !1688)
-!1690 = !DILocation(line: 1244, column: 6, scope: !1691)
-!1691 = distinct !DILexicalBlock(scope: !1677, file: !15, line: 1244, column: 6)
-!1692 = !DILocation(line: 1244, column: 13, scope: !1691)
-!1693 = !DILocation(line: 1244, column: 21, scope: !1691)
-!1694 = !DILocation(line: 1244, column: 45, scope: !1691)
-!1695 = !DILocation(line: 1244, column: 48, scope: !1691)
-!1696 = !DILocation(line: 1244, column: 55, scope: !1691)
-!1697 = !DILocation(line: 1244, column: 63, scope: !1691)
-!1698 = !DILocation(line: 1255, column: 2, scope: !1699)
-!1699 = distinct !DILexicalBlock(scope: !1691, file: !15, line: 1245, column: 2)
-!1700 = !DILocation(line: 1257, column: 1, scope: !1677)
-!1701 = distinct !DISubprogram(name: "read_matcen", linkageName: "_Z11read_matcenP11matcen_infoP7__sFILE", scope: !15, file: !15, line: 1262, type: !1702, scopeLine: 1263, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1702 = !DISubroutineType(types: !1703)
-!1703 = !{null, !1704, !1705}
-!1704 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !27, size: 64)
-!1705 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1706, size: 64)
-!1706 = !DIDerivedType(tag: DW_TAG_typedef, name: "FILE", file: !1707, line: 162, baseType: !1708)
-!1707 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/usr/include/_stdio.h", directory: "", checksumkind: CSK_MD5, checksum: "d91ebd7d161d9196cc100822ef0e5cdf")
-!1708 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "__sFILE", file: !1707, line: 131, size: 1216, flags: DIFlagTypePassByValue, elements: !1709, identifier: "_ZTS7__sFILE")
-!1709 = !{!1710, !1712, !1713, !1714, !1715, !1716, !1721, !1722, !1724, !1728, !1733, !1741, !1746, !1747, !1750, !1751, !1755, !1759, !1760, !1761}
-!1710 = !DIDerivedType(tag: DW_TAG_member, name: "_p", scope: !1708, file: !1707, line: 132, baseType: !1711, size: 64)
-!1711 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !88, size: 64)
-!1712 = !DIDerivedType(tag: DW_TAG_member, name: "_r", scope: !1708, file: !1707, line: 133, baseType: !5, size: 32, offset: 64)
-!1713 = !DIDerivedType(tag: DW_TAG_member, name: "_w", scope: !1708, file: !1707, line: 134, baseType: !5, size: 32, offset: 96)
-!1714 = !DIDerivedType(tag: DW_TAG_member, name: "_flags", scope: !1708, file: !1707, line: 135, baseType: !38, size: 16, offset: 128)
-!1715 = !DIDerivedType(tag: DW_TAG_member, name: "_file", scope: !1708, file: !1707, line: 136, baseType: !38, size: 16, offset: 144)
-!1716 = !DIDerivedType(tag: DW_TAG_member, name: "_bf", scope: !1708, file: !1707, line: 137, baseType: !1717, size: 128, offset: 192)
-!1717 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "__sbuf", file: !1707, line: 97, size: 128, flags: DIFlagTypePassByValue, elements: !1718, identifier: "_ZTS6__sbuf")
-!1718 = !{!1719, !1720}
-!1719 = !DIDerivedType(tag: DW_TAG_member, name: "_base", scope: !1717, file: !1707, line: 98, baseType: !1711, size: 64)
-!1720 = !DIDerivedType(tag: DW_TAG_member, name: "_size", scope: !1717, file: !1707, line: 99, baseType: !5, size: 32, offset: 64)
-!1721 = !DIDerivedType(tag: DW_TAG_member, name: "_lbfsize", scope: !1708, file: !1707, line: 138, baseType: !5, size: 32, offset: 320)
-!1722 = !DIDerivedType(tag: DW_TAG_member, name: "_cookie", scope: !1708, file: !1707, line: 141, baseType: !1723, size: 64, offset: 384)
-!1723 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
-!1724 = !DIDerivedType(tag: DW_TAG_member, name: "_close", scope: !1708, file: !1707, line: 142, baseType: !1725, size: 64, offset: 448)
-!1725 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1726, size: 64)
-!1726 = !DISubroutineType(types: !1727)
-!1727 = !{!5, !1723}
-!1728 = !DIDerivedType(tag: DW_TAG_member, name: "_read", scope: !1708, file: !1707, line: 143, baseType: !1729, size: 64, offset: 512)
+!595 = !DILocalVariable(name: "segnum", scope: !588, file: !15, line: 316, type: !5)
+!596 = !DILocation(line: 316, column: 6, scope: !588)
+!597 = !DILocation(line: 316, column: 21, scope: !588)
+!598 = !DILocation(line: 316, column: 26, scope: !588)
+!599 = !DILocation(line: 316, column: 20, scope: !588)
+!600 = !DILocalVariable(name: "seg2p", scope: !588, file: !15, line: 336, type: !409)
+!601 = !DILocation(line: 336, column: 12, scope: !588)
+!602 = !DILocation(line: 336, column: 31, scope: !588)
+!603 = !DILocation(line: 336, column: 21, scope: !588)
+!604 = !DILocation(line: 338, column: 19, scope: !588)
+!605 = !DILocation(line: 338, column: 2, scope: !588)
+!606 = !DILocation(line: 338, column: 9, scope: !588)
+!607 = !DILocation(line: 338, column: 17, scope: !588)
+!608 = !DILocation(line: 340, column: 6, scope: !609)
+!609 = distinct !DILexicalBlock(scope: !588, file: !15, line: 340, column: 6)
+!610 = !DILocation(line: 340, column: 13, scope: !609)
+!611 = !DILocation(line: 340, column: 21, scope: !609)
+!612 = !DILocation(line: 341, column: 17, scope: !609)
+!613 = !DILocation(line: 341, column: 3, scope: !609)
+!614 = !DILocation(line: 343, column: 18, scope: !609)
+!615 = !DILocation(line: 343, column: 3, scope: !609)
+!616 = !DILocation(line: 345, column: 1, scope: !588)
+!617 = distinct !DISubprogram(name: "trigger_matcen", linkageName: "_Z14trigger_matceni", scope: !15, file: !15, line: 354, type: !618, scopeLine: 355, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!618 = !DISubroutineType(types: !619)
+!619 = !{null, !5}
+!620 = !DILocalVariable(name: "segnum", arg: 1, scope: !617, file: !15, line: 354, type: !5)
+!621 = !DILocation(line: 354, column: 25, scope: !617)
+!622 = !DILocalVariable(name: "seg2p", scope: !617, file: !15, line: 357, type: !409)
+!623 = !DILocation(line: 357, column: 12, scope: !617)
+!624 = !DILocation(line: 357, column: 31, scope: !617)
+!625 = !DILocation(line: 357, column: 21, scope: !617)
+!626 = !DILocalVariable(name: "pos", scope: !617, file: !15, line: 358, type: !61)
+!627 = !DILocation(line: 358, column: 13, scope: !617)
+!628 = !DILocalVariable(name: "delta", scope: !617, file: !15, line: 358, type: !61)
+!629 = !DILocation(line: 358, column: 18, scope: !617)
+!630 = !DILocalVariable(name: "robotcen", scope: !617, file: !15, line: 359, type: !631)
+!631 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !47, size: 64)
+!632 = !DILocation(line: 359, column: 14, scope: !617)
+!633 = !DILocalVariable(name: "objnum", scope: !617, file: !15, line: 360, type: !5)
+!634 = !DILocation(line: 360, column: 8, scope: !617)
+!635 = !DILocation(line: 362, column: 2, scope: !617)
+!636 = !DILocation(line: 364, column: 2, scope: !617)
+!637 = !DILocation(line: 365, column: 2, scope: !617)
+!638 = !DILocation(line: 366, column: 2, scope: !617)
+!639 = !DILocation(line: 0, scope: !617)
+!640 = !DILocation(line: 368, column: 35, scope: !617)
+!641 = !DILocation(line: 368, column: 42, scope: !617)
+!642 = !DILocation(line: 368, column: 22, scope: !617)
+!643 = !DILocation(line: 368, column: 54, scope: !617)
+!644 = !DILocation(line: 368, column: 14, scope: !617)
+!645 = !DILocation(line: 368, column: 11, scope: !617)
+!646 = !DILocation(line: 370, column: 6, scope: !647)
+!647 = distinct !DILexicalBlock(scope: !617, file: !15, line: 370, column: 6)
+!648 = !DILocation(line: 370, column: 16, scope: !647)
+!649 = !DILocation(line: 370, column: 24, scope: !647)
+!650 = !DILocation(line: 371, column: 3, scope: !647)
+!651 = !DILocation(line: 373, column: 7, scope: !652)
+!652 = distinct !DILexicalBlock(scope: !617, file: !15, line: 373, column: 6)
+!653 = !DILocation(line: 373, column: 17, scope: !652)
+!654 = !DILocation(line: 373, column: 6, scope: !652)
+!655 = !DILocation(line: 374, column: 3, scope: !652)
+!656 = !DILocation(line: 377, column: 6, scope: !657)
+!657 = distinct !DILexicalBlock(scope: !617, file: !15, line: 377, column: 6)
+!658 = !DILocation(line: 377, column: 23, scope: !657)
+!659 = !DILocation(line: 377, column: 27, scope: !657)
+!660 = !DILocation(line: 378, column: 3, scope: !657)
+!661 = !DILocation(line: 378, column: 13, scope: !657)
+!662 = !DILocation(line: 378, column: 18, scope: !657)
+!663 = !DILocation(line: 380, column: 2, scope: !617)
+!664 = !DILocation(line: 380, column: 12, scope: !617)
+!665 = !DILocation(line: 380, column: 18, scope: !617)
+!666 = !DILocation(line: 381, column: 2, scope: !617)
+!667 = !DILocation(line: 381, column: 12, scope: !617)
+!668 = !DILocation(line: 381, column: 20, scope: !617)
+!669 = !DILocation(line: 382, column: 27, scope: !617)
+!670 = !DILocation(line: 382, column: 44, scope: !617)
+!671 = !DILocation(line: 382, column: 23, scope: !617)
+!672 = !DILocation(line: 382, column: 2, scope: !617)
+!673 = !DILocation(line: 382, column: 12, scope: !617)
+!674 = !DILocation(line: 382, column: 21, scope: !617)
+!675 = !DILocation(line: 383, column: 27, scope: !617)
+!676 = !DILocation(line: 383, column: 2, scope: !617)
+!677 = !DILocation(line: 383, column: 12, scope: !617)
+!678 = !DILocation(line: 383, column: 25, scope: !617)
+!679 = !DILocation(line: 386, column: 8, scope: !617)
+!680 = !DILocation(line: 386, column: 18, scope: !617)
+!681 = !DILocation(line: 386, column: 6, scope: !617)
+!682 = !DILocation(line: 387, column: 40, scope: !617)
+!683 = !DILocation(line: 387, column: 31, scope: !617)
+!684 = !DILocation(line: 387, column: 48, scope: !617)
+!685 = !DILocation(line: 387, column: 22, scope: !617)
+!686 = !DILocation(line: 387, column: 60, scope: !617)
+!687 = !DILocation(line: 387, column: 70, scope: !617)
+!688 = !DILocation(line: 387, column: 2, scope: !617)
+!689 = !DILocation(line: 388, column: 2, scope: !617)
+!690 = !DILocation(line: 389, column: 36, scope: !617)
+!691 = !DILocation(line: 389, column: 11, scope: !617)
+!692 = !DILocation(line: 389, column: 9, scope: !617)
+!693 = !DILocation(line: 390, column: 6, scope: !694)
+!694 = distinct !DILexicalBlock(scope: !617, file: !15, line: 390, column: 6)
+!695 = !DILocation(line: 390, column: 13, scope: !694)
+!696 = !DILocation(line: 391, column: 30, scope: !697)
+!697 = distinct !DILexicalBlock(scope: !694, file: !15, line: 390, column: 20)
+!698 = !DILocation(line: 391, column: 11, scope: !697)
+!699 = !DILocation(line: 391, column: 3, scope: !697)
+!700 = !DILocation(line: 391, column: 19, scope: !697)
+!701 = !DILocation(line: 391, column: 28, scope: !697)
+!702 = !DILocation(line: 392, column: 48, scope: !697)
+!703 = !DILocation(line: 392, column: 11, scope: !697)
+!704 = !DILocation(line: 392, column: 3, scope: !697)
+!705 = !DILocation(line: 392, column: 19, scope: !697)
+!706 = !DILocation(line: 392, column: 36, scope: !697)
+!707 = !DILocation(line: 392, column: 46, scope: !697)
+!708 = !DILocation(line: 393, column: 2, scope: !697)
+!709 = !DILocation(line: 395, column: 3, scope: !710)
+!710 = distinct !DILexicalBlock(scope: !694, file: !15, line: 394, column: 7)
+!711 = !DILocation(line: 396, column: 3, scope: !710)
+!712 = !DILocation(line: 399, column: 1, scope: !617)
+!713 = distinct !DISubprogram(name: "create_morph_robot", linkageName: "_Z18create_morph_robotP7segmentP10vms_vectori", scope: !15, file: !15, line: 452, type: !714, scopeLine: 453, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!714 = !DISubroutineType(types: !715)
+!715 = !{!716, !74, !848, !5}
+!716 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !717, size: 64)
+!717 = !DIDerivedType(tag: DW_TAG_typedef, name: "object", file: !718, line: 259, baseType: !719)
+!718 = !DIFile(filename: "main_d2/object.h", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "1f2325d356aae4b692933d2aae4f3afd")
+!719 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "object", file: !718, line: 210, size: 2144, flags: DIFlagTypePassByValue, elements: !720, identifier: "_ZTS6object")
+!720 = !{!721, !722, !723, !724, !725, !726, !727, !728, !729, !730, !731, !732, !733, !740, !741, !742, !743, !744, !745, !746, !747, !748, !766, !820}
+!721 = !DIDerivedType(tag: DW_TAG_member, name: "signature", scope: !719, file: !718, line: 212, baseType: !5, size: 32)
+!722 = !DIDerivedType(tag: DW_TAG_member, name: "type", scope: !719, file: !718, line: 213, baseType: !86, size: 8, offset: 32)
+!723 = !DIDerivedType(tag: DW_TAG_member, name: "id", scope: !719, file: !718, line: 214, baseType: !86, size: 8, offset: 40)
+!724 = !DIDerivedType(tag: DW_TAG_member, name: "next", scope: !719, file: !718, line: 215, baseType: !38, size: 16, offset: 48)
+!725 = !DIDerivedType(tag: DW_TAG_member, name: "prev", scope: !719, file: !718, line: 215, baseType: !38, size: 16, offset: 64)
+!726 = !DIDerivedType(tag: DW_TAG_member, name: "control_type", scope: !719, file: !718, line: 216, baseType: !86, size: 8, offset: 80)
+!727 = !DIDerivedType(tag: DW_TAG_member, name: "movement_type", scope: !719, file: !718, line: 217, baseType: !86, size: 8, offset: 88)
+!728 = !DIDerivedType(tag: DW_TAG_member, name: "render_type", scope: !719, file: !718, line: 218, baseType: !86, size: 8, offset: 96)
+!729 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !719, file: !718, line: 219, baseType: !86, size: 8, offset: 104)
+!730 = !DIDerivedType(tag: DW_TAG_member, name: "segnum", scope: !719, file: !718, line: 220, baseType: !38, size: 16, offset: 112)
+!731 = !DIDerivedType(tag: DW_TAG_member, name: "attached_obj", scope: !719, file: !718, line: 221, baseType: !38, size: 16, offset: 128)
+!732 = !DIDerivedType(tag: DW_TAG_member, name: "pos", scope: !719, file: !718, line: 222, baseType: !61, size: 96, offset: 160)
+!733 = !DIDerivedType(tag: DW_TAG_member, name: "orient", scope: !719, file: !718, line: 223, baseType: !734, size: 288, offset: 256)
+!734 = !DIDerivedType(tag: DW_TAG_typedef, name: "vms_matrix", file: !62, line: 47, baseType: !735)
+!735 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vms_matrix", file: !62, line: 44, size: 288, flags: DIFlagTypePassByValue, elements: !736, identifier: "_ZTS10vms_matrix")
+!736 = !{!737, !738, !739}
+!737 = !DIDerivedType(tag: DW_TAG_member, name: "rvec", scope: !735, file: !62, line: 46, baseType: !61, size: 96)
+!738 = !DIDerivedType(tag: DW_TAG_member, name: "uvec", scope: !735, file: !62, line: 46, baseType: !61, size: 96, offset: 96)
+!739 = !DIDerivedType(tag: DW_TAG_member, name: "fvec", scope: !735, file: !62, line: 46, baseType: !61, size: 96, offset: 192)
+!740 = !DIDerivedType(tag: DW_TAG_member, name: "size", scope: !719, file: !718, line: 224, baseType: !16, size: 32, offset: 544)
+!741 = !DIDerivedType(tag: DW_TAG_member, name: "shields", scope: !719, file: !718, line: 225, baseType: !16, size: 32, offset: 576)
+!742 = !DIDerivedType(tag: DW_TAG_member, name: "last_pos", scope: !719, file: !718, line: 226, baseType: !61, size: 96, offset: 608)
+!743 = !DIDerivedType(tag: DW_TAG_member, name: "contains_type", scope: !719, file: !718, line: 227, baseType: !6, size: 8, offset: 704)
+!744 = !DIDerivedType(tag: DW_TAG_member, name: "contains_id", scope: !719, file: !718, line: 228, baseType: !6, size: 8, offset: 712)
+!745 = !DIDerivedType(tag: DW_TAG_member, name: "contains_count", scope: !719, file: !718, line: 229, baseType: !6, size: 8, offset: 720)
+!746 = !DIDerivedType(tag: DW_TAG_member, name: "matcen_creator", scope: !719, file: !718, line: 230, baseType: !6, size: 8, offset: 728)
+!747 = !DIDerivedType(tag: DW_TAG_member, name: "lifeleft", scope: !719, file: !718, line: 231, baseType: !16, size: 32, offset: 736)
+!748 = !DIDerivedType(tag: DW_TAG_member, name: "mtype", scope: !719, file: !718, line: 240, baseType: !749, size: 512, offset: 768)
+!749 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !719, file: !718, line: 236, size: 512, flags: DIFlagTypePassByValue, elements: !750, identifier: "_ZTSN6objectUt_E")
+!750 = !{!751, !765}
+!751 = !DIDerivedType(tag: DW_TAG_member, name: "phys_info", scope: !749, file: !718, line: 238, baseType: !752, size: 512)
+!752 = !DIDerivedType(tag: DW_TAG_typedef, name: "physics_info", file: !718, line: 153, baseType: !753)
+!753 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "physics_info", file: !718, line: 142, size: 512, flags: DIFlagTypePassByValue, elements: !754, identifier: "_ZTS12physics_info")
+!754 = !{!755, !756, !757, !758, !759, !760, !761, !762, !764}
+!755 = !DIDerivedType(tag: DW_TAG_member, name: "velocity", scope: !753, file: !718, line: 144, baseType: !61, size: 96)
+!756 = !DIDerivedType(tag: DW_TAG_member, name: "thrust", scope: !753, file: !718, line: 145, baseType: !61, size: 96, offset: 96)
+!757 = !DIDerivedType(tag: DW_TAG_member, name: "mass", scope: !753, file: !718, line: 146, baseType: !16, size: 32, offset: 192)
+!758 = !DIDerivedType(tag: DW_TAG_member, name: "drag", scope: !753, file: !718, line: 147, baseType: !16, size: 32, offset: 224)
+!759 = !DIDerivedType(tag: DW_TAG_member, name: "brakes", scope: !753, file: !718, line: 148, baseType: !16, size: 32, offset: 256)
+!760 = !DIDerivedType(tag: DW_TAG_member, name: "rotvel", scope: !753, file: !718, line: 149, baseType: !61, size: 96, offset: 288)
+!761 = !DIDerivedType(tag: DW_TAG_member, name: "rotthrust", scope: !753, file: !718, line: 150, baseType: !61, size: 96, offset: 384)
+!762 = !DIDerivedType(tag: DW_TAG_member, name: "turnroll", scope: !753, file: !718, line: 151, baseType: !763, size: 16, offset: 480)
+!763 = !DIDerivedType(tag: DW_TAG_typedef, name: "fixang", file: !17, line: 21, baseType: !38)
+!764 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !753, file: !718, line: 152, baseType: !253, size: 16, offset: 496)
+!765 = !DIDerivedType(tag: DW_TAG_member, name: "spin_rate", scope: !749, file: !718, line: 239, baseType: !61, size: 96)
+!766 = !DIDerivedType(tag: DW_TAG_member, name: "ctype", scope: !719, file: !718, line: 250, baseType: !767, size: 256, offset: 1280)
+!767 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !719, file: !718, line: 243, size: 256, flags: DIFlagTypePassByValue, elements: !768, identifier: "_ZTSN6objectUt0_E")
+!768 = !{!769, !780, !790, !808, !813}
+!769 = !DIDerivedType(tag: DW_TAG_member, name: "laser_info", scope: !767, file: !718, line: 245, baseType: !770, size: 160)
+!770 = !DIDerivedType(tag: DW_TAG_typedef, name: "laser_info_t", file: !718, line: 166, baseType: !771)
+!771 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "laser_info_s", file: !718, line: 157, size: 160, flags: DIFlagTypePassByValue, elements: !772, identifier: "_ZTS12laser_info_s")
+!772 = !{!773, !774, !775, !776, !777, !778, !779}
+!773 = !DIDerivedType(tag: DW_TAG_member, name: "parent_type", scope: !771, file: !718, line: 159, baseType: !38, size: 16)
+!774 = !DIDerivedType(tag: DW_TAG_member, name: "parent_num", scope: !771, file: !718, line: 160, baseType: !38, size: 16, offset: 16)
+!775 = !DIDerivedType(tag: DW_TAG_member, name: "parent_signature", scope: !771, file: !718, line: 161, baseType: !5, size: 32, offset: 32)
+!776 = !DIDerivedType(tag: DW_TAG_member, name: "creation_time", scope: !771, file: !718, line: 162, baseType: !16, size: 32, offset: 64)
+!777 = !DIDerivedType(tag: DW_TAG_member, name: "last_hitobj", scope: !771, file: !718, line: 163, baseType: !38, size: 16, offset: 96)
+!778 = !DIDerivedType(tag: DW_TAG_member, name: "track_goal", scope: !771, file: !718, line: 164, baseType: !38, size: 16, offset: 112)
+!779 = !DIDerivedType(tag: DW_TAG_member, name: "multiplier", scope: !771, file: !718, line: 165, baseType: !16, size: 32, offset: 128)
+!780 = !DIDerivedType(tag: DW_TAG_member, name: "expl_info", scope: !767, file: !718, line: 246, baseType: !781, size: 128)
+!781 = !DIDerivedType(tag: DW_TAG_typedef, name: "explosion_info", file: !718, line: 176, baseType: !782)
+!782 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "explosion_info", file: !718, line: 168, size: 128, flags: DIFlagTypePassByValue, elements: !783, identifier: "_ZTS14explosion_info")
+!783 = !{!784, !785, !786, !787, !788, !789}
+!784 = !DIDerivedType(tag: DW_TAG_member, name: "spawn_time", scope: !782, file: !718, line: 170, baseType: !16, size: 32)
+!785 = !DIDerivedType(tag: DW_TAG_member, name: "delete_time", scope: !782, file: !718, line: 171, baseType: !16, size: 32, offset: 32)
+!786 = !DIDerivedType(tag: DW_TAG_member, name: "delete_objnum", scope: !782, file: !718, line: 172, baseType: !38, size: 16, offset: 64)
+!787 = !DIDerivedType(tag: DW_TAG_member, name: "attach_parent", scope: !782, file: !718, line: 173, baseType: !38, size: 16, offset: 80)
+!788 = !DIDerivedType(tag: DW_TAG_member, name: "prev_attach", scope: !782, file: !718, line: 174, baseType: !38, size: 16, offset: 96)
+!789 = !DIDerivedType(tag: DW_TAG_member, name: "next_attach", scope: !782, file: !718, line: 175, baseType: !38, size: 16, offset: 112)
+!790 = !DIDerivedType(tag: DW_TAG_member, name: "ai_info", scope: !767, file: !718, line: 247, baseType: !791, size: 256)
+!791 = !DIDerivedType(tag: DW_TAG_typedef, name: "ai_static", file: !792, line: 144, baseType: !793)
+!792 = !DIFile(filename: "main_d2/aistruct.h", directory: "/Users/richard/code/ChocolateDescent", checksumkind: CSK_MD5, checksum: "d122430e792a0ddc0f9eaa08ad217628")
+!793 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "ai_static", file: !792, line: 127, size: 256, flags: DIFlagTypePassByValue, elements: !794, identifier: "_ZTS9ai_static")
+!794 = !{!795, !796, !800, !801, !802, !803, !804, !805, !806, !807}
+!795 = !DIDerivedType(tag: DW_TAG_member, name: "behavior", scope: !793, file: !792, line: 128, baseType: !86, size: 8)
+!796 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !793, file: !792, line: 129, baseType: !797, size: 88, offset: 8)
+!797 = !DICompositeType(tag: DW_TAG_array_type, baseType: !6, size: 88, elements: !798)
+!798 = !{!799}
+!799 = !DISubrange(count: 11)
+!800 = !DIDerivedType(tag: DW_TAG_member, name: "hide_segment", scope: !793, file: !792, line: 130, baseType: !38, size: 16, offset: 96)
+!801 = !DIDerivedType(tag: DW_TAG_member, name: "hide_index", scope: !793, file: !792, line: 131, baseType: !38, size: 16, offset: 112)
+!802 = !DIDerivedType(tag: DW_TAG_member, name: "path_length", scope: !793, file: !792, line: 132, baseType: !38, size: 16, offset: 128)
+!803 = !DIDerivedType(tag: DW_TAG_member, name: "cur_path_index", scope: !793, file: !792, line: 133, baseType: !6, size: 8, offset: 144)
+!804 = !DIDerivedType(tag: DW_TAG_member, name: "dying_sound_playing", scope: !793, file: !792, line: 134, baseType: !6, size: 8, offset: 152)
+!805 = !DIDerivedType(tag: DW_TAG_member, name: "danger_laser_num", scope: !793, file: !792, line: 139, baseType: !38, size: 16, offset: 160)
+!806 = !DIDerivedType(tag: DW_TAG_member, name: "danger_laser_signature", scope: !793, file: !792, line: 140, baseType: !5, size: 32, offset: 192)
+!807 = !DIDerivedType(tag: DW_TAG_member, name: "dying_start_time", scope: !793, file: !792, line: 141, baseType: !16, size: 32, offset: 224)
+!808 = !DIDerivedType(tag: DW_TAG_member, name: "light_info", scope: !767, file: !718, line: 248, baseType: !809, size: 32)
+!809 = !DIDerivedType(tag: DW_TAG_typedef, name: "light_info_t", file: !718, line: 181, baseType: !810)
+!810 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "light_info_s", file: !718, line: 178, size: 32, flags: DIFlagTypePassByValue, elements: !811, identifier: "_ZTS12light_info_s")
+!811 = !{!812}
+!812 = !DIDerivedType(tag: DW_TAG_member, name: "intensity", scope: !810, file: !718, line: 180, baseType: !16, size: 32)
+!813 = !DIDerivedType(tag: DW_TAG_member, name: "powerup_info", scope: !767, file: !718, line: 249, baseType: !814, size: 96)
+!814 = !DIDerivedType(tag: DW_TAG_typedef, name: "powerup_info_t", file: !718, line: 190, baseType: !815)
+!815 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "powerup_info_s", file: !718, line: 185, size: 96, flags: DIFlagTypePassByValue, elements: !816, identifier: "_ZTS14powerup_info_s")
+!816 = !{!817, !818, !819}
+!817 = !DIDerivedType(tag: DW_TAG_member, name: "count", scope: !815, file: !718, line: 187, baseType: !5, size: 32)
+!818 = !DIDerivedType(tag: DW_TAG_member, name: "creation_time", scope: !815, file: !718, line: 188, baseType: !16, size: 32, offset: 32)
+!819 = !DIDerivedType(tag: DW_TAG_member, name: "flags", scope: !815, file: !718, line: 189, baseType: !5, size: 32, offset: 64)
+!820 = !DIDerivedType(tag: DW_TAG_member, name: "rtype", scope: !719, file: !718, line: 257, baseType: !821, size: 608, offset: 1536)
+!821 = distinct !DICompositeType(tag: DW_TAG_union_type, scope: !719, file: !718, line: 253, size: 608, flags: DIFlagTypePassByValue, elements: !822, identifier: "_ZTSN6objectUt1_E")
+!822 = !{!823, !841}
+!823 = !DIDerivedType(tag: DW_TAG_member, name: "pobj_info", scope: !821, file: !718, line: 255, baseType: !824, size: 608)
+!824 = !DIDerivedType(tag: DW_TAG_typedef, name: "polyobj_info", file: !718, line: 208, baseType: !825)
+!825 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "polyobj_info", file: !718, line: 201, size: 608, flags: DIFlagTypePassByValue, elements: !826, identifier: "_ZTS12polyobj_info")
+!826 = !{!827, !828, !838, !839, !840}
+!827 = !DIDerivedType(tag: DW_TAG_member, name: "model_num", scope: !825, file: !718, line: 203, baseType: !5, size: 32)
+!828 = !DIDerivedType(tag: DW_TAG_member, name: "anim_angles", scope: !825, file: !718, line: 204, baseType: !829, size: 480, offset: 32)
+!829 = !DICompositeType(tag: DW_TAG_array_type, baseType: !830, size: 480, elements: !836)
+!830 = !DIDerivedType(tag: DW_TAG_typedef, name: "vms_angvec", file: !62, line: 40, baseType: !831)
+!831 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vms_angvec", file: !62, line: 37, size: 48, flags: DIFlagTypePassByValue, elements: !832, identifier: "_ZTS10vms_angvec")
+!832 = !{!833, !834, !835}
+!833 = !DIDerivedType(tag: DW_TAG_member, name: "p", scope: !831, file: !62, line: 39, baseType: !763, size: 16)
+!834 = !DIDerivedType(tag: DW_TAG_member, name: "b", scope: !831, file: !62, line: 39, baseType: !763, size: 16, offset: 16)
+!835 = !DIDerivedType(tag: DW_TAG_member, name: "h", scope: !831, file: !62, line: 39, baseType: !763, size: 16, offset: 32)
+!836 = !{!837}
+!837 = !DISubrange(count: 10)
+!838 = !DIDerivedType(tag: DW_TAG_member, name: "subobj_flags", scope: !825, file: !718, line: 205, baseType: !5, size: 32, offset: 512)
+!839 = !DIDerivedType(tag: DW_TAG_member, name: "tmap_override", scope: !825, file: !718, line: 206, baseType: !5, size: 32, offset: 544)
+!840 = !DIDerivedType(tag: DW_TAG_member, name: "alt_textures", scope: !825, file: !718, line: 207, baseType: !5, size: 32, offset: 576)
+!841 = !DIDerivedType(tag: DW_TAG_member, name: "vclip_info", scope: !821, file: !718, line: 256, baseType: !842, size: 96)
+!842 = !DIDerivedType(tag: DW_TAG_typedef, name: "vclip_info_t", file: !718, line: 197, baseType: !843)
+!843 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "vclip_info_s", file: !718, line: 192, size: 96, flags: DIFlagTypePassByValue, elements: !844, identifier: "_ZTS12vclip_info_s")
+!844 = !{!845, !846, !847}
+!845 = !DIDerivedType(tag: DW_TAG_member, name: "vclip_num", scope: !843, file: !718, line: 194, baseType: !5, size: 32)
+!846 = !DIDerivedType(tag: DW_TAG_member, name: "frametime", scope: !843, file: !718, line: 195, baseType: !16, size: 32, offset: 32)
+!847 = !DIDerivedType(tag: DW_TAG_member, name: "framenum", scope: !843, file: !718, line: 196, baseType: !6, size: 8, offset: 64)
+!848 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !61, size: 64)
+!849 = !DILocalVariable(name: "segp", arg: 1, scope: !713, file: !15, line: 452, type: !74)
+!850 = !DILocation(line: 452, column: 37, scope: !713)
+!851 = !DILocalVariable(name: "object_pos", arg: 2, scope: !713, file: !15, line: 452, type: !848)
+!852 = !DILocation(line: 452, column: 55, scope: !713)
+!853 = !DILocalVariable(name: "object_id", arg: 3, scope: !713, file: !15, line: 452, type: !5)
+!854 = !DILocation(line: 452, column: 71, scope: !713)
+!855 = !DILocalVariable(name: "objnum", scope: !713, file: !15, line: 454, type: !38)
+!856 = !DILocation(line: 454, column: 9, scope: !713)
+!857 = !DILocalVariable(name: "obj", scope: !713, file: !15, line: 455, type: !716)
+!858 = !DILocation(line: 455, column: 10, scope: !713)
+!859 = !DILocalVariable(name: "default_behavior", scope: !713, file: !15, line: 456, type: !5)
+!860 = !DILocation(line: 456, column: 7, scope: !713)
+!861 = !DILocation(line: 458, column: 10, scope: !713)
+!862 = !DILocation(line: 458, column: 2, scope: !713)
+!863 = !DILocation(line: 458, column: 22, scope: !713)
+!864 = !DILocation(line: 458, column: 38, scope: !713)
+!865 = !DILocation(line: 459, column: 10, scope: !713)
+!866 = !DILocation(line: 459, column: 2, scope: !713)
+!867 = !DILocation(line: 459, column: 22, scope: !713)
+!868 = !DILocation(line: 459, column: 38, scope: !713)
+!869 = !DILocation(line: 461, column: 33, scope: !713)
+!870 = !DILocation(line: 461, column: 44, scope: !713)
+!871 = !DILocation(line: 461, column: 49, scope: !713)
+!872 = !DILocation(line: 461, column: 61, scope: !713)
+!873 = !DILocation(line: 462, column: 51, scope: !713)
+!874 = !DILocation(line: 462, column: 40, scope: !713)
+!875 = !DILocation(line: 462, column: 62, scope: !713)
+!876 = !DILocation(line: 462, column: 25, scope: !713)
+!877 = !DILocation(line: 462, column: 73, scope: !713)
+!878 = !DILocation(line: 461, column: 11, scope: !713)
+!879 = !DILocation(line: 461, column: 9, scope: !713)
+!880 = !DILocation(line: 465, column: 6, scope: !881)
+!881 = distinct !DILexicalBlock(scope: !713, file: !15, line: 465, column: 6)
+!882 = !DILocation(line: 465, column: 13, scope: !881)
+!883 = !DILocation(line: 466, column: 3, scope: !884)
+!884 = distinct !DILexicalBlock(scope: !881, file: !15, line: 465, column: 18)
+!885 = !DILocation(line: 467, column: 3, scope: !884)
+!886 = !DILocation(line: 468, column: 3, scope: !884)
+!887 = !DILocation(line: 471, column: 17, scope: !713)
+!888 = !DILocation(line: 471, column: 9, scope: !713)
+!889 = !DILocation(line: 471, column: 6, scope: !713)
+!890 = !DILocation(line: 475, column: 46, scope: !713)
+!891 = !DILocation(line: 475, column: 51, scope: !713)
+!892 = !DILocation(line: 475, column: 35, scope: !713)
+!893 = !DILocation(line: 475, column: 55, scope: !713)
+!894 = !DILocation(line: 475, column: 2, scope: !713)
+!895 = !DILocation(line: 475, column: 7, scope: !713)
+!896 = !DILocation(line: 475, column: 23, scope: !713)
+!897 = !DILocation(line: 475, column: 33, scope: !713)
+!898 = !DILocation(line: 476, column: 2, scope: !713)
+!899 = !DILocation(line: 476, column: 7, scope: !713)
+!900 = !DILocation(line: 476, column: 23, scope: !713)
+!901 = !DILocation(line: 476, column: 36, scope: !713)
+!902 = !DILocation(line: 480, column: 41, scope: !713)
+!903 = !DILocation(line: 480, column: 46, scope: !713)
+!904 = !DILocation(line: 480, column: 30, scope: !713)
+!905 = !DILocation(line: 480, column: 50, scope: !713)
+!906 = !DILocation(line: 480, column: 2, scope: !713)
+!907 = !DILocation(line: 480, column: 7, scope: !713)
+!908 = !DILocation(line: 480, column: 23, scope: !713)
+!909 = !DILocation(line: 480, column: 28, scope: !713)
+!910 = !DILocation(line: 481, column: 41, scope: !713)
+!911 = !DILocation(line: 481, column: 46, scope: !713)
+!912 = !DILocation(line: 481, column: 30, scope: !713)
+!913 = !DILocation(line: 481, column: 50, scope: !713)
+!914 = !DILocation(line: 481, column: 2, scope: !713)
+!915 = !DILocation(line: 481, column: 7, scope: !713)
+!916 = !DILocation(line: 481, column: 23, scope: !713)
+!917 = !DILocation(line: 481, column: 28, scope: !713)
+!918 = !DILocation(line: 483, column: 2, scope: !713)
+!919 = !DILocation(line: 483, column: 7, scope: !713)
+!920 = !DILocation(line: 483, column: 23, scope: !713)
+!921 = !DILocation(line: 483, column: 29, scope: !713)
+!922 = !DILocation(line: 485, column: 28, scope: !713)
+!923 = !DILocation(line: 485, column: 33, scope: !713)
+!924 = !DILocation(line: 485, column: 17, scope: !713)
+!925 = !DILocation(line: 485, column: 37, scope: !713)
+!926 = !DILocation(line: 485, column: 2, scope: !713)
+!927 = !DILocation(line: 485, column: 7, scope: !713)
+!928 = !DILocation(line: 485, column: 15, scope: !713)
+!929 = !DILocation(line: 487, column: 32, scope: !713)
+!930 = !DILocation(line: 487, column: 37, scope: !713)
+!931 = !DILocation(line: 487, column: 21, scope: !713)
+!932 = !DILocation(line: 487, column: 41, scope: !713)
+!933 = !DILocation(line: 487, column: 19, scope: !713)
+!934 = !DILocation(line: 489, column: 17, scope: !713)
+!935 = !DILocation(line: 489, column: 21, scope: !713)
+!936 = !DILocation(line: 489, column: 32, scope: !713)
+!937 = !DILocation(line: 489, column: 2, scope: !713)
+!938 = !DILocation(line: 491, column: 24, scope: !713)
+!939 = !DILocation(line: 491, column: 2, scope: !713)
+!940 = !DILocation(line: 493, column: 51, scope: !713)
+!941 = !DILocation(line: 493, column: 31, scope: !713)
+!942 = !DILocation(line: 493, column: 16, scope: !713)
+!943 = !DILocation(line: 493, column: 2, scope: !713)
+!944 = !DILocation(line: 493, column: 24, scope: !713)
+!945 = !DILocation(line: 493, column: 29, scope: !713)
+!946 = !DILocation(line: 495, column: 9, scope: !713)
+!947 = !DILocation(line: 495, column: 2, scope: !713)
+!948 = !DILocation(line: 496, column: 1, scope: !713)
+!949 = distinct !DISubprogram(name: "robotmaker_proc", linkageName: "_Z15robotmaker_procP10FuelCenter", scope: !15, file: !15, line: 505, type: !950, scopeLine: 506, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!950 = !DISubroutineType(types: !951)
+!951 = !{null, !631}
+!952 = !DILocalVariable(name: "robotcen", arg: 1, scope: !949, file: !15, line: 505, type: !631)
+!953 = !DILocation(line: 505, column: 34, scope: !949)
+!954 = !DILocalVariable(name: "dist_to_player", scope: !949, file: !15, line: 507, type: !16)
+!955 = !DILocation(line: 507, column: 7, scope: !949)
+!956 = !DILocalVariable(name: "cur_object_loc", scope: !949, file: !15, line: 508, type: !61)
+!957 = !DILocation(line: 508, column: 13, scope: !949)
+!958 = !DILocalVariable(name: "matcen_num", scope: !949, file: !15, line: 509, type: !5)
+!959 = !DILocation(line: 509, column: 7, scope: !949)
+!960 = !DILocalVariable(name: "segnum", scope: !949, file: !15, line: 509, type: !5)
+!961 = !DILocation(line: 509, column: 19, scope: !949)
+!962 = !DILocalVariable(name: "objnum", scope: !949, file: !15, line: 509, type: !5)
+!963 = !DILocation(line: 509, column: 27, scope: !949)
+!964 = !DILocalVariable(name: "obj", scope: !949, file: !15, line: 510, type: !716)
+!965 = !DILocation(line: 510, column: 10, scope: !949)
+!966 = !DILocalVariable(name: "top_time", scope: !949, file: !15, line: 511, type: !16)
+!967 = !DILocation(line: 511, column: 7, scope: !949)
+!968 = !DILocalVariable(name: "direction", scope: !949, file: !15, line: 512, type: !61)
+!969 = !DILocation(line: 512, column: 13, scope: !949)
+!970 = !DILocation(line: 514, column: 6, scope: !971)
+!971 = distinct !DILexicalBlock(scope: !949, file: !15, line: 514, column: 6)
+!972 = !DILocation(line: 514, column: 16, scope: !971)
+!973 = !DILocation(line: 514, column: 24, scope: !971)
+!974 = !DILocation(line: 515, column: 3, scope: !971)
+!975 = !DILocation(line: 517, column: 6, scope: !976)
+!976 = distinct !DILexicalBlock(scope: !949, file: !15, line: 517, column: 6)
+!977 = !DILocation(line: 517, column: 16, scope: !976)
+!978 = !DILocation(line: 517, column: 29, scope: !976)
+!979 = !DILocation(line: 519, column: 29, scope: !980)
+!980 = distinct !DILexicalBlock(scope: !976, file: !15, line: 518, column: 2)
+!981 = !DILocation(line: 519, column: 3, scope: !980)
+!982 = !DILocation(line: 519, column: 13, scope: !980)
+!983 = !DILocation(line: 519, column: 26, scope: !980)
+!984 = !DILocation(line: 520, column: 7, scope: !985)
+!985 = distinct !DILexicalBlock(scope: !980, file: !15, line: 520, column: 7)
+!986 = !DILocation(line: 520, column: 17, scope: !985)
+!987 = !DILocation(line: 520, column: 30, scope: !985)
+!988 = !DILocation(line: 522, column: 4, scope: !989)
+!989 = distinct !DILexicalBlock(scope: !985, file: !15, line: 521, column: 3)
+!990 = !DILocation(line: 523, column: 4, scope: !989)
+!991 = !DILocation(line: 523, column: 14, scope: !989)
+!992 = !DILocation(line: 523, column: 22, scope: !989)
+!993 = !DILocation(line: 524, column: 3, scope: !989)
+!994 = !DILocation(line: 525, column: 2, scope: !980)
+!995 = !DILocation(line: 541, column: 6, scope: !996)
+!996 = distinct !DILexicalBlock(scope: !949, file: !15, line: 541, column: 6)
+!997 = !DILocation(line: 541, column: 16, scope: !996)
+!998 = !DILocation(line: 541, column: 25, scope: !996)
+!999 = !DILocation(line: 543, column: 3, scope: !1000)
+!1000 = distinct !DILexicalBlock(scope: !996, file: !15, line: 542, column: 2)
+!1001 = !DILocation(line: 546, column: 25, scope: !949)
+!1002 = !DILocation(line: 546, column: 35, scope: !949)
+!1003 = !DILocation(line: 546, column: 15, scope: !949)
+!1004 = !DILocation(line: 546, column: 43, scope: !949)
+!1005 = !DILocation(line: 546, column: 13, scope: !949)
+!1006 = !DILocation(line: 549, column: 6, scope: !1007)
+!1007 = distinct !DILexicalBlock(scope: !949, file: !15, line: 549, column: 6)
+!1008 = !DILocation(line: 549, column: 17, scope: !1007)
+!1009 = !DILocation(line: 551, column: 3, scope: !1010)
+!1010 = distinct !DILexicalBlock(scope: !1007, file: !15, line: 550, column: 2)
+!1011 = !DILocation(line: 552, column: 3, scope: !1010)
+!1012 = !DILocation(line: 555, column: 19, scope: !1013)
+!1013 = distinct !DILexicalBlock(scope: !949, file: !15, line: 555, column: 6)
+!1014 = !DILocation(line: 555, column: 6, scope: !1013)
+!1015 = !DILocation(line: 555, column: 31, scope: !1013)
+!1016 = !DILocation(line: 555, column: 46, scope: !1013)
+!1017 = !DILocation(line: 555, column: 51, scope: !1013)
+!1018 = !DILocation(line: 555, column: 67, scope: !1013)
+!1019 = !DILocation(line: 555, column: 54, scope: !1013)
+!1020 = !DILocation(line: 555, column: 79, scope: !1013)
+!1021 = !DILocation(line: 555, column: 94, scope: !1013)
+!1022 = !DILocation(line: 557, column: 3, scope: !1023)
+!1023 = distinct !DILexicalBlock(scope: !1013, file: !15, line: 555, column: 100)
+!1024 = !DILocation(line: 562, column: 15, scope: !1025)
+!1025 = distinct !DILexicalBlock(scope: !949, file: !15, line: 562, column: 6)
+!1026 = !DILocation(line: 562, column: 7, scope: !1025)
+!1027 = !DILocation(line: 562, column: 27, scope: !1025)
+!1028 = !DILocation(line: 562, column: 54, scope: !1025)
+!1029 = !DILocation(line: 562, column: 46, scope: !1025)
+!1030 = !DILocation(line: 562, column: 66, scope: !1025)
+!1031 = !DILocation(line: 562, column: 44, scope: !1025)
+!1032 = !DILocation(line: 562, column: 87, scope: !1025)
+!1033 = !DILocation(line: 562, column: 113, scope: !1025)
+!1034 = !DILocation(line: 562, column: 111, scope: !1025)
+!1035 = !DILocation(line: 562, column: 83, scope: !1025)
+!1036 = !DILocation(line: 564, column: 7, scope: !1037)
+!1037 = distinct !DILexicalBlock(scope: !1038, file: !15, line: 564, column: 7)
+!1038 = distinct !DILexicalBlock(scope: !1025, file: !15, line: 562, column: 132)
+!1039 = !DILocation(line: 564, column: 20, scope: !1037)
+!1040 = !DILocation(line: 564, column: 40, scope: !1037)
+!1041 = !DILocation(line: 564, column: 18, scope: !1037)
+!1042 = !DILocation(line: 566, column: 4, scope: !1043)
+!1043 = distinct !DILexicalBlock(scope: !1037, file: !15, line: 565, column: 3)
+!1044 = !DILocation(line: 567, column: 26, scope: !1043)
+!1045 = !DILocation(line: 567, column: 24, scope: !1043)
+!1046 = !DILocation(line: 568, column: 3, scope: !1043)
+!1047 = !DILocation(line: 570, column: 3, scope: !1038)
+!1048 = !DILocation(line: 573, column: 21, scope: !949)
+!1049 = !DILocation(line: 573, column: 2, scope: !949)
+!1050 = !DILocation(line: 573, column: 12, scope: !949)
+!1051 = !DILocation(line: 573, column: 18, scope: !949)
+!1052 = !DILocation(line: 575, column: 10, scope: !949)
+!1053 = !DILocation(line: 575, column: 20, scope: !949)
+!1054 = !DILocation(line: 575, column: 2, scope: !949)
+!1055 = !DILocation(line: 578, column: 7, scope: !1056)
+!1056 = distinct !DILexicalBlock(scope: !1057, file: !15, line: 578, column: 7)
+!1057 = distinct !DILexicalBlock(scope: !949, file: !15, line: 576, column: 2)
+!1058 = !DILocation(line: 578, column: 17, scope: !1056)
+!1059 = !DILocation(line: 580, column: 15, scope: !1060)
+!1060 = distinct !DILexicalBlock(scope: !1056, file: !15, line: 579, column: 3)
+!1061 = !DILocation(line: 580, column: 13, scope: !1060)
+!1062 = !DILocation(line: 581, column: 3, scope: !1060)
+!1063 = !DILocation(line: 584, column: 40, scope: !1064)
+!1064 = distinct !DILexicalBlock(scope: !1056, file: !15, line: 583, column: 3)
+!1065 = !DILocation(line: 584, column: 55, scope: !1064)
+!1066 = !DILocation(line: 584, column: 61, scope: !1064)
+!1067 = !DILocation(line: 584, column: 71, scope: !1064)
+!1068 = !DILocation(line: 584, column: 21, scope: !1064)
+!1069 = !DILocation(line: 584, column: 19, scope: !1064)
+!1070 = !DILocation(line: 585, column: 15, scope: !1064)
+!1071 = !DILocation(line: 585, column: 30, scope: !1064)
+!1072 = !DILocation(line: 585, column: 37, scope: !1064)
+!1073 = !DILocation(line: 585, column: 46, scope: !1064)
+!1074 = !DILocation(line: 585, column: 35, scope: !1064)
+!1075 = !DILocation(line: 585, column: 50, scope: !1064)
+!1076 = !DILocation(line: 585, column: 13, scope: !1064)
+!1077 = !DILocation(line: 586, column: 8, scope: !1078)
+!1078 = distinct !DILexicalBlock(scope: !1064, file: !15, line: 586, column: 8)
+!1079 = !DILocation(line: 586, column: 19, scope: !1078)
+!1080 = !DILocation(line: 586, column: 17, scope: !1078)
+!1081 = !DILocation(line: 587, column: 16, scope: !1078)
+!1082 = !DILocation(line: 587, column: 33, scope: !1078)
+!1083 = !DILocation(line: 587, column: 31, scope: !1078)
+!1084 = !DILocation(line: 587, column: 14, scope: !1078)
+!1085 = !DILocation(line: 587, column: 5, scope: !1078)
+!1086 = !DILocation(line: 588, column: 8, scope: !1087)
+!1087 = distinct !DILexicalBlock(scope: !1064, file: !15, line: 588, column: 8)
+!1088 = !DILocation(line: 588, column: 17, scope: !1087)
+!1089 = !DILocation(line: 589, column: 31, scope: !1087)
+!1090 = !DILocation(line: 589, column: 40, scope: !1087)
+!1091 = !DILocation(line: 589, column: 29, scope: !1087)
+!1092 = !DILocation(line: 589, column: 14, scope: !1087)
+!1093 = !DILocation(line: 589, column: 5, scope: !1087)
+!1094 = !DILocation(line: 594, column: 7, scope: !1095)
+!1095 = distinct !DILexicalBlock(scope: !1057, file: !15, line: 594, column: 7)
+!1096 = !DILocation(line: 594, column: 17, scope: !1095)
+!1097 = !DILocation(line: 594, column: 25, scope: !1095)
+!1098 = !DILocation(line: 594, column: 23, scope: !1095)
+!1099 = !DILocalVariable(name: "count", scope: !1100, file: !15, line: 596, type: !5)
+!1100 = distinct !DILexicalBlock(scope: !1095, file: !15, line: 595, column: 3)
+!1101 = !DILocation(line: 596, column: 8, scope: !1100)
+!1102 = !DILocalVariable(name: "i", scope: !1100, file: !15, line: 597, type: !5)
+!1103 = !DILocation(line: 597, column: 8, scope: !1100)
+!1104 = !DILocalVariable(name: "my_station_num", scope: !1100, file: !15, line: 597, type: !5)
+!1105 = !DILocation(line: 597, column: 11, scope: !1100)
+!1106 = !DILocation(line: 597, column: 28, scope: !1100)
+!1107 = !DILocation(line: 597, column: 37, scope: !1100)
+!1108 = !DILocalVariable(name: "obj", scope: !1100, file: !15, line: 598, type: !716)
+!1109 = !DILocation(line: 598, column: 12, scope: !1100)
+!1110 = !DILocation(line: 601, column: 11, scope: !1111)
+!1111 = distinct !DILexicalBlock(scope: !1100, file: !15, line: 601, column: 4)
+!1112 = !DILocation(line: 601, column: 9, scope: !1111)
+!1113 = !DILocation(line: 601, column: 16, scope: !1114)
+!1114 = distinct !DILexicalBlock(scope: !1111, file: !15, line: 601, column: 4)
+!1115 = !DILocation(line: 601, column: 21, scope: !1114)
+!1116 = !DILocation(line: 601, column: 18, scope: !1114)
+!1117 = !DILocation(line: 601, column: 4, scope: !1111)
+!1118 = !DILocation(line: 602, column: 17, scope: !1119)
+!1119 = distinct !DILexicalBlock(scope: !1114, file: !15, line: 602, column: 9)
+!1120 = !DILocation(line: 602, column: 9, scope: !1119)
+!1121 = !DILocation(line: 602, column: 20, scope: !1119)
+!1122 = !DILocation(line: 602, column: 25, scope: !1119)
+!1123 = !DILocation(line: 605, column: 27, scope: !1124)
+!1124 = distinct !DILexicalBlock(scope: !1119, file: !15, line: 605, column: 10)
+!1125 = !DILocation(line: 605, column: 19, scope: !1124)
+!1126 = !DILocation(line: 605, column: 30, scope: !1124)
+!1127 = !DILocation(line: 605, column: 45, scope: !1124)
+!1128 = !DILocation(line: 605, column: 18, scope: !1124)
+!1129 = !DILocation(line: 605, column: 10, scope: !1124)
+!1130 = !DILocation(line: 605, column: 56, scope: !1124)
+!1131 = !DILocation(line: 605, column: 53, scope: !1124)
+!1132 = !DILocation(line: 606, column: 12, scope: !1124)
+!1133 = !DILocation(line: 606, column: 7, scope: !1124)
+!1134 = !DILocation(line: 602, column: 28, scope: !1119)
+!1135 = !DILocation(line: 601, column: 44, scope: !1114)
+!1136 = !DILocation(line: 601, column: 4, scope: !1114)
+!1137 = distinct !{!1137, !1117, !1138, !363}
+!1138 = !DILocation(line: 606, column: 12, scope: !1111)
+!1139 = !DILocation(line: 607, column: 8, scope: !1140)
+!1140 = distinct !DILexicalBlock(scope: !1100, file: !15, line: 607, column: 8)
+!1141 = !DILocation(line: 607, column: 16, scope: !1140)
+!1142 = !DILocation(line: 607, column: 33, scope: !1140)
+!1143 = !DILocation(line: 607, column: 14, scope: !1140)
+!1144 = !DILocation(line: 609, column: 5, scope: !1145)
+!1145 = distinct !DILexicalBlock(scope: !1140, file: !15, line: 608, column: 4)
+!1146 = !DILocation(line: 610, column: 5, scope: !1145)
+!1147 = !DILocation(line: 610, column: 15, scope: !1145)
+!1148 = !DILocation(line: 610, column: 21, scope: !1145)
+!1149 = !DILocation(line: 611, column: 5, scope: !1145)
+!1150 = !DILocation(line: 615, column: 10, scope: !1100)
+!1151 = !DILocation(line: 616, column: 13, scope: !1100)
+!1152 = !DILocation(line: 616, column: 23, scope: !1100)
+!1153 = !DILocation(line: 616, column: 11, scope: !1100)
+!1154 = !DILocation(line: 617, column: 27, scope: !1155)
+!1155 = distinct !DILexicalBlock(scope: !1100, file: !15, line: 617, column: 4)
+!1156 = !DILocation(line: 617, column: 18, scope: !1155)
+!1157 = !DILocation(line: 617, column: 35, scope: !1155)
+!1158 = !DILocation(line: 617, column: 16, scope: !1155)
+!1159 = !DILocation(line: 617, column: 9, scope: !1155)
+!1160 = !DILocation(line: 617, column: 44, scope: !1161)
+!1161 = distinct !DILexicalBlock(scope: !1155, file: !15, line: 617, column: 4)
+!1162 = !DILocation(line: 617, column: 51, scope: !1161)
+!1163 = !DILocation(line: 617, column: 4, scope: !1155)
+!1164 = !DILocation(line: 619, column: 10, scope: !1165)
+!1165 = distinct !DILexicalBlock(scope: !1161, file: !15, line: 618, column: 4)
+!1166 = !DILocation(line: 620, column: 9, scope: !1167)
+!1167 = distinct !DILexicalBlock(scope: !1165, file: !15, line: 620, column: 9)
+!1168 = !DILocation(line: 620, column: 15, scope: !1167)
+!1169 = !DILocation(line: 622, column: 6, scope: !1170)
+!1170 = distinct !DILexicalBlock(scope: !1167, file: !15, line: 621, column: 5)
+!1171 = !DILocation(line: 623, column: 6, scope: !1170)
+!1172 = !DILocation(line: 624, column: 6, scope: !1170)
+!1173 = !DILocation(line: 626, column: 17, scope: !1174)
+!1174 = distinct !DILexicalBlock(scope: !1165, file: !15, line: 626, column: 9)
+!1175 = !DILocation(line: 626, column: 9, scope: !1174)
+!1176 = !DILocation(line: 626, column: 25, scope: !1174)
+!1177 = !DILocation(line: 626, column: 30, scope: !1174)
+!1178 = !DILocation(line: 628, column: 56, scope: !1179)
+!1179 = distinct !DILexicalBlock(scope: !1174, file: !15, line: 627, column: 5)
+!1180 = !DILocation(line: 628, column: 48, scope: !1179)
+!1181 = !DILocation(line: 628, column: 6, scope: !1179)
+!1182 = !DILocation(line: 629, column: 24, scope: !1179)
+!1183 = !DILocation(line: 629, column: 33, scope: !1179)
+!1184 = !DILocation(line: 629, column: 6, scope: !1179)
+!1185 = !DILocation(line: 629, column: 16, scope: !1179)
+!1186 = !DILocation(line: 629, column: 22, scope: !1179)
+!1187 = !DILocation(line: 630, column: 6, scope: !1179)
+!1188 = !DILocation(line: 632, column: 22, scope: !1189)
+!1189 = distinct !DILexicalBlock(scope: !1174, file: !15, line: 632, column: 14)
+!1190 = !DILocation(line: 632, column: 14, scope: !1189)
+!1191 = !DILocation(line: 632, column: 30, scope: !1189)
+!1192 = !DILocation(line: 632, column: 35, scope: !1189)
+!1193 = !DILocation(line: 634, column: 57, scope: !1194)
+!1194 = distinct !DILexicalBlock(scope: !1189, file: !15, line: 633, column: 5)
+!1195 = !DILocation(line: 634, column: 49, scope: !1194)
+!1196 = !DILocation(line: 634, column: 6, scope: !1194)
+!1197 = !DILocation(line: 635, column: 24, scope: !1194)
+!1198 = !DILocation(line: 635, column: 33, scope: !1194)
+!1199 = !DILocation(line: 635, column: 6, scope: !1194)
+!1200 = !DILocation(line: 635, column: 16, scope: !1194)
+!1201 = !DILocation(line: 635, column: 22, scope: !1194)
+!1202 = !DILocation(line: 636, column: 6, scope: !1194)
+!1203 = !DILocation(line: 638, column: 4, scope: !1165)
+!1204 = !DILocation(line: 617, column: 75, scope: !1161)
+!1205 = !DILocation(line: 617, column: 67, scope: !1161)
+!1206 = !DILocation(line: 617, column: 83, scope: !1161)
+!1207 = !DILocation(line: 617, column: 65, scope: !1161)
+!1208 = !DILocation(line: 617, column: 4, scope: !1161)
+!1209 = distinct !{!1209, !1163, !1210, !363}
+!1210 = !DILocation(line: 638, column: 4, scope: !1155)
+!1211 = !DILocation(line: 640, column: 54, scope: !1100)
+!1212 = !DILocation(line: 640, column: 64, scope: !1100)
+!1213 = !DILocation(line: 640, column: 45, scope: !1100)
+!1214 = !DILocation(line: 640, column: 4, scope: !1100)
+!1215 = !DILocation(line: 642, column: 34, scope: !1100)
+!1216 = !DILocation(line: 642, column: 44, scope: !1100)
+!1217 = !DILocation(line: 642, column: 69, scope: !1100)
+!1218 = !DILocation(line: 642, column: 10, scope: !1100)
+!1219 = !DILocation(line: 642, column: 8, scope: !1100)
+!1220 = !DILocation(line: 644, column: 8, scope: !1221)
+!1221 = distinct !DILexicalBlock(scope: !1100, file: !15, line: 644, column: 8)
+!1222 = !DILocation(line: 645, column: 34, scope: !1221)
+!1223 = !DILocation(line: 645, column: 39, scope: !1221)
+!1224 = !DILocation(line: 645, column: 57, scope: !1221)
+!1225 = !DILocation(line: 645, column: 67, scope: !1221)
+!1226 = !DILocation(line: 645, column: 48, scope: !1221)
+!1227 = !DILocation(line: 645, column: 5, scope: !1221)
+!1228 = !DILocation(line: 647, column: 36, scope: !1229)
+!1229 = distinct !DILexicalBlock(scope: !1100, file: !15, line: 647, column: 8)
+!1230 = !DILocation(line: 647, column: 8, scope: !1229)
+!1231 = !DILocation(line: 647, column: 46, scope: !1229)
+!1232 = !DILocation(line: 649, column: 56, scope: !1233)
+!1233 = distinct !DILexicalBlock(scope: !1229, file: !15, line: 648, column: 4)
+!1234 = !DILocation(line: 649, column: 28, scope: !1233)
+!1235 = !DILocation(line: 649, column: 67, scope: !1233)
+!1236 = !DILocation(line: 649, column: 77, scope: !1233)
+!1237 = !DILocation(line: 649, column: 5, scope: !1233)
+!1238 = !DILocation(line: 650, column: 4, scope: !1233)
+!1239 = !DILocation(line: 651, column: 4, scope: !1100)
+!1240 = !DILocation(line: 651, column: 14, scope: !1100)
+!1241 = !DILocation(line: 651, column: 19, scope: !1100)
+!1242 = !DILocation(line: 652, column: 4, scope: !1100)
+!1243 = !DILocation(line: 652, column: 14, scope: !1100)
+!1244 = !DILocation(line: 652, column: 20, scope: !1100)
+!1245 = !DILocation(line: 654, column: 3, scope: !1100)
+!1246 = !DILocation(line: 655, column: 3, scope: !1057)
+!1247 = !DILocation(line: 657, column: 7, scope: !1248)
+!1248 = distinct !DILexicalBlock(scope: !1057, file: !15, line: 657, column: 7)
+!1249 = !DILocation(line: 657, column: 17, scope: !1248)
+!1250 = !DILocation(line: 657, column: 54, scope: !1248)
+!1251 = !DILocation(line: 657, column: 64, scope: !1248)
+!1252 = !DILocation(line: 657, column: 23, scope: !1248)
+!1253 = !DILocation(line: 659, column: 26, scope: !1254)
+!1254 = distinct !DILexicalBlock(scope: !1248, file: !15, line: 657, column: 70)
+!1255 = !DILocation(line: 659, column: 4, scope: !1254)
+!1256 = !DILocation(line: 659, column: 14, scope: !1254)
+!1257 = !DILocation(line: 659, column: 23, scope: !1254)
+!1258 = !DILocation(line: 660, column: 4, scope: !1254)
+!1259 = !DILocation(line: 660, column: 14, scope: !1254)
+!1260 = !DILocation(line: 660, column: 19, scope: !1254)
+!1261 = !DILocation(line: 662, column: 4, scope: !1254)
+!1262 = !DILocation(line: 662, column: 14, scope: !1254)
+!1263 = !DILocation(line: 662, column: 20, scope: !1254)
+!1264 = !DILocation(line: 663, column: 54, scope: !1254)
+!1265 = !DILocation(line: 663, column: 64, scope: !1254)
+!1266 = !DILocation(line: 663, column: 45, scope: !1254)
+!1267 = !DILocation(line: 663, column: 4, scope: !1254)
+!1268 = !DILocation(line: 666, column: 21, scope: !1269)
+!1269 = distinct !DILexicalBlock(scope: !1254, file: !15, line: 666, column: 8)
+!1270 = !DILocation(line: 666, column: 8, scope: !1269)
+!1271 = !DILocation(line: 666, column: 33, scope: !1269)
+!1272 = !DILocation(line: 666, column: 48, scope: !1269)
+!1273 = !DILocation(line: 666, column: 53, scope: !1269)
+!1274 = !DILocation(line: 666, column: 69, scope: !1269)
+!1275 = !DILocation(line: 666, column: 56, scope: !1269)
+!1276 = !DILocation(line: 666, column: 81, scope: !1269)
+!1277 = !DILocation(line: 666, column: 96, scope: !1269)
+!1278 = !DILocalVariable(name: "type", scope: !1279, file: !15, line: 667, type: !5)
+!1279 = distinct !DILexicalBlock(scope: !1269, file: !15, line: 666, column: 102)
+!1280 = !DILocation(line: 667, column: 9, scope: !1279)
+!1281 = !DILocalVariable(name: "flags", scope: !1279, file: !15, line: 668, type: !257)
+!1282 = !DILocation(line: 668, column: 14, scope: !1279)
+!1283 = !DILocalVariable(name: "legal_types", scope: !1279, file: !15, line: 669, type: !1284)
+!1284 = !DICompositeType(tag: DW_TAG_array_type, baseType: !6, size: 512, elements: !1285)
+!1285 = !{!1286}
+!1286 = !DISubrange(count: 64)
+!1287 = !DILocation(line: 669, column: 12, scope: !1279)
+!1288 = !DILocalVariable(name: "num_types", scope: !1279, file: !15, line: 670, type: !5)
+!1289 = !DILocation(line: 670, column: 9, scope: !1279)
+!1290 = !DILocalVariable(name: "robot_index", scope: !1279, file: !15, line: 670, type: !5)
+!1291 = !DILocation(line: 670, column: 20, scope: !1279)
+!1292 = !DILocalVariable(name: "i", scope: !1279, file: !15, line: 670, type: !5)
+!1293 = !DILocation(line: 670, column: 33, scope: !1279)
+!1294 = !DILocation(line: 672, column: 15, scope: !1279)
+!1295 = !DILocation(line: 673, column: 12, scope: !1296)
+!1296 = distinct !DILexicalBlock(scope: !1279, file: !15, line: 673, column: 5)
+!1297 = !DILocation(line: 673, column: 10, scope: !1296)
+!1298 = !DILocation(line: 673, column: 17, scope: !1299)
+!1299 = distinct !DILexicalBlock(scope: !1296, file: !15, line: 673, column: 5)
+!1300 = !DILocation(line: 673, column: 19, scope: !1299)
+!1301 = !DILocation(line: 673, column: 5, scope: !1296)
+!1302 = !DILocation(line: 674, column: 20, scope: !1303)
+!1303 = distinct !DILexicalBlock(scope: !1299, file: !15, line: 673, column: 29)
+!1304 = !DILocation(line: 674, column: 22, scope: !1303)
+!1305 = !DILocation(line: 674, column: 18, scope: !1303)
+!1306 = !DILocation(line: 675, column: 27, scope: !1303)
+!1307 = !DILocation(line: 675, column: 14, scope: !1303)
+!1308 = !DILocation(line: 675, column: 39, scope: !1303)
+!1309 = !DILocation(line: 675, column: 51, scope: !1303)
+!1310 = !DILocation(line: 675, column: 12, scope: !1303)
+!1311 = !DILocation(line: 676, column: 6, scope: !1303)
+!1312 = !DILocation(line: 676, column: 13, scope: !1303)
+!1313 = !DILocation(line: 677, column: 11, scope: !1314)
+!1314 = distinct !DILexicalBlock(scope: !1315, file: !15, line: 677, column: 11)
+!1315 = distinct !DILexicalBlock(scope: !1303, file: !15, line: 676, column: 20)
+!1316 = !DILocation(line: 677, column: 17, scope: !1314)
+!1317 = !DILocation(line: 678, column: 35, scope: !1314)
+!1318 = !DILocation(line: 678, column: 29, scope: !1314)
+!1319 = !DILocation(line: 678, column: 8, scope: !1314)
+!1320 = !DILocation(line: 678, column: 33, scope: !1314)
+!1321 = !DILocation(line: 679, column: 13, scope: !1315)
+!1322 = !DILocation(line: 680, column: 18, scope: !1315)
+!1323 = distinct !{!1323, !1311, !1324, !363}
+!1324 = !DILocation(line: 681, column: 6, scope: !1303)
+!1325 = !DILocation(line: 682, column: 5, scope: !1303)
+!1326 = !DILocation(line: 673, column: 25, scope: !1299)
+!1327 = !DILocation(line: 673, column: 5, scope: !1299)
+!1328 = distinct !{!1328, !1301, !1329, !363}
+!1329 = !DILocation(line: 682, column: 5, scope: !1296)
+!1330 = !DILocation(line: 689, column: 9, scope: !1331)
+!1331 = distinct !DILexicalBlock(scope: !1279, file: !15, line: 689, column: 9)
+!1332 = !DILocation(line: 689, column: 19, scope: !1331)
+!1333 = !DILocation(line: 690, column: 13, scope: !1331)
+!1334 = !DILocation(line: 690, column: 11, scope: !1331)
+!1335 = !DILocation(line: 690, column: 6, scope: !1331)
+!1336 = !DILocation(line: 692, column: 26, scope: !1331)
+!1337 = !DILocation(line: 692, column: 37, scope: !1331)
+!1338 = !DILocation(line: 692, column: 35, scope: !1331)
+!1339 = !DILocation(line: 692, column: 48, scope: !1331)
+!1340 = !DILocation(line: 692, column: 13, scope: !1331)
+!1341 = !DILocation(line: 692, column: 11, scope: !1331)
+!1342 = !DILocation(line: 694, column: 5, scope: !1279)
+!1343 = !DILocation(line: 695, column: 40, scope: !1279)
+!1344 = !DILocation(line: 695, column: 50, scope: !1279)
+!1345 = !DILocation(line: 695, column: 31, scope: !1279)
+!1346 = !DILocation(line: 695, column: 76, scope: !1279)
+!1347 = !DILocation(line: 695, column: 11, scope: !1279)
+!1348 = !DILocation(line: 695, column: 9, scope: !1279)
+!1349 = !DILocation(line: 696, column: 9, scope: !1350)
+!1350 = distinct !DILexicalBlock(scope: !1279, file: !15, line: 696, column: 9)
+!1351 = !DILocation(line: 696, column: 13, scope: !1350)
+!1352 = !DILocation(line: 703, column: 28, scope: !1353)
+!1353 = distinct !DILexicalBlock(scope: !1350, file: !15, line: 696, column: 22)
+!1354 = !DILocation(line: 703, column: 37, scope: !1353)
+!1355 = !DILocation(line: 703, column: 47, scope: !1353)
+!1356 = !DILocation(line: 703, column: 6, scope: !1353)
+!1357 = !DILocation(line: 703, column: 11, scope: !1353)
+!1358 = !DILocation(line: 703, column: 26, scope: !1353)
+!1359 = !DILocation(line: 706, column: 30, scope: !1353)
+!1360 = !DILocation(line: 706, column: 45, scope: !1353)
+!1361 = !DILocation(line: 706, column: 51, scope: !1353)
+!1362 = !DILocation(line: 706, column: 56, scope: !1353)
+!1363 = !DILocation(line: 706, column: 6, scope: !1353)
+!1364 = !DILocation(line: 707, column: 26, scope: !1353)
+!1365 = !DILocation(line: 707, column: 31, scope: !1353)
+!1366 = !DILocation(line: 707, column: 52, scope: !1353)
+!1367 = !DILocation(line: 707, column: 57, scope: !1353)
+!1368 = !DILocation(line: 707, column: 64, scope: !1353)
+!1369 = !DILocation(line: 707, column: 6, scope: !1353)
+!1370 = !DILocation(line: 709, column: 18, scope: !1353)
+!1371 = !DILocation(line: 709, column: 6, scope: !1353)
+!1372 = !DILocation(line: 712, column: 5, scope: !1353)
+!1373 = !DILocation(line: 714, column: 6, scope: !1350)
+!1374 = !DILocation(line: 716, column: 4, scope: !1279)
+!1375 = !DILocation(line: 718, column: 3, scope: !1254)
+!1376 = !DILocation(line: 719, column: 3, scope: !1057)
+!1377 = !DILocation(line: 721, column: 3, scope: !1057)
+!1378 = !DILocation(line: 721, column: 13, scope: !1057)
+!1379 = !DILocation(line: 721, column: 18, scope: !1057)
+!1380 = !DILocation(line: 722, column: 3, scope: !1057)
+!1381 = !DILocation(line: 722, column: 13, scope: !1057)
+!1382 = !DILocation(line: 722, column: 19, scope: !1057)
+!1383 = !DILocation(line: 723, column: 2, scope: !1057)
+!1384 = !DILocation(line: 724, column: 1, scope: !949)
+!1385 = distinct !DISubprogram(name: "fuelcen_update_all", linkageName: "_Z18fuelcen_update_allv", scope: !15, file: !15, line: 731, type: !343, scopeLine: 732, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1386 = !DILocalVariable(name: "i", scope: !1385, file: !15, line: 733, type: !5)
+!1387 = !DILocation(line: 733, column: 6, scope: !1385)
+!1388 = !DILocalVariable(name: "AmountToreplenish", scope: !1385, file: !15, line: 734, type: !16)
+!1389 = !DILocation(line: 734, column: 6, scope: !1385)
+!1390 = !DILocation(line: 736, column: 29, scope: !1385)
+!1391 = !DILocation(line: 736, column: 40, scope: !1385)
+!1392 = !DILocation(line: 736, column: 22, scope: !1385)
+!1393 = !DILocation(line: 736, column: 20, scope: !1385)
+!1394 = !DILocation(line: 738, column: 9, scope: !1395)
+!1395 = distinct !DILexicalBlock(scope: !1385, file: !15, line: 738, column: 2)
+!1396 = !DILocation(line: 738, column: 7, scope: !1395)
+!1397 = !DILocation(line: 738, column: 14, scope: !1398)
+!1398 = distinct !DILexicalBlock(scope: !1395, file: !15, line: 738, column: 2)
+!1399 = !DILocation(line: 738, column: 18, scope: !1398)
+!1400 = !DILocation(line: 738, column: 16, scope: !1398)
+!1401 = !DILocation(line: 738, column: 2, scope: !1395)
+!1402 = !DILocation(line: 739, column: 15, scope: !1403)
+!1403 = distinct !DILexicalBlock(scope: !1404, file: !15, line: 739, column: 7)
+!1404 = distinct !DILexicalBlock(scope: !1398, file: !15, line: 738, column: 40)
+!1405 = !DILocation(line: 739, column: 7, scope: !1403)
+!1406 = !DILocation(line: 739, column: 18, scope: !1403)
+!1407 = !DILocation(line: 739, column: 23, scope: !1403)
+!1408 = !DILocation(line: 740, column: 10, scope: !1409)
+!1409 = distinct !DILexicalBlock(scope: !1410, file: !15, line: 740, column: 8)
+!1410 = distinct !DILexicalBlock(scope: !1403, file: !15, line: 739, column: 49)
+!1411 = !DILocation(line: 740, column: 25, scope: !1409)
+!1412 = !DILocation(line: 740, column: 9, scope: !1409)
+!1413 = !DILocation(line: 740, column: 8, scope: !1409)
+!1414 = !DILocation(line: 741, column: 30, scope: !1409)
+!1415 = !DILocation(line: 741, column: 22, scope: !1409)
+!1416 = !DILocation(line: 741, column: 5, scope: !1409)
+!1417 = !DILocation(line: 742, column: 3, scope: !1410)
+!1418 = !DILocation(line: 743, column: 20, scope: !1419)
+!1419 = distinct !DILexicalBlock(scope: !1403, file: !15, line: 743, column: 12)
+!1420 = !DILocation(line: 743, column: 12, scope: !1419)
+!1421 = !DILocation(line: 743, column: 23, scope: !1419)
+!1422 = !DILocation(line: 743, column: 28, scope: !1419)
+!1423 = !DILocation(line: 746, column: 3, scope: !1424)
+!1424 = distinct !DILexicalBlock(scope: !1419, file: !15, line: 743, column: 54)
+!1425 = !DILocation(line: 747, column: 21, scope: !1426)
+!1426 = distinct !DILexicalBlock(scope: !1419, file: !15, line: 747, column: 12)
+!1427 = !DILocation(line: 747, column: 13, scope: !1426)
+!1428 = !DILocation(line: 747, column: 24, scope: !1426)
+!1429 = !DILocation(line: 747, column: 36, scope: !1426)
+!1430 = !DILocation(line: 747, column: 41, scope: !1426)
+!1431 = !DILocation(line: 747, column: 45, scope: !1426)
+!1432 = !DILocation(line: 747, column: 80, scope: !1426)
+!1433 = !DILocation(line: 747, column: 72, scope: !1426)
+!1434 = !DILocation(line: 747, column: 83, scope: !1426)
+!1435 = !DILocation(line: 747, column: 63, scope: !1426)
+!1436 = !DILocation(line: 747, column: 59, scope: !1426)
+!1437 = !DILocation(line: 748, column: 16, scope: !1438)
+!1438 = distinct !DILexicalBlock(scope: !1439, file: !15, line: 748, column: 8)
+!1439 = distinct !DILexicalBlock(scope: !1426, file: !15, line: 747, column: 93)
+!1440 = !DILocation(line: 748, column: 8, scope: !1438)
+!1441 = !DILocation(line: 748, column: 19, scope: !1438)
+!1442 = !DILocation(line: 748, column: 38, scope: !1438)
+!1443 = !DILocation(line: 748, column: 30, scope: !1438)
+!1444 = !DILocation(line: 748, column: 41, scope: !1438)
+!1445 = !DILocation(line: 748, column: 28, scope: !1438)
+!1446 = !DILocation(line: 749, column: 28, scope: !1447)
+!1447 = distinct !DILexicalBlock(scope: !1438, file: !15, line: 748, column: 54)
+!1448 = !DILocation(line: 749, column: 13, scope: !1447)
+!1449 = !DILocation(line: 749, column: 5, scope: !1447)
+!1450 = !DILocation(line: 749, column: 16, scope: !1447)
+!1451 = !DILocation(line: 749, column: 25, scope: !1447)
+!1452 = !DILocation(line: 751, column: 17, scope: !1453)
+!1453 = distinct !DILexicalBlock(scope: !1447, file: !15, line: 751, column: 9)
+!1454 = !DILocation(line: 751, column: 9, scope: !1453)
+!1455 = !DILocation(line: 751, column: 20, scope: !1453)
+!1456 = !DILocation(line: 751, column: 40, scope: !1453)
+!1457 = !DILocation(line: 751, column: 32, scope: !1453)
+!1458 = !DILocation(line: 751, column: 43, scope: !1453)
+!1459 = !DILocation(line: 751, column: 29, scope: !1453)
+!1460 = !DILocation(line: 752, column: 36, scope: !1461)
+!1461 = distinct !DILexicalBlock(scope: !1453, file: !15, line: 751, column: 56)
+!1462 = !DILocation(line: 752, column: 28, scope: !1461)
+!1463 = !DILocation(line: 752, column: 39, scope: !1461)
+!1464 = !DILocation(line: 752, column: 14, scope: !1461)
+!1465 = !DILocation(line: 752, column: 6, scope: !1461)
+!1466 = !DILocation(line: 752, column: 17, scope: !1461)
+!1467 = !DILocation(line: 752, column: 26, scope: !1461)
+!1468 = !DILocation(line: 754, column: 5, scope: !1461)
+!1469 = !DILocation(line: 755, column: 4, scope: !1447)
+!1470 = !DILocation(line: 756, column: 3, scope: !1439)
+!1471 = !DILocation(line: 757, column: 2, scope: !1404)
+!1472 = !DILocation(line: 738, column: 36, scope: !1398)
+!1473 = !DILocation(line: 738, column: 2, scope: !1398)
+!1474 = distinct !{!1474, !1401, !1475, !363}
+!1475 = !DILocation(line: 757, column: 2, scope: !1395)
+!1476 = !DILocation(line: 758, column: 1, scope: !1385)
+!1477 = distinct !DISubprogram(name: "fixmul", linkageName: "_Z6fixmulii", scope: !17, file: !17, line: 83, type: !1478, scopeLine: 84, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1478 = !DISubroutineType(types: !1479)
+!1479 = !{!16, !16, !16}
+!1480 = !DILocalVariable(name: "a", arg: 1, scope: !1477, file: !17, line: 83, type: !16)
+!1481 = !DILocation(line: 83, column: 26, scope: !1477)
+!1482 = !DILocalVariable(name: "b", arg: 2, scope: !1477, file: !17, line: 83, type: !16)
+!1483 = !DILocation(line: 83, column: 33, scope: !1477)
+!1484 = !DILocation(line: 85, column: 19, scope: !1477)
+!1485 = !DILocation(line: 85, column: 32, scope: !1477)
+!1486 = !DILocation(line: 85, column: 21, scope: !1477)
+!1487 = !DILocation(line: 85, column: 35, scope: !1477)
+!1488 = !DILocation(line: 85, column: 9, scope: !1477)
+!1489 = !DILocation(line: 85, column: 2, scope: !1477)
+!1490 = !DILocalVariable(name: "segp", arg: 1, scope: !210, file: !15, line: 776, type: !74)
+!1491 = !DILocation(line: 776, column: 32, scope: !210)
+!1492 = !DILocalVariable(name: "MaxAmountCanTake", arg: 2, scope: !210, file: !15, line: 776, type: !16)
+!1493 = !DILocation(line: 776, column: 42, scope: !210)
+!1494 = !DILocalVariable(name: "seg2p", scope: !210, file: !15, line: 778, type: !409)
+!1495 = !DILocation(line: 778, column: 12, scope: !210)
+!1496 = !DILocation(line: 778, column: 31, scope: !210)
+!1497 = !DILocation(line: 778, column: 36, scope: !210)
+!1498 = !DILocation(line: 778, column: 21, scope: !210)
+!1499 = !DILocation(line: 782, column: 2, scope: !210)
+!1500 = !DILocation(line: 784, column: 18, scope: !210)
+!1501 = !DILocation(line: 784, column: 16, scope: !210)
+!1502 = !DILocation(line: 786, column: 7, scope: !1503)
+!1503 = distinct !DILexicalBlock(scope: !210, file: !15, line: 786, column: 6)
+!1504 = !DILocation(line: 786, column: 6, scope: !1503)
+!1505 = !DILocation(line: 786, column: 13, scope: !1503)
+!1506 = !DILocation(line: 786, column: 17, scope: !1503)
+!1507 = !DILocation(line: 786, column: 24, scope: !1503)
+!1508 = !DILocation(line: 786, column: 32, scope: !1503)
+!1509 = !DILocalVariable(name: "amount", scope: !1510, file: !15, line: 787, type: !16)
+!1510 = distinct !DILexicalBlock(scope: !1503, file: !15, line: 786, column: 56)
+!1511 = !DILocation(line: 787, column: 7, scope: !1510)
+!1512 = !DILocation(line: 789, column: 3, scope: !1510)
+!1513 = !DILocation(line: 801, column: 7, scope: !1514)
+!1514 = distinct !DILexicalBlock(scope: !1510, file: !15, line: 801, column: 7)
+!1515 = !DILocation(line: 801, column: 24, scope: !1514)
+!1516 = !DILocation(line: 803, column: 4, scope: !1517)
+!1517 = distinct !DILexicalBlock(scope: !1514, file: !15, line: 801, column: 30)
+!1518 = !DILocation(line: 806, column: 19, scope: !1510)
+!1519 = !DILocation(line: 806, column: 30, scope: !1510)
+!1520 = !DILocation(line: 806, column: 12, scope: !1510)
+!1521 = !DILocation(line: 806, column: 10, scope: !1510)
+!1522 = !DILocation(line: 808, column: 7, scope: !1523)
+!1523 = distinct !DILexicalBlock(scope: !1510, file: !15, line: 808, column: 7)
+!1524 = !DILocation(line: 808, column: 16, scope: !1523)
+!1525 = !DILocation(line: 808, column: 14, scope: !1523)
+!1526 = !DILocation(line: 809, column: 13, scope: !1523)
+!1527 = !DILocation(line: 809, column: 11, scope: !1523)
+!1528 = !DILocation(line: 809, column: 4, scope: !1523)
+!1529 = !DILocation(line: 819, column: 7, scope: !1530)
+!1530 = distinct !DILexicalBlock(scope: !1510, file: !15, line: 819, column: 7)
+!1531 = !DILocation(line: 819, column: 24, scope: !1530)
+!1532 = !DILocation(line: 819, column: 22, scope: !1530)
+!1533 = !DILocation(line: 820, column: 19, scope: !1530)
+!1534 = !DILocation(line: 820, column: 4, scope: !1530)
+!1535 = !DILocation(line: 822, column: 7, scope: !1536)
+!1536 = distinct !DILexicalBlock(scope: !1510, file: !15, line: 822, column: 7)
+!1537 = !DILocation(line: 822, column: 18, scope: !1536)
+!1538 = !DILocation(line: 822, column: 33, scope: !1536)
+!1539 = !DILocation(line: 822, column: 16, scope: !1536)
+!1540 = !DILocation(line: 824, column: 4, scope: !1541)
+!1541 = distinct !DILexicalBlock(scope: !1536, file: !15, line: 822, column: 56)
+!1542 = !DILocation(line: 830, column: 21, scope: !1541)
+!1543 = !DILocation(line: 830, column: 19, scope: !1541)
+!1544 = !DILocation(line: 831, column: 3, scope: !1541)
+!1545 = !DILocation(line: 835, column: 10, scope: !1510)
+!1546 = !DILocation(line: 835, column: 3, scope: !1510)
+!1547 = !DILocation(line: 839, column: 3, scope: !1548)
+!1548 = distinct !DILexicalBlock(scope: !1503, file: !15, line: 838, column: 7)
+!1549 = !DILocation(line: 841, column: 1, scope: !210)
+!1550 = distinct !DISubprogram(name: "disable_matcens", linkageName: "_Z15disable_matcensv", scope: !15, file: !15, line: 1171, type: !343, scopeLine: 1172, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1551 = !DILocalVariable(name: "i", scope: !1550, file: !15, line: 1173, type: !5)
+!1552 = !DILocation(line: 1173, column: 6, scope: !1550)
+!1553 = !DILocation(line: 1175, column: 9, scope: !1554)
+!1554 = distinct !DILexicalBlock(scope: !1550, file: !15, line: 1175, column: 2)
+!1555 = !DILocation(line: 1175, column: 7, scope: !1554)
+!1556 = !DILocation(line: 1175, column: 14, scope: !1557)
+!1557 = distinct !DILexicalBlock(scope: !1554, file: !15, line: 1175, column: 2)
+!1558 = !DILocation(line: 1175, column: 18, scope: !1557)
+!1559 = !DILocation(line: 1175, column: 16, scope: !1557)
+!1560 = !DILocation(line: 1175, column: 2, scope: !1554)
+!1561 = !DILocation(line: 1176, column: 11, scope: !1562)
+!1562 = distinct !DILexicalBlock(scope: !1557, file: !15, line: 1175, column: 42)
+!1563 = !DILocation(line: 1176, column: 3, scope: !1562)
+!1564 = !DILocation(line: 1176, column: 14, scope: !1562)
+!1565 = !DILocation(line: 1176, column: 22, scope: !1562)
+!1566 = !DILocation(line: 1177, column: 11, scope: !1562)
+!1567 = !DILocation(line: 1177, column: 3, scope: !1562)
+!1568 = !DILocation(line: 1177, column: 14, scope: !1562)
+!1569 = !DILocation(line: 1177, column: 27, scope: !1562)
+!1570 = !DILocation(line: 1178, column: 2, scope: !1562)
+!1571 = !DILocation(line: 1175, column: 38, scope: !1557)
+!1572 = !DILocation(line: 1175, column: 2, scope: !1557)
+!1573 = distinct !{!1573, !1560, !1574, !363}
+!1574 = !DILocation(line: 1178, column: 2, scope: !1554)
+!1575 = !DILocation(line: 1179, column: 1, scope: !1550)
+!1576 = distinct !DISubprogram(name: "init_all_matcens", linkageName: "_Z16init_all_matcensv", scope: !15, file: !15, line: 1184, type: !343, scopeLine: 1185, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1577 = !DILocalVariable(name: "i", scope: !1576, file: !15, line: 1186, type: !5)
+!1578 = !DILocation(line: 1186, column: 6, scope: !1576)
+!1579 = !DILocation(line: 1188, column: 9, scope: !1580)
+!1580 = distinct !DILexicalBlock(scope: !1576, file: !15, line: 1188, column: 2)
+!1581 = !DILocation(line: 1188, column: 7, scope: !1580)
+!1582 = !DILocation(line: 1188, column: 14, scope: !1583)
+!1583 = distinct !DILexicalBlock(scope: !1580, file: !15, line: 1188, column: 2)
+!1584 = !DILocation(line: 1188, column: 18, scope: !1583)
+!1585 = !DILocation(line: 1188, column: 16, scope: !1583)
+!1586 = !DILocation(line: 1188, column: 2, scope: !1580)
+!1587 = !DILocation(line: 1189, column: 15, scope: !1588)
+!1588 = distinct !DILexicalBlock(scope: !1583, file: !15, line: 1189, column: 7)
+!1589 = !DILocation(line: 1189, column: 7, scope: !1588)
+!1590 = !DILocation(line: 1189, column: 18, scope: !1588)
+!1591 = !DILocation(line: 1189, column: 23, scope: !1588)
+!1592 = !DILocation(line: 1190, column: 12, scope: !1593)
+!1593 = distinct !DILexicalBlock(scope: !1588, file: !15, line: 1189, column: 49)
+!1594 = !DILocation(line: 1190, column: 4, scope: !1593)
+!1595 = !DILocation(line: 1190, column: 15, scope: !1593)
+!1596 = !DILocation(line: 1190, column: 21, scope: !1593)
+!1597 = !DILocation(line: 1191, column: 12, scope: !1593)
+!1598 = !DILocation(line: 1191, column: 4, scope: !1593)
+!1599 = !DILocation(line: 1191, column: 15, scope: !1593)
+!1600 = !DILocation(line: 1191, column: 23, scope: !1593)
+!1601 = !DILocation(line: 1192, column: 12, scope: !1593)
+!1602 = !DILocation(line: 1192, column: 4, scope: !1593)
+!1603 = !DILocation(line: 1192, column: 15, scope: !1593)
+!1604 = !DILocation(line: 1192, column: 28, scope: !1593)
+!1605 = !DILocalVariable(name: "j", scope: !1606, file: !15, line: 1196, type: !5)
+!1606 = distinct !DILexicalBlock(scope: !1593, file: !15, line: 1194, column: 4)
+!1607 = !DILocation(line: 1196, column: 9, scope: !1606)
+!1608 = !DILocation(line: 1197, column: 12, scope: !1609)
+!1609 = distinct !DILexicalBlock(scope: !1606, file: !15, line: 1197, column: 5)
+!1610 = !DILocation(line: 1197, column: 10, scope: !1609)
+!1611 = !DILocation(line: 1197, column: 17, scope: !1612)
+!1612 = distinct !DILexicalBlock(scope: !1609, file: !15, line: 1197, column: 5)
+!1613 = !DILocation(line: 1197, column: 21, scope: !1612)
+!1614 = !DILocation(line: 1197, column: 19, scope: !1612)
+!1615 = !DILocation(line: 1197, column: 5, scope: !1609)
+!1616 = !DILocation(line: 1198, column: 23, scope: !1617)
+!1617 = distinct !DILexicalBlock(scope: !1618, file: !15, line: 1198, column: 10)
+!1618 = distinct !DILexicalBlock(scope: !1612, file: !15, line: 1197, column: 45)
+!1619 = !DILocation(line: 1198, column: 10, scope: !1617)
+!1620 = !DILocation(line: 1198, column: 26, scope: !1617)
+!1621 = !DILocation(line: 1198, column: 41, scope: !1617)
+!1622 = !DILocation(line: 1198, column: 38, scope: !1617)
+!1623 = !DILocation(line: 1199, column: 7, scope: !1617)
+!1624 = !DILocation(line: 1200, column: 5, scope: !1618)
+!1625 = !DILocation(line: 1197, column: 41, scope: !1612)
+!1626 = !DILocation(line: 1197, column: 5, scope: !1612)
+!1627 = distinct !{!1627, !1615, !1628, !363}
+!1628 = !DILocation(line: 1200, column: 5, scope: !1609)
+!1629 = !DILocation(line: 1201, column: 5, scope: !1606)
+!1630 = !DILocation(line: 1205, column: 3, scope: !1593)
+!1631 = !DILocation(line: 1189, column: 26, scope: !1588)
+!1632 = !DILocation(line: 1188, column: 36, scope: !1583)
+!1633 = !DILocation(line: 1188, column: 2, scope: !1583)
+!1634 = distinct !{!1634, !1586, !1635, !363}
+!1635 = !DILocation(line: 1205, column: 3, scope: !1580)
+!1636 = !DILocation(line: 1209, column: 9, scope: !1637)
+!1637 = distinct !DILexicalBlock(scope: !1576, file: !15, line: 1209, column: 2)
+!1638 = !DILocation(line: 1209, column: 7, scope: !1637)
+!1639 = !DILocation(line: 1209, column: 14, scope: !1640)
+!1640 = distinct !DILexicalBlock(scope: !1637, file: !15, line: 1209, column: 2)
+!1641 = !DILocation(line: 1209, column: 18, scope: !1640)
+!1642 = !DILocation(line: 1209, column: 16, scope: !1640)
+!1643 = !DILocation(line: 1209, column: 2, scope: !1637)
+!1644 = !DILocalVariable(name: "fuelcen_num", scope: !1645, file: !15, line: 1210, type: !5)
+!1645 = distinct !DILexicalBlock(scope: !1640, file: !15, line: 1209, column: 42)
+!1646 = !DILocation(line: 1210, column: 7, scope: !1645)
+!1647 = !DILocation(line: 1210, column: 34, scope: !1645)
+!1648 = !DILocation(line: 1210, column: 21, scope: !1645)
+!1649 = !DILocation(line: 1210, column: 37, scope: !1645)
+!1650 = !DILocation(line: 1212, column: 3, scope: !1645)
+!1651 = !DILocation(line: 1213, column: 3, scope: !1645)
+!1652 = !DILocation(line: 1214, column: 2, scope: !1645)
+!1653 = !DILocation(line: 1209, column: 38, scope: !1640)
+!1654 = !DILocation(line: 1209, column: 2, scope: !1640)
+!1655 = distinct !{!1655, !1643, !1656, !363}
+!1656 = !DILocation(line: 1214, column: 2, scope: !1637)
+!1657 = !DILocation(line: 1217, column: 1, scope: !1576)
+!1658 = distinct !DISubprogram(name: "fuelcen_check_for_goal", linkageName: "_Z22fuelcen_check_for_goalP7segment", scope: !15, file: !15, line: 1220, type: !399, scopeLine: 1221, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1659 = !DILocalVariable(name: "segp", arg: 1, scope: !1658, file: !15, line: 1220, type: !74)
+!1660 = !DILocation(line: 1220, column: 38, scope: !1658)
+!1661 = !DILocalVariable(name: "seg2p", scope: !1658, file: !15, line: 1222, type: !409)
+!1662 = !DILocation(line: 1222, column: 12, scope: !1658)
+!1663 = !DILocation(line: 1222, column: 31, scope: !1658)
+!1664 = !DILocation(line: 1222, column: 36, scope: !1658)
+!1665 = !DILocation(line: 1222, column: 21, scope: !1658)
+!1666 = !DILocation(line: 1224, column: 2, scope: !1658)
+!1667 = !DILocation(line: 1225, column: 2, scope: !1658)
+!1668 = !DILocation(line: 1227, column: 6, scope: !1669)
+!1669 = distinct !DILexicalBlock(scope: !1658, file: !15, line: 1227, column: 6)
+!1670 = !DILocation(line: 1227, column: 13, scope: !1669)
+!1671 = !DILocation(line: 1227, column: 21, scope: !1669)
+!1672 = !DILocation(line: 1239, column: 2, scope: !1673)
+!1673 = distinct !DILexicalBlock(scope: !1669, file: !15, line: 1228, column: 2)
+!1674 = !DILocation(line: 1240, column: 6, scope: !1675)
+!1675 = distinct !DILexicalBlock(scope: !1658, file: !15, line: 1240, column: 6)
+!1676 = !DILocation(line: 1240, column: 13, scope: !1675)
+!1677 = !DILocation(line: 1240, column: 21, scope: !1675)
+!1678 = !DILocation(line: 1251, column: 2, scope: !1679)
+!1679 = distinct !DILexicalBlock(scope: !1675, file: !15, line: 1241, column: 2)
+!1680 = !DILocation(line: 1252, column: 1, scope: !1658)
+!1681 = distinct !DISubprogram(name: "fuelcen_check_for_hoard_goal", linkageName: "_Z28fuelcen_check_for_hoard_goalP7segment", scope: !15, file: !15, line: 1254, type: !399, scopeLine: 1255, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1682 = !DILocalVariable(name: "segp", arg: 1, scope: !1681, file: !15, line: 1254, type: !74)
+!1683 = !DILocation(line: 1254, column: 44, scope: !1681)
+!1684 = !DILocalVariable(name: "seg2p", scope: !1681, file: !15, line: 1256, type: !409)
+!1685 = !DILocation(line: 1256, column: 12, scope: !1681)
+!1686 = !DILocation(line: 1256, column: 31, scope: !1681)
+!1687 = !DILocation(line: 1256, column: 36, scope: !1681)
+!1688 = !DILocation(line: 1256, column: 21, scope: !1681)
+!1689 = !DILocation(line: 1258, column: 2, scope: !1681)
+!1690 = !DILocation(line: 1259, column: 2, scope: !1681)
+!1691 = !DILocation(line: 1261, column: 6, scope: !1692)
+!1692 = distinct !DILexicalBlock(scope: !1681, file: !15, line: 1261, column: 6)
+!1693 = !DILocation(line: 1262, column: 3, scope: !1692)
+!1694 = !DILocation(line: 1264, column: 6, scope: !1695)
+!1695 = distinct !DILexicalBlock(scope: !1681, file: !15, line: 1264, column: 6)
+!1696 = !DILocation(line: 1264, column: 13, scope: !1695)
+!1697 = !DILocation(line: 1264, column: 21, scope: !1695)
+!1698 = !DILocation(line: 1264, column: 45, scope: !1695)
+!1699 = !DILocation(line: 1264, column: 48, scope: !1695)
+!1700 = !DILocation(line: 1264, column: 55, scope: !1695)
+!1701 = !DILocation(line: 1264, column: 63, scope: !1695)
+!1702 = !DILocation(line: 1275, column: 2, scope: !1703)
+!1703 = distinct !DILexicalBlock(scope: !1695, file: !15, line: 1265, column: 2)
+!1704 = !DILocation(line: 1277, column: 1, scope: !1681)
+!1705 = distinct !DISubprogram(name: "read_matcen", linkageName: "_Z11read_matcenP11matcen_infoP7__sFILE", scope: !15, file: !15, line: 1282, type: !1706, scopeLine: 1283, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1706 = !DISubroutineType(types: !1707)
+!1707 = !{null, !1708, !1709}
+!1708 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !27, size: 64)
+!1709 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1710, size: 64)
+!1710 = !DIDerivedType(tag: DW_TAG_typedef, name: "FILE", file: !1711, line: 162, baseType: !1712)
+!1711 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/usr/include/_stdio.h", directory: "", checksumkind: CSK_MD5, checksum: "d91ebd7d161d9196cc100822ef0e5cdf")
+!1712 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "__sFILE", file: !1711, line: 131, size: 1216, flags: DIFlagTypePassByValue, elements: !1713, identifier: "_ZTS7__sFILE")
+!1713 = !{!1714, !1716, !1717, !1718, !1719, !1720, !1725, !1726, !1728, !1732, !1737, !1745, !1750, !1751, !1754, !1755, !1759, !1763, !1764, !1765}
+!1714 = !DIDerivedType(tag: DW_TAG_member, name: "_p", scope: !1712, file: !1711, line: 132, baseType: !1715, size: 64)
+!1715 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !88, size: 64)
+!1716 = !DIDerivedType(tag: DW_TAG_member, name: "_r", scope: !1712, file: !1711, line: 133, baseType: !5, size: 32, offset: 64)
+!1717 = !DIDerivedType(tag: DW_TAG_member, name: "_w", scope: !1712, file: !1711, line: 134, baseType: !5, size: 32, offset: 96)
+!1718 = !DIDerivedType(tag: DW_TAG_member, name: "_flags", scope: !1712, file: !1711, line: 135, baseType: !38, size: 16, offset: 128)
+!1719 = !DIDerivedType(tag: DW_TAG_member, name: "_file", scope: !1712, file: !1711, line: 136, baseType: !38, size: 16, offset: 144)
+!1720 = !DIDerivedType(tag: DW_TAG_member, name: "_bf", scope: !1712, file: !1711, line: 137, baseType: !1721, size: 128, offset: 192)
+!1721 = distinct !DICompositeType(tag: DW_TAG_structure_type, name: "__sbuf", file: !1711, line: 97, size: 128, flags: DIFlagTypePassByValue, elements: !1722, identifier: "_ZTS6__sbuf")
+!1722 = !{!1723, !1724}
+!1723 = !DIDerivedType(tag: DW_TAG_member, name: "_base", scope: !1721, file: !1711, line: 98, baseType: !1715, size: 64)
+!1724 = !DIDerivedType(tag: DW_TAG_member, name: "_size", scope: !1721, file: !1711, line: 99, baseType: !5, size: 32, offset: 64)
+!1725 = !DIDerivedType(tag: DW_TAG_member, name: "_lbfsize", scope: !1712, file: !1711, line: 138, baseType: !5, size: 32, offset: 320)
+!1726 = !DIDerivedType(tag: DW_TAG_member, name: "_cookie", scope: !1712, file: !1711, line: 141, baseType: !1727, size: 64, offset: 384)
+!1727 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: null, size: 64)
+!1728 = !DIDerivedType(tag: DW_TAG_member, name: "_close", scope: !1712, file: !1711, line: 142, baseType: !1729, size: 64, offset: 448)
 !1729 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1730, size: 64)
 !1730 = !DISubroutineType(types: !1731)
-!1731 = !{!5, !1723, !1732, !5}
-!1732 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !117, size: 64)
-!1733 = !DIDerivedType(tag: DW_TAG_member, name: "_seek", scope: !1708, file: !1707, line: 144, baseType: !1734, size: 64, offset: 576)
-!1734 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1735, size: 64)
-!1735 = !DISubroutineType(types: !1736)
-!1736 = !{!1737, !1723, !1737, !5}
-!1737 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpos_t", file: !1707, line: 86, baseType: !1738)
-!1738 = !DIDerivedType(tag: DW_TAG_typedef, name: "__darwin_off_t", file: !1739, line: 83, baseType: !1740)
-!1739 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/usr/include/sys/_types.h", directory: "", checksumkind: CSK_MD5, checksum: "af82ff6119a9fa80fad635d276556d46")
-!1740 = !DIDerivedType(tag: DW_TAG_typedef, name: "__int64_t", file: !301, line: 37, baseType: !11)
-!1741 = !DIDerivedType(tag: DW_TAG_member, name: "_write", scope: !1708, file: !1707, line: 145, baseType: !1742, size: 64, offset: 640)
-!1742 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1743, size: 64)
-!1743 = !DISubroutineType(types: !1744)
-!1744 = !{!5, !1723, !1745, !5}
-!1745 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !116, size: 64)
-!1746 = !DIDerivedType(tag: DW_TAG_member, name: "_ub", scope: !1708, file: !1707, line: 148, baseType: !1717, size: 128, offset: 704)
-!1747 = !DIDerivedType(tag: DW_TAG_member, name: "_extra", scope: !1708, file: !1707, line: 149, baseType: !1748, size: 64, offset: 832)
-!1748 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1749, size: 64)
-!1749 = !DICompositeType(tag: DW_TAG_structure_type, name: "__sFILEX", file: !1707, line: 103, flags: DIFlagFwdDecl | DIFlagNonTrivial, identifier: "_ZTS8__sFILEX")
-!1750 = !DIDerivedType(tag: DW_TAG_member, name: "_ur", scope: !1708, file: !1707, line: 150, baseType: !5, size: 32, offset: 896)
-!1751 = !DIDerivedType(tag: DW_TAG_member, name: "_ubuf", scope: !1708, file: !1707, line: 153, baseType: !1752, size: 24, offset: 928)
-!1752 = !DICompositeType(tag: DW_TAG_array_type, baseType: !88, size: 24, elements: !1753)
-!1753 = !{!1754}
-!1754 = !DISubrange(count: 3)
-!1755 = !DIDerivedType(tag: DW_TAG_member, name: "_nbuf", scope: !1708, file: !1707, line: 154, baseType: !1756, size: 8, offset: 952)
-!1756 = !DICompositeType(tag: DW_TAG_array_type, baseType: !88, size: 8, elements: !1757)
+!1731 = !{!5, !1727}
+!1732 = !DIDerivedType(tag: DW_TAG_member, name: "_read", scope: !1712, file: !1711, line: 143, baseType: !1733, size: 64, offset: 512)
+!1733 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1734, size: 64)
+!1734 = !DISubroutineType(types: !1735)
+!1735 = !{!5, !1727, !1736, !5}
+!1736 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !117, size: 64)
+!1737 = !DIDerivedType(tag: DW_TAG_member, name: "_seek", scope: !1712, file: !1711, line: 144, baseType: !1738, size: 64, offset: 576)
+!1738 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1739, size: 64)
+!1739 = !DISubroutineType(types: !1740)
+!1740 = !{!1741, !1727, !1741, !5}
+!1741 = !DIDerivedType(tag: DW_TAG_typedef, name: "fpos_t", file: !1711, line: 86, baseType: !1742)
+!1742 = !DIDerivedType(tag: DW_TAG_typedef, name: "__darwin_off_t", file: !1743, line: 83, baseType: !1744)
+!1743 = !DIFile(filename: "/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/usr/include/sys/_types.h", directory: "", checksumkind: CSK_MD5, checksum: "af82ff6119a9fa80fad635d276556d46")
+!1744 = !DIDerivedType(tag: DW_TAG_typedef, name: "__int64_t", file: !301, line: 37, baseType: !11)
+!1745 = !DIDerivedType(tag: DW_TAG_member, name: "_write", scope: !1712, file: !1711, line: 145, baseType: !1746, size: 64, offset: 640)
+!1746 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1747, size: 64)
+!1747 = !DISubroutineType(types: !1748)
+!1748 = !{!5, !1727, !1749, !5}
+!1749 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !116, size: 64)
+!1750 = !DIDerivedType(tag: DW_TAG_member, name: "_ub", scope: !1712, file: !1711, line: 148, baseType: !1721, size: 128, offset: 704)
+!1751 = !DIDerivedType(tag: DW_TAG_member, name: "_extra", scope: !1712, file: !1711, line: 149, baseType: !1752, size: 64, offset: 832)
+!1752 = !DIDerivedType(tag: DW_TAG_pointer_type, baseType: !1753, size: 64)
+!1753 = !DICompositeType(tag: DW_TAG_structure_type, name: "__sFILEX", file: !1711, line: 103, flags: DIFlagFwdDecl | DIFlagNonTrivial, identifier: "_ZTS8__sFILEX")
+!1754 = !DIDerivedType(tag: DW_TAG_member, name: "_ur", scope: !1712, file: !1711, line: 150, baseType: !5, size: 32, offset: 896)
+!1755 = !DIDerivedType(tag: DW_TAG_member, name: "_ubuf", scope: !1712, file: !1711, line: 153, baseType: !1756, size: 24, offset: 928)
+!1756 = !DICompositeType(tag: DW_TAG_array_type, baseType: !88, size: 24, elements: !1757)
 !1757 = !{!1758}
-!1758 = !DISubrange(count: 1)
-!1759 = !DIDerivedType(tag: DW_TAG_member, name: "_lb", scope: !1708, file: !1707, line: 157, baseType: !1717, size: 128, offset: 960)
-!1760 = !DIDerivedType(tag: DW_TAG_member, name: "_blksize", scope: !1708, file: !1707, line: 160, baseType: !5, size: 32, offset: 1088)
-!1761 = !DIDerivedType(tag: DW_TAG_member, name: "_offset", scope: !1708, file: !1707, line: 161, baseType: !1737, size: 64, offset: 1152)
-!1762 = !DILocalVariable(name: "center", arg: 1, scope: !1701, file: !15, line: 1262, type: !1704)
-!1763 = !DILocation(line: 1262, column: 31, scope: !1701)
-!1764 = !DILocalVariable(name: "fp", arg: 2, scope: !1701, file: !15, line: 1262, type: !1705)
-!1765 = !DILocation(line: 1262, column: 45, scope: !1701)
-!1766 = !DILocation(line: 1264, column: 41, scope: !1701)
-!1767 = !DILocation(line: 1264, column: 27, scope: !1701)
-!1768 = !DILocation(line: 1264, column: 2, scope: !1701)
-!1769 = !DILocation(line: 1264, column: 10, scope: !1701)
-!1770 = !DILocation(line: 1264, column: 25, scope: !1701)
-!1771 = !DILocation(line: 1265, column: 41, scope: !1701)
-!1772 = !DILocation(line: 1265, column: 27, scope: !1701)
-!1773 = !DILocation(line: 1265, column: 2, scope: !1701)
-!1774 = !DILocation(line: 1265, column: 10, scope: !1701)
-!1775 = !DILocation(line: 1265, column: 25, scope: !1701)
-!1776 = !DILocation(line: 1266, column: 37, scope: !1701)
-!1777 = !DILocation(line: 1266, column: 23, scope: !1701)
-!1778 = !DILocation(line: 1266, column: 2, scope: !1701)
-!1779 = !DILocation(line: 1266, column: 10, scope: !1701)
-!1780 = !DILocation(line: 1266, column: 21, scope: !1701)
-!1781 = !DILocation(line: 1267, column: 35, scope: !1701)
-!1782 = !DILocation(line: 1267, column: 21, scope: !1701)
-!1783 = !DILocation(line: 1267, column: 2, scope: !1701)
-!1784 = !DILocation(line: 1267, column: 10, scope: !1701)
-!1785 = !DILocation(line: 1267, column: 19, scope: !1701)
-!1786 = !DILocation(line: 1268, column: 35, scope: !1701)
-!1787 = !DILocation(line: 1268, column: 19, scope: !1701)
-!1788 = !DILocation(line: 1268, column: 2, scope: !1701)
-!1789 = !DILocation(line: 1268, column: 10, scope: !1701)
-!1790 = !DILocation(line: 1268, column: 17, scope: !1701)
-!1791 = !DILocation(line: 1269, column: 40, scope: !1701)
-!1792 = !DILocation(line: 1269, column: 24, scope: !1701)
-!1793 = !DILocation(line: 1269, column: 2, scope: !1701)
-!1794 = !DILocation(line: 1269, column: 10, scope: !1701)
-!1795 = !DILocation(line: 1269, column: 22, scope: !1701)
-!1796 = !DILocation(line: 1270, column: 1, scope: !1701)
-!1797 = distinct !DISubprogram(name: "write_matcen", linkageName: "_Z12write_matcenP11matcen_infoP7__sFILE", scope: !15, file: !15, line: 1272, type: !1702, scopeLine: 1273, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1798 = !DILocalVariable(name: "center", arg: 1, scope: !1797, file: !15, line: 1272, type: !1704)
-!1799 = !DILocation(line: 1272, column: 32, scope: !1797)
-!1800 = !DILocalVariable(name: "fp", arg: 2, scope: !1797, file: !15, line: 1272, type: !1705)
-!1801 = !DILocation(line: 1272, column: 46, scope: !1797)
-!1802 = !DILocation(line: 1274, column: 17, scope: !1797)
-!1803 = !DILocation(line: 1274, column: 21, scope: !1797)
-!1804 = !DILocation(line: 1274, column: 29, scope: !1797)
-!1805 = !DILocation(line: 1274, column: 2, scope: !1797)
-!1806 = !DILocation(line: 1275, column: 17, scope: !1797)
-!1807 = !DILocation(line: 1275, column: 21, scope: !1797)
-!1808 = !DILocation(line: 1275, column: 29, scope: !1797)
-!1809 = !DILocation(line: 1275, column: 2, scope: !1797)
-!1810 = !DILocation(line: 1276, column: 17, scope: !1797)
-!1811 = !DILocation(line: 1276, column: 21, scope: !1797)
-!1812 = !DILocation(line: 1276, column: 29, scope: !1797)
-!1813 = !DILocation(line: 1276, column: 2, scope: !1797)
-!1814 = !DILocation(line: 1277, column: 17, scope: !1797)
-!1815 = !DILocation(line: 1277, column: 21, scope: !1797)
-!1816 = !DILocation(line: 1277, column: 29, scope: !1797)
-!1817 = !DILocation(line: 1277, column: 2, scope: !1797)
-!1818 = !DILocation(line: 1278, column: 19, scope: !1797)
-!1819 = !DILocation(line: 1278, column: 23, scope: !1797)
-!1820 = !DILocation(line: 1278, column: 31, scope: !1797)
-!1821 = !DILocation(line: 1278, column: 2, scope: !1797)
-!1822 = !DILocation(line: 1279, column: 19, scope: !1797)
-!1823 = !DILocation(line: 1279, column: 23, scope: !1797)
-!1824 = !DILocation(line: 1279, column: 31, scope: !1797)
-!1825 = !DILocation(line: 1279, column: 2, scope: !1797)
-!1826 = !DILocation(line: 1280, column: 1, scope: !1797)
-!1827 = distinct !DISubprogram(name: "read_fuelcen", linkageName: "_Z12read_fuelcenP10FuelCenterP7__sFILE", scope: !15, file: !15, line: 1282, type: !1828, scopeLine: 1283, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1828 = !DISubroutineType(types: !1829)
-!1829 = !{null, !627, !1705}
-!1830 = !DILocalVariable(name: "center", arg: 1, scope: !1827, file: !15, line: 1282, type: !627)
-!1831 = !DILocation(line: 1282, column: 31, scope: !1827)
-!1832 = !DILocalVariable(name: "fp", arg: 2, scope: !1827, file: !15, line: 1282, type: !1705)
-!1833 = !DILocation(line: 1282, column: 45, scope: !1827)
-!1834 = !DILocation(line: 1284, column: 31, scope: !1827)
-!1835 = !DILocation(line: 1284, column: 17, scope: !1827)
-!1836 = !DILocation(line: 1284, column: 2, scope: !1827)
-!1837 = !DILocation(line: 1284, column: 10, scope: !1827)
-!1838 = !DILocation(line: 1284, column: 15, scope: !1827)
-!1839 = !DILocation(line: 1285, column: 33, scope: !1827)
-!1840 = !DILocation(line: 1285, column: 19, scope: !1827)
-!1841 = !DILocation(line: 1285, column: 2, scope: !1827)
-!1842 = !DILocation(line: 1285, column: 10, scope: !1827)
-!1843 = !DILocation(line: 1285, column: 17, scope: !1827)
-!1844 = !DILocation(line: 1286, column: 32, scope: !1827)
-!1845 = !DILocation(line: 1286, column: 17, scope: !1827)
-!1846 = !DILocation(line: 1286, column: 2, scope: !1827)
-!1847 = !DILocation(line: 1286, column: 10, scope: !1827)
-!1848 = !DILocation(line: 1286, column: 15, scope: !1827)
-!1849 = !DILocation(line: 1287, column: 35, scope: !1827)
-!1850 = !DILocation(line: 1287, column: 20, scope: !1827)
-!1851 = !DILocation(line: 1287, column: 2, scope: !1827)
-!1852 = !DILocation(line: 1287, column: 10, scope: !1827)
-!1853 = !DILocation(line: 1287, column: 18, scope: !1827)
-!1854 = !DILocation(line: 1288, column: 33, scope: !1827)
-!1855 = !DILocation(line: 1288, column: 18, scope: !1827)
-!1856 = !DILocation(line: 1288, column: 2, scope: !1827)
-!1857 = !DILocation(line: 1288, column: 10, scope: !1827)
-!1858 = !DILocation(line: 1288, column: 16, scope: !1827)
-!1859 = !DILocation(line: 1289, column: 32, scope: !1827)
-!1860 = !DILocation(line: 1289, column: 17, scope: !1827)
-!1861 = !DILocation(line: 1289, column: 2, scope: !1827)
-!1862 = !DILocation(line: 1289, column: 10, scope: !1827)
-!1863 = !DILocation(line: 1289, column: 15, scope: !1827)
-!1864 = !DILocation(line: 1290, column: 35, scope: !1827)
-!1865 = !DILocation(line: 1290, column: 21, scope: !1827)
-!1866 = !DILocation(line: 1290, column: 2, scope: !1827)
-!1867 = !DILocation(line: 1290, column: 10, scope: !1827)
-!1868 = !DILocation(line: 1290, column: 19, scope: !1827)
-!1869 = !DILocation(line: 1291, column: 38, scope: !1827)
-!1870 = !DILocation(line: 1291, column: 24, scope: !1827)
-!1871 = !DILocation(line: 1291, column: 2, scope: !1827)
-!1872 = !DILocation(line: 1291, column: 10, scope: !1827)
-!1873 = !DILocation(line: 1291, column: 22, scope: !1827)
-!1874 = !DILocation(line: 1292, column: 32, scope: !1827)
-!1875 = !DILocation(line: 1292, column: 18, scope: !1827)
-!1876 = !DILocation(line: 1292, column: 2, scope: !1827)
-!1877 = !DILocation(line: 1292, column: 10, scope: !1827)
-!1878 = !DILocation(line: 1292, column: 16, scope: !1827)
-!1879 = !DILocation(line: 1293, column: 39, scope: !1827)
-!1880 = !DILocation(line: 1293, column: 25, scope: !1827)
-!1881 = !DILocation(line: 1293, column: 2, scope: !1827)
-!1882 = !DILocation(line: 1293, column: 10, scope: !1827)
-!1883 = !DILocation(line: 1293, column: 23, scope: !1827)
-!1884 = !DILocation(line: 1294, column: 35, scope: !1827)
-!1885 = !DILocation(line: 1294, column: 21, scope: !1827)
-!1886 = !DILocation(line: 1294, column: 2, scope: !1827)
-!1887 = !DILocation(line: 1294, column: 10, scope: !1827)
-!1888 = !DILocation(line: 1294, column: 17, scope: !1827)
-!1889 = !DILocation(line: 1294, column: 19, scope: !1827)
-!1890 = !DILocation(line: 1295, column: 35, scope: !1827)
-!1891 = !DILocation(line: 1295, column: 21, scope: !1827)
-!1892 = !DILocation(line: 1295, column: 2, scope: !1827)
-!1893 = !DILocation(line: 1295, column: 10, scope: !1827)
-!1894 = !DILocation(line: 1295, column: 17, scope: !1827)
-!1895 = !DILocation(line: 1295, column: 19, scope: !1827)
-!1896 = !DILocation(line: 1296, column: 35, scope: !1827)
-!1897 = !DILocation(line: 1296, column: 21, scope: !1827)
-!1898 = !DILocation(line: 1296, column: 2, scope: !1827)
-!1899 = !DILocation(line: 1296, column: 10, scope: !1827)
-!1900 = !DILocation(line: 1296, column: 17, scope: !1827)
-!1901 = !DILocation(line: 1296, column: 19, scope: !1827)
-!1902 = !DILocation(line: 1297, column: 1, scope: !1827)
-!1903 = distinct !DISubprogram(name: "write_fuelcen", linkageName: "_Z13write_fuelcenP10FuelCenterP7__sFILE", scope: !15, file: !15, line: 1299, type: !1828, scopeLine: 1300, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
-!1904 = !DILocalVariable(name: "center", arg: 1, scope: !1903, file: !15, line: 1299, type: !627)
-!1905 = !DILocation(line: 1299, column: 32, scope: !1903)
-!1906 = !DILocalVariable(name: "fp", arg: 2, scope: !1903, file: !15, line: 1299, type: !1705)
-!1907 = !DILocation(line: 1299, column: 46, scope: !1903)
-!1908 = !DILocation(line: 1301, column: 17, scope: !1903)
-!1909 = !DILocation(line: 1301, column: 21, scope: !1903)
-!1910 = !DILocation(line: 1301, column: 29, scope: !1903)
-!1911 = !DILocation(line: 1301, column: 2, scope: !1903)
-!1912 = !DILocation(line: 1302, column: 17, scope: !1903)
-!1913 = !DILocation(line: 1302, column: 21, scope: !1903)
-!1914 = !DILocation(line: 1302, column: 29, scope: !1903)
-!1915 = !DILocation(line: 1302, column: 2, scope: !1903)
-!1916 = !DILocation(line: 1303, column: 18, scope: !1903)
-!1917 = !DILocation(line: 1303, column: 22, scope: !1903)
-!1918 = !DILocation(line: 1303, column: 30, scope: !1903)
-!1919 = !DILocation(line: 1303, column: 2, scope: !1903)
-!1920 = !DILocation(line: 1304, column: 18, scope: !1903)
-!1921 = !DILocation(line: 1304, column: 22, scope: !1903)
-!1922 = !DILocation(line: 1304, column: 30, scope: !1903)
-!1923 = !DILocation(line: 1304, column: 2, scope: !1903)
-!1924 = !DILocation(line: 1305, column: 18, scope: !1903)
-!1925 = !DILocation(line: 1305, column: 22, scope: !1903)
-!1926 = !DILocation(line: 1305, column: 30, scope: !1903)
-!1927 = !DILocation(line: 1305, column: 2, scope: !1903)
-!1928 = !DILocation(line: 1306, column: 18, scope: !1903)
-!1929 = !DILocation(line: 1306, column: 22, scope: !1903)
-!1930 = !DILocation(line: 1306, column: 30, scope: !1903)
-!1931 = !DILocation(line: 1306, column: 2, scope: !1903)
-!1932 = !DILocation(line: 1307, column: 17, scope: !1903)
-!1933 = !DILocation(line: 1307, column: 21, scope: !1903)
-!1934 = !DILocation(line: 1307, column: 29, scope: !1903)
-!1935 = !DILocation(line: 1307, column: 2, scope: !1903)
-!1936 = !DILocation(line: 1308, column: 17, scope: !1903)
-!1937 = !DILocation(line: 1308, column: 21, scope: !1903)
-!1938 = !DILocation(line: 1308, column: 29, scope: !1903)
-!1939 = !DILocation(line: 1308, column: 2, scope: !1903)
-!1940 = !DILocation(line: 1309, column: 17, scope: !1903)
-!1941 = !DILocation(line: 1309, column: 21, scope: !1903)
-!1942 = !DILocation(line: 1309, column: 29, scope: !1903)
-!1943 = !DILocation(line: 1309, column: 2, scope: !1903)
-!1944 = !DILocation(line: 1310, column: 17, scope: !1903)
-!1945 = !DILocation(line: 1310, column: 21, scope: !1903)
-!1946 = !DILocation(line: 1310, column: 29, scope: !1903)
-!1947 = !DILocation(line: 1310, column: 2, scope: !1903)
-!1948 = !DILocation(line: 1311, column: 17, scope: !1903)
-!1949 = !DILocation(line: 1311, column: 21, scope: !1903)
-!1950 = !DILocation(line: 1311, column: 29, scope: !1903)
-!1951 = !DILocation(line: 1311, column: 36, scope: !1903)
-!1952 = !DILocation(line: 1311, column: 2, scope: !1903)
-!1953 = !DILocation(line: 1312, column: 17, scope: !1903)
-!1954 = !DILocation(line: 1312, column: 21, scope: !1903)
-!1955 = !DILocation(line: 1312, column: 29, scope: !1903)
-!1956 = !DILocation(line: 1312, column: 36, scope: !1903)
-!1957 = !DILocation(line: 1312, column: 2, scope: !1903)
-!1958 = !DILocation(line: 1313, column: 17, scope: !1903)
-!1959 = !DILocation(line: 1313, column: 21, scope: !1903)
-!1960 = !DILocation(line: 1313, column: 29, scope: !1903)
-!1961 = !DILocation(line: 1313, column: 36, scope: !1903)
-!1962 = !DILocation(line: 1313, column: 2, scope: !1903)
-!1963 = !DILocation(line: 1314, column: 1, scope: !1903)
+!1758 = !DISubrange(count: 3)
+!1759 = !DIDerivedType(tag: DW_TAG_member, name: "_nbuf", scope: !1712, file: !1711, line: 154, baseType: !1760, size: 8, offset: 952)
+!1760 = !DICompositeType(tag: DW_TAG_array_type, baseType: !88, size: 8, elements: !1761)
+!1761 = !{!1762}
+!1762 = !DISubrange(count: 1)
+!1763 = !DIDerivedType(tag: DW_TAG_member, name: "_lb", scope: !1712, file: !1711, line: 157, baseType: !1721, size: 128, offset: 960)
+!1764 = !DIDerivedType(tag: DW_TAG_member, name: "_blksize", scope: !1712, file: !1711, line: 160, baseType: !5, size: 32, offset: 1088)
+!1765 = !DIDerivedType(tag: DW_TAG_member, name: "_offset", scope: !1712, file: !1711, line: 161, baseType: !1741, size: 64, offset: 1152)
+!1766 = !DILocalVariable(name: "center", arg: 1, scope: !1705, file: !15, line: 1282, type: !1708)
+!1767 = !DILocation(line: 1282, column: 31, scope: !1705)
+!1768 = !DILocalVariable(name: "fp", arg: 2, scope: !1705, file: !15, line: 1282, type: !1709)
+!1769 = !DILocation(line: 1282, column: 45, scope: !1705)
+!1770 = !DILocation(line: 1284, column: 41, scope: !1705)
+!1771 = !DILocation(line: 1284, column: 27, scope: !1705)
+!1772 = !DILocation(line: 1284, column: 2, scope: !1705)
+!1773 = !DILocation(line: 1284, column: 10, scope: !1705)
+!1774 = !DILocation(line: 1284, column: 25, scope: !1705)
+!1775 = !DILocation(line: 1285, column: 41, scope: !1705)
+!1776 = !DILocation(line: 1285, column: 27, scope: !1705)
+!1777 = !DILocation(line: 1285, column: 2, scope: !1705)
+!1778 = !DILocation(line: 1285, column: 10, scope: !1705)
+!1779 = !DILocation(line: 1285, column: 25, scope: !1705)
+!1780 = !DILocation(line: 1286, column: 37, scope: !1705)
+!1781 = !DILocation(line: 1286, column: 23, scope: !1705)
+!1782 = !DILocation(line: 1286, column: 2, scope: !1705)
+!1783 = !DILocation(line: 1286, column: 10, scope: !1705)
+!1784 = !DILocation(line: 1286, column: 21, scope: !1705)
+!1785 = !DILocation(line: 1287, column: 35, scope: !1705)
+!1786 = !DILocation(line: 1287, column: 21, scope: !1705)
+!1787 = !DILocation(line: 1287, column: 2, scope: !1705)
+!1788 = !DILocation(line: 1287, column: 10, scope: !1705)
+!1789 = !DILocation(line: 1287, column: 19, scope: !1705)
+!1790 = !DILocation(line: 1288, column: 35, scope: !1705)
+!1791 = !DILocation(line: 1288, column: 19, scope: !1705)
+!1792 = !DILocation(line: 1288, column: 2, scope: !1705)
+!1793 = !DILocation(line: 1288, column: 10, scope: !1705)
+!1794 = !DILocation(line: 1288, column: 17, scope: !1705)
+!1795 = !DILocation(line: 1289, column: 40, scope: !1705)
+!1796 = !DILocation(line: 1289, column: 24, scope: !1705)
+!1797 = !DILocation(line: 1289, column: 2, scope: !1705)
+!1798 = !DILocation(line: 1289, column: 10, scope: !1705)
+!1799 = !DILocation(line: 1289, column: 22, scope: !1705)
+!1800 = !DILocation(line: 1290, column: 1, scope: !1705)
+!1801 = distinct !DISubprogram(name: "write_matcen", linkageName: "_Z12write_matcenP11matcen_infoP7__sFILE", scope: !15, file: !15, line: 1292, type: !1706, scopeLine: 1293, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1802 = !DILocalVariable(name: "center", arg: 1, scope: !1801, file: !15, line: 1292, type: !1708)
+!1803 = !DILocation(line: 1292, column: 32, scope: !1801)
+!1804 = !DILocalVariable(name: "fp", arg: 2, scope: !1801, file: !15, line: 1292, type: !1709)
+!1805 = !DILocation(line: 1292, column: 46, scope: !1801)
+!1806 = !DILocation(line: 1294, column: 17, scope: !1801)
+!1807 = !DILocation(line: 1294, column: 21, scope: !1801)
+!1808 = !DILocation(line: 1294, column: 29, scope: !1801)
+!1809 = !DILocation(line: 1294, column: 2, scope: !1801)
+!1810 = !DILocation(line: 1295, column: 17, scope: !1801)
+!1811 = !DILocation(line: 1295, column: 21, scope: !1801)
+!1812 = !DILocation(line: 1295, column: 29, scope: !1801)
+!1813 = !DILocation(line: 1295, column: 2, scope: !1801)
+!1814 = !DILocation(line: 1296, column: 17, scope: !1801)
+!1815 = !DILocation(line: 1296, column: 21, scope: !1801)
+!1816 = !DILocation(line: 1296, column: 29, scope: !1801)
+!1817 = !DILocation(line: 1296, column: 2, scope: !1801)
+!1818 = !DILocation(line: 1297, column: 17, scope: !1801)
+!1819 = !DILocation(line: 1297, column: 21, scope: !1801)
+!1820 = !DILocation(line: 1297, column: 29, scope: !1801)
+!1821 = !DILocation(line: 1297, column: 2, scope: !1801)
+!1822 = !DILocation(line: 1298, column: 19, scope: !1801)
+!1823 = !DILocation(line: 1298, column: 23, scope: !1801)
+!1824 = !DILocation(line: 1298, column: 31, scope: !1801)
+!1825 = !DILocation(line: 1298, column: 2, scope: !1801)
+!1826 = !DILocation(line: 1299, column: 19, scope: !1801)
+!1827 = !DILocation(line: 1299, column: 23, scope: !1801)
+!1828 = !DILocation(line: 1299, column: 31, scope: !1801)
+!1829 = !DILocation(line: 1299, column: 2, scope: !1801)
+!1830 = !DILocation(line: 1300, column: 1, scope: !1801)
+!1831 = distinct !DISubprogram(name: "read_fuelcen", linkageName: "_Z12read_fuelcenP10FuelCenterP7__sFILE", scope: !15, file: !15, line: 1302, type: !1832, scopeLine: 1303, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1832 = !DISubroutineType(types: !1833)
+!1833 = !{null, !631, !1709}
+!1834 = !DILocalVariable(name: "center", arg: 1, scope: !1831, file: !15, line: 1302, type: !631)
+!1835 = !DILocation(line: 1302, column: 31, scope: !1831)
+!1836 = !DILocalVariable(name: "fp", arg: 2, scope: !1831, file: !15, line: 1302, type: !1709)
+!1837 = !DILocation(line: 1302, column: 45, scope: !1831)
+!1838 = !DILocation(line: 1304, column: 31, scope: !1831)
+!1839 = !DILocation(line: 1304, column: 17, scope: !1831)
+!1840 = !DILocation(line: 1304, column: 2, scope: !1831)
+!1841 = !DILocation(line: 1304, column: 10, scope: !1831)
+!1842 = !DILocation(line: 1304, column: 15, scope: !1831)
+!1843 = !DILocation(line: 1305, column: 33, scope: !1831)
+!1844 = !DILocation(line: 1305, column: 19, scope: !1831)
+!1845 = !DILocation(line: 1305, column: 2, scope: !1831)
+!1846 = !DILocation(line: 1305, column: 10, scope: !1831)
+!1847 = !DILocation(line: 1305, column: 17, scope: !1831)
+!1848 = !DILocation(line: 1306, column: 32, scope: !1831)
+!1849 = !DILocation(line: 1306, column: 17, scope: !1831)
+!1850 = !DILocation(line: 1306, column: 2, scope: !1831)
+!1851 = !DILocation(line: 1306, column: 10, scope: !1831)
+!1852 = !DILocation(line: 1306, column: 15, scope: !1831)
+!1853 = !DILocation(line: 1307, column: 35, scope: !1831)
+!1854 = !DILocation(line: 1307, column: 20, scope: !1831)
+!1855 = !DILocation(line: 1307, column: 2, scope: !1831)
+!1856 = !DILocation(line: 1307, column: 10, scope: !1831)
+!1857 = !DILocation(line: 1307, column: 18, scope: !1831)
+!1858 = !DILocation(line: 1308, column: 33, scope: !1831)
+!1859 = !DILocation(line: 1308, column: 18, scope: !1831)
+!1860 = !DILocation(line: 1308, column: 2, scope: !1831)
+!1861 = !DILocation(line: 1308, column: 10, scope: !1831)
+!1862 = !DILocation(line: 1308, column: 16, scope: !1831)
+!1863 = !DILocation(line: 1309, column: 32, scope: !1831)
+!1864 = !DILocation(line: 1309, column: 17, scope: !1831)
+!1865 = !DILocation(line: 1309, column: 2, scope: !1831)
+!1866 = !DILocation(line: 1309, column: 10, scope: !1831)
+!1867 = !DILocation(line: 1309, column: 15, scope: !1831)
+!1868 = !DILocation(line: 1310, column: 35, scope: !1831)
+!1869 = !DILocation(line: 1310, column: 21, scope: !1831)
+!1870 = !DILocation(line: 1310, column: 2, scope: !1831)
+!1871 = !DILocation(line: 1310, column: 10, scope: !1831)
+!1872 = !DILocation(line: 1310, column: 19, scope: !1831)
+!1873 = !DILocation(line: 1311, column: 38, scope: !1831)
+!1874 = !DILocation(line: 1311, column: 24, scope: !1831)
+!1875 = !DILocation(line: 1311, column: 2, scope: !1831)
+!1876 = !DILocation(line: 1311, column: 10, scope: !1831)
+!1877 = !DILocation(line: 1311, column: 22, scope: !1831)
+!1878 = !DILocation(line: 1312, column: 32, scope: !1831)
+!1879 = !DILocation(line: 1312, column: 18, scope: !1831)
+!1880 = !DILocation(line: 1312, column: 2, scope: !1831)
+!1881 = !DILocation(line: 1312, column: 10, scope: !1831)
+!1882 = !DILocation(line: 1312, column: 16, scope: !1831)
+!1883 = !DILocation(line: 1313, column: 39, scope: !1831)
+!1884 = !DILocation(line: 1313, column: 25, scope: !1831)
+!1885 = !DILocation(line: 1313, column: 2, scope: !1831)
+!1886 = !DILocation(line: 1313, column: 10, scope: !1831)
+!1887 = !DILocation(line: 1313, column: 23, scope: !1831)
+!1888 = !DILocation(line: 1314, column: 35, scope: !1831)
+!1889 = !DILocation(line: 1314, column: 21, scope: !1831)
+!1890 = !DILocation(line: 1314, column: 2, scope: !1831)
+!1891 = !DILocation(line: 1314, column: 10, scope: !1831)
+!1892 = !DILocation(line: 1314, column: 17, scope: !1831)
+!1893 = !DILocation(line: 1314, column: 19, scope: !1831)
+!1894 = !DILocation(line: 1315, column: 35, scope: !1831)
+!1895 = !DILocation(line: 1315, column: 21, scope: !1831)
+!1896 = !DILocation(line: 1315, column: 2, scope: !1831)
+!1897 = !DILocation(line: 1315, column: 10, scope: !1831)
+!1898 = !DILocation(line: 1315, column: 17, scope: !1831)
+!1899 = !DILocation(line: 1315, column: 19, scope: !1831)
+!1900 = !DILocation(line: 1316, column: 35, scope: !1831)
+!1901 = !DILocation(line: 1316, column: 21, scope: !1831)
+!1902 = !DILocation(line: 1316, column: 2, scope: !1831)
+!1903 = !DILocation(line: 1316, column: 10, scope: !1831)
+!1904 = !DILocation(line: 1316, column: 17, scope: !1831)
+!1905 = !DILocation(line: 1316, column: 19, scope: !1831)
+!1906 = !DILocation(line: 1317, column: 1, scope: !1831)
+!1907 = distinct !DISubprogram(name: "write_fuelcen", linkageName: "_Z13write_fuelcenP10FuelCenterP7__sFILE", scope: !15, file: !15, line: 1319, type: !1832, scopeLine: 1320, flags: DIFlagPrototyped, spFlags: DISPFlagDefinition, unit: !2, retainedNodes: !213)
+!1908 = !DILocalVariable(name: "center", arg: 1, scope: !1907, file: !15, line: 1319, type: !631)
+!1909 = !DILocation(line: 1319, column: 32, scope: !1907)
+!1910 = !DILocalVariable(name: "fp", arg: 2, scope: !1907, file: !15, line: 1319, type: !1709)
+!1911 = !DILocation(line: 1319, column: 46, scope: !1907)
+!1912 = !DILocation(line: 1321, column: 17, scope: !1907)
+!1913 = !DILocation(line: 1321, column: 21, scope: !1907)
+!1914 = !DILocation(line: 1321, column: 29, scope: !1907)
+!1915 = !DILocation(line: 1321, column: 2, scope: !1907)
+!1916 = !DILocation(line: 1322, column: 17, scope: !1907)
+!1917 = !DILocation(line: 1322, column: 21, scope: !1907)
+!1918 = !DILocation(line: 1322, column: 29, scope: !1907)
+!1919 = !DILocation(line: 1322, column: 2, scope: !1907)
+!1920 = !DILocation(line: 1323, column: 18, scope: !1907)
+!1921 = !DILocation(line: 1323, column: 22, scope: !1907)
+!1922 = !DILocation(line: 1323, column: 30, scope: !1907)
+!1923 = !DILocation(line: 1323, column: 2, scope: !1907)
+!1924 = !DILocation(line: 1324, column: 18, scope: !1907)
+!1925 = !DILocation(line: 1324, column: 22, scope: !1907)
+!1926 = !DILocation(line: 1324, column: 30, scope: !1907)
+!1927 = !DILocation(line: 1324, column: 2, scope: !1907)
+!1928 = !DILocation(line: 1325, column: 18, scope: !1907)
+!1929 = !DILocation(line: 1325, column: 22, scope: !1907)
+!1930 = !DILocation(line: 1325, column: 30, scope: !1907)
+!1931 = !DILocation(line: 1325, column: 2, scope: !1907)
+!1932 = !DILocation(line: 1326, column: 18, scope: !1907)
+!1933 = !DILocation(line: 1326, column: 22, scope: !1907)
+!1934 = !DILocation(line: 1326, column: 30, scope: !1907)
+!1935 = !DILocation(line: 1326, column: 2, scope: !1907)
+!1936 = !DILocation(line: 1327, column: 17, scope: !1907)
+!1937 = !DILocation(line: 1327, column: 21, scope: !1907)
+!1938 = !DILocation(line: 1327, column: 29, scope: !1907)
+!1939 = !DILocation(line: 1327, column: 2, scope: !1907)
+!1940 = !DILocation(line: 1328, column: 17, scope: !1907)
+!1941 = !DILocation(line: 1328, column: 21, scope: !1907)
+!1942 = !DILocation(line: 1328, column: 29, scope: !1907)
+!1943 = !DILocation(line: 1328, column: 2, scope: !1907)
+!1944 = !DILocation(line: 1329, column: 17, scope: !1907)
+!1945 = !DILocation(line: 1329, column: 21, scope: !1907)
+!1946 = !DILocation(line: 1329, column: 29, scope: !1907)
+!1947 = !DILocation(line: 1329, column: 2, scope: !1907)
+!1948 = !DILocation(line: 1330, column: 17, scope: !1907)
+!1949 = !DILocation(line: 1330, column: 21, scope: !1907)
+!1950 = !DILocation(line: 1330, column: 29, scope: !1907)
+!1951 = !DILocation(line: 1330, column: 2, scope: !1907)
+!1952 = !DILocation(line: 1331, column: 17, scope: !1907)
+!1953 = !DILocation(line: 1331, column: 21, scope: !1907)
+!1954 = !DILocation(line: 1331, column: 29, scope: !1907)
+!1955 = !DILocation(line: 1331, column: 36, scope: !1907)
+!1956 = !DILocation(line: 1331, column: 2, scope: !1907)
+!1957 = !DILocation(line: 1332, column: 17, scope: !1907)
+!1958 = !DILocation(line: 1332, column: 21, scope: !1907)
+!1959 = !DILocation(line: 1332, column: 29, scope: !1907)
+!1960 = !DILocation(line: 1332, column: 36, scope: !1907)
+!1961 = !DILocation(line: 1332, column: 2, scope: !1907)
+!1962 = !DILocation(line: 1333, column: 17, scope: !1907)
+!1963 = !DILocation(line: 1333, column: 21, scope: !1907)
+!1964 = !DILocation(line: 1333, column: 29, scope: !1907)
+!1965 = !DILocation(line: 1333, column: 36, scope: !1907)
+!1966 = !DILocation(line: 1333, column: 2, scope: !1907)
+!1967 = !DILocation(line: 1334, column: 1, scope: !1907)
