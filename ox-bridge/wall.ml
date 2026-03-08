@@ -1,6 +1,10 @@
 (* Bridge adapter for wall functions.
    Uses algebraic effects: OCaml performs effects, C handler executes them. *)
 
+(* C externals for on-demand data effects (used by check_poke) *)
+external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
+external fetch_object_data_c : int -> int array = "cd_ox_fetch_object_data"
+
 (* Effect externals *)
 external effect_fetch_reset_walls_info
   :  unit
@@ -79,6 +83,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k ->
       effect_wall_clear_flags wall_num flags;
       Effect.Deep.continue k ())
+  | Ox_gameseg.Fetch_segment_data segnum ->
+    Some (fun k ->
+      let data = fetch_segment_data_c segnum in
+      Effect.Deep.continue k data)
+  | Ox_fvi.Fetch_object_data objnum ->
+    Some (fun k ->
+      let data = fetch_object_data_c objnum in
+      Effect.Deep.continue k data)
   | _ -> None
 ;;
 

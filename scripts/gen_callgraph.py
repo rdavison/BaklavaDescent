@@ -276,6 +276,8 @@ PORTED_FUNCTIONS = {
     # Object linked-list maintenance
     "remove_all_objects_but": "ported",
     "remove_incorrect_objects": "ported",
+    # Wall - door blocking
+    "check_poke": "ported",
 }
 
 # Functions that intentionally remain as C effects.
@@ -370,6 +372,8 @@ INTRINSICS = {
     "int const& std::__1::min[abi:ne200100]<int, std::__1::__less<void, void>>",
     "int const& std::__1::min[abi:ne200100]<int>",
     "int const& std::__1::max[abi:ne200100]<int, std::__1::__less<void, void>>",
+    "int const& std::__1::max[abi:ne200100]<int>",
+    "unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>",
     # Palette / HUD (side effects, not game logic)
     "PALETTE_FLASH_ADD",
 }

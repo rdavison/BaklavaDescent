@@ -96,6 +96,35 @@ let kill_stuck_objects ~wallnum =
 ;;
 
 (* WALL_ILLUSION_OFF = 32 *)
+(* check_poke: check if an object pokes through a given side of a segment.
+   Returns true if object pokes through, false otherwise.
+   Objects with zero size never block doors.
+   Ported from wall.cpp check_poke (identical in D1 and D2). *)
+let check_poke ~objnum ~segnum ~side =
+  (* Fetch object data: index 3,4,5 = pos xyz, index 6 = size *)
+  let obj_data = Effect.perform (Ox_fvi.Fetch_object_data objnum) in
+  let obj_size = obj_data.(6) in
+  if obj_size = 0 then false
+  else begin
+    let obj_pos = (obj_data.(3), obj_data.(4), obj_data.(5)) in
+    (* Fetch segment geometry for get_seg_masks *)
+    let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+    let _children, side_types, seg_verts, normals, seg_vert_positions =
+      Ox_gameseg.unpack_seg_from_fetch seg_data
+    in
+    let _facemask, sidemask, _centermask =
+      Ox_gameseg.get_seg_masks
+        ~checkp:obj_pos
+        ~rad:obj_size
+        ~seg_verts
+        ~side_types
+        ~normals
+        ~seg_vert_positions
+    in
+    sidemask land (1 lsl side) <> 0
+  end
+;;
+
 let wall_illusion_off_flag = 32
 
 (* wall_illusion_off: Turn off an illusionary wall.

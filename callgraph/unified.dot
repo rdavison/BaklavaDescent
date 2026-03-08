@@ -144,7 +144,7 @@ digraph callgraph {
   "check_norms" [label="check_norms\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "check_object_object_intersection" [label="check_object_object_intersection\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "check_point_to_face" [label="check_point_to_face\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
-  "check_poke" [label="check_poke\n(wall)", color=gray50, style=solid, fillcolor="white"];
+  "check_poke" [label="check_poke\n(wall)", color=green, style=filled, fillcolor="honeydew"];
   "check_segment_connections" [label="check_segment_connections\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
   "check_sphere_to_face" [label="check_sphere_to_face\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "check_to_use_primary" [label="check_to_use_primary\n(powerup)", color=gray50, style=solid, fillcolor="white"];
@@ -447,7 +447,7 @@ digraph callgraph {
   "init_thief_for_level" [label="init_thief_for_level\n(escort)", color=green, style=filled, fillcolor="honeydew"];
   "insert_center_points" [label="insert_center_points\n(aipath)", color=green, style=filled, fillcolor="honeydew"];
   "int const& std::__1::max[abi:ne200100]<int, std::__1::__less<void, void>>" [label="int const& std::__1::max[abi:ne200100]<int, std::__1::__less<void, void>>\n(lighting)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
-  "int const& std::__1::max[abi:ne200100]<int>" [label="int const& std::__1::max[abi:ne200100]<int>\n(lighting)", color=gray50, style=solid, fillcolor="white"];
+  "int const& std::__1::max[abi:ne200100]<int>" [label="int const& std::__1::max[abi:ne200100]<int>\n(lighting)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "int const& std::__1::min[abi:ne200100]<int, std::__1::__less<void, void>>" [label="int const& std::__1::min[abi:ne200100]<int, std::__1::__less<void, void>>\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "int const& std::__1::min[abi:ne200100]<int>" [label="int const& std::__1::min[abi:ne200100]<int>\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "invalidate_escort_goal" [label="invalidate_escort_goal\n(escort)", color=orange, style=filled, fillcolor="lightyellow"];
@@ -708,7 +708,7 @@ digraph callgraph {
   "turn_cheats_off" [label="turn_cheats_off\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "turn_off_ai_dump" [label="turn_off_ai_dump\n(ai)", color=gray50, style=solid, fillcolor="white"];
   "unlink" [label="unlink\n(cntrlcen)", color=gray50, style=solid, fillcolor="white"];
-  "unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>\n(collide)", color=gray50, style=solid, fillcolor="white"];
+  "unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>\n(collide)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "unsigned short const& std::__1::min[abi:ne200100]<unsigned short>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short>\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "update_laser_weapon_info" [label="update_laser_weapon_info\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "update_object_seg" [label="update_object_seg\n(object)", color=orange, style=filled, fillcolor="lightyellow"];
