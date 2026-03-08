@@ -166,6 +166,7 @@ PORTED_FUNCTIONS = {
     # Lighting
     "apply_light": "ported",
     "cast_light": "ported",
+    "cast_muzzle_flash_light": "ported",
     "compute_headlight_light": "ported",
     "compute_object_light": "ported",
     "lighting_cache_visible": "ported",

@@ -40,6 +40,8 @@ let cd_compute_headlight_light_d2
     ~is_viewer
 ;;
 
+let cd_cast_muzzle_flash_light (packed : int array) = Ox_lighting.cast_muzzle_flash_light packed
+
 let cd_compute_object_light (packed : int array) = Ox_lighting.compute_object_light packed
 
 (* FVI effect external — same C symbol as physics_sim bridge *)
@@ -100,6 +102,7 @@ let cd_lighting_cache_visible (packed : int array) =
 let register_callbacks () =
   Callback.register "cd_compute_headlight_light_d1" cd_compute_headlight_light_d1;
   Callback.register "cd_compute_headlight_light_d2" cd_compute_headlight_light_d2;
+  Callback.register "cd_cast_muzzle_flash_light" cd_cast_muzzle_flash_light;
   Callback.register "cd_compute_object_light" cd_compute_object_light;
   Callback.register "cd_lighting_cache_visible" cd_lighting_cache_visible
 ;;

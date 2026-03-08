@@ -100,6 +100,27 @@ void apply_light(fix obj_intensity, int obj_seg, vms_vector* obj_pos, int n_rend
 // ----------------------------------------------------------------------------------------------
 void cast_muzzle_flash_light(int n_render_vertices, short* render_vertices)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		fix current_time = timer_get_fixed_seconds();
+		int32_t packed[9];
+		packed[0] = current_time;
+		for (int i = 0; i < MUZZLE_QUEUE_MAX; i++)
+			packed[1 + i] = Muzzle_data[i].create_time;
+		int32_t out[16];
+		cd_ox_cast_muzzle_flash_light(packed, 9, out);
+		for (int i = 0; i < MUZZLE_QUEUE_MAX; i++)
+		{
+			int32_t intensity = out[i * 2];
+			int32_t should_clear = out[i * 2 + 1];
+			if (intensity != 0)
+				apply_light(intensity, Muzzle_data[i].segnum, &Muzzle_data[i].pos, n_render_vertices, render_vertices);
+			if (should_clear)
+				Muzzle_data[i].create_time = 0;
+		}
+		return;
+	}
+#endif
 	fix current_time;
 	int	i;
 	short	time_since_flash;

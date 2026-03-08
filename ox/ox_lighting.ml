@@ -192,6 +192,42 @@ let lighting_cache_visible (packed : int array) =
     [| apply_light; new_cache_val; 0 |])
 ;;
 
+(* cast_muzzle_flash_light — computes muzzle flash light intensities.
+   MUZZLE_QUEUE_MAX = 8
+   FLASH_LEN_FIXED_SECONDS = F1_0/3 = 0x5555
+   FLASH_SCALE = 3*F1_0/FLASH_LEN_FIXED_SECONDS = 9
+   Packed input (9 ints):
+     0: current_time
+     1..8: Muzzle_data[0..7].create_time
+   Returns array (16 ints), for each muzzle i (0..7):
+     i*2: intensity (0 if no light to apply)
+     i*2+1: should_clear (1 if create_time should be zeroed) *)
+
+let muzzle_queue_max = 8
+let flash_len_fixed_seconds = f1_0 / 3
+let flash_scale = 3 * f1_0 / flash_len_fixed_seconds
+
+let cast_muzzle_flash_light (packed : int array) =
+  let current_time = packed.(0) in
+  let out = Array.create ~len:(muzzle_queue_max * 2) 0 in
+  for i = 0 to muzzle_queue_max - 1 do
+    let create_time = packed.(1 + i) in
+    if create_time <> 0 then begin
+      (* Simulate C short truncation: time_since_flash is declared as short *)
+      let diff = current_time - create_time in
+      let time_since_flash =
+        let v = diff land 0xFFFF in
+        if v >= 0x8000 then v - 0x10000 else v
+      in
+      if time_since_flash < flash_len_fixed_seconds then
+        out.(i * 2) <- (flash_len_fixed_seconds - time_since_flash) * flash_scale
+      else
+        out.(i * 2 + 1) <- 1
+    end
+  done;
+  out
+;;
+
 let compute_object_light (packed : int array) =
   let light_rate = 0x40000 in
   (* i2f(4) = 4 << 16 *)

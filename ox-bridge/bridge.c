@@ -175,6 +175,7 @@ static const value* g_create_awareness_event = NULL;
 static const value* g_init_ai_frame = NULL;
 static const value* g_process_awareness_events = NULL;
 static const value* g_set_player_awareness_all = NULL;
+static const value* g_cast_muzzle_flash_light = NULL;
 static const value* g_compute_object_light = NULL;
 static const value* g_lighting_cache_visible = NULL;
 static const value* g_do_physics_drag = NULL;
@@ -808,6 +809,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_init_ai_frame = caml_named_value("cd_init_ai_frame");
     g_process_awareness_events = caml_named_value("cd_process_awareness_events");
     g_set_player_awareness_all = caml_named_value("cd_set_player_awareness_all");
+    g_cast_muzzle_flash_light = caml_named_value("cd_cast_muzzle_flash_light");
     g_compute_object_light = caml_named_value("cd_compute_object_light");
     g_lighting_cache_visible = caml_named_value("cd_lighting_cache_visible");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
@@ -1022,6 +1024,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_init_ai_frame
         || !g_process_awareness_events
         || !g_set_player_awareness_all
+        || !g_cast_muzzle_flash_light
         || !g_compute_object_light
         || !g_do_physics_drag
         || !g_do_homing_weapon_frame
@@ -1203,6 +1206,7 @@ int cd_ox_is_ready(void)
            && g_set_next_fire_time_d2
            && g_compute_headlight_light_d1
            && g_compute_headlight_light_d2
+           && g_cast_muzzle_flash_light
            && g_compute_object_light
            && g_do_physics_drag
            && g_do_homing_weapon_frame
@@ -3804,6 +3808,22 @@ void cd_ox_init_ai_object_d2(
         Store_field(arr, i, Val_long(packed[i]));
     const value result = caml_callback(*g_init_ai_object_d2, arr);
     for (int i = 0; i < 21; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_cast_muzzle_flash_light(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_cast_muzzle_flash_light");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_cast_muzzle_flash_light, arr);
+    for (int i = 0; i < 16; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

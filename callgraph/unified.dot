@@ -123,7 +123,7 @@ digraph callgraph {
   "calc_gun_point" [label="calc_gun_point\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "call_find_homing_object_complete" [label="call_find_homing_object_complete\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "call_object_create_egg" [label="call_object_create_egg\n(collide)", color=gray50, style=solid, fillcolor="white"];
-  "cast_muzzle_flash_light" [label="cast_muzzle_flash_light\n(lighting)", color=gray50, style=solid, fillcolor="white"];
+  "cast_muzzle_flash_light" [label="cast_muzzle_flash_light\n(lighting)", color=green, style=filled, fillcolor="honeydew"];
   "cfclose" [label="cfclose\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "cfile_read_byte" [label="cfile_read_byte\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "cfile_read_int" [label="cfile_read_int\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
