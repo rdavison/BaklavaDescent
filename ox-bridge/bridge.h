@@ -1501,6 +1501,18 @@ void cd_ox_register_wall_illusion_effects(
     cd_effect_wall_set_flags_fn set_flags,
     cd_effect_wall_clear_flags_fn clear_flags);
 
+/* start_wall_cloak / start_wall_decloak */
+void cd_ox_start_wall_cloak(int segnum, int side);
+void cd_ox_start_wall_decloak(int segnum, int side);
+
+/* wall cloak effect callbacks */
+typedef void (*cd_effect_wall_fetch_wall_cloak_data_fn)(int segnum, int side, int32_t* out);
+typedef void (*cd_effect_wall_write_wall_cloak_result_fn)(const int32_t* packed, int len);
+
+void cd_ox_register_wall_cloak_effects(
+    cd_effect_wall_fetch_wall_cloak_data_fn fetch_data,
+    cd_effect_wall_write_wall_cloak_result_fn write_result);
+
 /* add_awareness_event: port of C add_awareness_event to OCaml.
    out_buf[7]: [0]=result, [1]=should_store, [2..6]=event data.
    Returns result (0=filtered, 1=not filtered). */

@@ -241,6 +241,8 @@ PORTED_FUNCTIONS = {
     "flag_wall_switched_doors": "ported",
     "do_il_on": "ported",
     "wall_illusion_off": "ported",
+    "start_wall_cloak": "ported",
+    "start_wall_decloak": "ported",
     # Gameseq (robot defaults)
     "copy_defaults_to_robot": "ported",
     "copy_defaults_to_robot_all": "ported",

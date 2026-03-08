@@ -685,8 +685,8 @@ digraph callgraph {
   "start_robot_death_sequence" [label="start_robot_death_sequence\n(collide)", color=orange, style=filled, fillcolor="lightyellow"];
   "start_seismic_disturbance" [label="start_seismic_disturbance\n(weapon)", color=gray50, style=solid, fillcolor="white"];
   "start_time" [label="start_time\n(escort)", color=gray50, style=solid, fillcolor="white"];
-  "start_wall_cloak" [label="start_wall_cloak\n(switch)", color=gray50, style=solid, fillcolor="white"];
-  "start_wall_decloak" [label="start_wall_decloak\n(switch)", color=gray50, style=solid, fillcolor="white"];
+  "start_wall_cloak" [label="start_wall_cloak\n(switch)", color=green, style=filled, fillcolor="honeydew"];
+  "start_wall_decloak" [label="start_wall_decloak\n(switch)", color=green, style=filled, fillcolor="honeydew"];
   "state_restore_all" [label="state_restore_all\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "state_save_all" [label="state_save_all\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "std::__1::vector<char*, std::__1::allocator<char*>>::operator[][abi:ne200100]" [label="std::__1::vector<char*, std::__1::allocator<char*>>::operator[][abi:ne200100]\n(escort)", color=gray50, style=solid, fillcolor="white"];

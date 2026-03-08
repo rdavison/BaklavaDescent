@@ -48,6 +48,17 @@ external effect_wall_clear_flags
   -> unit
   = "cd_ox_effect_wall_clear_flags"
 
+external effect_fetch_wall_cloak_data
+  :  int
+  -> int
+  -> int array
+  = "cd_ox_effect_wall_fetch_wall_cloak_data"
+
+external effect_write_wall_cloak_result
+  :  int array
+  -> unit
+  = "cd_ox_effect_wall_write_wall_cloak_result"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -82,6 +93,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_wall.Wall_clear_flags (wall_num, flags) ->
     Some (fun k ->
       effect_wall_clear_flags wall_num flags;
+      Effect.Deep.continue k ())
+  | Ox_wall.Fetch_wall_cloak_data (segnum, side) ->
+    Some (fun k ->
+      let data = effect_fetch_wall_cloak_data segnum side in
+      Effect.Deep.continue k data)
+  | Ox_wall.Write_wall_cloak_result packed ->
+    Some (fun k ->
+      effect_write_wall_cloak_result packed;
       Effect.Deep.continue k ())
   | Ox_gameseg.Fetch_segment_data segnum ->
     Some (fun k ->
@@ -156,10 +175,36 @@ let cd_wall_illusion_on segnum side =
     }
 ;;
 
+let cd_start_wall_cloak segnum side =
+  Effect.Deep.match_with
+    (fun () -> Ox_wall.start_wall_cloak ~segnum ~side)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] start_wall_cloak exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
+let cd_start_wall_decloak segnum side =
+  Effect.Deep.match_with
+    (fun () -> Ox_wall.start_wall_decloak ~segnum ~side)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] start_wall_decloak exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_reset_walls" cd_reset_walls;
   Callback.register "cd_kill_stuck_objects" cd_kill_stuck_objects;
   Callback.register "cd_is_door_free" cd_is_door_free;
   Callback.register "cd_wall_illusion_off" cd_wall_illusion_off;
-  Callback.register "cd_wall_illusion_on" cd_wall_illusion_on
+  Callback.register "cd_wall_illusion_on" cd_wall_illusion_on;
+  Callback.register "cd_start_wall_cloak" cd_start_wall_cloak;
+  Callback.register "cd_start_wall_decloak" cd_start_wall_decloak
 ;;

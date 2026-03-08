@@ -470,6 +470,72 @@ void wall_open_door(segment* seg, int side)
 // start the transition from closed -> open wall
 void start_wall_cloak(segment* seg, int side)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int segnum = seg - Segments;
+		static int registered = 0;
+		if (!registered) {
+			cd_ox_register_wall_cloak_effects(
+				/* fetch_wall_cloak_data */
+				[](int segnum, int side, int32_t* out) {
+					segment* seg = &Segments[segnum];
+					out[0] = Newdemo_state;
+					out[1] = seg->sides[side].wall_num;
+					if (out[1] == -1) return;
+					wall* w = &Walls[out[1]];
+					out[2] = w->type;
+					out[3] = w->state;
+					out[4] = w->linked_wall;
+					int child_segnum = seg->children[side];
+					out[5] = child_segnum;
+					segment* csegp = &Segments[child_segnum];
+					int cside = find_connect_side(seg, csegp);
+					out[6] = cside;
+					out[7] = (cside >= 0) ? csegp->sides[cside].wall_num : -1;
+					out[8] = Num_cloaking_walls;
+					for (int i = 0; i < MAX_CLOAKING_WALLS; i++) {
+						out[9 + i * 3] = CloakingWalls[i].front_wallnum;
+						out[9 + i * 3 + 1] = CloakingWalls[i].back_wallnum;
+						out[9 + i * 3 + 2] = CloakingWalls[i].time;
+					}
+					for (int i = 0; i < 4; i++)
+						out[39 + i] = seg->sides[side].uvls[i].l;
+					if (cside >= 0)
+						for (int i = 0; i < 4; i++)
+							out[43 + i] = csegp->sides[cside].uvls[i].l;
+				},
+				/* write_wall_cloak_result */
+				[](const int32_t* p, int len) {
+					int wall_num = p[0];
+					if (p[1] != -1) Walls[wall_num].type = p[1];
+					if (p[2] != -1) Walls[wall_num].state = p[2];
+					int cwn = p[3];
+					if (p[4] != -1) Walls[cwn].type = p[4];
+					if (p[5] != -1) Walls[cwn].state = p[5];
+					int cw_idx = p[6];
+					if (cw_idx >= 0) {
+						CloakingWalls[cw_idx].front_wallnum = p[7];
+						CloakingWalls[cw_idx].back_wallnum = p[8];
+						CloakingWalls[cw_idx].time = p[9];
+						for (int i = 0; i < 4; i++) {
+							CloakingWalls[cw_idx].front_ls[i] = p[17 + i];
+							CloakingWalls[cw_idx].back_ls[i] = p[21 + i];
+						}
+					}
+					if (p[10] != -1) Num_cloaking_walls = p[10];
+					if (p[11] != -1) {
+						int segnum = p[12];
+						int side = p[13];
+						vms_vector cp = {p[14], p[15], p[16]};
+						digi_link_sound_to_pos(p[11], segnum, side, &cp, 0, F1_0);
+					}
+				});
+			registered = 1;
+		}
+		cd_ox_start_wall_cloak(segnum, side);
+		return;
+	}
+#endif
 	wall* w;
 	cloaking_wall* d;
 	int Connectside;
@@ -551,6 +617,75 @@ void start_wall_cloak(segment* seg, int side)
 // start the transition from open -> closed wall
 void start_wall_decloak(segment* seg, int side)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int segnum = seg - Segments;
+		/* Ensure effects are registered (may be called before start_wall_cloak) */
+		static int decloak_reg = 0;
+		if (!decloak_reg) {
+			/* If start_wall_cloak already registered, this is a no-op re-registration
+			   with the same lambdas. But we need to be safe if decloak is called first. */
+			cd_ox_register_wall_cloak_effects(
+				/* fetch_wall_cloak_data */
+				[](int segnum, int side, int32_t* out) {
+					segment* seg = &Segments[segnum];
+					out[0] = Newdemo_state;
+					out[1] = seg->sides[side].wall_num;
+					if (out[1] == -1) return;
+					wall* w = &Walls[out[1]];
+					out[2] = w->type;
+					out[3] = w->state;
+					out[4] = w->linked_wall;
+					int child_segnum = seg->children[side];
+					out[5] = child_segnum;
+					segment* csegp = &Segments[child_segnum];
+					int cside = find_connect_side(seg, csegp);
+					out[6] = cside;
+					out[7] = (cside >= 0) ? csegp->sides[cside].wall_num : -1;
+					out[8] = Num_cloaking_walls;
+					for (int i = 0; i < MAX_CLOAKING_WALLS; i++) {
+						out[9 + i * 3] = CloakingWalls[i].front_wallnum;
+						out[9 + i * 3 + 1] = CloakingWalls[i].back_wallnum;
+						out[9 + i * 3 + 2] = CloakingWalls[i].time;
+					}
+					for (int i = 0; i < 4; i++)
+						out[39 + i] = seg->sides[side].uvls[i].l;
+					if (cside >= 0)
+						for (int i = 0; i < 4; i++)
+							out[43 + i] = csegp->sides[cside].uvls[i].l;
+				},
+				/* write_wall_cloak_result */
+				[](const int32_t* p, int len) {
+					int wall_num = p[0];
+					if (p[1] != -1) Walls[wall_num].type = p[1];
+					if (p[2] != -1) Walls[wall_num].state = p[2];
+					int cwn = p[3];
+					if (p[4] != -1) Walls[cwn].type = p[4];
+					if (p[5] != -1) Walls[cwn].state = p[5];
+					int cw_idx = p[6];
+					if (cw_idx >= 0) {
+						CloakingWalls[cw_idx].front_wallnum = p[7];
+						CloakingWalls[cw_idx].back_wallnum = p[8];
+						CloakingWalls[cw_idx].time = p[9];
+						for (int i = 0; i < 4; i++) {
+							CloakingWalls[cw_idx].front_ls[i] = p[17 + i];
+							CloakingWalls[cw_idx].back_ls[i] = p[21 + i];
+						}
+					}
+					if (p[10] != -1) Num_cloaking_walls = p[10];
+					if (p[11] != -1) {
+						int segnum = p[12];
+						int side = p[13];
+						vms_vector cp = {p[14], p[15], p[16]};
+						digi_link_sound_to_pos(p[11], segnum, side, &cp, 0, F1_0);
+					}
+				});
+			decloak_reg = 1;
+		}
+		cd_ox_start_wall_decloak(segnum, side);
+		return;
+	}
+#endif
 	wall* w;
 	cloaking_wall* d;
 	int Connectside;

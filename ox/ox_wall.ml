@@ -22,6 +22,26 @@ type _ Effect.t +=
       (* (wall_num, flags_to_set) -> Walls[wall_num].flags |= flags *)
   | Wall_clear_flags : int * int -> unit Effect.t
       (* (wall_num, flags_to_clear) -> Walls[wall_num].flags &= ~flags *)
+  | Fetch_wall_cloak_data : (int * int) -> int array Effect.t
+      (* (segnum, side) -> packed array:
+         [0] newdemo_state
+         [1] wall_num  [2] wall_type  [3] wall_state  [4] wall_linked_wall
+         [5] child_segnum  [6] connect_side  [7] connect_wall_num
+         [8] num_cloaking_walls
+         For i=0..9: [9+i*3] front_wallnum [10+i*3] back_wallnum [11+i*3] time
+         [39..42] front_ls[0..3]  [43..46] back_ls[0..3]
+         Total: 47 ints *)
+  | Write_wall_cloak_result : int array -> unit Effect.t
+      (* packed mutation array:
+         [0] wall_num  [1] new_wall_type (-1=skip)  [2] new_wall_state (-1=skip)
+         [3] connect_wall_num  [4] new_connect_wall_type (-1=skip)
+         [5] new_connect_wall_state (-1=skip)
+         [6] cloaking_wall_idx  [7] cw_front_wallnum  [8] cw_back_wallnum
+         [9] cw_time  [10] new_num_cloaking_walls (-1=skip)
+         [11] sound_id (-1=no sound)  [12] segnum  [13] side
+         [14] sound_px  [15] sound_py  [16] sound_pz
+         [17..20] cw_front_ls[0..3]  [21..24] cw_back_ls[0..3]
+         Total: 25 ints *)
 
 (* reset_walls: Tidy up Walls array for load/save purposes.
    Resets all wall entries from Num_walls to MAX_WALLS-1 to defaults.
@@ -209,5 +229,273 @@ let wall_illusion_on ~segnum ~side =
     let cwall_num = child_data.(6 + cside) in
     Effect.perform (Wall_clear_flags (wall_num, wall_illusion_off_flag));
     Effect.perform (Wall_clear_flags (cwall_num, wall_illusion_off_flag))
+  end
+;;
+
+(* Wall cloaking constants *)
+let wall_open = 4
+let wall_closed = 5
+let wall_door_closed = 0
+let wall_door_cloaking = 5
+let wall_door_decloaking = 6
+let nd_state_playback = 2
+let max_cloaking_walls = 10
+let cloaking_wall_time = 0x10000  (* f1_0 *)
+let sound_wall_cloak_on = 160
+let sound_wall_cloak_off = 161
+
+(* start_wall_cloak: Start the transition from closed -> open wall.
+   Ported from main_d2/wall.cpp *)
+let start_wall_cloak ~segnum ~side =
+  let data = Effect.perform (Fetch_wall_cloak_data (segnum, side)) in
+  let newdemo_state = data.(0) in
+  if newdemo_state = nd_state_playback then ()
+  else begin
+    let wall_num = data.(1) in
+    assert (wall_num <> -1);
+    let wall_type = data.(2) in
+    let wall_state = data.(3) in
+    let wall_linked_wall = data.(4) in
+    let child_segnum = data.(5) in
+    let connect_side = data.(6) in
+    let connect_wall_num = data.(7) in
+    let num_cloaking_walls = data.(8) in
+    if wall_type = wall_open || wall_state = wall_door_cloaking then
+      ()  (* already open or cloaking *)
+    else begin
+      assert (connect_side <> -1);
+      if wall_state = wall_door_decloaking then begin
+        (* decloaking, so reuse door — find matching cloaking wall *)
+        let found_idx = ref (-1) in
+        for i = 0 to num_cloaking_walls - 1 do
+          let cw_front = data.(9 + i * 3) in
+          let cw_back = data.(9 + i * 3 + 1) in
+          if cw_front = wall_num || cw_back = wall_num then
+            found_idx := i
+        done;
+        assert (!found_idx >= 0);
+        let old_time = data.(9 + !found_idx * 3 + 2) in
+        let new_time = cloaking_wall_time - old_time in
+        (* Compute sound position *)
+        let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+        let sv = Ox_gameseg.side_to_verts.(side) in
+        let v i =
+          seg_data.(56 + i * 3), seg_data.(56 + i * 3 + 1), seg_data.(56 + i * 3 + 2)
+        in
+        let px, py, pz =
+          Ox_gameseg.compute_center_point_on_side
+            ~v0:(v sv.(0)) ~v1:(v sv.(1)) ~v2:(v sv.(2)) ~v3:(v sv.(3))
+        in
+        let result = Array.create ~len:25 (-1) in
+        result.(0) <- wall_num;
+        result.(1) <- -1;  (* don't change wall type *)
+        result.(2) <- wall_door_cloaking;
+        result.(3) <- connect_wall_num;
+        result.(4) <- -1;
+        result.(5) <- wall_door_cloaking;
+        result.(6) <- !found_idx;
+        result.(7) <- wall_num;  (* front_wallnum = seg wall *)
+        result.(8) <- connect_wall_num;  (* back_wallnum = cseg wall *)
+        result.(9) <- new_time;
+        result.(10) <- -1;  (* don't change num_cloaking_walls *)
+        result.(11) <- sound_wall_cloak_on;
+        result.(12) <- segnum;
+        result.(13) <- side;
+        result.(14) <- px;
+        result.(15) <- py;
+        result.(16) <- pz;
+        (* Copy light values from fetch data *)
+        for i = 0 to 3 do
+          result.(17 + i) <- data.(39 + i);
+          result.(21 + i) <- data.(43 + i)
+        done;
+        Effect.perform (Write_wall_cloak_result result)
+      end
+      else if wall_state = wall_door_closed then begin
+        (* create new door *)
+        if num_cloaking_walls >= max_cloaking_walls then begin
+          (* no more! — just force open *)
+          let result = Array.create ~len:25 (-1) in
+          result.(0) <- wall_num;
+          result.(1) <- wall_open;
+          result.(2) <- -1;
+          result.(3) <- connect_wall_num;
+          result.(4) <- wall_open;
+          result.(5) <- -1;
+          (* no cloaking wall to write *)
+          result.(6) <- -1;
+          result.(10) <- -1;
+          result.(11) <- -1;  (* no sound *)
+          Effect.perform (Write_wall_cloak_result result)
+        end
+        else begin
+          assert (wall_linked_wall = -1);
+          (* Compute sound position *)
+          let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+          let sv = Ox_gameseg.side_to_verts.(side) in
+          let v i =
+            seg_data.(56 + i * 3), seg_data.(56 + i * 3 + 1), seg_data.(56 + i * 3 + 2)
+          in
+          let px, py, pz =
+            Ox_gameseg.compute_center_point_on_side
+              ~v0:(v sv.(0)) ~v1:(v sv.(1)) ~v2:(v sv.(2)) ~v3:(v sv.(3))
+          in
+          (* Compute sound position for cseg side *)
+          let cseg_data = Effect.perform (Ox_gameseg.Fetch_segment_data child_segnum) in
+          let _ = cseg_data in  (* back_ls comes from fetch data *)
+          let result = Array.create ~len:25 (-1) in
+          result.(0) <- wall_num;
+          result.(1) <- -1;
+          result.(2) <- wall_door_cloaking;
+          result.(3) <- connect_wall_num;
+          result.(4) <- -1;
+          result.(5) <- wall_door_cloaking;
+          result.(6) <- num_cloaking_walls;  (* new slot *)
+          result.(7) <- wall_num;
+          result.(8) <- connect_wall_num;
+          result.(9) <- 0;  (* time = 0 for new door *)
+          result.(10) <- num_cloaking_walls + 1;  (* new num_cloaking_walls *)
+          result.(11) <- sound_wall_cloak_on;
+          result.(12) <- segnum;
+          result.(13) <- side;
+          result.(14) <- px;
+          result.(15) <- py;
+          result.(16) <- pz;
+          for i = 0 to 3 do
+            result.(17 + i) <- data.(39 + i);
+            result.(21 + i) <- data.(43 + i)
+          done;
+          Effect.perform (Write_wall_cloak_result result)
+        end
+      end
+      (* else: unexpected wall state — C does Int3() + return *)
+    end
+  end
+;;
+
+(* start_wall_decloak: Start the transition from open -> closed wall.
+   Ported from main_d2/wall.cpp *)
+let start_wall_decloak ~segnum ~side =
+  let data = Effect.perform (Fetch_wall_cloak_data (segnum, side)) in
+  let newdemo_state = data.(0) in
+  if newdemo_state = nd_state_playback then ()
+  else begin
+    let wall_num = data.(1) in
+    assert (wall_num <> -1);
+    let wall_type = data.(2) in
+    let wall_state = data.(3) in
+    let wall_linked_wall = data.(4) in
+    let child_segnum = data.(5) in
+    let connect_side = data.(6) in
+    let connect_wall_num = data.(7) in
+    let num_cloaking_walls = data.(8) in
+    if wall_type = wall_closed || wall_state = wall_door_decloaking then
+      ()  (* already closed or decloaking *)
+    else begin
+      if wall_state = wall_door_cloaking then begin
+        (* cloaking, so reuse door — find matching cloaking wall *)
+        let found_idx = ref (-1) in
+        for i = 0 to num_cloaking_walls - 1 do
+          let cw_front = data.(9 + i * 3) in
+          let cw_back = data.(9 + i * 3 + 1) in
+          if cw_front = wall_num || cw_back = wall_num then
+            found_idx := i
+        done;
+        assert (!found_idx >= 0);
+        let old_time = data.(9 + !found_idx * 3 + 2) in
+        let new_time = cloaking_wall_time - old_time in
+        (* Note: in decloak, csegp/Connectside are computed AFTER state change *)
+        assert (connect_side <> -1);
+        (* Compute sound position *)
+        let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+        let sv = Ox_gameseg.side_to_verts.(side) in
+        let v i =
+          seg_data.(56 + i * 3), seg_data.(56 + i * 3 + 1), seg_data.(56 + i * 3 + 2)
+        in
+        let px, py, pz =
+          Ox_gameseg.compute_center_point_on_side
+            ~v0:(v sv.(0)) ~v1:(v sv.(1)) ~v2:(v sv.(2)) ~v3:(v sv.(3))
+        in
+        let result = Array.create ~len:25 (-1) in
+        result.(0) <- wall_num;
+        result.(1) <- -1;
+        result.(2) <- wall_door_decloaking;
+        result.(3) <- connect_wall_num;
+        result.(4) <- -1;
+        result.(5) <- wall_door_decloaking;
+        result.(6) <- !found_idx;
+        result.(7) <- wall_num;
+        result.(8) <- connect_wall_num;
+        result.(9) <- new_time;
+        result.(10) <- -1;
+        result.(11) <- sound_wall_cloak_off;
+        result.(12) <- segnum;
+        result.(13) <- side;
+        result.(14) <- px;
+        result.(15) <- py;
+        result.(16) <- pz;
+        for i = 0 to 3 do
+          result.(17 + i) <- data.(39 + i);
+          result.(21 + i) <- data.(43 + i)
+        done;
+        Effect.perform (Write_wall_cloak_result result)
+      end
+      else if wall_state = wall_door_closed then begin
+        (* Note: in decloak's closed branch, csegp is NOT yet computed
+           but the C code accesses csegp->sides[Connectside].wall_num
+           which would be uninitialized — this is likely a C bug.
+           We use the data from our fetch which pre-computes connect_side. *)
+        if num_cloaking_walls >= max_cloaking_walls then begin
+          let result = Array.create ~len:25 (-1) in
+          result.(0) <- wall_num;
+          result.(1) <- wall_closed;
+          result.(2) <- -1;
+          result.(3) <- connect_wall_num;
+          result.(4) <- wall_closed;
+          result.(5) <- -1;
+          result.(6) <- -1;
+          result.(10) <- -1;
+          result.(11) <- -1;
+          Effect.perform (Write_wall_cloak_result result)
+        end
+        else begin
+          assert (connect_side <> -1);
+          assert (wall_linked_wall = -1);
+          let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+          let sv = Ox_gameseg.side_to_verts.(side) in
+          let v i =
+            seg_data.(56 + i * 3), seg_data.(56 + i * 3 + 1), seg_data.(56 + i * 3 + 2)
+          in
+          let px, py, pz =
+            Ox_gameseg.compute_center_point_on_side
+              ~v0:(v sv.(0)) ~v1:(v sv.(1)) ~v2:(v sv.(2)) ~v3:(v sv.(3))
+          in
+          let _ = Effect.perform (Ox_gameseg.Fetch_segment_data child_segnum) in
+          let result = Array.create ~len:25 (-1) in
+          result.(0) <- wall_num;
+          result.(1) <- -1;
+          result.(2) <- wall_door_decloaking;
+          result.(3) <- connect_wall_num;
+          result.(4) <- -1;
+          result.(5) <- wall_door_decloaking;
+          result.(6) <- num_cloaking_walls;
+          result.(7) <- wall_num;
+          result.(8) <- connect_wall_num;
+          result.(9) <- 0;
+          result.(10) <- num_cloaking_walls + 1;
+          result.(11) <- sound_wall_cloak_off;
+          result.(12) <- segnum;
+          result.(13) <- side;
+          result.(14) <- px;
+          result.(15) <- py;
+          result.(16) <- pz;
+          for i = 0 to 3 do
+            result.(17 + i) <- data.(39 + i);
+            result.(21 + i) <- data.(43 + i)
+          done;
+          Effect.perform (Write_wall_cloak_result result)
+        end
+      end
+    end
   end
 ;;

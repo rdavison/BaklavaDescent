@@ -265,6 +265,8 @@ static const value* g_is_door_free = NULL;
 static const value* g_wall_illusion_off = NULL;
 static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
+static const value* g_start_wall_cloak = NULL;
+static const value* g_start_wall_decloak = NULL;
 static const value* g_fuelcen_create = NULL;
 static const value* g_matcen_create = NULL;
 static const value* g_fuelcen_activate = NULL;
@@ -358,6 +360,8 @@ static cd_effect_wall_flush_fcd_cache_fn g_effect_wall_flush_fcd_cache = NULL;
 static cd_effect_wall_fetch_seg_children_and_wall_nums_fn g_effect_wall_fetch_seg_children_and_wall_nums = NULL;
 static cd_effect_wall_set_flags_fn g_effect_wall_set_flags = NULL;
 static cd_effect_wall_clear_flags_fn g_effect_wall_clear_flags = NULL;
+static cd_effect_wall_fetch_wall_cloak_data_fn g_effect_wall_fetch_wall_cloak_data = NULL;
+static cd_effect_wall_write_wall_cloak_result_fn g_effect_wall_write_wall_cloak_result = NULL;
 
 /* Physics sim effect function pointers */
 static cd_effect_ps_find_vector_intersection_fn g_effect_ps_find_vector_intersection = NULL;
@@ -752,6 +756,8 @@ int cd_ox_init_runtime(const char* executable_path)
     g_wall_illusion_off = caml_named_value("cd_wall_illusion_off");
     g_wall_illusion_on = caml_named_value("cd_wall_illusion_on");
     g_do_il_on = caml_named_value("cd_do_il_on");
+    g_start_wall_cloak = caml_named_value("cd_start_wall_cloak");
+    g_start_wall_decloak = caml_named_value("cd_start_wall_decloak");
     g_do_physics_sim_d1 = caml_named_value("cd_do_physics_sim_d1");
     g_do_physics_sim_d2 = caml_named_value("cd_do_physics_sim_d2");
     g_apply_damage_to_clutter = caml_named_value("cd_apply_damage_to_clutter");
@@ -964,6 +970,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_wall_illusion_off
         || !g_wall_illusion_on
         || !g_do_il_on
+        || !g_start_wall_cloak
+        || !g_start_wall_decloak
         || !g_do_physics_sim_d1
         || !g_do_physics_sim_d2
         || !g_find_min_max
@@ -6420,6 +6428,72 @@ void cd_ox_wall_illusion_on(int segnum, int side)
     cd_ox_require_ready("cd_ox_wall_illusion_on");
     CAMLparam0();
     caml_callback2(*g_wall_illusion_on, Val_int(segnum), Val_int(side));
+    CAMLreturn0;
+}
+
+/* -- Wall cloaking: effect registration ------------------------------------ */
+
+void cd_ox_register_wall_cloak_effects(
+    cd_effect_wall_fetch_wall_cloak_data_fn fetch_data,
+    cd_effect_wall_write_wall_cloak_result_fn write_result)
+{
+    g_effect_wall_fetch_wall_cloak_data = fetch_data;
+    g_effect_wall_write_wall_cloak_result = write_result;
+}
+
+/* Fetch wall cloak data: packed 47-int array */
+#define WALL_CLOAK_DATA_LEN 47
+#define MAX_CLOAKING_WALLS_C 10
+
+CAMLprim value cd_ox_effect_wall_fetch_wall_cloak_data(value v_segnum, value v_side)
+{
+    CAMLparam2(v_segnum, v_side);
+    CAMLlocal1(v_result);
+
+    int32_t out[WALL_CLOAK_DATA_LEN];
+    memset(out, 0, sizeof(out));
+    if (g_effect_wall_fetch_wall_cloak_data)
+        g_effect_wall_fetch_wall_cloak_data(Int_val(v_segnum), Int_val(v_side), out);
+
+    v_result = caml_alloc(WALL_CLOAK_DATA_LEN, 0);
+    for (int i = 0; i < WALL_CLOAK_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* Write wall cloak result: packed 25-int array */
+#define WALL_CLOAK_RESULT_LEN 25
+
+CAMLprim value cd_ox_effect_wall_write_wall_cloak_result(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_wall_write_wall_cloak_result) {
+        int len = Wosize_val(v_packed);
+        int32_t packed[WALL_CLOAK_RESULT_LEN];
+        memset(packed, 0, sizeof(packed));
+        for (int i = 0; i < len && i < WALL_CLOAK_RESULT_LEN; i++)
+            packed[i] = Long_val(Field(v_packed, i));
+        g_effect_wall_write_wall_cloak_result(packed, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point for start_wall_cloak */
+void cd_ox_start_wall_cloak(int segnum, int side)
+{
+    cd_ox_require_ready("cd_ox_start_wall_cloak");
+    CAMLparam0();
+    caml_callback2(*g_start_wall_cloak, Val_int(segnum), Val_int(side));
+    CAMLreturn0;
+}
+
+/* C entry point for start_wall_decloak */
+void cd_ox_start_wall_decloak(int segnum, int side)
+{
+    cd_ox_require_ready("cd_ox_start_wall_decloak");
+    CAMLparam0();
+    caml_callback2(*g_start_wall_decloak, Val_int(segnum), Val_int(side));
     CAMLreturn0;
 }
 
