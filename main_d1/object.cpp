@@ -2063,6 +2063,23 @@ int update_object_seg(object* obj)
 //go through all objects and make sure they have the correct segment numbers
 void fix_object_segs()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int fos_reg = 0;
+		if (!fos_reg) {
+			fos_reg = 1;
+			cd_ox_register_fix_object_segs_effects(
+				[](int objnum) -> int {
+					return update_object_seg(&Objects[objnum]);
+				},
+				[](int objnum) {
+					compute_segment_center(&Objects[objnum].pos, &Segments[Objects[objnum].segnum]);
+				});
+		}
+		cd_ox_fix_object_segs();
+		return;
+	}
+#endif
 	int i;
 
 	for (i = 0; i <= Highest_object_index; i++)

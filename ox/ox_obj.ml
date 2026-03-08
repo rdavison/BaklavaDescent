@@ -415,6 +415,31 @@ let spin_object ~spin_rate_x ~spin_rate_y ~spin_rate_z ~orient ~frame_time =
   Ox_physics.check_and_fix_matrix ~orient:new_pm
 ;;
 
+(* -- Effects for fix_object_segs ------------------------------------------ *)
+
+type _ Effect.t +=
+  | Update_object_seg_result_internal : int -> int Effect.t
+  | Compute_segment_center_set_pos_internal : int -> unit Effect.t
+
+let update_object_seg_result objnum = Effect.perform (Update_object_seg_result_internal objnum)
+let compute_segment_center_set_pos objnum = Effect.perform (Compute_segment_center_set_pos_internal objnum)
+
+(* fix_object_segs: Go through all objects and make sure they have the
+   correct segment numbers. If update_object_seg fails, reset the
+   object's position to the center of its current segment.
+   C original: void fix_object_segs() in object.cpp *)
+let fix_object_segs () =
+  let highest = get_highest_object_index () in
+  for i = 0 to highest do
+    if get_obj_type i <> obj_none then begin
+      if update_object_seg_result i = 0 then begin
+        (* mprintf + Int3() omitted — debug only *)
+        compute_segment_center_set_pos i
+      end
+    end
+  done
+;;
+
 (* -- Effects for drop_marker_object --------------------------------------- *)
 
 (* Fetch_marker_model_data returns packed int array:

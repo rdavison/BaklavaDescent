@@ -365,7 +365,7 @@ digraph callgraph {
   "find_plane_line_intersection" [label="find_plane_line_intersection\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "find_point_seg" [label="find_point_seg\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "find_vector_intersection" [label="find_vector_intersection\n(ai2)", color=darkgreen, style=filled, fillcolor="palegreen"];
-  "fix_object_segs" [label="fix_object_segs\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "fix_object_segs" [label="fix_object_segs\n(object)", color=orange, style=filled, fillcolor="lightyellow"];
   "fix_sincos" [label="fix_sincos\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "fix_sqrt" [label="fix_sqrt\n(fvi)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "fixdiv" [label="fixdiv\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];

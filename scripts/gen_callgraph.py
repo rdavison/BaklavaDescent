@@ -314,7 +314,7 @@ EFFECT_FUNCTIONS = {
     # Object state mutations handled via effects
     "obj_create", "obj_delete",
     # Path/object operations handled via effects
-    "find_object_seg", "obj_relink", "update_object_seg",
+    "find_object_seg", "obj_relink", "update_object_seg", "fix_object_segs",
     # Explosion/death handled via effects
     "object_create_explosion", "explode_object",
     "do_final_boss_hacks", "do_controlcen_destroyed_stuff",

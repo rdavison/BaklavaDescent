@@ -1848,6 +1848,18 @@ void cd_ox_teleport_boss(
     const short* boss_teleport_segs,
     int32_t* result);
 
+/* -- fix_object_segs ------------------------------------------------------ */
+
+/* C entry point: calls OCaml fix_object_segs */
+void cd_ox_fix_object_segs(void);
+
+/* fix_object_segs effect registration */
+typedef int (*cd_effect_update_object_seg_result_fn)(int objnum);
+typedef void (*cd_effect_compute_segment_center_set_pos_fn)(int objnum);
+void cd_ox_register_fix_object_segs_effects(
+    cd_effect_update_object_seg_result_fn update_seg,
+    cd_effect_compute_segment_center_set_pos_fn center_pos);
+
 #ifdef __cplusplus
 }
 #endif

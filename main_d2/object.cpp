@@ -2409,11 +2409,30 @@ int update_object_seg(object* obj)
 //go through all objects and make sure they have the correct segment numbers
 void fix_object_segs()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int fos_reg = 0;
+		if (!fos_reg) {
+			fos_reg = 1;
+			cd_ox_register_fix_object_segs_effects(
+				/* update_object_seg: returns 1 on success, 0 on failure */
+				[](int objnum) -> int {
+					return update_object_seg(&Objects[objnum]);
+				},
+				/* compute_segment_center_set_pos: set object pos to segment center */
+				[](int objnum) {
+					compute_segment_center(&Objects[objnum].pos, &Segments[Objects[objnum].segnum]);
+				});
+		}
+		cd_ox_fix_object_segs();
+		return;
+	}
+#endif
 	int i;
 
 	for (i = 0; i <= Highest_object_index; i++)
 		if (Objects[i].type != OBJ_NONE)
-			if (update_object_seg(&Objects[i]) == 0) 
+			if (update_object_seg(&Objects[i]) == 0)
 			{
 				mprintf((1, "Cannot find segment for object %d in fix_object_segs()\n"));
 				Int3();

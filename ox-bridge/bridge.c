@@ -8052,3 +8052,43 @@ int cd_ox_drop_marker_object(
     int result = Int_val(v_result);
     CAMLreturnT(int, result);
 }
+
+/* -- fix_object_segs effect infrastructure -------------------------------- */
+
+static cd_effect_update_object_seg_result_fn g_effect_update_object_seg_result = NULL;
+static cd_effect_compute_segment_center_set_pos_fn g_effect_compute_segment_center_set_pos = NULL;
+static const value* g_fix_object_segs = NULL;
+
+void cd_ox_register_fix_object_segs_effects(
+    cd_effect_update_object_seg_result_fn update_seg,
+    cd_effect_compute_segment_center_set_pos_fn center_pos)
+{
+    g_effect_update_object_seg_result = update_seg;
+    g_effect_compute_segment_center_set_pos = center_pos;
+}
+
+CAMLprim value cd_ox_effect_update_object_seg_result(value v_objnum)
+{
+    int result = 0;
+    if (g_effect_update_object_seg_result)
+        result = g_effect_update_object_seg_result(Int_val(v_objnum));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_compute_segment_center_set_pos(value v_objnum)
+{
+    if (g_effect_compute_segment_center_set_pos)
+        g_effect_compute_segment_center_set_pos(Int_val(v_objnum));
+    return Val_unit;
+}
+
+/* C entry point: calls OCaml fix_object_segs */
+void cd_ox_fix_object_segs(void)
+{
+    cd_ox_require_ready("cd_ox_fix_object_segs");
+    if (!g_fix_object_segs)
+        g_fix_object_segs = caml_named_value("cd_fix_object_segs");
+    if (!g_fix_object_segs) return;
+
+    caml_callback(*g_fix_object_segs, Val_unit);
+}
