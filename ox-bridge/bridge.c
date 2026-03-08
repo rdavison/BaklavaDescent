@@ -278,6 +278,7 @@ static const value* g_fuelcen_activate = NULL;
 static const value* g_explode_wall = NULL;
 static const value* g_create_homing_missile = NULL;
 static const value* g_create_weapon_object = NULL;
+static const value* g_drop_marker_object = NULL;
 
 /* Laser effect function pointers */
 static cd_effect_laser_fetch_object_pos_fn g_effect_laser_fetch_object_pos = NULL;
@@ -286,6 +287,9 @@ static cd_effect_laser_set_track_goal_fn g_effect_laser_set_track_goal = NULL;
 static cd_effect_laser_p_rand_fn g_effect_laser_p_rand = NULL;
 
 /* create_weapon_object effect function pointers */
+static cd_effect_fetch_marker_model_data_fn g_effect_fetch_marker_model_data = NULL;
+static cd_effect_obj_create_marker_fn g_effect_obj_create_marker = NULL;
+static cd_effect_write_marker_obj_props_fn g_effect_write_marker_obj_props = NULL;
 static cd_effect_fetch_weapon_create_data_fn g_effect_fetch_weapon_create_data = NULL;
 static cd_effect_obj_create_weapon_fn g_effect_obj_create_weapon = NULL;
 static cd_effect_set_weapon_obj_props_fn g_effect_set_weapon_obj_props = NULL;
@@ -815,6 +819,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_explode_wall = caml_named_value("cd_explode_wall");
     g_create_homing_missile = caml_named_value("cd_create_homing_missile");
     g_create_weapon_object = caml_named_value("cd_create_weapon_object");
+    g_drop_marker_object = caml_named_value("cd_drop_marker_object");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
@@ -1010,7 +1015,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_fuelcen_activate
         || !g_explode_wall
         || !g_create_homing_missile
-        || !g_create_weapon_object)
+        || !g_create_weapon_object
+        || !g_drop_marker_object)
     {
         return 1;
     }
@@ -7923,6 +7929,86 @@ int cd_ox_create_weapon_object(int weapon_type, int segnum,
         Val_long(pos_x), Val_long(pos_y), Val_long(pos_z)
     };
     v_result = caml_callbackN(*g_create_weapon_object, 5, args);
+
+    int result = Int_val(v_result);
+    CAMLreturnT(int, result);
+}
+
+/* ======================================================================== */
+/* drop_marker_object effects                                               */
+/* ======================================================================== */
+
+void cd_ox_register_drop_marker_effects(
+    cd_effect_fetch_marker_model_data_fn fetch_data,
+    cd_effect_obj_create_marker_fn create_marker,
+    cd_effect_write_marker_obj_props_fn write_props)
+{
+    g_effect_fetch_marker_model_data = fetch_data;
+    g_effect_obj_create_marker = create_marker;
+    g_effect_write_marker_obj_props = write_props;
+}
+
+/* fetch_marker_model_data: unit -> int array (2 elements) */
+CAMLprim value cd_ox_effect_fetch_marker_model_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+    int32_t data[2] = {0};
+    if (g_effect_fetch_marker_model_data)
+        g_effect_fetch_marker_model_data(data);
+    v_result = caml_alloc(2, 0);
+    Store_field(v_result, 0, Val_long(data[0]));
+    Store_field(v_result, 1, Val_long(data[1]));
+    CAMLreturn(v_result);
+}
+
+/* obj_create_marker: int array -> int */
+CAMLprim value cd_ox_effect_obj_create_marker(value v_packed)
+{
+    int len = Wosize_val(v_packed);
+    int32_t packed[19] = {0};
+    for (int i = 0; i < len && i < 19; i++)
+        packed[i] = Int_val(Field(v_packed, i));
+    int result = -1;
+    if (g_effect_obj_create_marker)
+        result = g_effect_obj_create_marker(packed, len);
+    return Val_int(result);
+}
+
+/* write_marker_obj_props: int array -> unit */
+CAMLprim value cd_ox_effect_write_marker_obj_props(value v_packed)
+{
+    int len = Wosize_val(v_packed);
+    int32_t packed[6] = {0};
+    for (int i = 0; i < len && i < 6; i++)
+        packed[i] = Int_val(Field(v_packed, i));
+    if (g_effect_write_marker_obj_props)
+        g_effect_write_marker_obj_props(packed, len);
+    return Val_unit;
+}
+
+/* C entry point: calls OCaml drop_marker_object */
+int cd_ox_drop_marker_object(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int segnum,
+    int32_t orient_rx, int32_t orient_ry, int32_t orient_rz,
+    int32_t orient_ux, int32_t orient_uy, int32_t orient_uz,
+    int32_t orient_fx, int32_t orient_fy, int32_t orient_fz,
+    int marker_num)
+{
+    cd_ox_require_ready("cd_ox_drop_marker_object");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    value args[14] = {
+        Val_long(pos_x), Val_long(pos_y), Val_long(pos_z),
+        Val_long(segnum),
+        Val_long(orient_rx), Val_long(orient_ry), Val_long(orient_rz),
+        Val_long(orient_ux), Val_long(orient_uy), Val_long(orient_uz),
+        Val_long(orient_fx), Val_long(orient_fy), Val_long(orient_fz),
+        Val_long(marker_num)
+    };
+    v_result = caml_callbackN(*g_drop_marker_object, 14, args);
 
     int result = Int_val(v_result);
     CAMLreturnT(int, result);

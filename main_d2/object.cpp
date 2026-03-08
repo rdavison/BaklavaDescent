@@ -2514,6 +2514,53 @@ void obj_detach_all(object* parent)
 //creates a marker object in the world.  returns the object number
 int drop_marker_object(vms_vector* pos, int segnum, vms_matrix* orient, int marker_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int dmo_reg = 0;
+		if (!dmo_reg) {
+			dmo_reg = 1;
+			cd_ox_register_drop_marker_effects(
+				/* fetch_marker_model_data */
+				[](int32_t* out_data) {
+					out_data[0] = Marker_model_num;
+					out_data[1] = (Marker_model_num >= 0) ? Polygon_models[Marker_model_num].rad : 0;
+				},
+				/* obj_create_marker: packed[19] -> objnum */
+				[](const int32_t* packed, int len) -> int {
+					(void)len;
+					vms_vector p;
+					p.x = packed[3]; p.y = packed[4]; p.z = packed[5];
+					vms_matrix o;
+					o.rvec.x = packed[6]; o.rvec.y = packed[7]; o.rvec.z = packed[8];
+					o.uvec.x = packed[9]; o.uvec.y = packed[10]; o.uvec.z = packed[11];
+					o.fvec.x = packed[12]; o.fvec.y = packed[13]; o.fvec.z = packed[14];
+					return obj_create(packed[0], packed[1], packed[2], &p, &o,
+						packed[15], packed[16], packed[17], packed[18]);
+				},
+				/* write_marker_obj_props: packed[6] -> unit */
+				[](const int32_t* packed, int len) {
+					(void)len;
+					int objnum = packed[0];
+					if (objnum >= 0 && objnum < MAX_OBJECTS) {
+						object* obj = &Objects[objnum];
+						obj->rtype.pobj_info.model_num = packed[1];
+						obj->mtype.spin_rate.x = packed[2];
+						obj->mtype.spin_rate.y = packed[3];
+						obj->mtype.spin_rate.z = packed[4];
+						obj->lifeleft = packed[5];
+					}
+				}
+			);
+		}
+		return cd_ox_drop_marker_object(
+			pos->x, pos->y, pos->z, segnum,
+			orient->rvec.x, orient->rvec.y, orient->rvec.z,
+			orient->uvec.x, orient->uvec.y, orient->uvec.z,
+			orient->fvec.x, orient->fvec.y, orient->fvec.z,
+			marker_num);
+	}
+#endif
+
 	int objnum;
 
 	Assert(Marker_model_num != -1);

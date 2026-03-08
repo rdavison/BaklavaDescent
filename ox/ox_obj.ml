@@ -414,3 +414,63 @@ let spin_object ~spin_rate_x ~spin_rate_y ~spin_rate_z ~orient ~frame_time =
   (* check_and_fix_matrix(&obj->orient) *)
   Ox_physics.check_and_fix_matrix ~orient:new_pm
 ;;
+
+(* -- Effects for drop_marker_object --------------------------------------- *)
+
+(* Fetch_marker_model_data returns packed int array:
+   [0] = marker_model_num
+   [1] = Polygon_models[marker_model_num].rad *)
+type _ Effect.t +=
+  | Fetch_marker_model_data : int array Effect.t
+  | Obj_create_marker : int array -> int Effect.t
+  | Write_marker_obj_props : int array -> unit Effect.t
+
+let fetch_marker_model_data () = Effect.perform Fetch_marker_model_data
+let obj_create_marker packed = Effect.perform (Obj_create_marker packed)
+let write_marker_obj_props packed = Effect.perform (Write_marker_obj_props packed)
+
+let obj_marker = 15
+let ct_none = 0
+let mt_none = 0
+let rt_polyobj = 1
+let immortal_time = 0x3fffffff
+
+(* drop_marker_object: creates a marker object in the world.
+   C original: int drop_marker_object(vms_vector* pos, int segnum,
+                                       vms_matrix* orient, int marker_num)
+   in main_d2/object.cpp.
+   Returns the object number, or -1 if creation failed. *)
+let drop_marker_object ~pos_x ~pos_y ~pos_z ~segnum
+    ~orient_rx ~orient_ry ~orient_rz
+    ~orient_ux ~orient_uy ~orient_uz
+    ~orient_fx ~orient_fy ~orient_fz
+    ~marker_num =
+  let model_data = fetch_marker_model_data () in
+  let marker_model_num = model_data.(0) in
+  let radius = model_data.(1) in
+  (* Assert(Marker_model_num != -1) *)
+  assert (marker_model_num <> -1);
+  (* obj_create(OBJ_MARKER, marker_num, segnum, pos, orient, radius, CT_NONE, MT_NONE, RT_POLYOBJ) *)
+  let objnum = obj_create_marker [|
+    obj_marker; marker_num; segnum;
+    pos_x; pos_y; pos_z;
+    orient_rx; orient_ry; orient_rz;
+    orient_ux; orient_uy; orient_uz;
+    orient_fx; orient_fy; orient_fz;
+    radius; ct_none; mt_none; rt_polyobj
+  |] in
+  if objnum >= 0 then begin
+    (* obj->rtype.pobj_info.model_num = Marker_model_num *)
+    (* vm_vec_copy_scale(&obj->mtype.spin_rate, &obj->orient.uvec, F1_0/2) *)
+    let (spin_x, spin_y, spin_z) =
+      Ox_math.vm_vec_copy_scale
+        ~v:(orient_ux, orient_uy, orient_uz)
+        ~k:(f1_0 / 2)
+    in
+    (* obj->lifeleft = IMMORTAL_TIME - 1 *)
+    write_marker_obj_props [| objnum; marker_model_num;
+                              spin_x; spin_y; spin_z;
+                              immortal_time - 1 |]
+  end;
+  objnum
+;;

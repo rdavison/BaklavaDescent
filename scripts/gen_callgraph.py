@@ -291,6 +291,7 @@ PORTED_FUNCTIONS = {
     "check_duplicate_objects": "ported",
     "remove_all_objects_but": "ported",
     "remove_incorrect_objects": "ported",
+    "drop_marker_object": "ported",
     # Wall - door blocking
     "check_poke": "ported",
     "is_door_free": "ported",

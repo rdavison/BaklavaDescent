@@ -1817,6 +1817,26 @@ void cd_ox_register_create_weapon_effects(
     cd_effect_obj_create_weapon_fn obj_create,
     cd_effect_set_weapon_obj_props_fn set_props);
 
+/* -- drop_marker_object -------------------------------------------------- */
+
+/* C entry point: calls OCaml drop_marker_object */
+int cd_ox_drop_marker_object(
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int segnum,
+    int32_t orient_rx, int32_t orient_ry, int32_t orient_rz,
+    int32_t orient_ux, int32_t orient_uy, int32_t orient_uz,
+    int32_t orient_fx, int32_t orient_fy, int32_t orient_fz,
+    int marker_num);
+
+/* drop_marker_object effect registration */
+typedef void (*cd_effect_fetch_marker_model_data_fn)(int32_t* out_data);
+typedef int (*cd_effect_obj_create_marker_fn)(const int32_t* packed, int len);
+typedef void (*cd_effect_write_marker_obj_props_fn)(const int32_t* packed, int len);
+void cd_ox_register_drop_marker_effects(
+    cd_effect_fetch_marker_model_data_fn fetch_data,
+    cd_effect_obj_create_marker_fn create_marker,
+    cd_effect_write_marker_obj_props_fn write_props);
+
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,9 @@ external write_obj_allocate_result_c : int array -> unit = "cd_ox_effect_write_o
 external call_free_object_slots_c : int -> unit = "cd_ox_effect_call_free_object_slots"
 external fetch_compress_objects_data_c : unit -> int array = "cd_ox_effect_fetch_compress_objects_data"
 external execute_compress_objects_c : int array -> unit = "cd_ox_effect_execute_compress_objects"
+external fetch_marker_model_data_c : unit -> int array = "cd_ox_effect_fetch_marker_model_data"
+external obj_create_marker_c : int array -> int = "cd_ox_effect_obj_create_marker"
+external write_marker_obj_props_c : int array -> unit = "cd_ox_effect_write_marker_obj_props"
 
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -54,6 +57,12 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k -> Effect.Deep.continue k (fetch_compress_objects_data_c ()))
   | Ox_obj.Execute_compress_objects packed ->
     Some (fun k -> execute_compress_objects_c packed; Effect.Deep.continue k ())
+  | Ox_obj.Fetch_marker_model_data ->
+    Some (fun k -> Effect.Deep.continue k (fetch_marker_model_data_c ()))
+  | Ox_obj.Obj_create_marker packed ->
+    Some (fun k -> Effect.Deep.continue k (obj_create_marker_c packed))
+  | Ox_obj.Write_marker_obj_props packed ->
+    Some (fun k -> write_marker_obj_props_c packed; Effect.Deep.continue k ())
   | _ -> None
 ;;
 
@@ -150,6 +159,24 @@ let cd_compress_objects () =
     ; effc
     }
 
+let cd_drop_marker_object pos_x pos_y pos_z segnum
+    orient_rx orient_ry orient_rz
+    orient_ux orient_uy orient_uz
+    orient_fx orient_fy orient_fz
+    marker_num =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.drop_marker_object
+      ~pos_x ~pos_y ~pos_z ~segnum
+      ~orient_rx ~orient_ry ~orient_rz
+      ~orient_ux ~orient_uy ~orient_uz
+      ~orient_fx ~orient_fy ~orient_fz
+      ~marker_num)
+    ()
+    { retc = (fun v -> v)
+    ; exnc = (fun _exn -> -1)
+    ; effc
+    }
+
 let register_callbacks () =
   Callback.register "search_all_segments_for_object" search_all_segments_for_object_wrapper;
   Callback.register "cd_set_robot_location_info" cd_set_robot_location_info;
@@ -159,4 +186,5 @@ let register_callbacks () =
   Callback.register "cd_remove_all_objects_but" cd_remove_all_objects_but;
   Callback.register "cd_remove_incorrect_objects" cd_remove_incorrect_objects;
   Callback.register "cd_compress_objects" cd_compress_objects;
-  Callback.register "cd_check_duplicate_objects" cd_check_duplicate_objects
+  Callback.register "cd_check_duplicate_objects" cd_check_duplicate_objects;
+  Callback.register "cd_drop_marker_object" cd_drop_marker_object

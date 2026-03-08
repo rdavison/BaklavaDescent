@@ -321,7 +321,7 @@ digraph callgraph {
   "draw_vclip_object" [label="draw_vclip_object\n(fireball)", color=gray50, style=solid, fillcolor="white"];
   "draw_weapon_vclip" [label="draw_weapon_vclip\n(object)", color=gray50, style=solid, fillcolor="white"];
   "drop_afterburner_blobs" [label="drop_afterburner_blobs\n(fireball)", color=gray50, style=solid, fillcolor="white"];
-  "drop_marker_object" [label="drop_marker_object\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "drop_marker_object" [label="drop_marker_object\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "drop_missile_1_or_4" [label="drop_missile_1_or_4\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "drop_player_eggs" [label="drop_player_eggs\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "drop_powerup" [label="drop_powerup\n(escort)", color=gray50, style=solid, fillcolor="white"];
