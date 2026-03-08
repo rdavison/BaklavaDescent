@@ -315,6 +315,12 @@ static cd_effect_set_weapon_laser_info_omega_fn g_effect_set_weapon_laser_info_o
 static cd_effect_find_homing_object_omega_fn g_effect_find_homing_object_omega = NULL;
 static cd_effect_play_omega_sound_fn g_effect_play_omega_sound = NULL;
 
+/* do_muzzle_stuff */
+static const value* g_do_muzzle_stuff = NULL;
+static int32_t (*g_effect_timer_get_fixed_seconds)(void) = NULL;
+static void (*g_effect_do_muzzle_stuff_write)(int32_t create_time, int segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z) = NULL;
+
 /* create_weapon_object effect function pointers */
 static cd_effect_fetch_marker_model_data_fn g_effect_fetch_marker_model_data = NULL;
 static cd_effect_obj_create_marker_fn g_effect_obj_create_marker = NULL;
@@ -8976,5 +8982,54 @@ void cd_ox_do_omega_stuff(const int32_t* packed, int packed_len)
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
     caml_callback(*g_do_omega_stuff, arr);
+    CAMLreturn0;
+}
+
+/* -- do_muzzle_stuff ------------------------------------------------------ */
+
+/* timer_get_fixed_seconds: unit -> int */
+CAMLprim value cd_ox_effect_timer_get_fixed_seconds(value unit)
+{
+    (void)unit;
+    int32_t result = 0;
+    if (g_effect_timer_get_fixed_seconds)
+        result = g_effect_timer_get_fixed_seconds();
+    return Val_long(result);
+}
+
+/* do_muzzle_stuff_write: int -> int -> int -> int -> int -> unit */
+CAMLprim value cd_ox_effect_do_muzzle_stuff_write(
+    value v_create_time, value v_segnum,
+    value v_px, value v_py, value v_pz)
+{
+    if (g_effect_do_muzzle_stuff_write)
+        g_effect_do_muzzle_stuff_write(
+            Int_val(v_create_time), Int_val(v_segnum),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz));
+    return Val_unit;
+}
+
+void cd_ox_register_muzzle_effects(
+    int32_t (*timer_fn)(void),
+    void (*write_fn)(int32_t, int, int32_t, int32_t, int32_t))
+{
+    g_effect_timer_get_fixed_seconds = timer_fn;
+    g_effect_do_muzzle_stuff_write = write_fn;
+}
+
+/* C entry point: calls OCaml do_muzzle_stuff */
+void cd_ox_do_muzzle_stuff(int segnum, int32_t pos_x, int32_t pos_y, int32_t pos_z)
+{
+    CAMLparam0();
+    cd_ox_require_ready("cd_ox_do_muzzle_stuff");
+    if (!g_do_muzzle_stuff)
+        g_do_muzzle_stuff = caml_named_value("cd_do_muzzle_stuff");
+    if (!g_do_muzzle_stuff) { CAMLreturn0; }
+    value args[4];
+    args[0] = Val_int(segnum);
+    args[1] = Val_long(pos_x);
+    args[2] = Val_long(pos_y);
+    args[3] = Val_long(pos_z);
+    caml_callbackN(*g_do_muzzle_stuff, 4, args);
     CAMLreturn0;
 }

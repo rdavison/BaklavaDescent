@@ -802,7 +802,33 @@ int Laser_create_new( vms_vector * direction, vms_vector * position, int segnum,
 
 	//	Don't let homing blobs make muzzle flash.
 	if (Objects[parent].type == OBJ_ROBOT)
+	{
+#ifdef USE_OX_BRIDGE
+		{
+			static bool muzzle_registered = false;
+			if (!muzzle_registered) {
+				cd_ox_register_muzzle_effects(
+					// timer_get_fixed_seconds
+					[]() -> int32_t { return timer_get_fixed_seconds(); },
+					// do_muzzle_stuff_write
+					[](int32_t create_time, int segnum, int32_t px, int32_t py, int32_t pz) {
+						Muzzle_data[Muzzle_queue_index].create_time = create_time;
+						Muzzle_data[Muzzle_queue_index].segnum = segnum;
+						Muzzle_data[Muzzle_queue_index].pos.x = px;
+						Muzzle_data[Muzzle_queue_index].pos.y = py;
+						Muzzle_data[Muzzle_queue_index].pos.z = pz;
+						Muzzle_queue_index++;
+						if (Muzzle_queue_index >= MUZZLE_QUEUE_MAX)
+							Muzzle_queue_index = 0;
+					});
+				muzzle_registered = true;
+			}
+			cd_ox_do_muzzle_stuff(segnum, position->x, position->y, position->z);
+		}
+#else
 		do_muzzle_stuff(segnum, position);
+#endif
+	}
 
 	objnum = create_weapon_object(weapon_type,segnum,position);
 

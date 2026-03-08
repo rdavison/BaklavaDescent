@@ -63,6 +63,10 @@ type _ Effect.t +=
       (* (fp_x, fp_y, fp_z, weapon_objnum) -> lock_objnum *)
   | Play_omega_sound : (int * int * int * int * int * int) -> unit Effect.t
       (* (flash_sound, is_viewer, segnum, pos_x, pos_y, pos_z) *)
+  | Timer_get_fixed_seconds : int Effect.t
+      (* -> current time in fixed-point seconds *)
+  | Do_muzzle_stuff_write : (int * int * int * int * int) -> unit Effect.t
+      (* (create_time, segnum, pos_x, pos_y, pos_z) -> writes to Muzzle_data queue *)
 
 (* make_random_vector: generate a random unit-ish vector using P_Rand.
    Same logic as C make_random_vector / ox_controlcen.ml *)
@@ -558,4 +562,11 @@ let do_omega_stuff (data : int array) =
         ~gp_x:goal_x ~gp_y:goal_y ~gp_z:goal_z ~parent_objnum
     end
   end
+;;
+
+(* do_muzzle_stuff: Queue a muzzle flash effect for a robot weapon fire.
+   C original: laser.cpp do_muzzle_stuff (D1 and D2 identical) *)
+let do_muzzle_stuff ~segnum ~pos_x ~pos_y ~pos_z =
+  let create_time = Effect.perform Timer_get_fixed_seconds in
+  Effect.perform (Do_muzzle_stuff_write (create_time, segnum, pos_x, pos_y, pos_z))
 ;;

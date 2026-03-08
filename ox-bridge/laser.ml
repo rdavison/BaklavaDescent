@@ -118,6 +118,16 @@ external effect_play_omega_sound
   = "cd_ox_effect_play_omega_sound_bytecode"
     "cd_ox_effect_play_omega_sound"
 
+external effect_timer_get_fixed_seconds
+  :  unit
+  -> int
+  = "cd_ox_effect_timer_get_fixed_seconds"
+
+external effect_do_muzzle_stuff_write
+  :  int -> int -> int -> int -> int
+  -> unit
+  = "cd_ox_effect_do_muzzle_stuff_write"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -210,6 +220,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Play_omega_sound (sound, is_viewer, seg, px, py, pz) ->
     Some (fun k ->
       effect_play_omega_sound sound is_viewer seg px py pz;
+      Effect.Deep.continue k ())
+  | Ox_laser.Timer_get_fixed_seconds ->
+    Some (fun k ->
+      let t = effect_timer_get_fixed_seconds () in
+      Effect.Deep.continue k t)
+  | Ox_laser.Do_muzzle_stuff_write (create_time, segnum, px, py, pz) ->
+    Some (fun k ->
+      effect_do_muzzle_stuff_write create_time segnum px py pz;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -304,11 +322,27 @@ let cd_do_omega_stuff (data : int array) =
     }
 ;;
 
+let cd_do_muzzle_stuff segnum pos_x pos_y pos_z =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.do_muzzle_stuff
+        ~segnum ~pos_x ~pos_y ~pos_z)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] do_muzzle_stuff exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        ())
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_create_homing_missile" cd_create_homing_missile;
   Callback.register "cd_create_weapon_object" cd_create_weapon_object;
   Callback.register "cd_release_guided_missile" cd_release_guided_missile;
   Callback.register "cd_delete_old_omega_blobs" cd_delete_old_omega_blobs;
   Callback.register "cd_create_omega_blobs" cd_create_omega_blobs;
-  Callback.register "cd_do_omega_stuff" cd_do_omega_stuff
+  Callback.register "cd_do_omega_stuff" cd_do_omega_stuff;
+  Callback.register "cd_do_muzzle_stuff" cd_do_muzzle_stuff
 ;;

@@ -2024,6 +2024,16 @@ void cd_ox_register_do_omega_stuff_effects(
     cd_effect_find_homing_object_omega_fn find_homing,
     cd_effect_play_omega_sound_fn play_sound);
 
+/* -- do_muzzle_stuff ------------------------------------------------------ */
+
+/* C entry point: calls OCaml do_muzzle_stuff */
+void cd_ox_do_muzzle_stuff(int segnum, int32_t pos_x, int32_t pos_y, int32_t pos_z);
+
+/* do_muzzle_stuff effect registration */
+void cd_ox_register_muzzle_effects(
+    int32_t (*timer_fn)(void),
+    void (*write_fn)(int32_t, int, int32_t, int32_t, int32_t));
+
 #ifdef __cplusplus
 }
 #endif

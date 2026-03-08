@@ -291,7 +291,7 @@ digraph callgraph {
   "do_megawow_powerup" [label="do_megawow_powerup\n(powerup)", color=gray50, style=solid, fillcolor="white"];
   "do_missile_firing" [label="do_missile_firing\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "do_morph_frame" [label="do_morph_frame\n(morph)", color=gray50, style=solid, fillcolor="white"];
-  "do_muzzle_stuff" [label="do_muzzle_stuff\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "do_muzzle_stuff" [label="do_muzzle_stuff\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "do_omega_stuff" [label="do_omega_stuff\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "do_physics_align_object" [label="do_physics_align_object\n(physics)", color=green, style=filled, fillcolor="honeydew"];
   "do_physics_sim" [label="do_physics_sim\n(object)", color=darkgreen, style=filled, fillcolor="palegreen"];
@@ -701,7 +701,7 @@ digraph callgraph {
   "texmerge_get_cached_bitmap" [label="texmerge_get_cached_bitmap\n(fvi)", color=orange, style=filled, fillcolor="lightyellow"];
   "thief_message" [label="thief_message\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "time_to_visit_player" [label="time_to_visit_player\n(escort)", color=gray50, style=solid, fillcolor="white"];
-  "timer_get_fixed_seconds" [label="timer_get_fixed_seconds\n(fireball)", color=gray50, style=solid, fillcolor="white"];
+  "timer_get_fixed_seconds" [label="timer_get_fixed_seconds\n(fireball)", color=orange, style=filled, fillcolor="lightyellow"];
   "trace_segs" [label="trace_segs\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "track_track_goal" [label="track_track_goal\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "trigger_matcen" [label="trigger_matcen\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];

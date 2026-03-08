@@ -315,6 +315,7 @@ PORTED_FUNCTIONS = {
     "delete_old_omega_blobs": "ported",
     "create_omega_blobs": "ported",
     "do_omega_stuff": "ported",
+    "do_muzzle_stuff": "ported",
 }
 
 # Functions that intentionally remain as C effects.
@@ -369,6 +370,8 @@ EFFECT_FUNCTIONS = {
     "maybe_set_first_secret_visit",
     # Guided missile effects
     "newdemo_record_guided_end", "multi_send_guided_info",
+    # Timer
+    "timer_get_fixed_seconds",
 }
 
 # Functions that should not count as "unported deps" in frontier analysis.
