@@ -191,6 +191,79 @@ let do_controlcen_frame_d1
 
 (* -- D2: do_controlcen_frame ------------------------------------------- *)
 
+(* -- init_controlcen_for_level (shared D1/D2) ------------------------- *)
+
+let gm_multi = 1
+let gm_multi_robots = 4
+
+(* Takes pre-scanned cc/boss objnums, game state, reactor data, and
+   the cntrlcen object's orient + pos.
+   Returns packed result:
+     If ghost: [| 0 |]
+     If normal: [| 1; n_guns; shields; gp0x; gp0y; gp0z; gd0x; gd0y; gd0z; ... |] *)
+let init_controlcen_for_level
+      ~boss_objnum
+      ~game_mode
+      ~current_level_num
+      ~reactor_strength
+      ~n_guns
+      ~gun_points_flat
+      ~gun_dirs_flat
+      ~or1 ~or2 ~or3
+      ~ou1 ~ou2 ~ou3
+      ~of1 ~of2 ~of3
+      ~opx ~opy ~opz
+  =
+  (* Ghost the CC if boss exists and NOT (multiplayer without multi-robots) *)
+  let should_ghost =
+    boss_objnum <> -1
+    && not (game_mode land gm_multi <> 0
+            && game_mode land gm_multi_robots = 0)
+  in
+  if should_ghost then
+    [| 0 |]
+  else (
+    let result = Array.create ~len:(3 + n_guns * 6) 0 in
+    result.(0) <- 1;
+    result.(1) <- n_guns;
+    (* Compute shields *)
+    let shields =
+      if reactor_strength = -1 then
+        if current_level_num >= 0 then
+          f1_0 * 200 + (f1_0 * 200 / 4) * current_level_num
+        else
+          f1_0 * 200 - current_level_num * f1_0 * 150
+      else
+        reactor_strength lsl 16
+    in
+    result.(2) <- shields;
+    (* Compute world-space gun positions and directions *)
+    for i = 0 to n_guns - 1 do
+      let gpx, gpy, gpz, gdx, gdy, gdz =
+        Ox_collide.calc_controlcen_gun_point
+          ~glpx:gun_points_flat.(i * 3)
+          ~glpy:gun_points_flat.(i * 3 + 1)
+          ~glpz:gun_points_flat.(i * 3 + 2)
+          ~gldx:gun_dirs_flat.(i * 3)
+          ~gldy:gun_dirs_flat.(i * 3 + 1)
+          ~gldz:gun_dirs_flat.(i * 3 + 2)
+          ~or1 ~or2 ~or3
+          ~ou1 ~ou2 ~ou3
+          ~of1 ~of2 ~of3
+          ~opx ~opy ~opz
+      in
+      result.(3 + i * 6) <- gpx;
+      result.(3 + i * 6 + 1) <- gpy;
+      result.(3 + i * 6 + 2) <- gpz;
+      result.(3 + i * 6 + 3) <- gdx;
+      result.(3 + i * 6 + 4) <- gdy;
+      result.(3 + i * 6 + 5) <- gdz
+    done;
+    result)
+;;
+
+(* -- D2: do_controlcen_frame ------------------------------------------- *)
+
 let do_controlcen_frame_d2
       ~cc_been_hit
       ~cc_player_seen

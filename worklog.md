@@ -2513,3 +2513,8 @@ Reorganized the project to make the boundary between pure OCaml game logic and p
 - **Ported:** unknown
 - **Status:**   Total: 775  Ported: 171  Intrinsic: 67  Effect: 59  Frontier: 0  Other: 478
 - **Log:** ralph_logs/claude_090.log
+
+### Ralph Loop Iteration 91 (2026-03-08)
+- **Ported:** unknown
+- **Status:**   Total: 775  Ported: 172  Intrinsic: 67  Effect: 59  Frontier: 0  Other: 477
+- **Log:** ralph_logs/claude_091.log

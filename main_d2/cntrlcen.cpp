@@ -551,6 +551,88 @@ int Reactor_strength=-1;		//-1 mean not set by designer
 //	If this level contains a boss and mode == multiplayer, do control center stuff.
 void init_controlcen_for_level(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int		i;
+		object	*objp;
+		int		cntrlcen_objnum=-1, boss_objnum=-1;
+
+		for (i=0; i<=Highest_object_index; i++) {
+			objp = &Objects[i];
+			if (objp->type == OBJ_CNTRLCEN) {
+				if (cntrlcen_objnum != -1)
+					mprintf((1, "Warning: Two or more control centers including %i and %i\n", i, cntrlcen_objnum));
+				else
+					cntrlcen_objnum = i;
+			}
+			if ((objp->type == OBJ_ROBOT) && (Robot_info[objp->id].boss_flag)) {
+				if (boss_objnum != -1)
+					mprintf((1, "Warning: Two or more bosses including %i and %i\n", i, boss_objnum));
+				else
+					boss_objnum = i;
+			}
+		}
+
+		if (cntrlcen_objnum == -1) {
+			Control_center_been_hit = 0;
+			Control_center_player_been_seen = 0;
+			Control_center_next_fire_time = 0;
+			Dead_controlcen_object_num = -1;
+			return;
+		}
+
+		objp = &Objects[cntrlcen_objnum];
+		struct reactor *r = &Reactors[objp->id];
+
+		int32_t gun_points_flat[MAX_CONTROLCEN_GUNS * 3];
+		int32_t gun_dirs_flat[MAX_CONTROLCEN_GUNS * 3];
+		for (i = 0; i < r->n_guns; i++) {
+			gun_points_flat[i*3]   = r->gun_points[i].x;
+			gun_points_flat[i*3+1] = r->gun_points[i].y;
+			gun_points_flat[i*3+2] = r->gun_points[i].z;
+			gun_dirs_flat[i*3]   = r->gun_dirs[i].x;
+			gun_dirs_flat[i*3+1] = r->gun_dirs[i].y;
+			gun_dirs_flat[i*3+2] = r->gun_dirs[i].z;
+		}
+
+		int32_t result[3 + MAX_CONTROLCEN_GUNS * 6];
+		cd_ox_init_controlcen_for_level(
+			boss_objnum, Game_mode, Current_level_num, Reactor_strength,
+			r->n_guns, gun_points_flat, gun_dirs_flat,
+			objp->orient.rvec.x, objp->orient.rvec.y, objp->orient.rvec.z,
+			objp->orient.uvec.x, objp->orient.uvec.y, objp->orient.uvec.z,
+			objp->orient.fvec.x, objp->orient.fvec.y, objp->orient.fvec.z,
+			objp->pos.x, objp->pos.y, objp->pos.z,
+			result);
+
+		int action = result[0];
+		if (action == 0) {
+			// Ghost the control center
+			Objects[cntrlcen_objnum].type = OBJ_GHOST;
+			Objects[cntrlcen_objnum].render_type = RT_NONE;
+			Control_center_present = 0;
+		} else {
+			// Normal: set up gun positions and shields
+			N_controlcen_guns = result[1];
+			objp->shields = result[2];
+			for (i = 0; i < N_controlcen_guns; i++) {
+				Gun_pos[i].x = result[3 + i*6 + 0];
+				Gun_pos[i].y = result[3 + i*6 + 1];
+				Gun_pos[i].z = result[3 + i*6 + 2];
+				Gun_dir[i].x = result[3 + i*6 + 3];
+				Gun_dir[i].y = result[3 + i*6 + 4];
+				Gun_dir[i].z = result[3 + i*6 + 5];
+			}
+			Control_center_present = 1;
+		}
+
+		Control_center_been_hit = 0;
+		Control_center_player_been_seen = 0;
+		Control_center_next_fire_time = 0;
+		Dead_controlcen_object_num = -1;
+		return;
+	}
+#endif
 	int		i;
 	object	*objp;
 	int		cntrlcen_objnum=-1, boss_objnum=-1;

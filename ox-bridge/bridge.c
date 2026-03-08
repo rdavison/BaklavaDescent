@@ -197,6 +197,7 @@ static cd_effect_cc_make_random_vector_fn g_effect_cc_make_random_vector = NULL;
 static cd_effect_cc_p_rand_fn g_effect_cc_p_rand = NULL;
 static const value* g_do_controlcen_frame_d1 = NULL;
 static const value* g_do_controlcen_frame_d2 = NULL;
+static const value* g_init_controlcen_for_level = NULL;
 
 /* AI frame effect function pointers */
 static cd_effect_af_multiplayer_awareness_fn g_effect_af_multiplayer_awareness = NULL;
@@ -550,6 +551,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_s_order_list
           && g_do_controlcen_frame_d1
           && g_do_controlcen_frame_d2
+          && g_init_controlcen_for_level
           && g_do_ai_frame_d1
           && g_do_ai_frame_d2
           && g_init_ai_for_ship
@@ -710,6 +712,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_s_order_list = caml_named_value("cd_s_order_list");
     g_do_controlcen_frame_d1 = caml_named_value("cd_do_controlcen_frame_d1");
     g_do_controlcen_frame_d2 = caml_named_value("cd_do_controlcen_frame_d2");
+    g_init_controlcen_for_level = caml_named_value("cd_init_controlcen_for_level");
     g_do_ai_frame_d1 = caml_named_value("cd_do_ai_frame_d1");
     g_do_ai_frame_d2 = caml_named_value("cd_do_ai_frame_d2");
     g_init_ai_for_ship = caml_named_value("cd_init_ai_for_ship");
@@ -918,6 +921,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_connected_distance
         || !g_do_controlcen_frame_d1
         || !g_do_controlcen_frame_d2
+        || !g_init_controlcen_for_level
         || !g_do_ai_frame_d1
         || !g_do_ai_frame_d2
         || !g_init_ai_for_ship
@@ -1077,6 +1081,7 @@ int cd_ox_is_ready(void)
            && g_find_connected_distance
            && g_do_controlcen_frame_d1
            && g_do_controlcen_frame_d2
+           && g_init_controlcen_for_level
            && g_do_ai_frame_d1
            && g_do_ai_frame_d2
            && g_init_ai_for_ship
@@ -7312,4 +7317,52 @@ void cd_ox_compress_objects(void)
     if (!g_compress_objects) return;
 
     caml_callback(*g_compress_objects, Val_unit);
+}
+
+/* -- init_controlcen_for_level bridge --------------------------------- */
+
+void cd_ox_init_controlcen_for_level(
+    int boss_objnum, int game_mode, int current_level_num, int reactor_strength,
+    int n_guns, const int32_t* gun_points_flat, const int32_t* gun_dirs_flat,
+    int32_t or1, int32_t or2, int32_t or3,
+    int32_t ou1, int32_t ou2, int32_t ou3,
+    int32_t of1, int32_t of2, int32_t of3,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_init_controlcen_for_level");
+    CAMLparam0();
+    CAMLlocal3(v_gp, v_gd, v_result);
+
+    /* Pack gun_points_flat and gun_dirs_flat as OCaml int arrays */
+    int gp_len = n_guns * 3;
+    v_gp = caml_alloc(gp_len, 0);
+    for (int i = 0; i < gp_len; i++)
+        Store_field(v_gp, i, Val_long(gun_points_flat[i]));
+
+    v_gd = caml_alloc(gp_len, 0);
+    for (int i = 0; i < gp_len; i++)
+        Store_field(v_gd, i, Val_long(gun_dirs_flat[i]));
+
+    value args[18] = {
+        Val_long(boss_objnum),
+        Val_long(game_mode),
+        Val_long(current_level_num),
+        Val_long(reactor_strength),
+        Val_long(n_guns),
+        v_gp,
+        v_gd,
+        Val_long(or1), Val_long(or2), Val_long(or3),
+        Val_long(ou1), Val_long(ou2), Val_long(ou3),
+        Val_long(of1), Val_long(of2), Val_long(of3),
+        Val_long(opx), Val_long(opy), Val_long(opz)
+    };
+
+    v_result = caml_callbackN(*g_init_controlcen_for_level, 18, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len; i++)
+        result[i] = (int32_t)Long_val(Field(v_result, i));
+
+    CAMLreturn0;
 }

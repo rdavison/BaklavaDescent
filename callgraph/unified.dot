@@ -430,7 +430,7 @@ digraph callgraph {
   "init_boss_segments" [label="init_boss_segments\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "init_buddy_for_level" [label="init_buddy_for_level\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "init_cockpit" [label="init_cockpit\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
-  "init_controlcen_for_level" [label="init_controlcen_for_level\n(cntrlcen)", color=gray50, style=solid, fillcolor="white"];
+  "init_controlcen_for_level" [label="init_controlcen_for_level\n(cntrlcen)", color=green, style=filled, fillcolor="honeydew"];
   "init_gauges" [label="init_gauges\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "init_morphs" [label="init_morphs\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "init_objects" [label="init_objects\n(object)", color=gray50, style=solid, fillcolor="white"];

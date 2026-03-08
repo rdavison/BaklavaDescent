@@ -165,6 +165,7 @@ PORTED_FUNCTIONS = {
     # Control center
     "do_controlcen_frame": "ported",
     "calc_controlcen_gun_point": "ported",
+    "init_controlcen_for_level": "ported",
     # Weapons / homing
     "find_homing_object": "ported",
     "find_homing_object_complete": "ported",

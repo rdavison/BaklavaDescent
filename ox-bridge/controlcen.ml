@@ -194,7 +194,41 @@ let cd_do_controlcen_frame_d2
     }
 ;;
 
+(* init_controlcen_for_level bridge function — pure, no effects needed *)
+let cd_init_controlcen_for_level
+      boss_objnum
+      game_mode
+      current_level_num
+      reactor_strength
+      n_guns
+      gun_points_flat
+      gun_dirs_flat
+      or1 or2 or3
+      ou1 ou2 ou3
+      of1 of2 of3
+      opx opy opz
+  =
+  try
+    Ox_controlcen.init_controlcen_for_level
+      ~boss_objnum
+      ~game_mode
+      ~current_level_num
+      ~reactor_strength
+      ~n_guns
+      ~gun_points_flat
+      ~gun_dirs_flat
+      ~or1 ~or2 ~or3
+      ~ou1 ~ou2 ~ou3
+      ~of1 ~of2 ~of3
+      ~opx ~opy ~opz
+  with exn ->
+    Printf.eprintf "[OX] init_controlcen exception: %s\n" (Exn.to_string exn);
+    Printf.eprintf "%s\n" (Printexc.get_backtrace ());
+    [| 0 |]
+;;
+
 let register_callbacks () =
   Callback.register "cd_do_controlcen_frame_d1" cd_do_controlcen_frame_d1;
-  Callback.register "cd_do_controlcen_frame_d2" cd_do_controlcen_frame_d2
+  Callback.register "cd_do_controlcen_frame_d2" cd_do_controlcen_frame_d2;
+  Callback.register "cd_init_controlcen_for_level" cd_init_controlcen_for_level
 ;;

@@ -737,6 +737,20 @@ void cd_ox_calc_controlcen_gun_point(
     int32_t* out_gpx, int32_t* out_gpy, int32_t* out_gpz,
     int32_t* out_gdx, int32_t* out_gdy, int32_t* out_gdz);
 
+/* init_controlcen_for_level: initialize control center for a new level.
+   C pre-scans objects to find cc_objnum/boss_objnum, packs reactor data.
+   result must have room for (3 + MAX_CONTROLCEN_GUNS*6) ints.
+   Result[0]: 0=ghost, 1=normal.
+   If normal: [1, n_guns, shields, gun_world_pos/dir_flat...] */
+void cd_ox_init_controlcen_for_level(
+    int boss_objnum, int game_mode, int current_level_num, int reactor_strength,
+    int n_guns, const int32_t* gun_points_flat, const int32_t* gun_dirs_flat,
+    int32_t or1, int32_t or2, int32_t or3,
+    int32_t ou1, int32_t ou2, int32_t ou3,
+    int32_t of1, int32_t of2, int32_t of3,
+    int32_t opx, int32_t opy, int32_t opz,
+    int32_t* result);
+
 /* -- Additional gameseg functions ------------------------------------- */
 int cd_ox_find_connect_side(
     int32_t c0, int32_t c1, int32_t c2, int32_t c3, int32_t c4, int32_t c5,
