@@ -6608,6 +6608,55 @@ CAMLprim value cd_ox_get_highest_segment_index(value v_unit)
     return Val_int(0);
 }
 
+/* johns_obj_unlink effect: unlink object from segment's linked list */
+typedef void (*cd_johns_obj_unlink_fn)(int segnum, int objnum);
+static cd_johns_obj_unlink_fn g_johns_obj_unlink = NULL;
+
+typedef int (*cd_get_obj_segnum_fn)(int objnum);
+static cd_get_obj_segnum_fn g_get_obj_segnum = NULL;
+
+void cd_ox_register_obj_unlink_effects(
+    cd_johns_obj_unlink_fn johns_obj_unlink,
+    cd_get_obj_segnum_fn get_obj_segnum)
+{
+    g_johns_obj_unlink = johns_obj_unlink;
+    g_get_obj_segnum = get_obj_segnum;
+}
+
+CAMLprim value cd_ox_effect_johns_obj_unlink(value v_segnum, value v_objnum)
+{
+    if (g_johns_obj_unlink) g_johns_obj_unlink(Int_val(v_segnum), Int_val(v_objnum));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_get_obj_segnum(value v_objnum)
+{
+    if (g_get_obj_segnum) return Val_int(g_get_obj_segnum(Int_val(v_objnum)));
+    return Val_int(-1);
+}
+
+/* C entry points: call OCaml remove_all_objects_but / remove_incorrect_objects */
+static const value* g_remove_all_objects_but = NULL;
+static const value* g_remove_incorrect_objects = NULL;
+
+void cd_ox_remove_all_objects_but(int segnum, int objnum)
+{
+    cd_ox_require_ready("cd_ox_remove_all_objects_but");
+    if (!g_remove_all_objects_but)
+        g_remove_all_objects_but = caml_named_value("cd_remove_all_objects_but");
+    if (!g_remove_all_objects_but) return;
+    caml_callback2(*g_remove_all_objects_but, Val_int(segnum), Val_int(objnum));
+}
+
+void cd_ox_remove_incorrect_objects(void)
+{
+    cd_ox_require_ready("cd_ox_remove_incorrect_objects");
+    if (!g_remove_incorrect_objects)
+        g_remove_incorrect_objects = caml_named_value("cd_remove_incorrect_objects");
+    if (!g_remove_incorrect_objects) return;
+    caml_callback(*g_remove_incorrect_objects, Val_unit);
+}
+
 /* C entry point: calls OCaml search_all_segments_for_object.
    Returns count of segment links for the given object. */
 static const value* g_search_all_segments_for_object = NULL;

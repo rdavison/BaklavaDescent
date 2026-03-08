@@ -272,6 +272,9 @@ PORTED_FUNCTIONS = {
     "check_volatile_wall": "ported",
     # Object movement
     "spin_object": "ported",
+    # Object linked-list maintenance
+    "remove_all_objects_but": "ported",
+    "remove_incorrect_objects": "ported",
 }
 
 # Functions that intentionally remain as C effects.

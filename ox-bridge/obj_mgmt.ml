@@ -5,6 +5,8 @@ external get_attached_obj_c : int -> int = "cd_ox_get_attached_obj"
 external get_seg_first_object_c : int -> int = "cd_ox_get_seg_first_object"
 external get_obj_next_c : int -> int = "cd_ox_get_obj_next"
 external get_highest_segment_index_c : unit -> int = "cd_ox_get_highest_segment_index"
+external johns_obj_unlink_c : int -> int -> unit = "cd_ox_effect_johns_obj_unlink"
+external get_obj_segnum_c : int -> int = "cd_ox_get_obj_segnum"
 external fetch_wake_up_context_c : int -> int array = "cd_ox_effect_fetch_wake_up_context"
 external fetch_ai_local_awareness_c : int -> int = "cd_ox_effect_fetch_ai_local_awareness"
 external apply_wake_up_c : int array -> unit = "cd_ox_effect_apply_wake_up"
@@ -24,6 +26,10 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k -> Effect.Deep.continue k (get_obj_next_c objnum))
   | Ox_obj.Get_highest_segment_index_internal ->
     Some (fun k -> Effect.Deep.continue k (get_highest_segment_index_c ()))
+  | Ox_obj.Johns_obj_unlink_internal (segnum, objnum) ->
+    Some (fun k -> johns_obj_unlink_c segnum objnum; Effect.Deep.continue k ())
+  | Ox_obj.Get_obj_segnum_internal objnum ->
+    Some (fun k -> Effect.Deep.continue k (get_obj_segnum_c objnum))
   | Ox_obj.Fetch_wake_up_context_internal window_num ->
     Some (fun k -> Effect.Deep.continue k (fetch_wake_up_context_c window_num))
   | Ox_obj.Fetch_ai_local_awareness_internal objnum ->
@@ -94,9 +100,29 @@ let cd_spin_object spin_rx spin_ry spin_rz
   let (rx, ry, rz), (ux, uy, uz), (fx, fy, fz) = orient in
   (rx, ry, rz, ux, uy, uz, fx, fy, fz)
 
+let cd_remove_all_objects_but segnum objnum =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.remove_all_objects_but ~segnum ~objnum)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun _exn -> ())
+    ; effc
+    }
+
+let cd_remove_incorrect_objects () =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.remove_incorrect_objects ())
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun _exn -> ())
+    ; effc
+    }
+
 let register_callbacks () =
   Callback.register "search_all_segments_for_object" search_all_segments_for_object_wrapper;
   Callback.register "cd_set_robot_location_info" cd_set_robot_location_info;
   Callback.register "cd_wake_up_rendered_objects" cd_wake_up_rendered_objects;
   Callback.register "cd_obj_allocate" cd_obj_allocate;
-  Callback.register "cd_spin_object" cd_spin_object
+  Callback.register "cd_spin_object" cd_spin_object;
+  Callback.register "cd_remove_all_objects_but" cd_remove_all_objects_but;
+  Callback.register "cd_remove_incorrect_objects" cd_remove_incorrect_objects

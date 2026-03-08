@@ -940,22 +940,36 @@ void johns_obj_unlink(int segnum, int objnum)
 
 void remove_incorrect_objects()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_unlink_effects(
+				[](int seg, int obj) { johns_obj_unlink(seg, obj); },
+				[](int obj) -> int { return Objects[obj].segnum; }
+			);
+		}
+		cd_ox_remove_incorrect_objects();
+		return;
+	}
+#endif
 	int segnum, objnum, count;
 
-	for (segnum = 0; segnum <= Highest_segment_index; segnum++) 
+	for (segnum = 0; segnum <= Highest_segment_index; segnum++)
 	{
 		count = 0;
-		for (objnum = Segments[segnum].objects; objnum != -1; objnum = Objects[objnum].next) 
+		for (objnum = Segments[segnum].objects; objnum != -1; objnum = Objects[objnum].next)
 		{
 			count++;
 #ifndef NDEBUG
-			if (count > MAX_OBJECTS) 
+			if (count > MAX_OBJECTS)
 			{
 				mprintf((1, "Object list in segment %d is circular.\n", segnum));
 				Int3();
 			}
 #endif
-			if (Objects[objnum].segnum != segnum) 
+			if (Objects[objnum].segnum != segnum)
 			{
 #ifndef NDEBUG
 				mprintf((0, "Removing object %d from segment %d.\n", objnum, segnum));
@@ -969,13 +983,27 @@ void remove_incorrect_objects()
 
 void remove_all_objects_but(int segnum, int objnum)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_unlink_effects(
+				[](int seg, int obj) { johns_obj_unlink(seg, obj); },
+				[](int obj) -> int { return Objects[obj].segnum; }
+			);
+		}
+		cd_ox_remove_all_objects_but(segnum, objnum);
+		return;
+	}
+#endif
 	int i;
 
-	for (i = 0; i <= Highest_segment_index; i++) 
+	for (i = 0; i <= Highest_segment_index; i++)
 	{
-		if (segnum != i) 
+		if (segnum != i)
 		{
-			if (is_object_in_seg(i, objnum)) 
+			if (is_object_in_seg(i, objnum))
 			{
 				johns_obj_unlink(i, objnum);
 			}

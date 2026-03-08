@@ -858,6 +858,20 @@ void johns_obj_unlink(int segnum, int objnum)
 
 void remove_incorrect_objects()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_unlink_effects(
+				[](int seg, int obj) { johns_obj_unlink(seg, obj); },
+				[](int obj) -> int { return Objects[obj].segnum; }
+			);
+		}
+		cd_ox_remove_incorrect_objects();
+		return;
+	}
+#endif
 	int segnum, objnum, count;
 
 	for (segnum = 0; segnum <= Highest_segment_index; segnum++) {
@@ -883,6 +897,20 @@ void remove_incorrect_objects()
 
 void remove_all_objects_but(int segnum, int objnum)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_obj_unlink_effects(
+				[](int seg, int obj) { johns_obj_unlink(seg, obj); },
+				[](int obj) -> int { return Objects[obj].segnum; }
+			);
+		}
+		cd_ox_remove_all_objects_but(segnum, objnum);
+		return;
+	}
+#endif
 	int i;
 
 	for (i = 0; i <= Highest_segment_index; i++) {

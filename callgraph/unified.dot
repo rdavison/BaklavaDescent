@@ -613,8 +613,8 @@ digraph callgraph {
   "ready_to_fire" [label="ready_to_fire\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "recreate_thief" [label="recreate_thief\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "release_guided_missile" [label="release_guided_missile\n(laser)", color=gray50, style=solid, fillcolor="white"];
-  "remove_all_objects_but" [label="remove_all_objects_but\n(object)", color=gray50, style=solid, fillcolor="white"];
-  "remove_incorrect_objects" [label="remove_incorrect_objects\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "remove_all_objects_but" [label="remove_all_objects_but\n(object)", color=green, style=filled, fillcolor="honeydew"];
+  "remove_incorrect_objects" [label="remove_incorrect_objects\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "render_object" [label="render_object\n(object)", color=gray50, style=solid, fillcolor="white"];
   "reset_cockpit" [label="reset_cockpit\n(cntrlcen)", color=gray50, style=solid, fillcolor="white"];
   "reset_cruise" [label="reset_cruise\n(gameseq)", color=gray50, style=solid, fillcolor="white"];

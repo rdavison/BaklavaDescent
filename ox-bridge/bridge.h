@@ -1528,8 +1528,19 @@ void cd_ox_register_obj_search_effects(
     cd_get_obj_next_fn get_obj_next,
     cd_get_highest_segment_index_fn get_highest_segment_index);
 
+/* -- Object unlink effects ----------------------------------------------- */
+typedef void (*cd_johns_obj_unlink_fn)(int segnum, int objnum);
+typedef int (*cd_get_obj_segnum_fn)(int objnum);
+void cd_ox_register_obj_unlink_effects(
+    cd_johns_obj_unlink_fn johns_obj_unlink,
+    cd_get_obj_segnum_fn get_obj_segnum);
+
 /* C entry point: OCaml search_all_segments_for_object */
 int cd_ox_search_all_segments_for_object(int objnum);
+
+/* C entry points: OCaml remove_all_objects_but / remove_incorrect_objects */
+void cd_ox_remove_all_objects_but(int segnum, int objnum);
+void cd_ox_remove_incorrect_objects(void);
 
 /* C entry point: OCaml spin_object.
    Takes spin_rate (3), orient (9), frame_time (1) = 13 args.

@@ -10,12 +10,16 @@ type _ Effect.t +=
   | Get_seg_first_object_internal : int -> int Effect.t
   | Get_obj_next_internal : int -> int Effect.t
   | Get_highest_segment_index_internal : int Effect.t
+  | Johns_obj_unlink_internal : (int * int) -> unit Effect.t
+  | Get_obj_segnum_internal : int -> int Effect.t
 
 let obj_detach_one objnum = Effect.perform (Obj_detach_one_internal objnum)
 let get_attached_obj objnum = Effect.perform (Get_attached_obj_internal objnum)
 let get_seg_first_object segnum = Effect.perform (Get_seg_first_object_internal segnum)
 let get_obj_next objnum = Effect.perform (Get_obj_next_internal objnum)
 let get_highest_segment_index () = Effect.perform Get_highest_segment_index_internal
+let johns_obj_unlink ~segnum ~objnum = Effect.perform (Johns_obj_unlink_internal (segnum, objnum))
+let get_obj_segnum objnum = Effect.perform (Get_obj_segnum_internal objnum)
 
 let max_objects = 350
 
@@ -54,6 +58,44 @@ let search_all_segments_for_object ~objnum =
     count := !count + is_object_in_seg ~segnum:i ~objn:objnum
   done;
   !count
+;;
+
+(* Unlink object objnum from every segment except segnum.
+   C original: void remove_all_objects_but(int segnum, int objnum) *)
+let remove_all_objects_but ~segnum ~objnum =
+  let highest = get_highest_segment_index () in
+  for i = 0 to highest do
+    if segnum <> i then begin
+      if is_object_in_seg ~segnum:i ~objn:objnum > 0 then
+        johns_obj_unlink ~segnum:i ~objnum
+    end
+  done
+;;
+
+(* Remove objects whose segnum doesn't match the segment they're linked in.
+   C original: void remove_incorrect_objects() *)
+let remove_incorrect_objects () =
+  let highest = get_highest_segment_index () in
+  for segnum = 0 to highest do
+    let count = ref 0 in
+    let objnum = ref (get_seg_first_object segnum) in
+    let done_ = ref false in
+    while not !done_ do
+      if !objnum = -1 then
+        done_ := true
+      else begin
+        count := !count + 1;
+        if !count > max_objects then
+          done_ := true
+        else begin
+          let obj_seg = get_obj_segnum !objnum in
+          if obj_seg <> segnum then
+            johns_obj_unlink ~segnum ~objnum:(!objnum);
+          objnum := get_obj_next !objnum
+        end
+      end
+    done
+  done
 ;;
 
 (* Detaches all objects from this object.
