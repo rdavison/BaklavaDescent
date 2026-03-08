@@ -318,6 +318,33 @@ extern int Doing_lighting_hack_flag;
 
 void delete_old_omega_blobs(object *parent_objp)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_delete_omega_blobs_effects(
+				// fetch_omega_blob_objnums
+				[](int parent_num, int* out_objnums, int* out_count) {
+					int count = 0;
+					for (int i = 0; i <= Highest_object_index; i++)
+						if (Objects[i].type == OBJ_WEAPON)
+							if (Objects[i].id == OMEGA_ID)
+								if (Objects[i].ctype.laser_info.parent_num == parent_num)
+									out_objnums[count++] = i;
+					*out_count = count;
+				},
+				// obj_delete
+				[](int objnum) {
+					obj_delete(objnum);
+				}
+			);
+			registered = true;
+		}
+		int parent_num = parent_objp->ctype.laser_info.parent_num;
+		cd_ox_delete_old_omega_blobs(parent_num);
+		return;
+	}
+#endif
 	int	i;
 	int	parent_num;
 	int	count = 0;

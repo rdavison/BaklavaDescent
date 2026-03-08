@@ -1947,6 +1947,18 @@ void cd_ox_register_release_guided_missile_effects(
     cd_effect_release_guided_newdemo_record_fn newdemo_record,
     cd_effect_release_guided_clear_fn clear);
 
+/* -- delete_old_omega_blobs ----------------------------------------------- */
+
+/* C entry point: calls OCaml delete_old_omega_blobs */
+void cd_ox_delete_old_omega_blobs(int parent_num);
+
+/* delete_old_omega_blobs effect registration */
+typedef void (*cd_effect_fetch_omega_blob_objnums_fn)(int parent_num, int* out_objnums, int* out_count);
+typedef void (*cd_effect_obj_delete_fn)(int objnum);
+void cd_ox_register_delete_omega_blobs_effects(
+    cd_effect_fetch_omega_blob_objnums_fn fetch_objnums,
+    cd_effect_obj_delete_fn obj_del);
+
 #ifdef __cplusplus
 }
 #endif

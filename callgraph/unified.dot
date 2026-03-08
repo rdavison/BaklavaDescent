@@ -228,7 +228,7 @@ digraph callgraph {
   "credits_show" [label="credits_show\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "dead_player_end" [label="dead_player_end\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "dead_player_frame" [label="dead_player_frame\n(object)", color=gray50, style=solid, fillcolor="white"];
-  "delete_old_omega_blobs" [label="delete_old_omega_blobs\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "delete_old_omega_blobs" [label="delete_old_omega_blobs\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "detect_escort_goal_accomplished" [label="detect_escort_goal_accomplished\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "died_in_mine_message" [label="died_in_mine_message\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "digi_change_looping_volume" [label="digi_change_looping_volume\n(weapon)", color=gray50, style=solid, fillcolor="white"];

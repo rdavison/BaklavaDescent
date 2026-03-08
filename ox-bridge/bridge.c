@@ -292,6 +292,11 @@ static cd_effect_laser_create_new_fn g_effect_laser_create_new = NULL;
 static cd_effect_laser_set_track_goal_fn g_effect_laser_set_track_goal = NULL;
 static cd_effect_laser_p_rand_fn g_effect_laser_p_rand = NULL;
 
+/* delete_old_omega_blobs effect function pointers */
+static cd_effect_fetch_omega_blob_objnums_fn g_effect_fetch_omega_blob_objnums = NULL;
+static cd_effect_obj_delete_fn g_effect_obj_delete = NULL;
+static const value* g_delete_old_omega_blobs = NULL;
+
 /* create_weapon_object effect function pointers */
 static cd_effect_fetch_marker_model_data_fn g_effect_fetch_marker_model_data = NULL;
 static cd_effect_obj_create_marker_fn g_effect_obj_create_marker = NULL;
@@ -8537,4 +8542,48 @@ void cd_ox_release_guided_missile(int player_num)
         g_release_guided_missile = caml_named_value("cd_release_guided_missile");
     if (!g_release_guided_missile) return;
     caml_callback(*g_release_guided_missile, Val_int(player_num));
+}
+
+/* -- delete_old_omega_blobs effect infrastructure ------------------------- */
+
+void cd_ox_register_delete_omega_blobs_effects(
+    cd_effect_fetch_omega_blob_objnums_fn fetch_objnums,
+    cd_effect_obj_delete_fn obj_del)
+{
+    g_effect_fetch_omega_blob_objnums = fetch_objnums;
+    g_effect_obj_delete = obj_del;
+}
+
+/* fetch_omega_blob_objnums: int -> int array */
+CAMLprim value cd_ox_effect_fetch_omega_blob_objnums(value v_parent_num)
+{
+    CAMLparam1(v_parent_num);
+    CAMLlocal1(v_result);
+    int count = 0;
+    int objnums[1024]; /* generous upper bound */
+    if (g_effect_fetch_omega_blob_objnums)
+        g_effect_fetch_omega_blob_objnums(Int_val(v_parent_num), objnums, &count);
+    v_result = caml_alloc(count, 0);
+    for (int i = 0; i < count; i++)
+        Store_field(v_result, i, Val_int(objnums[i]));
+    CAMLreturn(v_result);
+}
+
+/* obj_delete: int -> unit */
+CAMLprim value cd_ox_effect_obj_delete(value v_objnum)
+{
+    if (g_effect_obj_delete)
+        g_effect_obj_delete(Int_val(v_objnum));
+    return Val_unit;
+}
+
+/* -- delete_old_omega_blobs: C entry point -------------------------------- */
+
+void cd_ox_delete_old_omega_blobs(int parent_num)
+{
+    cd_ox_require_ready("cd_ox_delete_old_omega_blobs");
+    if (!g_delete_old_omega_blobs)
+        g_delete_old_omega_blobs = caml_named_value("cd_delete_old_omega_blobs");
+    if (!g_delete_old_omega_blobs) return;
+    caml_callback(*g_delete_old_omega_blobs, Val_int(parent_num));
 }

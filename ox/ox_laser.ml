@@ -37,6 +37,10 @@ type _ Effect.t +=
       (* newdemo_record_guided_end() *)
   | Release_guided_clear : int -> unit Effect.t
       (* player_num -> Guided_missile[player_num] = NULL *)
+  | Fetch_omega_blob_objnums : int -> int array Effect.t
+      (* parent_num -> array of objnums matching (OBJ_WEAPON, OMEGA_ID, parent_num) *)
+  | Obj_delete : int -> unit Effect.t
+      (* objnum -> deletes the object *)
 
 (* make_random_vector: generate a random unit-ish vector using P_Rand.
    Same logic as C make_random_vector / ox_controlcen.ml *)
@@ -202,4 +206,15 @@ let release_guided_missile ~player_num =
   end else
     (* player_num != Player_num: just clear *)
     Effect.perform (Release_guided_clear player_num)
+;;
+
+(* delete_old_omega_blobs: Delete all omega weapon blobs belonging to the same parent.
+   C original: main_d2/laser.cpp delete_old_omega_blobs *)
+let delete_old_omega_blobs ~parent_num =
+  let objnums = Effect.perform (Fetch_omega_blob_objnums parent_num) in
+  let count = Array.length objnums in
+  for i = 0 to count - 1 do
+    Effect.perform (Obj_delete objnums.(i))
+  done
+  (* mprintf omitted — debug-only logging *)
 ;;

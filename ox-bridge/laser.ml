@@ -62,6 +62,16 @@ external effect_release_guided_clear
   -> unit
   = "cd_ox_effect_release_guided_clear"
 
+external effect_fetch_omega_blob_objnums
+  :  int
+  -> int array
+  = "cd_ox_effect_fetch_omega_blob_objnums"
+
+external effect_obj_delete
+  :  int
+  -> unit
+  = "cd_ox_effect_obj_delete"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -110,6 +120,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Release_guided_clear player_num ->
     Some (fun k ->
       effect_release_guided_clear player_num;
+      Effect.Deep.continue k ())
+  | Ox_laser.Fetch_omega_blob_objnums parent_num ->
+    Some (fun k ->
+      let arr = effect_fetch_omega_blob_objnums parent_num in
+      Effect.Deep.continue k arr)
+  | Ox_laser.Obj_delete objnum ->
+    Some (fun k ->
+      effect_obj_delete objnum;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -160,8 +178,23 @@ let cd_release_guided_missile player_num =
     }
 ;;
 
+let cd_delete_old_omega_blobs parent_num =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.delete_old_omega_blobs ~parent_num)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] delete_old_omega_blobs exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        ())
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_create_homing_missile" cd_create_homing_missile;
   Callback.register "cd_create_weapon_object" cd_create_weapon_object;
-  Callback.register "cd_release_guided_missile" cd_release_guided_missile
+  Callback.register "cd_release_guided_missile" cd_release_guided_missile;
+  Callback.register "cd_delete_old_omega_blobs" cd_delete_old_omega_blobs
 ;;

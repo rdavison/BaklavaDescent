@@ -308,6 +308,8 @@ PORTED_FUNCTIONS = {
     "is_door_free": "ported",
     # Laser - guided missile
     "release_guided_missile": "ported",
+    # Laser - omega blobs
+    "delete_old_omega_blobs": "ported",
 }
 
 # Functions that intentionally remain as C effects.
