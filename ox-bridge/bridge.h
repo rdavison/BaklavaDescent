@@ -1594,6 +1594,18 @@ void cd_ox_register_fuelcen_create_effects(
     cd_effect_fc_fetch_fuelcen_create_data_fn fetch_data,
     cd_effect_fc_write_fuelcen_create_fn write_data);
 
+/* -- matcen_create ------------------------------------------------------- */
+
+/* C entry point: calls OCaml matcen_create */
+void cd_ox_matcen_create(int segnum);
+
+/* Matcen effect registration */
+typedef void (*cd_effect_fc_fetch_matcen_create_data_fn)(int segnum, int32_t* out);
+typedef void (*cd_effect_fc_write_matcen_create_fn)(const int32_t* packed, int len);
+void cd_ox_register_matcen_create_effects(
+    cd_effect_fc_fetch_matcen_create_data_fn fetch_data,
+    cd_effect_fc_write_matcen_create_fn write_data);
+
 #ifdef __cplusplus
 }
 #endif

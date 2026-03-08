@@ -480,7 +480,7 @@ digraph callgraph {
   "make_nearby_robot_snipe" [label="make_nearby_robot_snipe\n(ai)", color=orange, style=filled, fillcolor="lightyellow"];
   "make_random_vector" [label="make_random_vector\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "marker_exists_in_mine" [label="marker_exists_in_mine\n(escort)", color=gray50, style=solid, fillcolor="white"];
-  "matcen_create" [label="matcen_create\n(fuelcen)", color=gray50, style=solid, fillcolor="white"];
+  "matcen_create" [label="matcen_create\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];
   "maybe_ai_do_actual_firing_stuff" [label="maybe_ai_do_actual_firing_stuff\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "maybe_ai_path_garbage_collect" [label="maybe_ai_path_garbage_collect\n(aipath)", color=orange, style=filled, fillcolor="lightyellow"];
   "maybe_buddy_fire_mega" [label="maybe_buddy_fire_mega\n(escort)", color=gray50, style=solid, fillcolor="white"];

@@ -214,6 +214,64 @@ void fuelcen_create(segment* segp)
 // This function is separate from other fuelcens because we don't want values reset.
 void matcen_create(segment* segp)
 {
+	int segnum = segp - Segments;
+
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_matcen_create_effects(
+				// fetch: [station_type, num_fuelcenters, max_fuelcens, difficulty_level,
+				//         num_robot_centers, center_x, center_y, center_z, segnum]
+				[](int seg, int32_t* out) {
+					segment* sp = &Segments[seg];
+					vms_vector center;
+					compute_segment_center(&center, sp);
+					out[0] = sp->special;
+					out[1] = Num_fuelcenters;
+					out[2] = MAX_NUM_FUELCENS;
+					out[3] = Difficulty_level;
+					out[4] = Num_robot_centers;
+					out[5] = center.x;
+					out[6] = center.y;
+					out[7] = center.z;
+					out[8] = seg;
+				},
+				// write: [segnum, station_type, capacity, timer, flag,
+				//         center_x, center_y, center_z, matcen_num,
+				//         hit_points, interval, matcen_segnum, fuelcen_num]
+				[](const int32_t* packed, int len) {
+					if (len < 13) return;
+					int seg = packed[0];
+					segment* sp = &Segments[seg];
+					sp->value = Num_fuelcenters;
+					Station[Num_fuelcenters].Type = packed[1];
+					Station[Num_fuelcenters].Capacity = packed[2];
+					Station[Num_fuelcenters].MaxCapacity = packed[2];
+					Station[Num_fuelcenters].segnum = seg;
+					Station[Num_fuelcenters].Timer = packed[3];
+					Station[Num_fuelcenters].Flag = packed[4];
+					Station[Num_fuelcenters].Center.x = packed[5];
+					Station[Num_fuelcenters].Center.y = packed[6];
+					Station[Num_fuelcenters].Center.z = packed[7];
+					int matcen_num = packed[8];
+					sp->matcen_num = matcen_num;
+					Num_robot_centers = matcen_num + 1;
+					RobotCenters[matcen_num].hit_points = packed[9];
+					RobotCenters[matcen_num].interval = packed[10];
+					RobotCenters[matcen_num].segnum = packed[11];
+					RobotCenters[matcen_num].fuelcen_num = packed[12];
+					Num_fuelcenters++;
+				});
+			registered = true;
+		}
+		if (cd_ox_is_ready()) {
+			cd_ox_matcen_create(segnum);
+			return;
+		}
+	}
+#endif
+
 	int	station_type = segp->special;
 
 	Assert((segp != NULL));

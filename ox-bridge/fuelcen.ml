@@ -12,6 +12,16 @@ external effect_write_fuelcen_create
   -> unit
   = "cd_ox_effect_fc_write_fuelcen_create"
 
+external effect_fetch_matcen_create_data
+  :  int
+  -> int array
+  = "cd_ox_effect_fc_fetch_matcen_create_data"
+
+external effect_write_matcen_create
+  :  int array
+  -> unit
+  = "cd_ox_effect_fc_write_matcen_create"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -22,6 +32,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_fuelcen.Write_fuelcen_create packed ->
     Some (fun k ->
       effect_write_fuelcen_create packed;
+      Effect.Deep.continue k ())
+  | Ox_fuelcen.Fetch_matcen_create_data segnum ->
+    Some (fun k ->
+      let data = effect_fetch_matcen_create_data segnum in
+      Effect.Deep.continue k data)
+  | Ox_fuelcen.Write_matcen_create packed ->
+    Some (fun k ->
+      effect_write_matcen_create packed;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -39,6 +57,20 @@ let cd_fuelcen_create segnum =
     }
 ;;
 
+(* Bridge entry point for matcen_create called from C via caml_callback *)
+let cd_matcen_create segnum =
+  Effect.Deep.match_with
+    (fun () -> Ox_fuelcen.matcen_create ~segnum)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] matcen_create exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
-  Callback.register "cd_fuelcen_create" cd_fuelcen_create
+  Callback.register "cd_fuelcen_create" cd_fuelcen_create;
+  Callback.register "cd_matcen_create" cd_matcen_create
 ;;

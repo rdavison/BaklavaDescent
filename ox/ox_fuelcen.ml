@@ -15,6 +15,8 @@ let segment_is_goal_red   = 6
 type _ Effect.t +=
   | Fetch_fuelcen_create_data : int -> int array Effect.t
   | Write_fuelcen_create : int array -> unit Effect.t
+  | Fetch_matcen_create_data : int -> int array Effect.t
+  | Write_matcen_create : int array -> unit Effect.t
 
 (* fuelcen_create: Turns a segment into a fully charged up fuel center.
    Takes segnum (segment index).
@@ -65,4 +67,62 @@ let fuelcen_create ~segnum =
            center_x; center_y; center_z |])
     end
   end
+;;
+
+(* Constants *)
+let f1_0 = 0x10000
+let matcen_hp_default  = f1_0 * 500  (* F1_0*500 *)
+let matcen_interval_default = f1_0 * 5  (* F1_0*5 *)
+
+(* matcen_create: Turns a segment into a robot maker (materialization center).
+   Takes segnum (segment index).
+   Fetch data: [station_type, num_fuelcenters, max_fuelcens, difficulty_level,
+                 num_robot_centers, center_x, center_y, center_z, segnum_actual]
+   Write back: [segnum, station_type, capacity, timer, flag,
+                 center_x, center_y, center_z, matcen_num,
+                 hit_points, interval, matcen_segnum, fuelcen_num] *)
+let matcen_create ~segnum =
+  let data = Effect.perform (Fetch_matcen_create_data segnum) in
+  let station_type = data.(0) in
+  let num_fuelcenters = data.(1) in
+  let max_fuelcens = data.(2) in
+  let difficulty_level = data.(3) in
+  let num_robot_centers = data.(4) in
+  let center_x = data.(5) in
+  let center_y = data.(6) in
+  let center_z = data.(7) in
+  let segnum_actual = data.(8) in
+  (* Assert(seg2p != NULL) — always true in our case *)
+  (* Assert(station_type == SEGMENT_IS_ROBOTMAKER) *)
+  if station_type <> segment_is_robotmaker then
+    Printf.eprintf "[OX] matcen_create: Assert failed: station_type=%d != ROBOTMAKER\n"
+      station_type;
+  (* Assert(Num_fuelcenters < MAX_NUM_FUELCENS) *)
+  if num_fuelcenters >= max_fuelcens then
+    Printf.eprintf "[OX] matcen_create: Assert failed: Num_fuelcenters=%d >= MAX=%d\n"
+      num_fuelcenters max_fuelcens;
+  (* Assert(Num_fuelcenters > -1) *)
+  if num_fuelcenters < 0 then
+    Printf.eprintf "[OX] matcen_create: Assert failed: Num_fuelcenters=%d < 0\n"
+      num_fuelcenters;
+  (* Capacity = i2f(Difficulty_level + 3) *)
+  let capacity = (difficulty_level + 3) * f1_0 in
+  (* matcen_num = Num_robot_centers (before increment) *)
+  let matcen_num = num_robot_centers in
+  (* Write back all fields *)
+  Effect.perform (Write_matcen_create
+    [| segnum_actual;        (* 0: segnum for Station[].segnum and seg value *)
+       station_type;         (* 1: Station[].Type *)
+       capacity;             (* 2: Station[].Capacity and MaxCapacity *)
+       -1;                   (* 3: Station[].Timer *)
+       0;                    (* 4: Station[].Flag *)
+       center_x;             (* 5: Station[].Center.x *)
+       center_y;             (* 6: Station[].Center.y *)
+       center_z;             (* 7: Station[].Center.z *)
+       matcen_num;           (* 8: seg2p->matcen_num = Num_robot_centers *)
+       matcen_hp_default;    (* 9: RobotCenters[].hit_points *)
+       matcen_interval_default; (* 10: RobotCenters[].interval *)
+       segnum_actual;        (* 11: RobotCenters[].segnum *)
+       num_fuelcenters       (* 12: RobotCenters[].fuelcen_num *)
+    |])
 ;;

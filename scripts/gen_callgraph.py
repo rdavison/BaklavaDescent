@@ -265,6 +265,7 @@ PORTED_FUNCTIONS = {
     "obj_allocate": "ported",
     # Fuelcen
     "fuelcen_create": "ported",
+    "matcen_create": "ported",
 }
 
 # Functions that intentionally remain as C effects.
