@@ -415,6 +415,7 @@ static const value* g_find_connect_side = NULL;
 static const value* g_create_shortpos = NULL;
 static const value* g_extract_shortpos = NULL;
 static const value* g_create_walls_on_side = NULL;
+static const value* g_validate_removable_wall = NULL;
 static const value* g_check_norms = NULL;
 static const value* g_create_all_vertex_lists = NULL;
 static const value* g_create_all_vertnum_lists = NULL;
@@ -558,6 +559,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_create_shortpos
           && g_extract_shortpos
           && g_create_walls_on_side
+          && g_validate_removable_wall
           && g_check_norms
           && g_create_all_vertex_lists
           && g_create_all_vertnum_lists
@@ -783,6 +785,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_create_shortpos = caml_named_value("cd_create_shortpos");
     g_extract_shortpos = caml_named_value("cd_extract_shortpos");
     g_create_walls_on_side = caml_named_value("cd_create_walls_on_side");
+    g_validate_removable_wall = caml_named_value("cd_validate_removable_wall");
     g_check_norms = caml_named_value("cd_check_norms");
     g_create_all_vertex_lists = caml_named_value("cd_create_all_vertex_lists");
     g_create_all_vertnum_lists = caml_named_value("cd_create_all_vertnum_lists");
@@ -941,6 +944,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_create_shortpos
         || !g_extract_shortpos
         || !g_create_walls_on_side
+        || !g_validate_removable_wall
         || !g_check_norms
         || !g_create_all_vertex_lists
         || !g_create_all_vertnum_lists
@@ -1111,6 +1115,7 @@ int cd_ox_is_ready(void)
            && g_create_shortpos
            && g_extract_shortpos
            && g_create_walls_on_side
+           && g_validate_removable_wall
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles
@@ -3416,6 +3421,22 @@ void cd_ox_create_walls_on_side(
         Store_field(arr, i, Val_long(packed[i]));
     result = caml_callback(*g_create_walls_on_side, arr);
     for (int i = 0; i < 7; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_validate_removable_wall(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_validate_removable_wall");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_validate_removable_wall, arr);
+    for (int i = 0; i < 8; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

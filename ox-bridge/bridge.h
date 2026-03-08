@@ -764,6 +764,9 @@ void cd_ox_extract_shortpos(
 void cd_ox_create_walls_on_side(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
+void cd_ox_validate_removable_wall(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
 int cd_ox_check_norms(
     int32_t n0x, int32_t n0y, int32_t n0z,
     int32_t n1x, int32_t n1y, int32_t n1z);

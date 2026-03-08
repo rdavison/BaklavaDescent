@@ -1155,3 +1155,13 @@ let check_segment_connections ~highest_segment_index =
   done;
   !errors
 ;;
+
+(* --- validate_removable_wall ------------------------------------------ *)
+(* Calls create_walls_on_side and passes through tmap_num unchanged.
+   Returns: (side_type, n0, n1, tmap_num) *)
+let validate_removable_wall ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~tmap_num =
+  let side_type, n0, n1 =
+    create_walls_on_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child
+  in
+  side_type, n0, n1, tmap_num
+;;

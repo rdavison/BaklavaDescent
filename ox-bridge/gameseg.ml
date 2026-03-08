@@ -257,6 +257,26 @@ let cd_find_connected_distance (arr : int array) = Ox_gameseg.find_connected_dis
    Returns: [| distance (fix) or -1; connected_segment_distance |] *)
 let cd_find_connected_distance_segments (arr : int array) = Ox_gameseg.find_connected_distance_segments arr
 
+(* validate_removable_wall: packed int array → int array (8 ints)
+   Input: [v0(3), v1(3), v2(3), v3(3), vi0, vi1, vi2, vi3, has_child, tmap_num] = 18 ints
+   Output: [side_type, n0x, n0y, n0z, n1x, n1y, n1z, tmap_num] = 8 ints *)
+let cd_validate_removable_wall (packed : int array) =
+  let v0 = packed.(0), packed.(1), packed.(2) in
+  let v1 = packed.(3), packed.(4), packed.(5) in
+  let v2 = packed.(6), packed.(7), packed.(8) in
+  let v3 = packed.(9), packed.(10), packed.(11) in
+  let vi0 = packed.(12) in
+  let vi1 = packed.(13) in
+  let vi2 = packed.(14) in
+  let vi3 = packed.(15) in
+  let has_child = packed.(16) <> 0 in
+  let tmap_num = packed.(17) in
+  let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z), tmap =
+    Ox_gameseg.validate_removable_wall ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~tmap_num
+  in
+  [| side_type; n0x; n0y; n0z; n1x; n1y; n1z; tmap |]
+;;
+
 (* C externals for on-demand segment data + side type mutation *)
 external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
 external set_segment_side_type_c : int -> int -> int -> unit = "cd_ox_set_segment_side_type"
@@ -299,6 +319,7 @@ let register_callbacks () =
   Callback.register "cd_find_connect_side" cd_find_connect_side;
   Callback.register "cd_create_shortpos" cd_create_shortpos;
   Callback.register "cd_extract_shortpos" cd_extract_shortpos;
+  Callback.register "cd_validate_removable_wall" cd_validate_removable_wall;
   Callback.register "cd_create_walls_on_side" cd_create_walls_on_side;
   Callback.register "cd_check_norms" cd_check_norms;
   Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;

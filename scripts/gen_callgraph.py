@@ -146,6 +146,7 @@ PORTED_FUNCTIONS = {
     "create_abs_vertex_lists": "ported",
     "create_all_vertnum_lists": "ported",
     "create_walls_on_side": "ported",
+    "validate_removable_wall": "ported",
     "get_verts_for_normal": "ported",
     "check_norms": "ported",
     "extract_orient_from_segment": "ported",
