@@ -20,6 +20,23 @@ external effect_set_laser_track_goal
 
 external effect_p_rand : unit -> int = "cd_ox_effect_p_rand"
 
+external effect_fetch_weapon_create_data
+  :  int
+  -> int array
+  = "cd_ox_effect_fetch_weapon_create_data"
+
+external effect_obj_create_weapon
+  :  int -> int -> int -> int -> int -> int -> int
+  -> int
+  = "cd_ox_effect_obj_create_weapon_bytecode"
+    "cd_ox_effect_obj_create_weapon"
+
+external effect_set_weapon_obj_props
+  :  int -> int -> int -> int -> int -> int
+  -> unit
+  = "cd_ox_effect_set_weapon_obj_props_bytecode"
+    "cd_ox_effect_set_weapon_obj_props"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -36,6 +53,18 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Set_laser_track_goal (objnum, goal_obj) ->
     Some (fun k ->
       effect_set_laser_track_goal objnum goal_obj;
+      Effect.Deep.continue k ())
+  | Ox_laser.Fetch_weapon_create_data weapon_type ->
+    Some (fun k ->
+      let arr = effect_fetch_weapon_create_data weapon_type in
+      Effect.Deep.continue k arr)
+  | Ox_laser.Obj_create_weapon (wtype, segnum, px, py, pz, radius, rtype) ->
+    Some (fun k ->
+      let objnum = effect_obj_create_weapon wtype segnum px py pz radius rtype in
+      Effect.Deep.continue k objnum)
+  | Ox_laser.Set_weapon_obj_props arr ->
+    Some (fun k ->
+      effect_set_weapon_obj_props arr.(0) arr.(1) arr.(2) arr.(3) arr.(4) arr.(5);
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -57,6 +86,22 @@ let cd_create_homing_missile objp_pos_x objp_pos_y objp_pos_z
     }
 ;;
 
+let cd_create_weapon_object weapon_type segnum pos_x pos_y pos_z =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.create_weapon_object
+        ~weapon_type ~segnum ~pos_x ~pos_y ~pos_z)
+    ()
+    { retc = (fun r -> r)
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] create_weapon_object exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        -1)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
-  Callback.register "cd_create_homing_missile" cd_create_homing_missile
+  Callback.register "cd_create_homing_missile" cd_create_homing_missile;
+  Callback.register "cd_create_weapon_object" cd_create_weapon_object
 ;;

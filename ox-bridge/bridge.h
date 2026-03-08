@@ -1800,6 +1800,23 @@ void cd_ox_register_laser_effects(
     cd_effect_laser_set_track_goal_fn set_track_goal,
     cd_effect_laser_p_rand_fn p_rand);
 
+/* -- create_weapon_object ------------------------------------------------- */
+
+/* C entry point: calls OCaml create_weapon_object */
+int cd_ox_create_weapon_object(int weapon_type, int segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z);
+
+/* create_weapon_object effect registration */
+typedef void (*cd_effect_fetch_weapon_create_data_fn)(int weapon_type, int32_t* out_data);
+typedef int (*cd_effect_obj_create_weapon_fn)(int weapon_type, int segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z, int32_t laser_radius, int rtype);
+typedef void (*cd_effect_set_weapon_obj_props_fn)(int objnum, int model_num,
+    int32_t size, int32_t mass, int32_t drag, int phys_flags_or);
+void cd_ox_register_create_weapon_effects(
+    cd_effect_fetch_weapon_create_data_fn fetch_data,
+    cd_effect_obj_create_weapon_fn obj_create,
+    cd_effect_set_weapon_obj_props_fn set_props);
+
 #ifdef __cplusplus
 }
 #endif

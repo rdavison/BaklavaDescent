@@ -277,12 +277,18 @@ static const value* g_matcen_create = NULL;
 static const value* g_fuelcen_activate = NULL;
 static const value* g_explode_wall = NULL;
 static const value* g_create_homing_missile = NULL;
+static const value* g_create_weapon_object = NULL;
 
 /* Laser effect function pointers */
 static cd_effect_laser_fetch_object_pos_fn g_effect_laser_fetch_object_pos = NULL;
 static cd_effect_laser_create_new_fn g_effect_laser_create_new = NULL;
 static cd_effect_laser_set_track_goal_fn g_effect_laser_set_track_goal = NULL;
 static cd_effect_laser_p_rand_fn g_effect_laser_p_rand = NULL;
+
+/* create_weapon_object effect function pointers */
+static cd_effect_fetch_weapon_create_data_fn g_effect_fetch_weapon_create_data = NULL;
+static cd_effect_obj_create_weapon_fn g_effect_obj_create_weapon = NULL;
+static cd_effect_set_weapon_obj_props_fn g_effect_set_weapon_obj_props = NULL;
 
 /* Fireball effect function pointers */
 static cd_effect_fb_alloc_expl_wall_slot_fn g_effect_fb_alloc_expl_wall_slot = NULL;
@@ -808,6 +814,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_fuelcen_activate = caml_named_value("cd_fuelcen_activate");
     g_explode_wall = caml_named_value("cd_explode_wall");
     g_create_homing_missile = caml_named_value("cd_create_homing_missile");
+    g_create_weapon_object = caml_named_value("cd_create_weapon_object");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
@@ -1002,7 +1009,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_matcen_create
         || !g_fuelcen_activate
         || !g_explode_wall
-        || !g_create_homing_missile)
+        || !g_create_homing_missile
+        || !g_create_weapon_object)
     {
         return 1;
     }
@@ -7829,6 +7837,92 @@ int cd_ox_create_homing_missile(int32_t objp_pos_x, int32_t objp_pos_y, int32_t 
         Val_long(objtype), Val_long(make_sound)
     };
     v_result = caml_callbackN(*g_create_homing_missile, 8, args);
+
+    int result = Int_val(v_result);
+    CAMLreturnT(int, result);
+}
+
+/* ======================================================================== */
+/* create_weapon_object effects                                             */
+/* ======================================================================== */
+
+void cd_ox_register_create_weapon_effects(
+    cd_effect_fetch_weapon_create_data_fn fetch_data,
+    cd_effect_obj_create_weapon_fn obj_create,
+    cd_effect_set_weapon_obj_props_fn set_props)
+{
+    g_effect_fetch_weapon_create_data = fetch_data;
+    g_effect_obj_create_weapon = obj_create;
+    g_effect_set_weapon_obj_props = set_props;
+}
+
+/* fetch_weapon_create_data: int -> int array (9 elements) */
+CAMLprim value cd_ox_effect_fetch_weapon_create_data(value v_weapon_type)
+{
+    CAMLparam1(v_weapon_type);
+    CAMLlocal1(v_result);
+    int32_t data[9] = {0};
+    if (g_effect_fetch_weapon_create_data)
+        g_effect_fetch_weapon_create_data(Int_val(v_weapon_type), data);
+    v_result = caml_alloc(9, 0);
+    for (int i = 0; i < 9; i++)
+        Store_field(v_result, i, Val_long(data[i]));
+    CAMLreturn(v_result);
+}
+
+/* obj_create_weapon: 7 args -> int (native code path) */
+CAMLprim value cd_ox_effect_obj_create_weapon(
+    value v_wtype, value v_segnum, value v_px, value v_py, value v_pz,
+    value v_radius, value v_rtype)
+{
+    int result = -1;
+    if (g_effect_obj_create_weapon)
+        result = g_effect_obj_create_weapon(
+            Int_val(v_wtype), Int_val(v_segnum),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz),
+            Int_val(v_radius), Int_val(v_rtype));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_obj_create_weapon_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_obj_create_weapon(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
+}
+
+/* set_weapon_obj_props: 6 args -> unit (native code path) */
+CAMLprim value cd_ox_effect_set_weapon_obj_props(
+    value v_objnum, value v_model_num, value v_size,
+    value v_mass, value v_drag, value v_phys_flags_or)
+{
+    if (g_effect_set_weapon_obj_props)
+        g_effect_set_weapon_obj_props(
+            Int_val(v_objnum), Int_val(v_model_num), Int_val(v_size),
+            Int_val(v_mass), Int_val(v_drag), Int_val(v_phys_flags_or));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_set_weapon_obj_props_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_set_weapon_obj_props(
+        argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+/* C entry point: calls OCaml create_weapon_object */
+int cd_ox_create_weapon_object(int weapon_type, int segnum,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z)
+{
+    cd_ox_require_ready("cd_ox_create_weapon_object");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    value args[5] = {
+        Val_long(weapon_type), Val_long(segnum),
+        Val_long(pos_x), Val_long(pos_y), Val_long(pos_z)
+    };
+    v_result = caml_callbackN(*g_create_weapon_object, 5, args);
 
     int result = Int_val(v_result);
     CAMLreturnT(int, result);

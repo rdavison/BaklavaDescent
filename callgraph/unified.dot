@@ -224,7 +224,7 @@ digraph callgraph {
   "create_smart_children" [label="create_smart_children\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "create_vclip_on_object" [label="create_vclip_on_object\n(object)", color=gray50, style=solid, fillcolor="white"];
   "create_walls_on_side" [label="create_walls_on_side\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
-  "create_weapon_object" [label="create_weapon_object\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "create_weapon_object" [label="create_weapon_object\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "credits_show" [label="credits_show\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "dead_player_end" [label="dead_player_end\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "dead_player_frame" [label="dead_player_frame\n(object)", color=gray50, style=solid, fillcolor="white"];

@@ -186,12 +186,56 @@ void do_muzzle_stuff(int segnum, vms_vector *pos)
 //creates a weapon object
 int create_weapon_object(int weapon_type,int segnum,vms_vector *position)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_create_weapon_effects(
+				// fetch_weapon_create_data
+				[](int wtype, int32_t* out) {
+					out[0] = Weapon_info[wtype].render_type;
+					out[1] = Weapon_info[wtype].blob_size;
+					out[2] = Weapon_info[wtype].model_num;
+					out[3] = Weapon_info[wtype].po_len_to_width_ratio;
+					out[4] = Weapon_info[wtype].mass;
+					out[5] = Weapon_info[wtype].drag;
+					out[6] = Weapon_info[wtype].bounce;
+					out[7] = BounceCheat ? 1 : 0;
+					out[8] = Polygon_models[Weapon_info[wtype].model_num].rad;
+				},
+				// obj_create_weapon
+				[](int wtype, int seg, int32_t px, int32_t py, int32_t pz,
+				   int32_t radius, int rtype) -> int {
+					vms_vector pos = {px, py, pz};
+					return obj_create(OBJ_WEAPON, wtype, seg, &pos, NULL,
+						radius, CT_WEAPON, MT_PHYSICS, rtype);
+				},
+				// set_weapon_obj_props
+				[](int objnum, int model_num, int32_t size,
+				   int32_t mass, int32_t drag, int phys_flags_or) {
+					object *obj = &Objects[objnum];
+					if (model_num >= 0) {
+						obj->rtype.pobj_info.model_num = model_num;
+						obj->size = size;
+					}
+					obj->mtype.phys_info.mass = mass;
+					obj->mtype.phys_info.drag = drag;
+					vm_vec_zero(&obj->mtype.phys_info.thrust);
+					obj->mtype.phys_info.flags |= phys_flags_or;
+				}
+			);
+			registered = true;
+		}
+		return cd_ox_create_weapon_object(weapon_type, segnum,
+			position->x, position->y, position->z);
+	}
+#else
 	int rtype=-1;
 	fix laser_radius = -1;
 	int objnum;
 	object *obj;
 
-	switch( Weapon_info[weapon_type].render_type )	
+	switch( Weapon_info[weapon_type].render_type )
 	{
 		case WEAPON_RENDER_BLOB:
 			rtype = RT_LASER;			// Render as a laser even if blob (see render code above for explanation)
@@ -223,7 +267,7 @@ int create_weapon_object(int weapon_type,int segnum,vms_vector *position)
 
 	obj = &Objects[objnum];
 
-	if (Weapon_info[weapon_type].render_type == WEAPON_RENDER_POLYMODEL) 
+	if (Weapon_info[weapon_type].render_type == WEAPON_RENDER_POLYMODEL)
 	{
 		obj->rtype.pobj_info.model_num = Weapon_info[obj->id].model_num;
 		obj->size = fixdiv(Polygon_models[obj->rtype.pobj_info.model_num].rad,Weapon_info[obj->id].po_len_to_width_ratio);
@@ -240,6 +284,7 @@ int create_weapon_object(int weapon_type,int segnum,vms_vector *position)
 		obj->mtype.phys_info.flags |= PF_BOUNCE+PF_BOUNCES_TWICE;
 
 	return objnum;
+#endif
 }
 
 extern int Doing_lighting_hack_flag;

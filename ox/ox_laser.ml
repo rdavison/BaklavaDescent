@@ -16,6 +16,17 @@ type _ Effect.t +=
           objtype, make_sound) -> objnum or -1 *)
   | Set_laser_track_goal : (int * int) -> unit Effect.t
       (* (objnum, goal_obj) *)
+  | Fetch_weapon_create_data : int -> int array Effect.t
+      (* weapon_type -> [|render_type; blob_size; model_num;
+         po_len_to_width_ratio; mass; drag; bounce; bounce_cheat;
+         polygon_model_rad|] *)
+  | Obj_create_weapon : (int * int * int * int * int * int * int) -> int Effect.t
+      (* (weapon_type, segnum, pos_x, pos_y, pos_z, laser_radius, rtype)
+         -> objnum *)
+  | Set_weapon_obj_props : int array -> unit Effect.t
+      (* [|objnum; model_num; size; mass; drag; phys_flags_or|]
+         model_num < 0 means skip polymodel setup
+         phys_flags_or is OR'd into existing flags *)
 
 (* make_random_vector: generate a random unit-ish vector using P_Rand.
    Same logic as C make_random_vector / ox_controlcen.ml *)
@@ -66,4 +77,89 @@ let create_homing_missile ~objp_pos_x ~objp_pos_y ~objp_pos_z
     Effect.perform (Set_laser_track_goal (objnum, goal_obj));
     objnum
   end
+;;
+
+(* -- Constants for create_weapon_object ----------------------------------- *)
+
+let weapon_render_none = -1
+let weapon_render_laser = 0
+let weapon_render_blob = 1
+let weapon_render_polymodel = 2
+let weapon_render_vclip = 3
+
+let rt_none = 0
+let rt_polyobj = 1
+let rt_laser = 3
+let rt_weapon_vclip = 7
+
+let pf_bounce = 0x04
+let pf_bounces_twice = 0x200
+
+(* create_weapon_object: Create a weapon object with the right render type,
+   size, physics, and bounce properties.
+   C original: main_d2/laser.cpp create_weapon_object *)
+let create_weapon_object ~weapon_type ~segnum ~pos_x ~pos_y ~pos_z =
+  let data = Effect.perform (Fetch_weapon_create_data weapon_type) in
+  let render_type = data.(0) in
+  let blob_size = data.(1) in
+  let model_num = data.(2) in
+  let po_len_to_width_ratio = data.(3) in
+  let mass = data.(4) in
+  let drag = data.(5) in
+  let bounce = data.(6) in
+  let bounce_cheat = data.(7) in
+  let polygon_model_rad = data.(8) in
+
+  let rtype = ref (-1) in
+  let laser_radius = ref (-1) in
+
+  (match render_type with
+   | r when r = weapon_render_blob ->
+     rtype := rt_laser;
+     laser_radius := blob_size
+   | r when r = weapon_render_polymodel ->
+     laser_radius := 0;
+     rtype := rt_polyobj
+   | r when r = weapon_render_laser ->
+     () (* Int3() - not supported anymore *)
+   | r when r = weapon_render_none ->
+     rtype := rt_none;
+     laser_radius := f1_0
+   | r when r = weapon_render_vclip ->
+     rtype := rt_weapon_vclip;
+     laser_radius := blob_size
+   | _ ->
+     failwith "Invalid weapon render type in Laser_create_new");
+
+  (* Assert(laser_radius != -1); Assert(rtype != -1); *)
+
+  let objnum = Effect.perform
+    (Obj_create_weapon
+       (weapon_type, segnum, pos_x, pos_y, pos_z, !laser_radius, !rtype))
+  in
+
+  (* Compute size for polymodel weapons *)
+  let final_size =
+    if render_type = weapon_render_polymodel then
+      Ox_math.fixdiv ~a:polygon_model_rad ~b:po_len_to_width_ratio
+    else
+      0 (* not used — obj_create already set size to laser_radius *)
+  in
+
+  let final_model_num =
+    if render_type = weapon_render_polymodel then model_num else -1
+  in
+
+  (* Compute phys_flags to OR in *)
+  let phys_flags = ref 0 in
+  if bounce = 1 then
+    phys_flags := !phys_flags lor pf_bounce;
+  if bounce = 2 || bounce_cheat <> 0 then
+    phys_flags := !phys_flags lor (pf_bounce + pf_bounces_twice);
+
+  Effect.perform
+    (Set_weapon_obj_props
+       [| objnum; final_model_num; final_size; mass; drag; !phys_flags |]);
+
+  objnum
 ;;
