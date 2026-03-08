@@ -2227,6 +2227,31 @@ void validate_removable_wall(segment *sp, int sidenum, int tmap_num)
 //	Make a just-modified segment side valid.
 void validate_segment_side(segment *sp, int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	int v0 = sp->verts[Side_to_verts[sidenum][0]];
+	int v1 = sp->verts[Side_to_verts[sidenum][1]];
+	int v2 = sp->verts[Side_to_verts[sidenum][2]];
+	int v3 = sp->verts[Side_to_verts[sidenum][3]];
+	int32_t packed[19];
+	packed[0] = Vertices[v0].x; packed[1] = Vertices[v0].y; packed[2] = Vertices[v0].z;
+	packed[3] = Vertices[v1].x; packed[4] = Vertices[v1].y; packed[5] = Vertices[v1].z;
+	packed[6] = Vertices[v2].x; packed[7] = Vertices[v2].y; packed[8] = Vertices[v2].z;
+	packed[9] = Vertices[v3].x; packed[10] = Vertices[v3].y; packed[11] = Vertices[v3].z;
+	packed[12] = v0; packed[13] = v1; packed[14] = v2; packed[15] = v3;
+	packed[16] = IS_CHILD(sp->children[sidenum]) ? 1 : 0;
+	packed[17] = sp->sides[sidenum].wall_num;
+	packed[18] = sp->sides[sidenum].tmap_num;
+	int32_t out_buf[8];
+	cd_ox_validate_segment_side(packed, 19, out_buf);
+	sp->sides[sidenum].type = out_buf[0];
+	sp->sides[sidenum].normals[0].x = out_buf[1];
+	sp->sides[sidenum].normals[0].y = out_buf[2];
+	sp->sides[sidenum].normals[0].z = out_buf[3];
+	sp->sides[sidenum].normals[1].x = out_buf[4];
+	sp->sides[sidenum].normals[1].y = out_buf[5];
+	sp->sides[sidenum].normals[1].z = out_buf[6];
+	sp->sides[sidenum].tmap_num = out_buf[7];
+#else
 	if (sp->sides[sidenum].wall_num == -1)
 		create_walls_on_side(sp, sidenum);
 	else
@@ -2242,6 +2267,7 @@ void validate_segment_side(segment *sp, int sidenum)
 //		sp->sides[sidenum].render_flag = 1;
 //	else
 //		sp->sides[sidenum].render_flag = 0;
+#endif
 }
 
 extern int check_for_degenerate_segment(segment *sp);

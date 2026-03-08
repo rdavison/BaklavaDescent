@@ -1165,3 +1165,18 @@ let validate_removable_wall ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~tmap
   in
   side_type, n0, n1, tmap_num
 ;;
+
+(* --- validate_segment_side --------------------------------------------- *)
+(* Dispatcher: if wall_num == -1, call create_walls_on_side;
+   otherwise call validate_removable_wall.
+   Returns: (side_type, n0, n1, tmap_num) — tmap_num passed through unchanged
+   when wall_num == -1. *)
+let validate_segment_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~wall_num ~tmap_num =
+  if wall_num = -1 then
+    let side_type, n0, n1 =
+      create_walls_on_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child
+    in
+    (side_type, n0, n1, tmap_num)
+  else
+    validate_removable_wall ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~tmap_num
+;;

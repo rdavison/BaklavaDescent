@@ -718,7 +718,7 @@ digraph callgraph {
   "validate_removable_wall" [label="validate_removable_wall\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "validate_segment" [label="validate_segment\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
   "validate_segment_all" [label="validate_segment_all\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
-  "validate_segment_side" [label="validate_segment_side\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
+  "validate_segment_side" [label="validate_segment_side\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "verify_console_object" [label="verify_console_object\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
   "vm_angles_2_matrix" [label="vm_angles_2_matrix\n(morph)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "vm_copy_transpose_matrix" [label="vm_copy_transpose_matrix\n(cntrlcen)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
