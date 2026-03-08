@@ -1214,3 +1214,22 @@ let validate_segment (packed : int array) =
   done;
   out
 ;;
+
+(* Effects for validate_segment_all: fetch packed data and write back results *)
+type _ Effect.t += Fetch_validate_segment_packed : int -> int array Effect.t
+type _ Effect.t += Write_back_validate_segment : (int * int array) -> unit Effect.t
+
+(* validate_segment_all: validate all segments 0..highest_segment_index.
+   For each segment, fetches the 114-int packed data via effect,
+   runs validate_segment, and writes back the 48-int result via effect.
+   Then calls check_segment_connections; returns error count.
+   C original: gameseg.cpp validate_segment_all *)
+let validate_segment_all ~highest_segment_index =
+  for s = 0 to highest_segment_index do
+    let packed = Effect.perform (Fetch_validate_segment_packed s) in
+    let out = validate_segment packed in
+    Effect.perform (Write_back_validate_segment (s, out))
+  done;
+  let errors = check_segment_connections ~highest_segment_index in
+  errors
+;;

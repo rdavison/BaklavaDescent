@@ -437,6 +437,7 @@ static const value* g_create_walls_on_side = NULL;
 static const value* g_validate_removable_wall = NULL;
 static const value* g_validate_segment_side = NULL;
 static const value* g_validate_segment = NULL;
+static const value* g_validate_segment_all = NULL;
 static const value* g_check_norms = NULL;
 static const value* g_create_all_vertex_lists = NULL;
 static const value* g_create_all_vertnum_lists = NULL;
@@ -583,6 +584,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_validate_removable_wall
           && g_validate_segment_side
           && g_validate_segment
+          && g_validate_segment_all
           && g_check_norms
           && g_create_all_vertex_lists
           && g_create_all_vertnum_lists
@@ -824,6 +826,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
     g_find_connected_distance_segments = caml_named_value("cd_find_connected_distance_segments");
     g_check_segment_connections = caml_named_value("cd_check_segment_connections");
+    g_validate_segment_all = caml_named_value("cd_validate_segment_all");
 
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_matcen_create = caml_named_value("cd_matcen_create");
@@ -988,6 +991,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_find_connected_distance
         || !g_find_connected_distance_segments
         || !g_check_segment_connections
+        || !g_validate_segment_all
         || !g_do_controlcen_frame_d1
         || !g_do_controlcen_frame_d2
         || !g_init_controlcen_for_level
@@ -1156,6 +1160,7 @@ int cd_ox_is_ready(void)
            && g_validate_removable_wall
            && g_validate_segment_side
            && g_validate_segment
+           && g_validate_segment_all
            && g_robot_get_anim_state
            && g_set_robot_state
            && g_robot_set_angles
@@ -3553,6 +3558,58 @@ int cd_ox_check_segment_connections(int32_t highest_segment_index)
     cd_ox_require_ready("cd_ox_check_segment_connections");
     return Int_val(caml_callback(*g_check_segment_connections,
         Val_long(highest_segment_index)));
+}
+
+int cd_ox_validate_segment_all(int32_t highest_segment_index)
+{
+    cd_ox_require_ready("cd_ox_validate_segment_all");
+    return Int_val(caml_callback(*g_validate_segment_all,
+        Val_long(highest_segment_index)));
+}
+
+/* Fetch packed 114-int validate_segment data for a segment.
+   Called from OCaml via effect handler. */
+static cd_fetch_validate_segment_packed_fn g_fetch_validate_segment_packed = NULL;
+
+void cd_ox_register_fetch_validate_segment_packed(cd_fetch_validate_segment_packed_fn fn)
+{
+    g_fetch_validate_segment_packed = fn;
+}
+
+CAMLprim value cd_ox_fetch_validate_segment_packed(value v_segnum)
+{
+    CAMLparam1(v_segnum);
+    CAMLlocal1(v_result);
+    int segnum = Int_val(v_segnum);
+    int32_t buf[114];
+    memset(buf, 0, sizeof(buf));
+    if (g_fetch_validate_segment_packed)
+        g_fetch_validate_segment_packed(segnum, buf);
+    v_result = caml_alloc(114, 0);
+    for (int i = 0; i < 114; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+    CAMLreturn(v_result);
+}
+
+/* Write back 48-int validate_segment results to a segment.
+   Called from OCaml via effect handler. */
+static cd_write_back_validate_segment_fn g_write_back_validate_segment = NULL;
+
+void cd_ox_register_write_back_validate_segment(cd_write_back_validate_segment_fn fn)
+{
+    g_write_back_validate_segment = fn;
+}
+
+CAMLprim value cd_ox_write_back_validate_segment(value v_segnum, value v_arr)
+{
+    CAMLparam2(v_segnum, v_arr);
+    int segnum = Int_val(v_segnum);
+    int32_t buf[48];
+    for (int i = 0; i < 48; i++)
+        buf[i] = Int_val(Field(v_arr, i));
+    if (g_write_back_validate_segment)
+        g_write_back_validate_segment(segnum, buf);
+    CAMLreturn(Val_unit);
 }
 
 /* Set a segment side's type (debug repair for mismatched triangulation).

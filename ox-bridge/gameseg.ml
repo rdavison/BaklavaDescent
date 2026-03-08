@@ -307,6 +307,10 @@ let cd_validate_segment (packed : int array) =
 external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
 external set_segment_side_type_c : int -> int -> int -> unit = "cd_ox_set_segment_side_type"
 
+(* C externals for validate_segment_all: fetch packed 114-int data, write back 48-int results *)
+external fetch_validate_segment_packed_c : int -> int array = "cd_ox_fetch_validate_segment_packed"
+external write_back_validate_segment_c : int -> int array -> unit = "cd_ox_write_back_validate_segment"
+
 (* check_segment_connections: runs OCaml logic under effect handlers.
    Takes highest_segment_index as parameter. Returns error count (0 or 1). *)
 let cd_check_segment_connections highest_segment_index =
@@ -322,6 +326,39 @@ let cd_check_segment_connections highest_segment_index =
         0)
     ; effc = (fun (type a) (eff : a Effect.t) ->
         match eff with
+        | Ox_gameseg.Fetch_segment_data segnum ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            Effect.Deep.continue k (fetch_segment_data_c segnum))
+        | Ox_gameseg.Set_segment_side_type (segnum, sidenum, new_type) ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            set_segment_side_type_c segnum sidenum new_type;
+            Effect.Deep.continue k ())
+        | _ -> None)
+    }
+;;
+
+(* validate_segment_all: runs OCaml logic under effect handlers.
+   Takes highest_segment_index. Returns error count from check_segment_connections. *)
+let cd_validate_segment_all highest_segment_index =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_gameseg.validate_segment_all ~highest_segment_index)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] validate_segment_all exception: %s\n"
+          (Exn.to_string e);
+        Out_channel.flush stderr;
+        0)
+    ; effc = (fun (type a) (eff : a Effect.t) ->
+        match eff with
+        | Ox_gameseg.Fetch_validate_segment_packed segnum ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            Effect.Deep.continue k (fetch_validate_segment_packed_c segnum))
+        | Ox_gameseg.Write_back_validate_segment (segnum, out) ->
+          Some (fun (k : (a, _) Effect.Deep.continuation) ->
+            write_back_validate_segment_c segnum out;
+            Effect.Deep.continue k ())
         | Ox_gameseg.Fetch_segment_data segnum ->
           Some (fun (k : (a, _) Effect.Deep.continuation) ->
             Effect.Deep.continue k (fetch_segment_data_c segnum))
@@ -355,5 +392,6 @@ let register_callbacks () =
   Callback.register "cd_find_point_seg" cd_find_point_seg;
   Callback.register "cd_find_connected_distance" cd_find_connected_distance;
   Callback.register "cd_find_connected_distance_segments" cd_find_connected_distance_segments;
-  Callback.register "cd_check_segment_connections" cd_check_segment_connections
+  Callback.register "cd_check_segment_connections" cd_check_segment_connections;
+  Callback.register "cd_validate_segment_all" cd_validate_segment_all
 ;;

@@ -159,6 +159,7 @@ PORTED_FUNCTIONS = {
     "find_connected_distance": "ported",
     "find_connected_distance_segments": "ported",
     "check_segment_connections": "ported",
+    "validate_segment_all": "ported",
     # Lighting
     "apply_light": "ported",
     "cast_light": "ported",

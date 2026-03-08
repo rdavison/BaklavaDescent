@@ -1951,6 +1951,58 @@ void validate_segment(segment* sp)
 //	For all used segments (number <= Highest_segment_index), segnum field must be != -1.
 void validate_segment_all(void)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int ox_registered = 0;
+		if (!ox_registered) {
+			extern segment Segments[];
+			extern vms_vector Vertices[];
+			extern int8_t Side_to_verts[MAX_SIDES_PER_SEGMENT][4];
+			cd_ox_register_fetch_validate_segment_packed(
+				[](int segnum, int32_t* buf) {
+					segment* sp = &Segments[segnum];
+					for (int side = 0; side < MAX_SIDES_PER_SEGMENT; side++) {
+						int base = side * 19;
+						int v0 = sp->verts[Side_to_verts[side][0]];
+						int v1 = sp->verts[Side_to_verts[side][1]];
+						int v2 = sp->verts[Side_to_verts[side][2]];
+						int v3 = sp->verts[Side_to_verts[side][3]];
+						buf[base + 0] = Vertices[v0].x; buf[base + 1] = Vertices[v0].y; buf[base + 2] = Vertices[v0].z;
+						buf[base + 3] = Vertices[v1].x; buf[base + 4] = Vertices[v1].y; buf[base + 5] = Vertices[v1].z;
+						buf[base + 6] = Vertices[v2].x; buf[base + 7] = Vertices[v2].y; buf[base + 8] = Vertices[v2].z;
+						buf[base + 9] = Vertices[v3].x; buf[base + 10] = Vertices[v3].y; buf[base + 11] = Vertices[v3].z;
+						buf[base + 12] = v0; buf[base + 13] = v1; buf[base + 14] = v2; buf[base + 15] = v3;
+						buf[base + 16] = IS_CHILD(sp->children[side]) ? 1 : 0;
+						buf[base + 17] = sp->sides[side].wall_num;
+						buf[base + 18] = sp->sides[side].tmap_num;
+					}
+				});
+			cd_ox_register_write_back_validate_segment(
+				[](int segnum, const int32_t* buf) {
+					segment* sp = &Segments[segnum];
+					for (int side = 0; side < MAX_SIDES_PER_SEGMENT; side++) {
+						int obase = side * 8;
+						sp->sides[side].type = buf[obase + 0];
+						sp->sides[side].normals[0].x = buf[obase + 1];
+						sp->sides[side].normals[0].y = buf[obase + 2];
+						sp->sides[side].normals[0].z = buf[obase + 3];
+						sp->sides[side].normals[1].x = buf[obase + 4];
+						sp->sides[side].normals[1].y = buf[obase + 5];
+						sp->sides[side].normals[1].z = buf[obase + 6];
+						sp->sides[side].tmap_num = buf[obase + 7];
+					}
+				});
+			ox_registered = 1;
+		}
+		int errors = cd_ox_validate_segment_all(Highest_segment_index);
+		#ifndef NDEBUG
+		if (errors)
+			Int3();
+		#endif
+		return;
+	}
+#endif
+
 	int	s;
 
 	for (s = 0; s <= Highest_segment_index; s++)
