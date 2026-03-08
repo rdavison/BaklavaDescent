@@ -154,7 +154,7 @@ digraph callgraph {
   "check_trigger_sub" [label="check_trigger_sub\n(switch)", color=gray50, style=solid, fillcolor="white"];
   "check_vector_to_object" [label="check_vector_to_object\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "check_vector_to_sphere_1" [label="check_vector_to_sphere_1\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
-  "check_volatile_wall" [label="check_volatile_wall\n(collide)", color=gray50, style=solid, fillcolor="white"];
+  "check_volatile_wall" [label="check_volatile_wall\n(collide)", color=green, style=filled, fillcolor="honeydew"];
   "choose_drop_segment" [label="choose_drop_segment\n(fireball)", color=gray50, style=solid, fillcolor="white"];
   "choose_thief_recreation_segment" [label="choose_thief_recreation_segment\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "clear_boxed_message" [label="clear_boxed_message\n(escort)", color=gray50, style=solid, fillcolor="white"];

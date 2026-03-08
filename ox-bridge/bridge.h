@@ -1606,6 +1606,22 @@ void cd_ox_register_matcen_create_effects(
     cd_effect_fc_fetch_matcen_create_data_fn fetch_data,
     cd_effect_fc_write_matcen_create_fn write_data);
 
+/* -- check_volatile_wall ------------------------------------------------- */
+
+typedef void (*cd_effect_cvw_apply_damage_fn)(int objnum, int damage);
+typedef void (*cd_effect_cvw_palette_flash_fn)(int r, int g, int b);
+
+void cd_ox_register_cvw_effects(
+    cd_effect_cvw_apply_damage_fn apply_damage,
+    cd_effect_cvw_palette_flash_fn palette_flash);
+
+void cd_ox_check_volatile_wall(
+    int obj_id, int player_num, int obj_objnum,
+    int32_t tmap_damage, int tmap_water,
+    int32_t frame_time, int difficulty_level, int player_invulnerable,
+    int* out_apply_rotvel, int* out_ret_code,
+    int32_t* out_rotvel_x, int32_t* out_rotvel_z);
+
 #ifdef __cplusplus
 }
 #endif

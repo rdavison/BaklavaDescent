@@ -266,6 +266,8 @@ PORTED_FUNCTIONS = {
     # Fuelcen
     "fuelcen_create": "ported",
     "matcen_create": "ported",
+    # Collide - volatile wall
+    "check_volatile_wall": "ported",
 }
 
 # Functions that intentionally remain as C effects.

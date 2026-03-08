@@ -429,6 +429,43 @@ void collide_debris_and_wall(object* debris, fix hitspeed, short hitseg, short h
 //returns 1=lava, 2=water
 int check_volatile_wall(object* obj, int segnum, int sidenum, vms_vector* hitpt)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_cvw_effects(
+				[](int objnum, int damage) {
+					apply_damage_to_player(&Objects[objnum], &Objects[objnum], damage);
+				},
+				[](int r, int g, int b) {
+					PALETTE_FLASH_ADD(r, g, b);
+				});
+		}
+	}
+
+	Assert(obj->type == OBJ_PLAYER);
+
+	fix tmap_num = Segments[segnum].sides[sidenum].tmap_num;
+	fix d = TmapInfo[tmap_num].damage;
+	int water = (TmapInfo[tmap_num].flags & TMI_WATER);
+
+	int apply_rotvel, ret_code;
+	int32_t rotvel_x, rotvel_z;
+	cd_ox_check_volatile_wall(
+		obj->id, Player_num, (int)(obj - Objects),
+		d, water ? 1 : 0,
+		FrameTime, Difficulty_level,
+		(Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE) ? 1 : 0,
+		&apply_rotvel, &ret_code, &rotvel_x, &rotvel_z);
+
+	if (apply_rotvel) {
+		obj->mtype.phys_info.rotvel.x = rotvel_x;
+		obj->mtype.phys_info.rotvel.z = rotvel_z;
+	}
+
+	return ret_code;
+#else
 	fix tmap_num, d, water;
 
 	Assert(obj->type == OBJ_PLAYER);
@@ -474,6 +511,7 @@ int check_volatile_wall(object* obj, int segnum, int sidenum, vms_vector* hitpt)
 
 		return 0;
 	}
+#endif
 }
 
 //this gets called when an object is scraping along the wall

@@ -378,6 +378,12 @@ static const value* g_chase_angles = NULL;
 static const value* g_laser_are_related_d1 = NULL;
 static const value* g_laser_are_related_d2 = NULL;
 static const value* g_calc_controlcen_gun_point = NULL;
+static const value* g_check_volatile_wall = NULL;
+
+/* check_volatile_wall effect function pointers */
+static cd_effect_cvw_apply_damage_fn g_effect_cvw_apply_damage = NULL;
+static cd_effect_cvw_palette_flash_fn g_effect_cvw_palette_flash = NULL;
+
 static const value* g_find_connect_side = NULL;
 static const value* g_create_shortpos = NULL;
 static const value* g_extract_shortpos = NULL;
@@ -517,6 +523,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_laser_are_related_d1
           && g_laser_are_related_d2
           && g_calc_controlcen_gun_point
+          && g_check_volatile_wall
           && g_find_connect_side
           && g_create_shortpos
           && g_extract_shortpos
@@ -733,6 +740,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_laser_are_related_d1 = caml_named_value("cd_laser_are_related_d1");
     g_laser_are_related_d2 = caml_named_value("cd_laser_are_related_d2");
     g_calc_controlcen_gun_point = caml_named_value("cd_calc_controlcen_gun_point");
+    g_check_volatile_wall = caml_named_value("cd_check_volatile_wall");
     g_find_connect_side = caml_named_value("cd_find_connect_side");
     g_create_shortpos = caml_named_value("cd_create_shortpos");
     g_extract_shortpos = caml_named_value("cd_extract_shortpos");
@@ -882,6 +890,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_laser_are_related_d1
         || !g_laser_are_related_d2
         || !g_calc_controlcen_gun_point
+        || !g_check_volatile_wall
         || !g_find_connect_side
         || !g_create_shortpos
         || !g_extract_shortpos
@@ -6984,6 +6993,57 @@ void cd_ox_matcen_create(int segnum)
     CAMLparam0();
 
     caml_callback(*g_matcen_create, Val_long(segnum));
+
+    CAMLreturn0;
+}
+
+/* -- check_volatile_wall ------------------------------------------------- */
+
+void cd_ox_register_cvw_effects(
+    cd_effect_cvw_apply_damage_fn apply_damage,
+    cd_effect_cvw_palette_flash_fn palette_flash)
+{
+    g_effect_cvw_apply_damage = apply_damage;
+    g_effect_cvw_palette_flash = palette_flash;
+}
+
+CAMLprim value cd_ox_effect_cvw_apply_damage(value v_objnum, value v_damage)
+{
+    if (g_effect_cvw_apply_damage)
+        g_effect_cvw_apply_damage(Int_val(v_objnum), Int_val(v_damage));
+    return Val_unit;
+}
+
+CAMLprim value cd_ox_effect_cvw_palette_flash(value v_r, value v_g, value v_b)
+{
+    if (g_effect_cvw_palette_flash)
+        g_effect_cvw_palette_flash(Int_val(v_r), Int_val(v_g), Int_val(v_b));
+    return Val_unit;
+}
+
+void cd_ox_check_volatile_wall(
+    int obj_id, int player_num, int obj_objnum,
+    int32_t tmap_damage, int tmap_water,
+    int32_t frame_time, int difficulty_level, int player_invulnerable,
+    int* out_apply_rotvel, int* out_ret_code,
+    int32_t* out_rotvel_x, int32_t* out_rotvel_z)
+{
+    cd_ox_require_ready("cd_ox_check_volatile_wall");
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[8] = {
+        Val_long(obj_id), Val_long(player_num), Val_long(obj_objnum),
+        Val_long(tmap_damage), Val_long(tmap_water),
+        Val_long(frame_time), Val_long(difficulty_level),
+        Val_long(player_invulnerable)
+    };
+    result = caml_callbackN(*g_check_volatile_wall, 8, args);
+
+    *out_apply_rotvel = Int_val(Field(result, 0));
+    *out_ret_code = Int_val(Field(result, 1));
+    *out_rotvel_x = Int_val(Field(result, 2));
+    *out_rotvel_z = Int_val(Field(result, 3));
 
     CAMLreturn0;
 }

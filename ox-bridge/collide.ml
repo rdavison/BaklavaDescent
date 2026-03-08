@@ -610,6 +610,69 @@ let cd_maybe_kill_weapon_d2
   new_shields, if dead then 1 else 0
 ;;
 
+(* -- check_volatile_wall (D2 only) ------------------------------------ *)
+
+external effect_cvw_apply_damage
+  :  int
+  -> int
+  -> unit
+  = "cd_ox_effect_cvw_apply_damage"
+
+external effect_cvw_palette_flash
+  :  int
+  -> int
+  -> int
+  -> unit
+  = "cd_ox_effect_cvw_palette_flash"
+
+let cd_check_volatile_wall
+      obj_id
+      player_num
+      obj_objnum
+      tmap_damage
+      tmap_water
+      frame_time
+      difficulty_level
+      player_invulnerable
+  =
+  let apply_rotvel, ret_code, rotvel_x, rotvel_z =
+    Effect.Deep.match_with
+      (fun () ->
+         Ox_collide.check_volatile_wall
+           ~obj_id
+           ~player_num
+           ~obj_objnum
+           ~tmap_damage
+           ~tmap_water:(tmap_water <> 0)
+           ~frame_time
+           ~difficulty_level
+           ~player_invulnerable:(player_invulnerable <> 0))
+      ()
+      { retc = (fun x -> x)
+      ; exnc =
+          (fun exn ->
+            Printf.eprintf "check_volatile_wall exn: %s\n" (Exn.to_string exn);
+            Out_channel.flush stderr;
+            (0, 0, 0, 0))
+      ; effc =
+          (fun (type a) (eff : a Effect.t) ->
+            match eff with
+            | Ox_collide.Cvw_apply_damage_to_player (objnum, damage) ->
+              Some
+                (fun (k : (a, _) Effect.Deep.continuation) ->
+                  effect_cvw_apply_damage objnum damage;
+                  Effect.Deep.continue k ())
+            | Ox_collide.Cvw_palette_flash_add (r, g, b) ->
+              Some
+                (fun (k : (a, _) Effect.Deep.continuation) ->
+                  effect_cvw_palette_flash r g b;
+                  Effect.Deep.continue k ())
+            | _ -> Ox_misc.effc eff)
+      }
+  in
+  (apply_rotvel, ret_code, rotvel_x, rotvel_z)
+;;
+
 let register_callbacks () =
   Callback.register "cd_apply_damage_to_robot_d1" cd_apply_damage_to_robot_d1;
   Callback.register "cd_get_explosion_vclip" cd_get_explosion_vclip;
@@ -624,5 +687,6 @@ let register_callbacks () =
   Callback.register "cd_chase_angles" cd_chase_angles;
   Callback.register "cd_laser_are_related_d1" cd_laser_are_related_d1;
   Callback.register "cd_laser_are_related_d2" cd_laser_are_related_d2;
-  Callback.register "cd_calc_controlcen_gun_point" cd_calc_controlcen_gun_point
+  Callback.register "cd_calc_controlcen_gun_point" cd_calc_controlcen_gun_point;
+  Callback.register "cd_check_volatile_wall" cd_check_volatile_wall
 ;;

@@ -2339,3 +2339,36 @@ let collide_two_objects_d2
   (* D2 robot+weapon and player+weapon fall back to C for now *)
   else None
 ;;
+
+(* ── check_volatile_wall (D2 only) ──────────────────────── *)
+
+(* Effects for check_volatile_wall *)
+type _ Effect.t +=
+  | Cvw_apply_damage_to_player : (int * int) -> unit Effect.t
+      (* (obj_objnum, damage) — calls C's apply_damage_to_player(obj, obj, damage) *)
+  | Cvw_palette_flash_add : (int * int * int) -> unit Effect.t
+      (* (r, g, b) — calls PALETTE_FLASH_ADD *)
+
+let check_volatile_wall
+      ~obj_id ~player_num ~obj_objnum
+      ~tmap_damage ~tmap_water
+      ~frame_time ~difficulty_level
+      ~player_invulnerable
+  =
+  if tmap_damage > 0 || tmap_water then begin
+    if obj_id = player_num then begin
+      if tmap_damage > 0 then begin
+        let damage = Ox_math.fixmul ~a:tmap_damage ~b:frame_time in
+        let damage = if difficulty_level = 0 then damage / 2 else damage in
+        if not player_invulnerable
+        then Effect.perform (Cvw_apply_damage_to_player (obj_objnum, damage));
+        Effect.perform (Cvw_palette_flash_add (f2i (damage * 4), 0, 0))
+      end;
+      let rotvel_x = (Ox_misc.p_rand () - 16384) / 2 in
+      let rotvel_z = (Ox_misc.p_rand () - 16384) / 2 in
+      (1, (if tmap_damage > 0 then 1 else 2), rotvel_x, rotvel_z)
+    end else
+      (0, (if tmap_damage > 0 then 1 else 2), 0, 0)
+  end else
+    (0, 0, 0, 0)
+;;
