@@ -1317,6 +1317,43 @@ void init_exploding_walls()
 //explode the given wall
 void explode_wall(int segnum,int sidenum)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_fireball_effects(
+				// alloc_slot: find free slot in expl_wall_list, set segnum/sidenum/time=0
+				[](int seg, int side) -> int {
+					int i;
+					for (i = 0; i < MAX_EXPLODING_WALLS && expl_wall_list[i].segnum != -1; i++);
+					if (i == MAX_EXPLODING_WALLS) {
+						mprintf((0,"Couldn't find free slot for exploding wall!\n"));
+						Int3();
+						return -1;
+					}
+					expl_wall_list[i].segnum = seg;
+					expl_wall_list[i].sidenum = side;
+					expl_wall_list[i].time = 0;
+					return i;
+				},
+				// digi_link_sound_to_pos
+				[](int sound_id, int seg, int side,
+				   int32_t px, int32_t py, int32_t pz,
+				   int forever, int32_t max_volume) {
+					vms_vector pos;
+					pos.x = px; pos.y = py; pos.z = pz;
+					digi_link_sound_to_pos(sound_id, seg, side, &pos, forever, max_volume);
+				}
+			);
+			registered = true;
+		}
+	}
+	if (cd_ox_is_ready()) {
+		cd_ox_explode_wall(segnum, sidenum);
+		return;
+	}
+#endif
+
 	int i;
 	vms_vector pos;
 

@@ -9,5 +9,5 @@
    ox_fvi ox_ai ox_aipath
    ox_robot ox_lighting ox_weapon
    ox_controlcen ox_ai_frame ox_physics_sim
-   ox_misc ox_mem ox_escort ox_gameseq ox_switch ox_wall ox_obj ox_morph ox_fuelcen)
+   ox_misc ox_mem ox_escort ox_gameseq ox_switch ox_wall ox_obj ox_morph ox_fuelcen ox_fireball)
  (flags (:standard -w -27 -open Core)))

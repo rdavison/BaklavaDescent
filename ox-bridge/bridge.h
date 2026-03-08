@@ -1646,6 +1646,20 @@ void cd_ox_check_volatile_wall(
     int* out_apply_rotvel, int* out_ret_code,
     int32_t* out_rotvel_x, int32_t* out_rotvel_z);
 
+/* -- explode_wall -------------------------------------------------------- */
+
+/* C entry point: calls OCaml explode_wall */
+void cd_ox_explode_wall(int segnum, int sidenum);
+
+/* Explode wall effect registration */
+typedef int (*cd_effect_fb_alloc_expl_wall_slot_fn)(int segnum, int sidenum);
+typedef void (*cd_effect_fb_digi_link_sound_to_pos_fn)(
+    int sound_id, int segnum, int sidenum,
+    int32_t px, int32_t py, int32_t pz, int forever, int32_t max_volume);
+void cd_ox_register_fireball_effects(
+    cd_effect_fb_alloc_expl_wall_slot_fn alloc_slot,
+    cd_effect_fb_digi_link_sound_to_pos_fn link_sound);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,11 +1,11 @@
 {
   "summary": {
     "total_functions": 775,
-    "ported": 165,
+    "ported": 166,
     "intrinsic": 65,
     "effect": 59,
     "frontier": 0,
-    "unported": 486
+    "unported": 485
   },
   "functions": {
     "AdvanceLevel": {
@@ -5500,7 +5500,7 @@
       "transitive_dep_count": 33
     },
     "explode_wall": {
-      "status": "unported",
+      "status": "ported",
       "file": "main_d2_fireball",
       "callers": [
         "blast_blastable_wall"
@@ -11616,21 +11616,6 @@
       ]
     },
     {
-      "function": "explode_wall",
-      "file": "fireball",
-      "unported_dep_count": 0,
-      "total_dep_count": 6,
-      "callers": [
-        "blast_blastable_wall"
-      ],
-      "callees": [
-        "Int3",
-        "_mprintf",
-        "compute_center_point_on_side",
-        "digi_link_sound_to_pos"
-      ]
-    },
-    {
       "function": "init_controlcen_for_level",
       "file": "cntrlcen",
       "unported_dep_count": 0,
@@ -13348,6 +13333,23 @@
       ]
     },
     {
+      "function": "blast_blastable_wall",
+      "file": "wall",
+      "unported_dep_count": 3,
+      "total_dep_count": 14,
+      "callers": [
+        "wall_damage",
+        "wall_destroy"
+      ],
+      "callees": [
+        "_Assert",
+        "explode_wall",
+        "find_connect_side",
+        "kill_stuck_objects",
+        "wall_set_tmap_num"
+      ]
+    },
+    {
       "function": "wall_close_door",
       "file": "switch",
       "unported_dep_count": 3,
@@ -13539,20 +13541,33 @@
       ]
     },
     {
-      "function": "blast_blastable_wall",
+      "function": "wall_damage",
       "file": "wall",
       "unported_dep_count": 4,
-      "total_dep_count": 14,
+      "total_dep_count": 15,
       "callers": [
-        "wall_damage",
-        "wall_destroy"
+        "wall_hit_process"
       ],
       "callees": [
         "_Assert",
-        "explode_wall",
+        "_mprintf",
+        "blast_blastable_wall",
         "find_connect_side",
-        "kill_stuck_objects",
         "wall_set_tmap_num"
+      ]
+    },
+    {
+      "function": "wall_destroy",
+      "file": "wall",
+      "unported_dep_count": 4,
+      "total_dep_count": 16,
+      "callers": [
+        "wall_toggle"
+      ],
+      "callees": [
+        "Error",
+        "_Assert",
+        "blast_blastable_wall"
       ]
     },
     {
@@ -13826,36 +13841,6 @@
         "_mprintf",
         "add_light",
         "enable_flicker"
-      ]
-    },
-    {
-      "function": "wall_damage",
-      "file": "wall",
-      "unported_dep_count": 5,
-      "total_dep_count": 15,
-      "callers": [
-        "wall_hit_process"
-      ],
-      "callees": [
-        "_Assert",
-        "_mprintf",
-        "blast_blastable_wall",
-        "find_connect_side",
-        "wall_set_tmap_num"
-      ]
-    },
-    {
-      "function": "wall_destroy",
-      "file": "wall",
-      "unported_dep_count": 5,
-      "total_dep_count": 16,
-      "callers": [
-        "wall_toggle"
-      ],
-      "callees": [
-        "Error",
-        "_Assert",
-        "blast_blastable_wall"
       ]
     },
     {
@@ -14244,6 +14229,23 @@
       ]
     },
     {
+      "function": "wall_toggle",
+      "file": "cntrlcen",
+      "unported_dep_count": 8,
+      "total_dep_count": 20,
+      "callers": [
+        "do_controlcen_destroyed_stuff",
+        "do_link"
+      ],
+      "callees": [
+        "_Assert",
+        "_mprintf",
+        "newdemo_record_wall_toggle",
+        "wall_destroy",
+        "wall_open_door"
+      ]
+    },
+    {
       "function": "draw_morph_object",
       "file": "morph",
       "unported_dep_count": 8,
@@ -14340,20 +14342,16 @@
       ]
     },
     {
-      "function": "wall_toggle",
-      "file": "cntrlcen",
+      "function": "do_link",
+      "file": "switch",
       "unported_dep_count": 9,
-      "total_dep_count": 20,
+      "total_dep_count": 21,
       "callers": [
-        "do_controlcen_destroyed_stuff",
-        "do_link"
+        "check_trigger_sub"
       ],
       "callees": [
-        "_Assert",
         "_mprintf",
-        "newdemo_record_wall_toggle",
-        "wall_destroy",
-        "wall_open_door"
+        "wall_toggle"
       ]
     },
     {
@@ -14389,19 +14387,6 @@
       "callees": [
         "buddy_message",
         "strncpy"
-      ]
-    },
-    {
-      "function": "do_link",
-      "file": "switch",
-      "unported_dep_count": 10,
-      "total_dep_count": 21,
-      "callers": [
-        "check_trigger_sub"
-      ],
-      "callees": [
-        "_mprintf",
-        "wall_toggle"
       ]
     },
     {
@@ -14456,6 +14441,26 @@
         "pick_up_ammo",
         "powerup_basic",
         "std::__1::vector<char*, std::__1::allocator<char*>>::operator[][abi:ne200100]"
+      ]
+    },
+    {
+      "function": "wall_hit_process",
+      "file": "collide",
+      "unported_dep_count": 11,
+      "total_dep_count": 23,
+      "callers": [
+        "collide_player_and_wall",
+        "collide_weapon_and_wall"
+      ],
+      "callees": [
+        "HUD_init_message",
+        "_Assert",
+        "newdemo_record_wall_hit_process",
+        "special_boss_opening_allowed",
+        "std::__1::vector<char*, std::__1::allocator<char*>>::operator[][abi:ne200100]",
+        "vm_vec_dotprod",
+        "wall_damage",
+        "wall_open_door"
       ]
     },
     {
@@ -14564,23 +14569,21 @@
       ]
     },
     {
-      "function": "wall_hit_process",
+      "function": "collide_player_and_wall",
       "file": "collide",
       "unported_dep_count": 12,
-      "total_dep_count": 23,
+      "total_dep_count": 39,
       "callers": [
-        "collide_player_and_wall",
-        "collide_weapon_and_wall"
+        "collide_object_with_wall"
       ],
       "callees": [
-        "HUD_init_message",
-        "_Assert",
-        "newdemo_record_wall_hit_process",
-        "special_boss_opening_allowed",
-        "std::__1::vector<char*, std::__1::allocator<char*>>::operator[][abi:ne200100]",
-        "vm_vec_dotprod",
-        "wall_damage",
-        "wall_open_door"
+        "PALETTE_FLASH_ADD",
+        "P_Rand",
+        "apply_damage_to_player",
+        "create_awareness_event",
+        "digi_link_sound_to_pos",
+        "phys_apply_rot",
+        "wall_hit_process"
       ]
     },
     {
@@ -14595,24 +14598,6 @@
       ],
       "callees": [
         "Laser_player_fire_spread"
-      ]
-    },
-    {
-      "function": "collide_player_and_wall",
-      "file": "collide",
-      "unported_dep_count": 13,
-      "total_dep_count": 39,
-      "callers": [
-        "collide_object_with_wall"
-      ],
-      "callees": [
-        "PALETTE_FLASH_ADD",
-        "P_Rand",
-        "apply_damage_to_player",
-        "create_awareness_event",
-        "digi_link_sound_to_pos",
-        "phys_apply_rot",
-        "wall_hit_process"
       ]
     },
     {
@@ -14677,6 +14662,18 @@
       ]
     },
     {
+      "function": "net_destroy_controlcen",
+      "file": "collide",
+      "unported_dep_count": 15,
+      "total_dep_count": 52,
+      "callers": [],
+      "callees": [
+        "digi_link_sound_to_pos",
+        "do_controlcen_destroyed_stuff",
+        "explode_object"
+      ]
+    },
+    {
       "function": "attempt_to_steal_item_2",
       "file": "escort",
       "unported_dep_count": 16,
@@ -14687,18 +14684,6 @@
       "callees": [
         "P_Rand",
         "attempt_to_steal_item_3"
-      ]
-    },
-    {
-      "function": "net_destroy_controlcen",
-      "file": "collide",
-      "unported_dep_count": 16,
-      "total_dep_count": 52,
-      "callers": [],
-      "callees": [
-        "digi_link_sound_to_pos",
-        "do_controlcen_destroyed_stuff",
-        "explode_object"
       ]
     },
     {
@@ -15005,6 +14990,25 @@
       ]
     },
     {
+      "function": "apply_force_damage",
+      "file": "collide",
+      "unported_dep_count": 24,
+      "total_dep_count": 74,
+      "callers": [
+        "bump_this_object"
+      ],
+      "callees": [
+        "Int3",
+        "add_points_to_score",
+        "apply_damage_to_clutter",
+        "apply_damage_to_controlcen",
+        "apply_damage_to_player",
+        "apply_damage_to_robot",
+        "fixdiv",
+        "fixmul"
+      ]
+    },
+    {
       "function": "explode_badass_weapon",
       "file": "collide",
       "unported_dep_count": 24,
@@ -15048,22 +15052,18 @@
       ]
     },
     {
-      "function": "apply_force_damage",
+      "function": "bump_this_object",
       "file": "collide",
       "unported_dep_count": 25,
-      "total_dep_count": 74,
+      "total_dep_count": 84,
       "callers": [
-        "bump_this_object"
+        "bump_two_objects"
       ],
       "callees": [
-        "Int3",
-        "add_points_to_score",
-        "apply_damage_to_clutter",
-        "apply_damage_to_controlcen",
-        "apply_damage_to_player",
-        "apply_damage_to_robot",
-        "fixdiv",
-        "fixmul"
+        "apply_force_damage",
+        "phys_apply_force",
+        "phys_apply_rot",
+        "vm_vec_mag_quick"
       ]
     },
     {
@@ -15101,21 +15101,6 @@
         "obj_delete",
         "track_track_goal",
         "vm_vec_add2"
-      ]
-    },
-    {
-      "function": "bump_this_object",
-      "file": "collide",
-      "unported_dep_count": 26,
-      "total_dep_count": 84,
-      "callers": [
-        "bump_two_objects"
-      ],
-      "callees": [
-        "apply_force_damage",
-        "phys_apply_force",
-        "phys_apply_rot",
-        "vm_vec_mag_quick"
       ]
     },
     {
@@ -15190,7 +15175,7 @@
     {
       "function": "create_player_appearance_effect",
       "file": "gameseq",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 165,
       "callers": [],
       "callees": [
@@ -15205,7 +15190,7 @@
     {
       "function": "create_vclip_on_object",
       "file": "object",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 165,
       "callers": [],
       "callees": [
@@ -15222,7 +15207,7 @@
     {
       "function": "do_powerup_frame",
       "file": "object",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 165,
       "callers": [
         "object_move_one"
@@ -15235,7 +15220,7 @@
     {
       "function": "object_create_explosion_sub",
       "file": "fireball",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 165,
       "callers": [
         "object_create_badass_explosion",
@@ -15258,7 +15243,7 @@
     {
       "function": "collide_robot_and_materialization_center",
       "file": "collide",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 166,
       "callers": [
         "robotmaker_proc"
@@ -15277,7 +15262,7 @@
     {
       "function": "collide_weapon_and_clutter",
       "file": "collide",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 166,
       "callers": [
         "collide_two_objects"
@@ -15292,7 +15277,7 @@
     {
       "function": "create_small_fireball_on_object",
       "file": "ai2",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 166,
       "callers": [
         "dead_player_frame",
@@ -15315,7 +15300,7 @@
     {
       "function": "collide_weapon_and_controlcen",
       "file": "collide",
-      "unported_dep_count": 51,
+      "unported_dep_count": 50,
       "total_dep_count": 167,
       "callers": [
         "collide_two_objects"
@@ -15333,7 +15318,7 @@
     {
       "function": "do_exploding_wall_frame",
       "file": "fireball",
-      "unported_dep_count": 52,
+      "unported_dep_count": 51,
       "total_dep_count": 166,
       "callers": [],
       "callees": [
@@ -15352,7 +15337,7 @@
     {
       "function": "drop_afterburner_blobs",
       "file": "fireball",
-      "unported_dep_count": 52,
+      "unported_dep_count": 51,
       "total_dep_count": 166,
       "callers": [
         "object_move_one"
@@ -15368,7 +15353,7 @@
     {
       "function": "collide_player_and_weapon",
       "file": "collide",
-      "unported_dep_count": 53,
+      "unported_dep_count": 52,
       "total_dep_count": 171,
       "callers": [
         "collide_two_objects"
@@ -15389,7 +15374,7 @@
     {
       "function": "do_robot_dying_frame",
       "file": "ai2",
-      "unported_dep_count": 54,
+      "unported_dep_count": 53,
       "total_dep_count": 170,
       "callers": [
         "do_any_robot_dying_frame",
@@ -15409,7 +15394,7 @@
     {
       "function": "create_gated_robot",
       "file": "ai2",
-      "unported_dep_count": 54,
+      "unported_dep_count": 53,
       "total_dep_count": 174,
       "callers": [
         "boss_spew_robot",
@@ -15431,7 +15416,7 @@
     {
       "function": "do_boss_dying_frame",
       "file": "ai",
-      "unported_dep_count": 55,
+      "unported_dep_count": 54,
       "total_dep_count": 171,
       "callers": [
         "do_ai_frame_all"
@@ -15446,7 +15431,7 @@
     {
       "function": "boss_spew_robot",
       "file": "ai2",
-      "unported_dep_count": 55,
+      "unported_dep_count": 54,
       "total_dep_count": 175,
       "callers": [
         "do_boss_weapon_collision"
@@ -15465,7 +15450,7 @@
     {
       "function": "gate_in_robot",
       "file": "ai2",
-      "unported_dep_count": 55,
+      "unported_dep_count": 54,
       "total_dep_count": 175,
       "callers": [],
       "callees": [
@@ -15477,7 +15462,7 @@
     {
       "function": "do_boss_weapon_collision",
       "file": "collide",
-      "unported_dep_count": 56,
+      "unported_dep_count": 55,
       "total_dep_count": 176,
       "callers": [
         "collide_robot_and_weapon"
@@ -15498,7 +15483,7 @@
     {
       "function": "robotmaker_proc",
       "file": "fuelcen",
-      "unported_dep_count": 58,
+      "unported_dep_count": 57,
       "total_dep_count": 191,
       "callers": [
         "fuelcen_update_all"
@@ -15519,7 +15504,7 @@
     {
       "function": "do_explosion_sequence",
       "file": "fireball",
-      "unported_dep_count": 59,
+      "unported_dep_count": 58,
       "total_dep_count": 174,
       "callers": [
         "object_move_one"
@@ -15540,7 +15525,7 @@
     {
       "function": "do_ai_frame_all",
       "file": "ai",
-      "unported_dep_count": 59,
+      "unported_dep_count": 58,
       "total_dep_count": 175,
       "callers": [],
       "callees": [
@@ -15551,7 +15536,7 @@
     {
       "function": "fuelcen_update_all",
       "file": "fuelcen",
-      "unported_dep_count": 59,
+      "unported_dep_count": 58,
       "total_dep_count": 192,
       "callers": [],
       "callees": [
@@ -15562,7 +15547,7 @@
     {
       "function": "collide_robot_and_weapon",
       "file": "collide",
-      "unported_dep_count": 64,
+      "unported_dep_count": 63,
       "total_dep_count": 204,
       "callers": [
         "collide_two_objects"
@@ -15605,7 +15590,7 @@
     {
       "function": "collide_robot_and_player",
       "file": "collide",
-      "unported_dep_count": 69,
+      "unported_dep_count": 68,
       "total_dep_count": 206,
       "callers": [
         "collide_two_objects"
@@ -15785,7 +15770,7 @@
     {
       "function": "check_trigger_sub",
       "file": "switch",
-      "unported_dep_count": 147,
+      "unported_dep_count": 146,
       "total_dep_count": 228,
       "callers": [
         "check_trigger"
@@ -15806,7 +15791,7 @@
     {
       "function": "check_trigger",
       "file": "collide",
-      "unported_dep_count": 149,
+      "unported_dep_count": 148,
       "total_dep_count": 230,
       "callers": [
         "collide_weapon_and_wall",
@@ -15820,7 +15805,7 @@
     {
       "function": "do_controlcen_dead_frame",
       "file": "cntrlcen",
-      "unported_dep_count": 170,
+      "unported_dep_count": 169,
       "total_dep_count": 310,
       "callers": [],
       "callees": [
@@ -15832,7 +15817,7 @@
     {
       "function": "dead_player_frame",
       "file": "object",
-      "unported_dep_count": 181,
+      "unported_dep_count": 180,
       "total_dep_count": 321,
       "callers": [],
       "callees": [
@@ -15851,7 +15836,7 @@
     {
       "function": "collide_weapon_and_wall",
       "file": "collide",
-      "unported_dep_count": 187,
+      "unported_dep_count": 186,
       "total_dep_count": 332,
       "callers": [
         "collide_object_with_wall",
@@ -15873,7 +15858,7 @@
     {
       "function": "object_move_one",
       "file": "object",
-      "unported_dep_count": 282,
+      "unported_dep_count": 281,
       "total_dep_count": 526,
       "callers": [
         "object_move_all"
@@ -15894,7 +15879,7 @@
     {
       "function": "object_move_all",
       "file": "object",
-      "unported_dep_count": 287,
+      "unported_dep_count": 286,
       "total_dep_count": 531,
       "callers": [],
       "callees": [

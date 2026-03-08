@@ -264,6 +264,11 @@ static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
 static const value* g_fuelcen_create = NULL;
 static const value* g_matcen_create = NULL;
+static const value* g_explode_wall = NULL;
+
+/* Fireball effect function pointers */
+static cd_effect_fb_alloc_expl_wall_slot_fn g_effect_fb_alloc_expl_wall_slot = NULL;
+static cd_effect_fb_digi_link_sound_to_pos_fn g_effect_fb_digi_link_sound_to_pos = NULL;
 
 /* Fuelcen effect function pointers */
 typedef void (*cd_effect_fc_fetch_fuelcen_create_data_fn)(int segnum, int32_t* out);
@@ -759,6 +764,7 @@ int cd_ox_init_runtime(const char* executable_path)
 
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_matcen_create = caml_named_value("cd_matcen_create");
+    g_explode_wall = caml_named_value("cd_explode_wall");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_update_points = caml_named_value("cd_update_points");
     g_wake_up_rendered_objects = caml_named_value("cd_wake_up_rendered_objects");
@@ -938,7 +944,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_do_physics_sim_d2
         || !g_find_min_max
         || !g_fuelcen_create
-        || !g_matcen_create)
+        || !g_matcen_create
+        || !g_explode_wall)
     {
         return 1;
     }
@@ -7105,6 +7112,65 @@ void cd_ox_check_volatile_wall(
     *out_ret_code = Int_val(Field(result, 1));
     *out_rotvel_x = Int_val(Field(result, 2));
     *out_rotvel_z = Int_val(Field(result, 3));
+
+    CAMLreturn0;
+}
+
+/* -- Fireball: explode_wall --------------------------------------------- */
+
+void cd_ox_register_fireball_effects(
+    cd_effect_fb_alloc_expl_wall_slot_fn alloc_slot,
+    cd_effect_fb_digi_link_sound_to_pos_fn link_sound)
+{
+    g_effect_fb_alloc_expl_wall_slot = alloc_slot;
+    g_effect_fb_digi_link_sound_to_pos = link_sound;
+}
+
+/* Effect: find free slot in expl_wall_list, set segnum/sidenum/time=0, return index or -1 */
+CAMLprim value cd_ox_effect_fb_alloc_expl_wall_slot(value v_segnum, value v_sidenum)
+{
+    CAMLparam2(v_segnum, v_sidenum);
+    int slot = -1;
+    if (g_effect_fb_alloc_expl_wall_slot) {
+        slot = g_effect_fb_alloc_expl_wall_slot(
+            Int_val(v_segnum), Int_val(v_sidenum));
+    }
+    CAMLreturn(Val_long(slot));
+}
+
+/* Effect: digi_link_sound_to_pos (8 args — needs bytecode wrapper) */
+CAMLprim value cd_ox_effect_fb_digi_link_sound_to_pos(
+    value v_sound_id, value v_segnum, value v_sidenum,
+    value v_px, value v_py, value v_pz,
+    value v_forever, value v_max_volume)
+{
+    CAMLparam5(v_sound_id, v_segnum, v_sidenum, v_px, v_py);
+    CAMLxparam3(v_pz, v_forever, v_max_volume);
+    if (g_effect_fb_digi_link_sound_to_pos) {
+        g_effect_fb_digi_link_sound_to_pos(
+            Int_val(v_sound_id), Int_val(v_segnum), Int_val(v_sidenum),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz),
+            Int_val(v_forever), Int_val(v_max_volume));
+    }
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value cd_ox_effect_fb_digi_link_sound_to_pos_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_fb_digi_link_sound_to_pos(
+        argv[0], argv[1], argv[2], argv[3],
+        argv[4], argv[5], argv[6], argv[7]);
+}
+
+void cd_ox_explode_wall(int segnum, int sidenum)
+{
+    cd_ox_require_ready("cd_ox_explode_wall");
+    CAMLparam0();
+    CAMLlocal1(result);
+
+    value args[2] = { Val_long(segnum), Val_long(sidenum) };
+    result = caml_callbackN(*g_explode_wall, 2, args);
 
     CAMLreturn0;
 }

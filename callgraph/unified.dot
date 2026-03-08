@@ -336,7 +336,7 @@ digraph callgraph {
   "explode_badass_weapon" [label="explode_badass_weapon\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "explode_model" [label="explode_model\n(fireball)", color=gray50, style=solid, fillcolor="white"];
   "explode_object" [label="explode_object\n(ai2)", color=orange, style=filled, fillcolor="lightyellow"];
-  "explode_wall" [label="explode_wall\n(fireball)", color=gray50, style=solid, fillcolor="white"];
+  "explode_wall" [label="explode_wall\n(fireball)", color=green, style=filled, fillcolor="honeydew"];
   "extract_orient_from_segment" [label="extract_orient_from_segment\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];
   "extract_shortpos" [label="extract_shortpos\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "extract_vector_from_segment" [label="extract_vector_from_segment\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];

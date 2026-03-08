@@ -142,6 +142,7 @@ PORTED_FUNCTIONS = {
     "compute_segment_center": "ported",
     "pick_random_point_in_seg": "ported",
     "compute_center_point_on_side": "ported",
+    "explode_wall": "ported",
     "create_abs_vertex_lists": "ported",
     "create_all_vertnum_lists": "ported",
     "create_walls_on_side": "ported",
