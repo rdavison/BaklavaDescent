@@ -7,6 +7,22 @@ type _ Effect.t +=
   | Fetch_submodel_vertices : (int * int) -> int array Effect.t
   (* Fetch_submodel_vertices (model_num, submodel_num) ->
      flat vertex array [|x0;y0;z0; x1;y1;z1; ...|] *)
+  | Morph_start_setup : int -> int array Effect.t
+  (* Morph_start_setup(objnum) -> packed state:
+     [0] = free_slot (-1 if none)
+     [1] = obj_signature
+     [2] = obj_render_type
+     [3] = obj_control_type
+     [4] = obj_movement_type
+     [5] = model_num
+     [6] = submodel0_start_index *)
+  | Morph_start_commit : int array -> unit Effect.t
+  (* Morph_start_commit(packed_data) applies all state changes:
+     [0] = slot_idx
+     [1] = start_index
+     [2] = nverts
+     [3] = n_morphing_points
+     [4..] = per-vertex: morph_time, vec.x,y,z, delta.x,y,z *)
 
 (* find_min_max: given flat vertex array [|x0;y0;z0; x1;y1;z1; ...|],
    returns [|minx; miny; minz; maxx; maxy; maxz|].
@@ -132,6 +148,66 @@ let init_points (data : int array) : int array =
   done;
   out.(0) <- !n_morphing_points;
   out
+
+(* Constants from object.h *)
+let _rt_polyobj = 1
+let _ct_ai = 1
+(* CT_MORPH = 11, RT_MORPH = 6, MT_PHYSICS = 1 — used by commit handler *)
+
+(* morph_start: make the object morph.
+   Mirrors C morph_start from morph.cpp.
+   Uses effects for C state access (slot finding, object read/write). *)
+let morph_start ~objnum =
+  let setup = Effect.perform (Morph_start_setup objnum) in
+  let free_slot = setup.(0) in
+  if free_slot < 0 then () (* no free slots *)
+  else begin
+    let _obj_signature = setup.(1) in
+    let obj_render_type = setup.(2) in
+    let obj_control_type = setup.(3) in
+    let _obj_movement_type = setup.(4) in
+    let model_num = setup.(5) in
+    let start_index = setup.(6) in
+    (* Assert(obj->render_type == RT_POLYOBJ) *)
+    assert (obj_render_type = _rt_polyobj);
+    (* Assert(obj->control_type == CT_AI) *)
+    assert (obj_control_type = _ct_ai);
+    (* find_min_max for submodel 0 *)
+    let min_max = find_min_max_for_model ~model_num ~submodel_num:0 in
+    let pmmin_x = min_max.(0) in
+    let pmmin_y = min_max.(1) in
+    let pmmin_z = min_max.(2) in
+    let pmmax_x = min_max.(3) in
+    let pmmax_y = min_max.(4) in
+    let pmmax_z = min_max.(5) in
+    (* box_size.x = max(-pmmin.x, pmmax.x) / 2 *)
+    let box_x = max (- pmmin_x) pmmax_x / 2 in
+    let box_y = max (- pmmin_y) pmmax_y / 2 in
+    let box_z = max (- pmmin_z) pmmax_z / 2 in
+    (* Get submodel 0 vertices for init_points *)
+    let verts = Effect.perform (Fetch_submodel_vertices (model_num, 0)) in
+    let nverts = Array.length verts / 3 in
+    (* Build init_points input: [has_box_size, box_x, box_y, box_z, nverts, verts...] *)
+    let ip_input = Array.create ~len:(5 + nverts * 3) 0 in
+    ip_input.(0) <- 1; (* has_box_size = true *)
+    ip_input.(1) <- box_x;
+    ip_input.(2) <- box_y;
+    ip_input.(3) <- box_z;
+    ip_input.(4) <- nverts;
+    Array.blit ~src:verts ~src_pos:0 ~dst:ip_input ~dst_pos:5 ~len:(nverts * 3);
+    let ip_result = init_points ip_input in
+    (* Build commit data:
+       [slot_idx, start_index, nverts, n_morphing_points, per-vertex data...] *)
+    let n_mp = ip_result.(0) in
+    let commit_len = 4 + nverts * 7 in
+    let commit = Array.create ~len:commit_len 0 in
+    commit.(0) <- free_slot;
+    commit.(1) <- start_index;
+    commit.(2) <- nverts;
+    commit.(3) <- n_mp;
+    Array.blit ~src:ip_result ~src_pos:1 ~dst:commit ~dst_pos:4 ~len:(nverts * 7);
+    Effect.perform (Morph_start_commit commit)
+  end
 
 let update_points (data : int array) : int array =
   let frame_time = data.(0) in

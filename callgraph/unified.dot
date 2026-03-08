@@ -497,7 +497,7 @@ digraph callgraph {
   "maybe_steal_secondary_weapon" [label="maybe_steal_secondary_weapon\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "mem_free_" [label="mem_free_\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "mem_malloc_" [label="mem_malloc_\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
-  "morph_start" [label="morph_start\n(ai2)", color=gray50, style=solid, fillcolor="white"];
+  "morph_start" [label="morph_start\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "move_around_player" [label="move_around_player\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "move_away_from_player" [label="move_away_from_player\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "move_object_to_goal" [label="move_object_to_goal\n(aipath)", color=orange, style=filled, fillcolor="lightyellow"];
@@ -709,7 +709,7 @@ digraph callgraph {
   "turn_off_ai_dump" [label="turn_off_ai_dump\n(ai)", color=gray50, style=solid, fillcolor="white"];
   "unlink" [label="unlink\n(cntrlcen)", color=gray50, style=solid, fillcolor="white"];
   "unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>\n(collide)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
-  "unsigned short const& std::__1::min[abi:ne200100]<unsigned short>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short>\n(collide)", color=gray50, style=solid, fillcolor="white"];
+  "unsigned short const& std::__1::min[abi:ne200100]<unsigned short>" [label="unsigned short const& std::__1::min[abi:ne200100]<unsigned short>\n(collide)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "update_laser_weapon_info" [label="update_laser_weapon_info\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "update_object_seg" [label="update_object_seg\n(object)", color=orange, style=filled, fillcolor="lightyellow"];
   "update_player_stats" [label="update_player_stats\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];

@@ -96,9 +96,13 @@ static cd_get_attached_obj_fn g_get_attached_obj = NULL;
 
 /* Morph effect function pointers (set via cd_ox_register_morph_effects) */
 static cd_effect_morph_fetch_submodel_vertices_fn g_effect_morph_fetch_submodel_vertices = NULL;
+static cd_effect_morph_start_setup_fn g_effect_morph_start_setup = NULL;
+static cd_effect_morph_start_commit_fn g_effect_morph_start_commit = NULL;
+static int g_morph_start_objnum = -1; /* stashed objnum for commit effect */
 static const value* g_find_min_max = NULL;
 static const value* g_init_points = NULL;
 static const value* g_update_points = NULL;
+static const value* g_morph_start = NULL;
 
 /* wake_up_rendered_objects effect function pointers */
 typedef void (*cd_effect_fetch_wake_up_context_fn)(int window_num, int32_t* out, int* out_len);
@@ -798,6 +802,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
+    g_morph_start = caml_named_value("cd_morph_start");
     g_wake_up_rendered_objects = caml_named_value("cd_wake_up_rendered_objects");
 
     /* v2 callbacks (on-demand data fetching) — optional, checked separately */
@@ -7102,6 +7107,70 @@ void cd_ox_update_points(int morph_slot, int submodel_num,
         morph_vecs[v * 3 + 2] = Long_val(Field(v_result, obase + 3));
     }
 
+    CAMLreturn0;
+}
+
+/* morph_start effect registration */
+void cd_ox_register_morph_start_effects(
+    cd_effect_morph_start_setup_fn setup_fn,
+    cd_effect_morph_start_commit_fn commit_fn)
+{
+    g_effect_morph_start_setup = setup_fn;
+    g_effect_morph_start_commit = commit_fn;
+}
+
+/* C external: OCaml calls this to find free morph slot + read object state.
+   Returns int array [free_slot, signature, render_type, control_type,
+                      movement_type, model_num, submodel0_start_index] */
+CAMLprim value cd_ox_effect_morph_start_setup(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_arr);
+
+    int32_t out_data[7];
+    memset(out_data, 0, sizeof(out_data));
+    out_data[0] = -1; /* default: no free slot */
+
+    if (g_effect_morph_start_setup)
+        g_effect_morph_start_setup(Int_val(v_objnum), out_data);
+
+    v_arr = caml_alloc(7, 0);
+    for (int i = 0; i < 7; i++)
+        Store_field(v_arr, i, Val_long(out_data[i]));
+
+    /* Stash objnum so commit handler knows which object to modify */
+    g_morph_start_objnum = Int_val(v_objnum);
+
+    CAMLreturn(v_arr);
+}
+
+/* C external: OCaml calls this to apply all morph_start state changes.
+   Input int array: [slot_idx, start_index, nverts, n_morphing_points,
+                     per-vertex: morph_time, vec.x,y,z, delta.x,y,z ...] */
+CAMLprim value cd_ox_effect_morph_start_commit(value v_data)
+{
+    CAMLparam1(v_data);
+
+    int data_len = Wosize_val(v_data);
+    int32_t* data = (int32_t*)malloc(data_len * sizeof(int32_t));
+    for (int i = 0; i < data_len; i++)
+        data[i] = Long_val(Field(v_data, i));
+
+    if (g_effect_morph_start_commit)
+        g_effect_morph_start_commit(g_morph_start_objnum, data, data_len);
+
+    free(data);
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point: call OCaml morph_start */
+void cd_ox_morph_start(int objnum)
+{
+    cd_ox_require_ready("cd_ox_morph_start");
+    if (!g_morph_start) return;
+
+    CAMLparam0();
+    caml_callback(*g_morph_start, Val_int(objnum));
     CAMLreturn0;
 }
 

@@ -271,6 +271,7 @@ PORTED_FUNCTIONS = {
     "find_min_max": "ported",
     "init_points": "ported",
     "update_points": "ported",
+    "morph_start": "ported",
     # Object allocation
     "obj_allocate": "ported",
     "compress_objects": "ported",
@@ -385,6 +386,7 @@ INTRINSICS = {
     "int const& std::__1::max[abi:ne200100]<int, std::__1::__less<void, void>>",
     "int const& std::__1::max[abi:ne200100]<int>",
     "unsigned short const& std::__1::min[abi:ne200100]<unsigned short, std::__1::__less<void, void>>",
+    "unsigned short const& std::__1::min[abi:ne200100]<unsigned short>",
     # Palette / HUD (side effects, not game logic)
     "PALETTE_FLASH_ADD",
 }

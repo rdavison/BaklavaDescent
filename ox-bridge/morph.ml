@@ -5,6 +5,14 @@
 external fetch_submodel_vertices : int -> int -> int array
   = "cd_ox_effect_morph_fetch_submodel_vertices"
 
+(* C external for morph_start setup: find free slot + read object state *)
+external morph_start_setup : int -> int array
+  = "cd_ox_effect_morph_start_setup"
+
+(* C external for morph_start commit: apply all state changes *)
+external morph_start_commit : int array -> unit
+  = "cd_ox_effect_morph_start_commit"
+
 (* Effect handler *)
 let morph_effect_handler
   : type a. a Effect.t -> ((a, _) Effect.Deep.continuation -> _) option
@@ -16,6 +24,16 @@ let morph_effect_handler
       (fun k ->
         let verts = fetch_submodel_vertices model_num submodel_num in
         Effect.Deep.continue k verts)
+  | Ox_morph.Morph_start_setup objnum ->
+    Some
+      (fun k ->
+        let data = morph_start_setup objnum in
+        Effect.Deep.continue k data)
+  | Ox_morph.Morph_start_commit data ->
+    Some
+      (fun k ->
+        morph_start_commit data;
+        Effect.Deep.continue k ())
   | _ -> None
 ;;
 
@@ -69,8 +87,27 @@ let cd_update_points (data : int array) : int array =
     out
 ;;
 
+(* Bridge function: C calls this, OCaml runs morph_start *)
+let cd_morph_start (objnum : int) : unit =
+  try
+    Effect.Deep.match_with
+      (fun () ->
+         Ox_morph.morph_start ~objnum)
+      ()
+      { retc = (fun () -> ())
+      ; exnc = (fun exn ->
+          Printf.eprintf "[OX] morph_start exception: %s\n" (Exn.to_string exn);
+          Out_channel.flush stderr)
+      ; effc = (fun (type a) (eff : a Effect.t) -> morph_effect_handler eff)
+      }
+  with exn ->
+    Printf.eprintf "[OX] morph_start outer exception: %s\n" (Exn.to_string exn);
+    Out_channel.flush stderr
+;;
+
 let register_callbacks () =
   Callback.register "cd_find_min_max" cd_find_min_max;
   Callback.register "cd_init_points" cd_init_points;
-  Callback.register "cd_update_points" cd_update_points
+  Callback.register "cd_update_points" cd_update_points;
+  Callback.register "cd_morph_start" cd_morph_start
 ;;

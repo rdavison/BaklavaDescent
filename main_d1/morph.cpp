@@ -309,9 +309,126 @@ void init_morphs()
 }
 
 
+#ifdef USE_OX_BRIDGE
+static void ensure_morph_effects_registered()
+{
+	static int morph_reg = 0;
+	if (morph_reg) return;
+	morph_reg = 1;
+
+	cd_ox_register_morph_effects(
+		/* fetch_verts: extract vertex coords from polymodel submodel bytecode */
+		[](int model_num, int submodel_num, int32_t* out_verts, int* out_count) {
+			polymodel* p = &Polygon_models[model_num];
+			uint16_t* data = (uint16_t*)&p->model_data[p->submodel_ptrs[submodel_num]];
+			uint16_t type = *data++;
+			uint16_t nverts = *data++;
+			if (type == 7)
+				data += 2; /* skip start & pad */
+			vms_vector* vp = (vms_vector*)data;
+			*out_count = nverts;
+			for (int j = 0; j < nverts; j++) {
+				out_verts[j * 3 + 0] = vp[j].x;
+				out_verts[j * 3 + 1] = vp[j].y;
+				out_verts[j * 3 + 2] = vp[j].z;
+			}
+		});
+
+	cd_ox_register_morph_start_effects(
+		/* setup: find free morph slot + read object state */
+		[](int objnum, int32_t* out_data) {
+			object* obj = &Objects[objnum];
+			int slot = -1;
+			for (int i = 0; i < MAX_MORPH_OBJECTS; i++) {
+				if (morph_objects[i].obj == NULL
+				    || morph_objects[i].obj->type == OBJ_NONE
+				    || morph_objects[i].obj->signature != morph_objects[i].Morph_sig) {
+					slot = i;
+					break;
+				}
+			}
+			out_data[0] = slot;
+			if (slot < 0) return;
+			out_data[1] = obj->signature;
+			out_data[2] = obj->render_type;
+			out_data[3] = obj->control_type;
+			out_data[4] = obj->movement_type;
+			out_data[5] = obj->rtype.pobj_info.model_num;
+			/* Get submodel 0 start index from polymodel data */
+			polymodel* pm = &Polygon_models[obj->rtype.pobj_info.model_num];
+			uint16_t* sdata = (uint16_t*)&pm->model_data[pm->submodel_ptrs[0]];
+			uint16_t stype = *sdata++;
+			sdata++; /* skip nverts */
+			int start_index = 0;
+			if (stype == 7) {
+				start_index = *sdata;
+			}
+			out_data[6] = start_index;
+		},
+		/* commit: apply all morph_start state changes */
+		[](int objnum, const int32_t* data, int data_len) {
+			(void)data_len;
+			object* obj = &Objects[objnum];
+			int slot_idx = data[0];
+			int start_index = data[1];
+			int nverts = data[2];
+			int n_mp = data[3];
+
+			morph_data* md = &morph_objects[slot_idx];
+
+			/* Save state */
+			md->obj = obj;
+			md->Morph_sig = obj->signature;
+			md->morph_save_control_type = obj->control_type;
+			md->morph_save_movement_type = obj->movement_type;
+			md->morph_save_phys_info = obj->mtype.phys_info;
+
+			/* Modify object */
+			obj->control_type = CT_MORPH;
+			obj->render_type = RT_MORPH;
+			obj->movement_type = MT_PHYSICS;
+			obj->mtype.phys_info.rotvel = morph_rotvel;
+
+			/* Clear all morph_times */
+			for (int i = 0; i < MAX_VECS; i++)
+				md->morph_times[i] = 0;
+
+			/* Clear all submodel_active except 0 */
+			for (int i = 1; i < MAX_SUBMODELS; i++)
+				md->submodel_active[i] = 0;
+			md->submodel_active[0] = 1;
+			md->n_submodels_active = 1;
+			md->submodel_startpoints[0] = start_index;
+			md->n_morphing_points[0] = n_mp;
+
+			/* Apply init_points result: per-vertex morph_time, vec.xyz, delta.xyz */
+			for (int v = 0; v < nverts; v++) {
+				int base = 4 + v * 7;
+				int idx = start_index + v;
+				md->morph_times[idx] = data[base];
+				md->morph_vecs[idx].x = data[base + 1];
+				md->morph_vecs[idx].y = data[base + 2];
+				md->morph_vecs[idx].z = data[base + 3];
+				md->morph_deltas[idx].x = data[base + 4];
+				md->morph_deltas[idx].y = data[base + 5];
+				md->morph_deltas[idx].z = data[base + 6];
+			}
+		});
+}
+#endif
+
 //make the object morph
 void morph_start(object* obj)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		ensure_morph_effects_registered();
+		int objnum = (int)(obj - Objects);
+		cd_ox_morph_start(objnum);
+		return;
+	}
+#endif
+
 	polymodel* pm;
 	vms_vector pmmin, pmmax;
 	vms_vector box_size;
@@ -346,35 +463,6 @@ void morph_start(object* obj)
 
 	pm = &Polygon_models[obj->rtype.pobj_info.model_num];
 
-#ifdef USE_OX_BRIDGE
-	if (cd_ox_is_ready()) {
-		static int morph_reg = 0;
-		if (!morph_reg) {
-			morph_reg = 1;
-			cd_ox_register_morph_effects(
-				/* fetch_verts: extract vertex coords from polymodel submodel bytecode */
-				[](int model_num, int submodel_num, int32_t* out_verts, int* out_count) {
-					polymodel* p = &Polygon_models[model_num];
-					uint16_t* data = (uint16_t*)&p->model_data[p->submodel_ptrs[submodel_num]];
-					uint16_t type = *data++;
-					uint16_t nverts = *data++;
-					if (type == 7)
-						data += 2; /* skip start & pad */
-					vms_vector* vp = (vms_vector*)data;
-					*out_count = nverts;
-					for (int j = 0; j < nverts; j++) {
-						out_verts[j * 3 + 0] = vp[j].x;
-						out_verts[j * 3 + 1] = vp[j].y;
-						out_verts[j * 3 + 2] = vp[j].z;
-					}
-				});
-		}
-		int32_t ox_min[3], ox_max[3];
-		cd_ox_find_min_max(obj->rtype.pobj_info.model_num, 0, ox_min, ox_max);
-		pmmin.x = ox_min[0]; pmmin.y = ox_min[1]; pmmin.z = ox_min[2];
-		pmmax.x = ox_max[0]; pmmax.y = ox_max[1]; pmmax.z = ox_max[2];
-	} else
-#endif
 	find_min_max(pm, 0, &pmmin, &pmmax);
 
 	box_size.x = std::max(-pmmin.x, pmmax.x) / 2;
@@ -394,7 +482,6 @@ void morph_start(object* obj)
 	//now, project points onto surface of box
 
 	init_points(pm, &box_size, 0, md);
-
 }
 
 void draw_model(polymodel* pm, int submodel_num, vms_angvec* anim_angles, fix light, morph_data* md)

@@ -1636,6 +1636,26 @@ void cd_ox_update_points(int morph_slot, int submodel_num,
     int32_t* morph_deltas,   /* [nverts*3] x,y,z */
     int32_t* final_verts);   /* [nverts*3] x,y,z */
 
+/* morph_start_setup: find free morph slot + read object state.
+   out_data[7]: [free_slot, signature, render_type, control_type,
+                 movement_type, model_num, submodel0_start_index] */
+typedef void (*cd_effect_morph_start_setup_fn)(
+    int objnum, int32_t* out_data);
+
+/* morph_start_commit: apply all morph_start state changes.
+   data layout: [slot_idx, start_index, nverts, n_morphing_points,
+                 per-vertex: morph_time, vec.x,y,z, delta.x,y,z ...] */
+typedef void (*cd_effect_morph_start_commit_fn)(
+    int objnum, const int32_t* data, int data_len);
+
+void cd_ox_register_morph_start_effects(
+    cd_effect_morph_start_setup_fn setup_fn,
+    cd_effect_morph_start_commit_fn commit_fn);
+
+/* morph_start: OCaml-authoritative morph_start.
+   Calls OCaml which orchestrates entire function via effects. */
+void cd_ox_morph_start(int objnum);
+
 /* set_robot_location_info: check if robot near screen center while player fired.
    Returns 1 if danger_laser fields should be updated, 0 otherwise.
    On return=1, out_danger_num and out_danger_sig are set. */
