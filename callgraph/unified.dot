@@ -704,7 +704,7 @@ digraph callgraph {
   "timer_get_fixed_seconds" [label="timer_get_fixed_seconds\n(fireball)", color=gray50, style=solid, fillcolor="white"];
   "trace_segs" [label="trace_segs\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "track_track_goal" [label="track_track_goal\n(laser)", color=green, style=filled, fillcolor="honeydew"];
-  "trigger_matcen" [label="trigger_matcen\n(fuelcen)", color=gray50, style=solid, fillcolor="white"];
+  "trigger_matcen" [label="trigger_matcen\n(fuelcen)", color=green, style=filled, fillcolor="honeydew"];
   "turn_cheats_off" [label="turn_cheats_off\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "turn_off_ai_dump" [label="turn_off_ai_dump\n(ai)", color=gray50, style=solid, fillcolor="white"];
   "unlink" [label="unlink\n(cntrlcen)", color=gray50, style=solid, fillcolor="white"];

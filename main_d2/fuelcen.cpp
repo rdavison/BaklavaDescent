@@ -353,6 +353,69 @@ void fuelcen_activate(segment* segp, int station_type)
 //	Trigger (enable) the materialization center in segment segnum
 void trigger_matcen(int segnum)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_trigger_matcen_effects(
+				// fetch: [special, matcen_num, num_fuelcenters, highest_segment_index,
+				//         enabled, lives, difficulty_level, is_d2,
+				//         center_x, center_y, center_z,
+				//         vert0_x, vert0_y, vert0_z]
+				[](int seg, int32_t* out) {
+					segment2* s2p = &Segment2s[seg];
+					int matcen_num = s2p->matcen_num;
+					FuelCenter* rc = &Station[RobotCenters[matcen_num].fuelcen_num];
+					out[0] = s2p->special;
+					out[1] = matcen_num;
+					out[2] = Num_fuelcenters;
+					out[3] = Highest_segment_index;
+					out[4] = rc->Enabled;
+					out[5] = rc->Lives;
+					out[6] = Difficulty_level;
+					out[7] = 1;  // is_d2
+					out[8] = rc->Center.x;
+					out[9] = rc->Center.y;
+					out[10] = rc->Center.z;
+					out[11] = Vertices[Segments[seg].verts[0]].x;
+					out[12] = Vertices[Segments[seg].verts[0]].y;
+					out[13] = Vertices[Segments[seg].verts[0]].z;
+				},
+				// write: [segnum, matcen_num, lives, timer, enabled, capacity,
+				//         disable_time, pos_x, pos_y, pos_z]
+				[](const int32_t* packed, int len) {
+					if (len < 10) return;
+					int seg = packed[0];
+					int matcen_num = packed[1];
+					FuelCenter* rc = &Station[RobotCenters[matcen_num].fuelcen_num];
+					rc->Lives = packed[2];
+					rc->Timer = packed[3];
+					rc->Enabled = packed[4];
+					rc->Capacity = packed[5];
+					rc->Disable_time = packed[6];
+					// Create a bright light object in the segment
+					vms_vector pos;
+					pos.x = packed[7];
+					pos.y = packed[8];
+					pos.z = packed[9];
+					int objnum = obj_create(OBJ_LIGHT, 0, seg, &pos, NULL, 0,
+						CT_LIGHT, MT_NONE, RT_NONE);
+					if (objnum != -1) {
+						Objects[objnum].lifeleft = packed[6]; // disable_time = MATCEN_LIFE
+						Objects[objnum].ctype.light_info.intensity = i2f(8);
+					} else {
+						Int3();
+					}
+				});
+			registered = true;
+		}
+		if (cd_ox_is_ready()) {
+			cd_ox_trigger_matcen(segnum);
+			return;
+		}
+	}
+#endif
+
 	// -- segment		*segp = &Segments[segnum];
 	segment2* seg2p = &Segment2s[segnum];
 	vms_vector	pos, delta;

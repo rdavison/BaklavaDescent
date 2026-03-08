@@ -1,11 +1,11 @@
 {
   "summary": {
     "total_functions": 775,
-    "ported": 188,
+    "ported": 189,
     "intrinsic": 68,
     "effect": 60,
     "frontier": 0,
-    "unported": 459
+    "unported": 458
   },
   "functions": {
     "AdvanceLevel": {
@@ -10434,7 +10434,7 @@
       "transitive_dep_count": 61
     },
     "trigger_matcen": {
-      "status": "unported",
+      "status": "ported",
       "file": "main_d2_fuelcen",
       "callers": [
         "do_matcen"
@@ -11537,22 +11537,16 @@
   "frontier_priority": [],
   "next_to_port": [
     {
-      "function": "trigger_matcen",
-      "file": "fuelcen",
+      "function": "do_matcen",
+      "file": "switch",
       "unported_dep_count": 0,
-      "total_dep_count": 23,
+      "total_dep_count": 24,
       "callers": [
-        "do_matcen"
+        "check_trigger_sub"
       ],
       "callees": [
-        "Int3",
-        "_Assert",
         "_mprintf",
-        "i2f",
-        "llvm.memcpy.p0.p0.i64",
-        "obj_create",
-        "vm_vec_scale_add2",
-        "vm_vec_sub"
+        "trigger_matcen"
       ]
     },
     {
@@ -12158,19 +12152,6 @@
         "vm_vec_add",
         "vm_vec_copy_scale",
         "vm_vec_sub"
-      ]
-    },
-    {
-      "function": "do_matcen",
-      "file": "switch",
-      "unported_dep_count": 1,
-      "total_dep_count": 24,
-      "callers": [
-        "check_trigger_sub"
-      ],
-      "callees": [
-        "_mprintf",
-        "trigger_matcen"
       ]
     },
     {
@@ -15403,7 +15384,7 @@
     {
       "function": "check_trigger_sub",
       "file": "switch",
-      "unported_dep_count": 140,
+      "unported_dep_count": 139,
       "total_dep_count": 228,
       "callers": [
         "check_trigger"
@@ -15424,7 +15405,7 @@
     {
       "function": "check_trigger",
       "file": "collide",
-      "unported_dep_count": 142,
+      "unported_dep_count": 141,
       "total_dep_count": 230,
       "callers": [
         "collide_weapon_and_wall",
@@ -15469,7 +15450,7 @@
     {
       "function": "collide_weapon_and_wall",
       "file": "collide",
-      "unported_dep_count": 178,
+      "unported_dep_count": 177,
       "total_dep_count": 332,
       "callers": [
         "collide_object_with_wall",
@@ -15491,7 +15472,7 @@
     {
       "function": "object_move_one",
       "file": "object",
-      "unported_dep_count": 269,
+      "unported_dep_count": 268,
       "total_dep_count": 526,
       "callers": [
         "object_move_all"
@@ -15512,7 +15493,7 @@
     {
       "function": "object_move_all",
       "file": "object",
-      "unported_dep_count": 274,
+      "unported_dep_count": 273,
       "total_dep_count": 531,
       "callers": [],
       "callees": [

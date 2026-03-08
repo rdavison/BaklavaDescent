@@ -276,6 +276,7 @@ static const value* g_start_wall_decloak = NULL;
 static const value* g_fuelcen_create = NULL;
 static const value* g_matcen_create = NULL;
 static const value* g_fuelcen_activate = NULL;
+static const value* g_trigger_matcen = NULL;
 static const value* g_explode_wall = NULL;
 static const value* g_create_homing_missile = NULL;
 static const value* g_create_weapon_object = NULL;
@@ -311,6 +312,12 @@ typedef void (*cd_effect_fc_write_matcen_create_fn)(const int32_t* packed, int l
 static cd_effect_fc_fetch_matcen_create_data_fn g_effect_fc_fetch_matcen_create_data = NULL;
 static cd_effect_fc_write_matcen_create_fn g_effect_fc_write_matcen_create = NULL;
 static cd_effect_fc_set_segment_special_fn g_effect_fc_set_segment_special = NULL;
+
+/* trigger_matcen effect function pointers */
+typedef void (*cd_effect_fc_fetch_trigger_matcen_data_fn)(int segnum, int32_t* out);
+typedef void (*cd_effect_fc_write_trigger_matcen_fn)(const int32_t* packed, int len);
+static cd_effect_fc_fetch_trigger_matcen_data_fn g_effect_fc_fetch_trigger_matcen_data = NULL;
+static cd_effect_fc_write_trigger_matcen_fn g_effect_fc_write_trigger_matcen = NULL;
 
 /* Switch effect function pointers */
 static cd_effect_sw_fetch_trigger_links_fn g_effect_sw_fetch_trigger_links = NULL;
@@ -819,6 +826,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_matcen_create = caml_named_value("cd_matcen_create");
     g_fuelcen_activate = caml_named_value("cd_fuelcen_activate");
+    g_trigger_matcen = caml_named_value("cd_trigger_matcen");
     g_explode_wall = caml_named_value("cd_explode_wall");
     g_create_homing_missile = caml_named_value("cd_create_homing_missile");
     g_create_weapon_object = caml_named_value("cd_create_weapon_object");
@@ -1017,6 +1025,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_fuelcen_create
         || !g_matcen_create
         || !g_fuelcen_activate
+        || !g_trigger_matcen
         || !g_explode_wall
         || !g_create_homing_missile
         || !g_create_weapon_object
@@ -7575,6 +7584,65 @@ void cd_ox_fuelcen_activate(int segnum, int station_type)
     CAMLparam0();
 
     caml_callback2(*g_fuelcen_activate, Val_long(segnum), Val_long(station_type));
+
+    CAMLreturn0;
+}
+
+/* -- trigger_matcen ------------------------------------------------------- */
+
+void cd_ox_register_trigger_matcen_effects(
+    cd_effect_fc_fetch_trigger_matcen_data_fn fetch_data,
+    cd_effect_fc_write_trigger_matcen_fn write_data)
+{
+    g_effect_fc_fetch_trigger_matcen_data = fetch_data;
+    g_effect_fc_write_trigger_matcen = write_data;
+}
+
+/* OCaml external: fetch trigger_matcen data from C globals
+   Returns [special, matcen_num, num_fuelcenters, highest_segment_index,
+            enabled, lives, difficulty_level, is_d2,
+            center_x, center_y, center_z,
+            vert0_x, vert0_y, vert0_z] */
+CAMLprim value cd_ox_effect_fc_fetch_trigger_matcen_data(value v_segnum)
+{
+    CAMLparam1(v_segnum);
+    CAMLlocal1(v_result);
+
+    int segnum = Long_val(v_segnum);
+    int32_t out[14];
+    memset(out, 0, sizeof(out));
+    if (g_effect_fc_fetch_trigger_matcen_data)
+        g_effect_fc_fetch_trigger_matcen_data(segnum, out);
+
+    v_result = caml_alloc(14, 0);
+    for (int i = 0; i < 14; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* OCaml external: write trigger_matcen result back to C globals + create light */
+CAMLprim value cd_ox_effect_fc_write_trigger_matcen(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_fc_write_trigger_matcen) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[10];
+        if (len > 10) len = 10;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_fc_write_trigger_matcen(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_trigger_matcen: C entry point that calls into OCaml */
+void cd_ox_trigger_matcen(int segnum)
+{
+    cd_ox_require_ready("cd_ox_trigger_matcen");
+    CAMLparam0();
+
+    caml_callback(*g_trigger_matcen, Val_long(segnum));
 
     CAMLreturn0;
 }

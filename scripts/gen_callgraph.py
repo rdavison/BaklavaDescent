@@ -284,6 +284,7 @@ PORTED_FUNCTIONS = {
     "fuelcen_create": "ported",
     "matcen_create": "ported",
     "fuelcen_activate": "ported",
+    "trigger_matcen": "ported",
     # Collide - volatile wall
     "check_volatile_wall": "ported",
     # Object movement
