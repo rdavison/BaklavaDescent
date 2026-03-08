@@ -243,6 +243,7 @@ static cd_path_obj_relink_fn g_path_obj_relink = NULL;
 static cd_path_find_object_seg_fn g_path_find_object_seg = NULL;
 static const value* g_do_ai_frame_d1 = NULL;
 static const value* g_do_ai_frame_d2 = NULL;
+static const value* g_teleport_boss = NULL;
 static const value* g_init_ai_for_ship = NULL;
 static const value* g_init_robots_for_level_d1 = NULL;
 static const value* g_init_robots_for_level_d2 = NULL;
@@ -590,6 +591,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_init_controlcen_for_level
           && g_do_ai_frame_d1
           && g_do_ai_frame_d2
+          && g_teleport_boss
           && g_init_ai_for_ship
           && g_init_robots_for_level_d1
           && g_init_robots_for_level_d2
@@ -752,6 +754,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_init_controlcen_for_level = caml_named_value("cd_init_controlcen_for_level");
     g_do_ai_frame_d1 = caml_named_value("cd_do_ai_frame_d1");
     g_do_ai_frame_d2 = caml_named_value("cd_do_ai_frame_d2");
+    g_teleport_boss = caml_named_value("cd_teleport_boss");
     g_init_ai_for_ship = caml_named_value("cd_init_ai_for_ship");
     g_init_robots_for_level_d1 = caml_named_value("cd_init_robots_for_level_d1");
     g_init_robots_for_level_d2 = caml_named_value("cd_init_robots_for_level_d2");
@@ -980,6 +983,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_init_controlcen_for_level
         || !g_do_ai_frame_d1
         || !g_do_ai_frame_d2
+        || !g_teleport_boss
         || !g_init_ai_for_ship
         || !g_init_robots_for_level_d1
         || !g_init_robots_for_level_d2
@@ -4852,6 +4856,41 @@ void cd_ox_do_ai_frame_d2(
 
     int result_len = Wosize_val(v_result);
     for (int i = 0; i < result_len; i++)
+        result[i] = Int_val(Field(v_result, i));
+    CAMLreturn0;
+}
+
+/* ====================================================================== */
+/* teleport_boss                                                          */
+/* ====================================================================== */
+
+void cd_ox_teleport_boss(
+    int num_boss_teleport_segs, int highest_segment_index,
+    int32_t player_pos_x, int32_t player_pos_y, int32_t player_pos_z,
+    const short* boss_teleport_segs,
+    int32_t* result)
+{
+    cd_ox_require_ready("cd_ox_teleport_boss");
+    CAMLparam0();
+    CAMLlocal2(v_segs, v_result);
+
+    /* Pack boss_teleport_segs as OCaml array */
+    v_segs = caml_alloc(num_boss_teleport_segs, 0);
+    for (int i = 0; i < num_boss_teleport_segs; i++)
+        Store_field(v_segs, i, Val_long(boss_teleport_segs[i]));
+
+    value args[6] = {
+        Val_long(num_boss_teleport_segs),
+        Val_long(highest_segment_index),
+        Val_long(player_pos_x),
+        Val_long(player_pos_y),
+        Val_long(player_pos_z),
+        v_segs
+    };
+    v_result = caml_callbackN(*g_teleport_boss, 6, args);
+
+    int result_len = Wosize_val(v_result);
+    for (int i = 0; i < result_len && i < 13; i++)
         result[i] = Int_val(Field(v_result, i));
     CAMLreturn0;
 }

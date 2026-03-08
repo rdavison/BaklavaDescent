@@ -96,6 +96,7 @@ PORTED_FUNCTIONS = {
     "move_around_player": "ported",
     "openable_doors_in_segment": "ported",
     "lead_player": "ported",
+    "teleport_boss": "ported",
     "calc_best_gun": "ported",
     "calc_gun_point": "ported",
     "set_next_fire_time": "ported",

@@ -154,10 +154,53 @@ let cd_init_robots_for_level_d1 () =
 let cd_init_robots_for_level_d2 difficulty_level =
   Ox_ai.init_robots_for_level_d2 ~difficulty_level
 
+(* -- teleport_boss bridge ------------------------------------------------ *)
+
+(* C externals for physics_sim effects needed by teleport_boss *)
+external ps_compute_segment_center : int -> int * int * int
+  = "cd_ox_effect_ps_compute_segment_center"
+
+external ps_vm_vector_2_matrix_orient
+  :  int -> int -> int -> int -> int -> int
+  -> int * int * int * int * int * int * int * int * int
+  = "cd_ox_effect_ps_vm_vector_2_matrix_orient_bytecode"
+    "cd_ox_effect_ps_vm_vector_2_matrix_orient"
+
+let teleport_boss_effect_handler (type a) (eff : a Effect.t)
+  : ((a, 'b) Effect.Deep.continuation -> 'b) option
+  =
+  match eff with
+  | Ox_physics_sim.Compute_segment_center seg ->
+    Some (fun k -> Effect.Deep.continue k (ps_compute_segment_center seg))
+  | Ox_physics_sim.Vm_vector_2_matrix_orient (vx, vy, vz, ux, uy, uz) ->
+    Some (fun k -> Effect.Deep.continue k (ps_vm_vector_2_matrix_orient vx vy vz ux uy uz))
+  | (eff : a Effect.t) -> Misc.effc eff
+
+let cd_teleport_boss
+      num_boss_teleport_segs highest_segment_index
+      player_pos_x player_pos_y player_pos_z
+      boss_teleport_segs =
+  Effect.Deep.match_with
+    (fun () ->
+       Ox_ai.teleport_boss
+         ~num_boss_teleport_segs ~highest_segment_index
+         ~player_pos_x ~player_pos_y ~player_pos_z
+         ~boss_teleport_segs)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX: teleport_boss exception: %s\n" (Exn.to_string exn);
+        Out_channel.flush stderr;
+        (* Return dummy result: segnum=0, pos=0,0,0, identity orient *)
+        [| 0; 0; 0; 0; 0x10000; 0; 0; 0; 0x10000; 0; 0; 0; 0x10000 |])
+    ; effc = (fun (type a) (eff : a Effect.t) -> teleport_boss_effect_handler eff)
+    }
+
 let register_callbacks () =
   Callback.register "cd_do_ai_frame_d1" cd_do_ai_frame_d1;
   Callback.register "cd_do_ai_frame_d2" cd_do_ai_frame_d2;
   Callback.register "cd_init_ai_for_ship" cd_init_ai_for_ship;
   Callback.register "cd_init_robots_for_level_d1" cd_init_robots_for_level_d1;
-  Callback.register "cd_init_robots_for_level_d2" cd_init_robots_for_level_d2
+  Callback.register "cd_init_robots_for_level_d2" cd_init_robots_for_level_d2;
+  Callback.register "cd_teleport_boss" cd_teleport_boss
 ;;

@@ -696,7 +696,7 @@ digraph callgraph {
   "strlen" [label="strlen\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "strncpy" [label="strncpy\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "subtract_light" [label="subtract_light\n(collide)", color=gray50, style=solid, fillcolor="white"];
-  "teleport_boss" [label="teleport_boss\n(ai2)", color=gray50, style=solid, fillcolor="white"];
+  "teleport_boss" [label="teleport_boss\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "texmerge_flush" [label="texmerge_flush\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "texmerge_get_cached_bitmap" [label="texmerge_get_cached_bitmap\n(fvi)", color=orange, style=filled, fillcolor="lightyellow"];
   "thief_message" [label="thief_message\n(escort)", color=gray50, style=solid, fillcolor="white"];

@@ -705,3 +705,39 @@ let init_ai_frame (packed : int array) =
     [| dist; 0; 0; 0; 0; 0 |]
   end
 ;;
+
+(* ── teleport_boss ─────────────────────────────────────────── *)
+(* Ported from main_d2/ai2.cpp: teleport_boss
+   Picks a random boss-teleportable segment, computes new position/orientation.
+   Returns [| rand_segnum; pos_x; pos_y; pos_z;
+              orient_rvx; orient_rvy; orient_rvz;
+              orient_uvx; orient_uvy; orient_uvz;
+              orient_fvx; orient_fvy; orient_fvz |]
+   C caller handles side effects: obj_relink, Last_teleport_time, sounds,
+   multi_send_boss_actions, Ai_local_info fire timers. *)
+
+let teleport_boss ~num_boss_teleport_segs ~highest_segment_index
+    ~player_pos_x ~player_pos_y ~player_pos_z
+    ~boss_teleport_segs =
+  assert (num_boss_teleport_segs > 0);
+  (* Pick a random segment from the list of boss-teleportable-to segments *)
+  let rand_index = (Ox_misc.p_rand () * num_boss_teleport_segs) asr 15 in
+  let rand_segnum = boss_teleport_segs.(rand_index) in
+  assert (rand_segnum >= 0 && rand_segnum <= highest_segment_index);
+  (* Set position to segment center *)
+  let pos_x, pos_y, pos_z =
+    Effect.perform (Ox_physics_sim.Compute_segment_center rand_segnum)
+  in
+  (* Make boss point right at player: boss_dir = player_pos - boss_pos *)
+  let boss_dir_x = player_pos_x - pos_x in
+  let boss_dir_y = player_pos_y - pos_y in
+  let boss_dir_z = player_pos_z - pos_z in
+  (* vm_vector_2_matrix with fwd=boss_dir, up=NULL(0,0,0), right=NULL *)
+  let o_rx, o_ry, o_rz, o_ux, o_uy, o_uz, o_fx, o_fy, o_fz =
+    Effect.perform
+      (Ox_physics_sim.Vm_vector_2_matrix_orient
+         (boss_dir_x, boss_dir_y, boss_dir_z, 0, 0, 0))
+  in
+  [| rand_segnum; pos_x; pos_y; pos_z;
+     o_rx; o_ry; o_rz; o_ux; o_uy; o_uz; o_fx; o_fy; o_fz |]
+;;

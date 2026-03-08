@@ -2817,12 +2817,56 @@ int boss_fits_in_seg(object *boss_objp, int segnum)
 // --------------------------------------------------------------------------------------------------------------------
 void teleport_boss(object *objp)
 {
+#ifdef USE_OX_BRIDGE
+	int objnum = objp - Objects;
+	int32_t result[13];
+	cd_ox_teleport_boss(
+		Num_boss_teleport_segs, Highest_segment_index,
+		Objects[Players[Player_num].objnum].pos.x,
+		Objects[Players[Player_num].objnum].pos.y,
+		Objects[Players[Player_num].objnum].pos.z,
+		Boss_teleport_segs,
+		result);
+
+	int rand_segnum = result[0];
+
+#ifdef NETWORK
+	if (Game_mode & GM_MULTI)
+		multi_send_boss_actions(objnum, 1, rand_segnum, 0);
+#endif
+
+	// Apply position from OCaml (compute_segment_center result)
+	objp->pos.x = result[1];
+	objp->pos.y = result[2];
+	objp->pos.z = result[3];
+	obj_relink(objnum, rand_segnum);
+
+	Last_teleport_time = GameTime;
+
+	// Apply orientation from OCaml (vm_vector_2_matrix result)
+	objp->orient.rvec.x = result[4];
+	objp->orient.rvec.y = result[5];
+	objp->orient.rvec.z = result[6];
+	objp->orient.uvec.x = result[7];
+	objp->orient.uvec.y = result[8];
+	objp->orient.uvec.z = result[9];
+	objp->orient.fvec.x = result[10];
+	objp->orient.fvec.y = result[11];
+	objp->orient.fvec.z = result[12];
+
+	digi_link_sound_to_pos( Vclip[VCLIP_MORPHING_ROBOT].sound_num, rand_segnum, 0, &objp->pos, 0 , F1_0);
+	digi_kill_sound_linked_to_object( objnum);
+	digi_link_sound_to_object2( Robot_info[objp->id].see_sound, objnum, 1, F1_0, F1_0*512 );
+
+	Ai_local_info[objnum].next_fire = 0;
+	Ai_local_info[objnum].next_fire2 = 0;
+#else
 	int			rand_segnum, rand_index;
 	vms_vector	boss_dir;
 	Assert(Num_boss_teleport_segs > 0);
 
 	//	Pick a random segment from the list of boss-teleportable-to segments.
-	rand_index = (P_Rand() * Num_boss_teleport_segs) >> 15;	
+	rand_index = (P_Rand() * Num_boss_teleport_segs) >> 15;
 	rand_segnum = Boss_teleport_segs[rand_index];
 	Assert((rand_segnum >= 0) && (rand_segnum <= Highest_segment_index));
 
@@ -2849,7 +2893,7 @@ void teleport_boss(object *objp)
 	//	After a teleport, boss can fire right away.
 	Ai_local_info[objp-Objects].next_fire = 0;
 	Ai_local_info[objp-Objects].next_fire2 = 0;
-
+#endif
 }
 
 //	----------------------------------------------------------------------

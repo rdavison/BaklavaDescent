@@ -1837,6 +1837,17 @@ void cd_ox_register_drop_marker_effects(
     cd_effect_obj_create_marker_fn create_marker,
     cd_effect_write_marker_obj_props_fn write_props);
 
+/* -- teleport_boss -------------------------------------------------------- */
+
+/* C entry point: calls OCaml teleport_boss.
+   result receives 13 ints: [rand_segnum, pos_x, pos_y, pos_z,
+   orient_rvx/y/z, orient_uvx/y/z, orient_fvx/y/z] */
+void cd_ox_teleport_boss(
+    int num_boss_teleport_segs, int highest_segment_index,
+    int32_t player_pos_x, int32_t player_pos_y, int32_t player_pos_z,
+    const short* boss_teleport_segs,
+    int32_t* result);
+
 #ifdef __cplusplus
 }
 #endif
