@@ -2696,11 +2696,49 @@ int Missile_gun = 0;
 //give up control of the guided missile
 void release_guided_missile(int player_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int rgm_reg = 0;
+		if (!rgm_reg) {
+			rgm_reg = 1;
+			cd_ox_register_release_guided_missile_effects(
+				/* fetch_data: player_num -> [Player_num, guided_is_null, Newdemo_state, game_mode&GM_MULTI] */
+				[](int player_num, int32_t* out, int* out_len) {
+					out[0] = Player_num;
+					out[1] = (Guided_missile[player_num] == NULL) ? 1 : 0;
+					out[2] = Newdemo_state;
+					out[3] = (Game_mode & GM_MULTI) ? 1 : 0;
+					*out_len = 4;
+				},
+				/* set_viewer: Missile_viewer = Guided_missile[player_num] */
+				[](int player_num) {
+					Missile_viewer = Guided_missile[player_num];
+				},
+				/* multi_send: multi_send_guided_info(Guided_missile[Player_num], 1) */
+				[](int player_num) {
+#ifdef NETWORK
+					multi_send_guided_info(Guided_missile[player_num], 1);
+#endif
+				},
+				/* newdemo_record: newdemo_record_guided_end() */
+				[]() {
+					newdemo_record_guided_end();
+				},
+				/* clear: Guided_missile[player_num] = NULL */
+				[](int player_num) {
+					Guided_missile[player_num] = NULL;
+				});
+		}
+		cd_ox_release_guided_missile(player_num);
+		return;
+	}
+#endif
+
 	if (player_num == Player_num)
-	 {			
+	 {
 	  if (Guided_missile[player_num]==NULL)
 			return;
-	
+
 		Missile_viewer = Guided_missile[player_num];
 #ifdef NETWORK
 		if (Game_mode & GM_MULTI)
@@ -2708,7 +2746,7 @@ void release_guided_missile(int player_num)
 #endif
 		if (Newdemo_state==ND_STATE_RECORDING)
 		 newdemo_record_guided_end();
-	 }	
+	 }
 
 	Guided_missile[player_num] = NULL;
 }

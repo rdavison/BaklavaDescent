@@ -8427,6 +8427,14 @@ void cd_ox_process_super_mines_frame(void)
 /* C entry point: calls OCaml set_camera_pos.
    Takes camera pos, object pos/segnum/index, Camera_to_player_dist_goal.
    Writes updated camera pos into out_cam. */
+static const value* g_release_guided_missile = NULL;
+
+static cd_effect_fetch_release_guided_data_fn g_effect_fetch_release_guided_data = NULL;
+static cd_effect_release_guided_set_viewer_fn g_effect_release_guided_set_viewer = NULL;
+static cd_effect_release_guided_multi_send_fn g_effect_release_guided_multi_send = NULL;
+static cd_effect_release_guided_newdemo_record_fn g_effect_release_guided_newdemo_record = NULL;
+static cd_effect_release_guided_clear_fn g_effect_release_guided_clear = NULL;
+
 static const value* g_set_camera_pos = NULL;
 
 void cd_ox_set_camera_pos(
@@ -8451,4 +8459,82 @@ void cd_ox_set_camera_pos(
     out_cam[0] = Int_val(Field(result, 0));
     out_cam[1] = Int_val(Field(result, 1));
     out_cam[2] = Int_val(Field(result, 2));
+}
+
+/* -- release_guided_missile: effect registration ------------------------- */
+
+void cd_ox_register_release_guided_missile_effects(
+    cd_effect_fetch_release_guided_data_fn fetch_data,
+    cd_effect_release_guided_set_viewer_fn set_viewer,
+    cd_effect_release_guided_multi_send_fn multi_send,
+    cd_effect_release_guided_newdemo_record_fn newdemo_record,
+    cd_effect_release_guided_clear_fn clear)
+{
+    g_effect_fetch_release_guided_data = fetch_data;
+    g_effect_release_guided_set_viewer = set_viewer;
+    g_effect_release_guided_multi_send = multi_send;
+    g_effect_release_guided_newdemo_record = newdemo_record;
+    g_effect_release_guided_clear = clear;
+}
+
+/* -- release_guided_missile: effect externals ----------------------------- */
+
+/* fetch_release_guided_missile_data: int -> int array (4 elements) */
+CAMLprim value cd_ox_effect_fetch_release_guided_missile_data(value v_player_num)
+{
+    CAMLparam1(v_player_num);
+    CAMLlocal1(v_result);
+    int32_t out[4];
+    int out_len = 4;
+    memset(out, 0, sizeof(out));
+    if (g_effect_fetch_release_guided_data)
+        g_effect_fetch_release_guided_data(Int_val(v_player_num), out, &out_len);
+    v_result = caml_alloc(4, 0);
+    for (int i = 0; i < 4; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* release_guided_set_viewer: int -> unit */
+CAMLprim value cd_ox_effect_release_guided_set_viewer(value v_player_num)
+{
+    if (g_effect_release_guided_set_viewer)
+        g_effect_release_guided_set_viewer(Int_val(v_player_num));
+    return Val_unit;
+}
+
+/* release_guided_multi_send: int -> unit */
+CAMLprim value cd_ox_effect_release_guided_multi_send(value v_player_num)
+{
+    if (g_effect_release_guided_multi_send)
+        g_effect_release_guided_multi_send(Int_val(v_player_num));
+    return Val_unit;
+}
+
+/* release_guided_newdemo_record: unit -> unit */
+CAMLprim value cd_ox_effect_release_guided_newdemo_record(value v_unit)
+{
+    (void)v_unit;
+    if (g_effect_release_guided_newdemo_record)
+        g_effect_release_guided_newdemo_record();
+    return Val_unit;
+}
+
+/* release_guided_clear: int -> unit */
+CAMLprim value cd_ox_effect_release_guided_clear(value v_player_num)
+{
+    if (g_effect_release_guided_clear)
+        g_effect_release_guided_clear(Int_val(v_player_num));
+    return Val_unit;
+}
+
+/* -- release_guided_missile: C entry point -------------------------------- */
+
+void cd_ox_release_guided_missile(int player_num)
+{
+    cd_ox_require_ready("cd_ox_release_guided_missile");
+    if (!g_release_guided_missile)
+        g_release_guided_missile = caml_named_value("cd_release_guided_missile");
+    if (!g_release_guided_missile) return;
+    caml_callback(*g_release_guided_missile, Val_int(player_num));
 }

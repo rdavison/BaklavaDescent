@@ -27,6 +27,16 @@ type _ Effect.t +=
       (* [|objnum; model_num; size; mass; drag; phys_flags_or|]
          model_num < 0 means skip polymodel setup
          phys_flags_or is OR'd into existing flags *)
+  | Fetch_release_guided_missile_data : int -> int array Effect.t
+      (* player_num -> [| Player_num; guided_is_null; newdemo_state; game_mode_and_gm_multi |] *)
+  | Release_guided_set_viewer : int -> unit Effect.t
+      (* player_num -> sets Missile_viewer = Guided_missile[player_num] *)
+  | Release_guided_multi_send : int -> unit Effect.t
+      (* player_num -> multi_send_guided_info(Guided_missile[player_num], 1) *)
+  | Release_guided_newdemo_record : unit Effect.t
+      (* newdemo_record_guided_end() *)
+  | Release_guided_clear : int -> unit Effect.t
+      (* player_num -> Guided_missile[player_num] = NULL *)
 
 (* make_random_vector: generate a random unit-ish vector using P_Rand.
    Same logic as C make_random_vector / ox_controlcen.ml *)
@@ -162,4 +172,34 @@ let create_weapon_object ~weapon_type ~segnum ~pos_x ~pos_y ~pos_z =
        [| objnum; final_model_num; final_size; mass; drag; !phys_flags |]);
 
   objnum
+;;
+
+(* ND_STATE_RECORDING = 1 *)
+let nd_state_recording = 1
+
+(* release_guided_missile: give up control of the guided missile.
+   C original: laser.cpp release_guided_missile *)
+let release_guided_missile ~player_num =
+  let data = Effect.perform (Fetch_release_guided_missile_data player_num) in
+  let player_num_global = data.(0) in
+  let guided_is_null = data.(1) <> 0 in
+  let newdemo_state = data.(2) in
+  let game_mode_and_gm_multi = data.(3) <> 0 in
+
+  if player_num = player_num_global then begin
+    if guided_is_null then
+      (* C returns early here — Guided_missile[player_num] is already NULL *)
+      ()
+    else begin
+      Effect.perform (Release_guided_set_viewer player_num);
+      if game_mode_and_gm_multi then
+        Effect.perform (Release_guided_multi_send player_num);
+      if newdemo_state = nd_state_recording then
+        Effect.perform Release_guided_newdemo_record;
+      (* Fall through to set Guided_missile[player_num] = NULL *)
+      Effect.perform (Release_guided_clear player_num)
+    end
+  end else
+    (* player_num != Player_num: just clear *)
+    Effect.perform (Release_guided_clear player_num)
 ;;

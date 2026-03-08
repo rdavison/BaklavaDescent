@@ -512,7 +512,7 @@ digraph callgraph {
   "newdemo_record_cloaking_wall" [label="newdemo_record_cloaking_wall\n(wall)", color=gray50, style=solid, fillcolor="white"];
   "newdemo_record_door_opening" [label="newdemo_record_door_opening\n(wall)", color=gray50, style=solid, fillcolor="white"];
   "newdemo_record_effect_blowup" [label="newdemo_record_effect_blowup\n(collide)", color=gray50, style=solid, fillcolor="white"];
-  "newdemo_record_guided_end" [label="newdemo_record_guided_end\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "newdemo_record_guided_end" [label="newdemo_record_guided_end\n(laser)", color=orange, style=filled, fillcolor="lightyellow"];
   "newdemo_record_guided_start" [label="newdemo_record_guided_start\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "newdemo_record_laser_level" [label="newdemo_record_laser_level\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "newdemo_record_letterbox" [label="newdemo_record_letterbox\n(object)", color=gray50, style=solid, fillcolor="white"];
@@ -612,7 +612,7 @@ digraph callgraph {
   "read_wall" [label="read_wall\n(wall)", color=gray50, style=solid, fillcolor="white"];
   "ready_to_fire" [label="ready_to_fire\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "recreate_thief" [label="recreate_thief\n(ai2)", color=gray50, style=solid, fillcolor="white"];
-  "release_guided_missile" [label="release_guided_missile\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "release_guided_missile" [label="release_guided_missile\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "remove_all_objects_but" [label="remove_all_objects_but\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "remove_incorrect_objects" [label="remove_incorrect_objects\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "render_object" [label="render_object\n(object)", color=gray50, style=solid, fillcolor="white"];

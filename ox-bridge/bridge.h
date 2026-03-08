@@ -1929,6 +1929,24 @@ void cd_ox_set_camera_pos(
     int32_t camera_to_player_dist_goal,
     int32_t* out_cam);
 
+/* -- release_guided_missile ----------------------------------------------- */
+
+/* C entry point: calls OCaml release_guided_missile */
+void cd_ox_release_guided_missile(int player_num);
+
+/* release_guided_missile effect registration */
+typedef void (*cd_effect_fetch_release_guided_data_fn)(int player_num, int32_t* out, int* out_len);
+typedef void (*cd_effect_release_guided_set_viewer_fn)(int player_num);
+typedef void (*cd_effect_release_guided_multi_send_fn)(int player_num);
+typedef void (*cd_effect_release_guided_newdemo_record_fn)(void);
+typedef void (*cd_effect_release_guided_clear_fn)(int player_num);
+void cd_ox_register_release_guided_missile_effects(
+    cd_effect_fetch_release_guided_data_fn fetch_data,
+    cd_effect_release_guided_set_viewer_fn set_viewer,
+    cd_effect_release_guided_multi_send_fn multi_send,
+    cd_effect_release_guided_newdemo_record_fn newdemo_record,
+    cd_effect_release_guided_clear_fn clear);
+
 #ifdef __cplusplus
 }
 #endif

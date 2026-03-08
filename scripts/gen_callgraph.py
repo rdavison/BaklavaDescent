@@ -306,6 +306,8 @@ PORTED_FUNCTIONS = {
     # Wall - door blocking
     "check_poke": "ported",
     "is_door_free": "ported",
+    # Laser - guided missile
+    "release_guided_missile": "ported",
 }
 
 # Functions that intentionally remain as C effects.
@@ -358,6 +360,8 @@ EFFECT_FUNCTIONS = {
     "fuelcen_check_for_goal", "fuelcen_check_for_hoard_goal", "init_all_matcens",
     # Gameseq initialization
     "maybe_set_first_secret_visit",
+    # Guided missile effects
+    "newdemo_record_guided_end", "multi_send_guided_info",
 }
 
 # Functions that should not count as "unported deps" in frontier analysis.

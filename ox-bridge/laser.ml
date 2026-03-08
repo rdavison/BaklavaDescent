@@ -37,6 +37,31 @@ external effect_set_weapon_obj_props
   = "cd_ox_effect_set_weapon_obj_props_bytecode"
     "cd_ox_effect_set_weapon_obj_props"
 
+external effect_fetch_release_guided_missile_data
+  :  int
+  -> int array
+  = "cd_ox_effect_fetch_release_guided_missile_data"
+
+external effect_release_guided_set_viewer
+  :  int
+  -> unit
+  = "cd_ox_effect_release_guided_set_viewer"
+
+external effect_release_guided_multi_send
+  :  int
+  -> unit
+  = "cd_ox_effect_release_guided_multi_send"
+
+external effect_release_guided_newdemo_record
+  :  unit
+  -> unit
+  = "cd_ox_effect_release_guided_newdemo_record"
+
+external effect_release_guided_clear
+  :  int
+  -> unit
+  = "cd_ox_effect_release_guided_clear"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -65,6 +90,26 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Set_weapon_obj_props arr ->
     Some (fun k ->
       effect_set_weapon_obj_props arr.(0) arr.(1) arr.(2) arr.(3) arr.(4) arr.(5);
+      Effect.Deep.continue k ())
+  | Ox_laser.Fetch_release_guided_missile_data player_num ->
+    Some (fun k ->
+      let arr = effect_fetch_release_guided_missile_data player_num in
+      Effect.Deep.continue k arr)
+  | Ox_laser.Release_guided_set_viewer player_num ->
+    Some (fun k ->
+      effect_release_guided_set_viewer player_num;
+      Effect.Deep.continue k ())
+  | Ox_laser.Release_guided_multi_send player_num ->
+    Some (fun k ->
+      effect_release_guided_multi_send player_num;
+      Effect.Deep.continue k ())
+  | Ox_laser.Release_guided_newdemo_record ->
+    Some (fun k ->
+      effect_release_guided_newdemo_record ();
+      Effect.Deep.continue k ())
+  | Ox_laser.Release_guided_clear player_num ->
+    Some (fun k ->
+      effect_release_guided_clear player_num;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -101,7 +146,22 @@ let cd_create_weapon_object weapon_type segnum pos_x pos_y pos_z =
     }
 ;;
 
+let cd_release_guided_missile player_num =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.release_guided_missile ~player_num)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] release_guided_missile exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        ())
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_create_homing_missile" cd_create_homing_missile;
-  Callback.register "cd_create_weapon_object" cd_create_weapon_object
+  Callback.register "cd_create_weapon_object" cd_create_weapon_object;
+  Callback.register "cd_release_guided_missile" cd_release_guided_missile
 ;;
