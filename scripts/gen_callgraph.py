@@ -265,6 +265,7 @@ PORTED_FUNCTIONS = {
     "update_points": "ported",
     # Object allocation
     "obj_allocate": "ported",
+    "compress_objects": "ported",
     # Fuelcen
     "fuelcen_create": "ported",
     "matcen_create": "ported",

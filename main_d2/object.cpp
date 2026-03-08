@@ -2272,6 +2272,43 @@ void object_move_all()
 //make object array non-sparse
 void compress_objects(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int co_reg = 0;
+		if (!co_reg) {
+			co_reg = 1;
+			cd_ox_register_compress_objects_effects(
+				/* fetch: [highest_obj_index, num_objects, type_0, segnum_0, type_1, segnum_1, ...] */
+				[](int32_t* out, int* out_len) {
+					out[0] = Highest_object_index;
+					out[1] = num_objects;
+					for (int i = 0; i < MAX_OBJECTS; i++) {
+						out[2 + i * 2] = Objects[i].type;
+						out[2 + i * 2 + 1] = Objects[i].segnum;
+					}
+					*out_len = 2 + MAX_OBJECTS * 2;
+				},
+				/* execute: [num_swaps, final_num_objects, src_0, dst_0, segnum_0, ...] */
+				[](const int32_t* packed, int len) {
+					(void)len;
+					int n_swaps = packed[0];
+					int final_num_objects = packed[1];
+					for (int i = 0; i < n_swaps; i++) {
+						int src = packed[2 + i * 3];
+						int dst = packed[2 + i * 3 + 1];
+						int segnum_copy = packed[2 + i * 3 + 2];
+						obj_unlink(src);
+						Objects[dst] = Objects[src];
+						Objects[src].type = OBJ_NONE;
+						obj_link(dst, segnum_copy);
+					}
+					reset_objects(final_num_objects);
+				});
+		}
+		cd_ox_compress_objects();
+		return;
+	}
+#endif
 	int start_i;	//,last_i;
 
 	//last_i = find_last_obj(MAX_OBJECTS);

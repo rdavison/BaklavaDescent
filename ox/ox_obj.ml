@@ -300,6 +300,74 @@ let obj_allocate () =
   end
 ;;
 
+(* -- Effects for compress_objects ---------------------------------------- *)
+
+(* Fetch_compress_objects_data returns packed int array:
+   [0] = highest_object_index
+   [1] = num_objects
+   For each object i (0..MAX_OBJECTS-1):
+     [2 + i*2] = Objects[i].type
+     [2 + i*2 + 1] = Objects[i].segnum
+*)
+type _ Effect.t +=
+  | Fetch_compress_objects_data : int array Effect.t
+  | Execute_compress_objects : int array -> unit Effect.t
+
+let fetch_compress_objects_data () = Effect.perform Fetch_compress_objects_data
+let execute_compress_objects packed = Effect.perform (Execute_compress_objects packed)
+
+(* compress_objects: make object array non-sparse.
+   C original: void compress_objects(void) in object.cpp
+   Computes swap plan from fetched data, then sends to C for execution.
+   Execute_compress_objects packed format:
+     [0] = num_swaps
+     [1] = final_num_objects
+     For each swap i:
+       [2 + i*3] = src (the highest object index to move from)
+       [2 + i*3 + 1] = dst (the gap to fill)
+       [2 + i*3 + 2] = segnum (segment to link dst into)
+*)
+let compress_objects () =
+  let data = fetch_compress_objects_data () in
+  let highest = ref data.(0) in
+  let num_obj = data.(1) in
+  (* Local copies of types and segnums *)
+  let types = Array.init max_objects ~f:(fun i -> data.(2 + i * 2)) in
+  let segnums = Array.init max_objects ~f:(fun i -> data.(2 + i * 2 + 1)) in
+  (* Collect swap operations *)
+  let swaps = Array.create ~len:(max_objects * 3) 0 in
+  let num_swaps = ref 0 in
+  let start_i = ref 0 in
+  while !start_i < !highest do
+    if types.(!start_i) = obj_none then begin
+      let segnum_copy = segnums.(!highest) in
+      (* Record swap: move Objects[highest] to Objects[start_i] *)
+      swaps.(!num_swaps * 3) <- !highest;
+      swaps.(!num_swaps * 3 + 1) <- !start_i;
+      swaps.(!num_swaps * 3 + 2) <- segnum_copy;
+      num_swaps := !num_swaps + 1;
+      (* Update local state to match what C will do *)
+      types.(!start_i) <- types.(!highest);
+      segnums.(!start_i) <- segnums.(!highest);
+      types.(!highest) <- obj_none;
+      (* Scan backward past OBJ_NONE entries *)
+      highest := !highest - 1;
+      while !highest > 0 && types.(!highest) = obj_none do
+        highest := !highest - 1
+      done
+    end;
+    start_i := !start_i + 1
+  done;
+  (* Build packed result *)
+  let result = Array.create ~len:(2 + !num_swaps * 3) 0 in
+  result.(0) <- !num_swaps;
+  result.(1) <- num_obj;
+  for i = 0 to !num_swaps * 3 - 1 do
+    result.(2 + i) <- swaps.(i)
+  done;
+  execute_compress_objects result
+;;
+
 (* spin_object: process a continuously-spinning object.
    C original: void spin_object(object* obj) in object.cpp
    Pure math: takes spin_rate, orient, and frame_time, returns new orient.

@@ -7223,3 +7223,63 @@ void cd_ox_explode_wall(int segnum, int sidenum)
 
     CAMLreturn0;
 }
+
+/* -- compress_objects effect infrastructure ------------------------------- */
+
+static cd_effect_fetch_compress_objects_data_fn g_effect_fetch_compress_objects_data = NULL;
+static cd_effect_execute_compress_objects_fn g_effect_execute_compress_objects = NULL;
+static const value* g_compress_objects = NULL;
+
+void cd_ox_register_compress_objects_effects(
+    cd_effect_fetch_compress_objects_data_fn fetch_data,
+    cd_effect_execute_compress_objects_fn execute)
+{
+    g_effect_fetch_compress_objects_data = fetch_data;
+    g_effect_execute_compress_objects = execute;
+}
+
+/* OCaml external: fetch compress objects data as int array */
+CAMLprim value cd_ox_effect_fetch_compress_objects_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+    (void)v_unit;
+
+    /* 2 + 2*MAX_OBJECTS = 702 (MAX_OBJECTS=350) */
+    int32_t buf[704];
+    int len = 0;
+    if (g_effect_fetch_compress_objects_data)
+        g_effect_fetch_compress_objects_data(buf, &len);
+
+    v_result = caml_alloc(len, 0);
+    for (int i = 0; i < len; i++)
+        Store_field(v_result, i, Val_long(buf[i]));
+
+    CAMLreturn(v_result);
+}
+
+/* OCaml external: execute compress objects plan */
+CAMLprim value cd_ox_effect_execute_compress_objects(value v_packed)
+{
+    CAMLparam1(v_packed);
+    if (g_effect_execute_compress_objects) {
+        int len = Wosize_val(v_packed);
+        int32_t* buf = (int32_t*)malloc(len * sizeof(int32_t));
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_execute_compress_objects(buf, len);
+        free(buf);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* C entry point: calls OCaml compress_objects */
+void cd_ox_compress_objects(void)
+{
+    cd_ox_require_ready("cd_ox_compress_objects");
+    if (!g_compress_objects)
+        g_compress_objects = caml_named_value("cd_compress_objects");
+    if (!g_compress_objects) return;
+
+    caml_callback(*g_compress_objects, Val_unit);
+}

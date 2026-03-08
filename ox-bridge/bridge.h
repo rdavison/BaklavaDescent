@@ -1671,6 +1671,18 @@ void cd_ox_register_fireball_effects(
     cd_effect_fb_alloc_expl_wall_slot_fn alloc_slot,
     cd_effect_fb_digi_link_sound_to_pos_fn link_sound);
 
+/* -- compress_objects ----------------------------------------------------- */
+
+/* C entry point: calls OCaml compress_objects */
+void cd_ox_compress_objects(void);
+
+/* compress_objects effect registration */
+typedef void (*cd_effect_fetch_compress_objects_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_execute_compress_objects_fn)(const int32_t* packed, int len);
+void cd_ox_register_compress_objects_effects(
+    cd_effect_fetch_compress_objects_data_fn fetch_data,
+    cd_effect_execute_compress_objects_fn execute);
+
 #ifdef __cplusplus
 }
 #endif

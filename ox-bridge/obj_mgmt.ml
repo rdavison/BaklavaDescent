@@ -13,6 +13,8 @@ external apply_wake_up_c : int array -> unit = "cd_ox_effect_apply_wake_up"
 external fetch_obj_allocate_data_c : unit -> int array = "cd_ox_effect_fetch_obj_allocate_data"
 external write_obj_allocate_result_c : int array -> unit = "cd_ox_effect_write_obj_allocate_result"
 external call_free_object_slots_c : int -> unit = "cd_ox_effect_call_free_object_slots"
+external fetch_compress_objects_data_c : unit -> int array = "cd_ox_effect_fetch_compress_objects_data"
+external execute_compress_objects_c : int array -> unit = "cd_ox_effect_execute_compress_objects"
 
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -42,6 +44,10 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k -> write_obj_allocate_result_c packed; Effect.Deep.continue k ())
   | Ox_obj.Call_free_object_slots num_used ->
     Some (fun k -> call_free_object_slots_c num_used; Effect.Deep.continue k ())
+  | Ox_obj.Fetch_compress_objects_data ->
+    Some (fun k -> Effect.Deep.continue k (fetch_compress_objects_data_c ()))
+  | Ox_obj.Execute_compress_objects packed ->
+    Some (fun k -> execute_compress_objects_c packed; Effect.Deep.continue k ())
   | _ -> None
 ;;
 
@@ -118,6 +124,17 @@ let cd_remove_incorrect_objects () =
     ; effc
     }
 
+let cd_compress_objects () =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.compress_objects ())
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] compress_objects exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc
+    }
+
 let register_callbacks () =
   Callback.register "search_all_segments_for_object" search_all_segments_for_object_wrapper;
   Callback.register "cd_set_robot_location_info" cd_set_robot_location_info;
@@ -125,4 +142,5 @@ let register_callbacks () =
   Callback.register "cd_obj_allocate" cd_obj_allocate;
   Callback.register "cd_spin_object" cd_spin_object;
   Callback.register "cd_remove_all_objects_but" cd_remove_all_objects_but;
-  Callback.register "cd_remove_incorrect_objects" cd_remove_incorrect_objects
+  Callback.register "cd_remove_incorrect_objects" cd_remove_incorrect_objects;
+  Callback.register "cd_compress_objects" cd_compress_objects

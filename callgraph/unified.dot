@@ -186,7 +186,7 @@ digraph callgraph {
   "collide_weapon_and_debris" [label="collide_weapon_and_debris\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "collide_weapon_and_wall" [label="collide_weapon_and_wall\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "collide_weapon_and_weapon" [label="collide_weapon_and_weapon\n(collide)", color=gray50, style=solid, fillcolor="white"];
-  "compress_objects" [label="compress_objects\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "compress_objects" [label="compress_objects\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "compute_center_point_on_side" [label="compute_center_point_on_side\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "compute_headlight_light" [label="compute_headlight_light\n(lighting)", color=green, style=filled, fillcolor="honeydew"];
   "compute_headlight_light_on_object" [label="compute_headlight_light_on_object\n(lighting)", color=orange, style=filled, fillcolor="lightyellow"];
