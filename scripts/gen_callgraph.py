@@ -268,6 +268,7 @@ PORTED_FUNCTIONS = {
     "special_reset_objects": "ported",
     "free_object_slots": "ported",
     "filter_objects_from_level": "ported",
+    "gameseq_remove_unused_players": "ported",
     # AI awareness
     "add_awareness_event": "ported",
     "create_awareness_event": "ported",

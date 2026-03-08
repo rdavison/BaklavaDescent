@@ -263,6 +263,7 @@ static const value* g_free_object_slots = NULL;
 static const value* g_copy_defaults_to_robot = NULL;
 static const value* g_copy_defaults_to_robot_all = NULL;
 static const value* g_filter_objects_from_level = NULL;
+static const value* g_gameseq_remove_unused_players = NULL;
 static const value* g_do_lock_doors = NULL;
 static const value* g_do_unlock_doors = NULL;
 static const value* g_door_is_wall_switched = NULL;
@@ -376,6 +377,10 @@ static cd_effect_gs_write_special_reset_objects_fn g_effect_gs_write_special_res
 /* copy_defaults_to_robot effect function pointers */
 static cd_effect_gs_fetch_copy_defaults_to_robot_data_fn g_effect_gs_fetch_copy_defaults_to_robot_data = NULL;
 static cd_effect_gs_write_copy_defaults_to_robot_fn g_effect_gs_write_copy_defaults_to_robot = NULL;
+
+/* gameseq_remove_unused_players effect function pointers */
+static cd_effect_gs_fetch_remove_unused_players_data_fn g_effect_gs_fetch_remove_unused_players_data = NULL;
+static cd_effect_gs_write_remove_unused_players_fn g_effect_gs_write_remove_unused_players = NULL;
 
 /* free_object_slots effect function pointers */
 typedef void (*cd_effect_gs_fetch_free_object_slots_data_fn)(int32_t* out, int* out_len);
@@ -792,6 +797,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_copy_defaults_to_robot = caml_named_value("cd_copy_defaults_to_robot");
     g_copy_defaults_to_robot_all = caml_named_value("cd_copy_defaults_to_robot_all");
     g_filter_objects_from_level = caml_named_value("cd_filter_objects_from_level");
+    g_gameseq_remove_unused_players = caml_named_value("cd_gameseq_remove_unused_players");
     g_special_reset_objects = caml_named_value("cd_special_reset_objects");
     g_bash_to_shield = caml_named_value("cd_bash_to_shield");
     g_clear_stuck_objects = caml_named_value("cd_clear_stuck_objects");
@@ -5995,6 +6001,65 @@ void cd_ox_filter_objects_from_level(void)
     CAMLparam0();
 
     caml_callback(*g_filter_objects_from_level, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- gameseq_remove_unused_players: effect registration -------------------- */
+
+void cd_ox_register_remove_unused_players_effects(
+    cd_effect_gs_fetch_remove_unused_players_data_fn fetch_data,
+    cd_effect_gs_write_remove_unused_players_fn write_data)
+{
+    g_effect_gs_fetch_remove_unused_players_data = fetch_data;
+    g_effect_gs_write_remove_unused_players = write_data;
+}
+
+/* -- gameseq_remove_unused_players: effect externals ----------------------- */
+
+/* MAX_PLAYERS = 8, data layout: [NumNetPlayerPositions, Players[1].objnum, ..., Players[7].objnum] */
+#define GS_RUP_DATA_LEN 8
+
+CAMLprim value cd_ox_effect_gs_fetch_remove_unused_players_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_RUP_DATA_LEN];
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_remove_unused_players_data)
+        g_effect_gs_fetch_remove_unused_players_data(out);
+
+    v_result = caml_alloc(GS_RUP_DATA_LEN, 0);
+    for (int i = 0; i < GS_RUP_DATA_LEN; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_remove_unused_players(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_remove_unused_players) {
+        int len = Wosize_val(v_packed);
+        /* Max: 1 + 7 = 8 */
+        int32_t buf[8];
+        if (len > 8) len = 8;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_remove_unused_players(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_gameseq_remove_unused_players: C entry point that calls into OCaml */
+void cd_ox_gameseq_remove_unused_players(void)
+{
+    cd_ox_require_ready("cd_ox_gameseq_remove_unused_players");
+    CAMLparam0();
+
+    caml_callback(*g_gameseq_remove_unused_players, Val_unit);
 
     CAMLreturn0;
 }

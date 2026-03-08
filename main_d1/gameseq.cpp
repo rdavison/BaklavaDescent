@@ -242,6 +242,31 @@ void gameseq_remove_unused_players()
 {
 	int i;
 
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int rup_reg = 0;
+		if (!rup_reg) {
+			rup_reg = 1;
+			cd_ox_register_remove_unused_players_effects(
+				/* fetch: [NumNetPlayerPositions, Players[1].objnum, ..., Players[7].objnum] */
+				[](int32_t* out) {
+					out[0] = NumNetPlayerPositions;
+					for (int j = 1; j < 8 && j < NumNetPlayerPositions; j++)
+						out[j] = Players[j].objnum;
+				},
+				/* write: [count, objnum_0, objnum_1, ...] — call obj_delete on each */
+				[](const int32_t* packed, int len) {
+					if (len < 1) return;
+					int count = packed[0];
+					for (int j = 0; j < count && j + 1 < len; j++)
+						obj_delete(packed[j + 1]);
+				});
+		}
+		cd_ox_gameseq_remove_unused_players();
+		return;
+	}
+#endif
+
 	// 'Remove' the unused players
 #ifdef NETWORK
 	if (Game_mode & GM_MULTI)

@@ -1372,6 +1372,16 @@ typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out
 void cd_ox_register_filter_objects_effects(
     cd_effect_gs_fetch_filter_objects_data_fn fetch_data);
 
+/* gameseq_remove_unused_players: Remove unused player objects in single-player. */
+void cd_ox_gameseq_remove_unused_players(void);
+
+/* gameseq_remove_unused_players effect registration */
+typedef void (*cd_effect_gs_fetch_remove_unused_players_data_fn)(int32_t* out);
+typedef void (*cd_effect_gs_write_remove_unused_players_fn)(const int32_t* packed, int len);
+void cd_ox_register_remove_unused_players_effects(
+    cd_effect_gs_fetch_remove_unused_players_data_fn fetch_data,
+    cd_effect_gs_write_remove_unused_players_fn write_data);
+
 /* Gameseq effect registration */
 typedef void (*cd_effect_gs_fetch_bash_to_shield_data_fn)(int objnum, int32_t* out);
 typedef void (*cd_effect_gs_write_bash_to_shield_fn)(const int32_t* packed, int len);

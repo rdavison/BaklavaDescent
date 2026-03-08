@@ -232,6 +232,34 @@ let init_ammo_and_energy () =
   Effect.perform (Write_init_ammo_energy [| new_energy; new_shields; new_ammo |])
 ;;
 
+(* gameseq_remove_unused_players: Remove non-player-0 player objects in single-player.
+   In single-player mode (NETWORK OFF), deletes Players[i].objnum for i=1..NumNetPlayerPositions-1.
+   Ported from main_d1/gameseq.cpp and main_d2/gameseq.cpp (identical logic, non-NETWORK path). *)
+
+type _ Effect.t +=
+  | Fetch_remove_unused_players_data : unit -> int array Effect.t
+  | Write_remove_unused_players : int array -> unit Effect.t
+
+let gameseq_remove_unused_players () =
+  (* Fetch [NumNetPlayerPositions, Players[1].objnum, Players[2].objnum, ..., Players[7].objnum] *)
+  let data = Effect.perform (Fetch_remove_unused_players_data ()) in
+  let num_net_player_positions = data.(0) in
+  (* Collect objnums to delete: indices 1..NumNetPlayerPositions-1 *)
+  let to_delete = Array.create ~len:num_net_player_positions 0 in
+  let count = ref 0 in
+  for i = 1 to num_net_player_positions - 1 do
+    to_delete.(!count) <- data.(i);  (* data.(i) = Players[i].objnum *)
+    incr count
+  done;
+  (* Write back: [count, objnum_0, objnum_1, ...] — C handler calls obj_delete on each *)
+  let result = Array.create ~len:(!count + 1) 0 in
+  result.(0) <- !count;
+  for j = 0 to !count - 1 do
+    result.(j + 1) <- to_delete.(j)
+  done;
+  Effect.perform (Write_remove_unused_players result)
+;;
+
 (* free_object_slots: Scan the object list, freeing down to num_used objects.
    Returns number of slots freed (D2) or 0 (D1, which returns void).
    Ported from main_d1/object.cpp and main_d2/object.cpp.

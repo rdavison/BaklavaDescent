@@ -72,6 +72,16 @@ external effect_write_init_ammo_energy
   -> unit
   = "cd_ox_effect_gs_write_init_ammo_energy"
 
+external effect_fetch_remove_unused_players_data
+  :  unit
+  -> int array
+  = "cd_ox_effect_gs_fetch_remove_unused_players_data"
+
+external effect_write_remove_unused_players
+  :  int array
+  -> unit
+  = "cd_ox_effect_gs_write_remove_unused_players"
+
 external effect_fetch_free_object_slots_data
   :  unit
   -> int array
@@ -155,6 +165,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_gameseq.Write_init_ammo_energy packed ->
     Some (fun k ->
       effect_write_init_ammo_energy packed;
+      Effect.Deep.continue k ())
+  | Ox_gameseq.Fetch_remove_unused_players_data () ->
+    Some (fun k ->
+      let data = effect_fetch_remove_unused_players_data () in
+      Effect.Deep.continue k data)
+  | Ox_gameseq.Write_remove_unused_players packed ->
+    Some (fun k ->
+      effect_write_remove_unused_players packed;
       Effect.Deep.continue k ())
   | Ox_gameseq.Fetch_free_object_slots_data () ->
     Some (fun k ->
@@ -300,6 +318,18 @@ let cd_copy_defaults_to_robot_all () =
     }
 ;;
 
+let cd_gameseq_remove_unused_players () =
+  Effect.Deep.match_with
+    (fun () -> Ox_gameseq.gameseq_remove_unused_players ())
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] gameseq_remove_unused_players exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let cd_filter_objects_from_level () =
   Effect.Deep.match_with
     (fun () -> Ox_gameseq.filter_objects_from_level ())
@@ -323,5 +353,6 @@ let register_callbacks () =
   Callback.register "cd_free_object_slots" cd_free_object_slots;
   Callback.register "cd_copy_defaults_to_robot" cd_copy_defaults_to_robot;
   Callback.register "cd_copy_defaults_to_robot_all" cd_copy_defaults_to_robot_all;
+  Callback.register "cd_gameseq_remove_unused_players" cd_gameseq_remove_unused_players;
   Callback.register "cd_filter_objects_from_level" cd_filter_objects_from_level
 ;;
