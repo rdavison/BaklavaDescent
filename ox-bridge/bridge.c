@@ -419,6 +419,7 @@ static const value* g_set_robot_state = NULL;
 static const value* g_robot_set_angles = NULL;
 static const value* g_find_point_seg = NULL;
 static const value* g_find_connected_distance = NULL;
+static const value* g_find_connected_distance_segments = NULL;
 static const value* g_check_segment_connections = NULL;
 
 /* v2 callbacks (on-demand data fetching via effects) */
@@ -786,6 +787,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_robot_set_angles = caml_named_value("cd_robot_set_angles");
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
+    g_find_connected_distance_segments = caml_named_value("cd_find_connected_distance_segments");
     g_check_segment_connections = caml_named_value("cd_check_segment_connections");
 
     g_fuelcen_create = caml_named_value("cd_fuelcen_create");
@@ -942,6 +944,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_robot_set_angles
         || !g_find_point_seg
         || !g_find_connected_distance
+        || !g_find_connected_distance_segments
         || !g_check_segment_connections
         || !g_do_controlcen_frame_d1
         || !g_do_controlcen_frame_d2
@@ -1108,6 +1111,7 @@ int cd_ox_is_ready(void)
            && g_robot_set_angles
            && g_find_point_seg
            && g_find_connected_distance
+           && g_find_connected_distance_segments
            && g_do_controlcen_frame_d1
            && g_do_controlcen_frame_d2
            && g_init_controlcen_for_level
@@ -3655,6 +3659,23 @@ void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
     for (int i = 0; i < packed_len; i++)
         Store_field(arr, i, Val_long(packed[i]));
     result = caml_callback(*g_find_connected_distance, arr);
+    *out_dist = Int_val(Field(result, 0));
+    *out_csd = Int_val(Field(result, 1));
+    CAMLreturn0;
+}
+
+/* -- find_connected_distance_segments --------------------------------- */
+
+void cd_ox_find_connected_distance_segments(const int32_t* packed, int packed_len,
+                                             int32_t* out_dist, int32_t* out_csd)
+{
+    cd_ox_require_ready("cd_ox_find_connected_distance_segments");
+    CAMLparam0();
+    CAMLlocal2(arr, result);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    result = caml_callback(*g_find_connected_distance_segments, arr);
     *out_dist = Int_val(Field(result, 0));
     *out_csd = Int_val(Field(result, 1));
     CAMLreturn0;

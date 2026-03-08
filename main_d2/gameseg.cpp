@@ -2571,12 +2571,50 @@ void clear_light_subtracted(void)
 //	-----------------------------------------------------------------------------
 fix find_connected_distance_segments( int seg0, int seg1, int depth, int wid_flag)
 {
+#ifdef USE_OX_BRIDGE
+	static int ox_bridge_logged = 0;
+	if (!ox_bridge_logged)
+	{
+		fprintf(stderr, "[OX] find_connected_distance_segments using cd_ox_find_connected_distance_segments (D2).\n");
+		ox_bridge_logged = 1;
+	}
+
+	int n_segs = Highest_segment_index + 1;
+	int packed_len = 6 + n_segs * 15;
+	int32_t* packed = (int32_t*)alloca(packed_len * sizeof(int32_t));
+	packed[0] = seg0;
+	packed[1] = seg1;
+	packed[2] = depth;
+	packed[3] = wid_flag;
+	packed[4] = n_segs;
+	packed[5] = 1; // D2: check WID on adjacency
+	for (int s = 0; s < n_segs; s++)
+	{
+		int base = 6 + s * 15;
+		segment* segp = &Segments[s];
+		for (int j = 0; j < 6; j++)
+			packed[base + j] = segp->children[j];
+		for (int j = 0; j < 6; j++)
+			packed[base + 6 + j] = WALL_IS_DOORWAY(segp, j);
+		vms_vector center;
+		compute_segment_center(&center, segp);
+		packed[base + 12] = center.x;
+		packed[base + 13] = center.y;
+		packed[base + 14] = center.z;
+	}
+
+	int32_t dist, csd;
+	cd_ox_find_connected_distance_segments(packed, packed_len, &dist, &csd);
+	Connected_segment_distance = csd;
+	return dist;
+#else
 	vms_vector	p0, p1;
 
 	compute_segment_center(&p0, &Segments[seg0]);
 	compute_segment_center(&p1, &Segments[seg1]);
 
 	return find_connected_distance(&p0, seg0, &p1, seg1, depth, wid_flag);
+#endif
 }
 
 #define	AMBIENT_SEGMENT_DEPTH		5

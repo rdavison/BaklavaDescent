@@ -354,7 +354,7 @@ digraph callgraph {
   "filter_objects_from_level" [label="filter_objects_from_level\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
   "find_connect_side" [label="find_connect_side\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "find_connected_distance" [label="find_connected_distance\n(aipath)", color=green, style=filled, fillcolor="honeydew"];
-  "find_connected_distance_segments" [label="find_connected_distance_segments\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
+  "find_connected_distance_segments" [label="find_connected_distance_segments\n(gameseg)", color=green, style=filled, fillcolor="honeydew"];
   "find_exit_segment" [label="find_exit_segment\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "find_hitpoint_uv" [label="find_hitpoint_uv\n(collide)", color=orange, style=filled, fillcolor="lightyellow"];
   "find_homing_object" [label="find_homing_object\n(laser)", color=green, style=filled, fillcolor="honeydew"];

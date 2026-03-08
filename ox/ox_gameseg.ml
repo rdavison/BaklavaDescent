@@ -485,6 +485,51 @@ let find_connected_distance (arr : int array) =
               [| !dist; np |]))))))
 ;;
 
+(* --- find_connected_distance_segments --------------------------------- *)
+(* Thin wrapper: compute segment centers from per-segment data,
+   then delegate to find_connected_distance.
+   Packed array layout:
+   Header (6 ints):
+     [0] seg0  [1] seg1  [2] depth  [3] wid_flag
+     [4] n_segments  [5] check_wid_on_adjacency
+   Per-segment (15 ints each, same as find_connected_distance):
+     [0..5]   children[0..5]
+     [6..11]  wid[0..5]
+     [12..14] center.x, center.y, center.z
+   Returns: [| distance (fix) or -1; connected_segment_distance |] *)
+let find_connected_distance_segments (arr : int array) =
+  let seg0 = arr.(0) in
+  let seg1 = arr.(1) in
+  let depth = arr.(2) in
+  let wid_flag = arr.(3) in
+  let n_segs = arr.(4) in
+  let check_wid_adj = arr.(5) in
+  let hdr = 6 in
+  let per_seg = 15 in
+  (* Extract pre-computed centers for seg0 and seg1 *)
+  let base0 = hdr + seg0 * per_seg + 12 in
+  let p0x = arr.(base0) in
+  let p0y = arr.(base0 + 1) in
+  let p0z = arr.(base0 + 2) in
+  let base1 = hdr + seg1 * per_seg + 12 in
+  let p1x = arr.(base1) in
+  let p1y = arr.(base1 + 1) in
+  let p1z = arr.(base1 + 2) in
+  (* Build find_connected_distance packed array: 12-int header + per-seg data *)
+  let fcd_len = 12 + n_segs * per_seg in
+  let fcd = Array.create ~len:fcd_len 0 in
+  fcd.(0) <- p0x; fcd.(1) <- p0y; fcd.(2) <- p0z;
+  fcd.(3) <- seg0;
+  fcd.(4) <- p1x; fcd.(5) <- p1y; fcd.(6) <- p1z;
+  fcd.(7) <- seg1;
+  fcd.(8) <- depth;
+  fcd.(9) <- wid_flag;
+  fcd.(10) <- n_segs;
+  fcd.(11) <- check_wid_adj;
+  Array.blit ~src:arr ~src_pos:hdr ~dst:fcd ~dst_pos:12 ~len:(n_segs * per_seg);
+  find_connected_distance fcd
+;;
+
 let matrix_precision = 9
 let matrix_max = 0x7f
 let relpos_precision = 10

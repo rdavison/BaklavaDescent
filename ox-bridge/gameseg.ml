@@ -251,6 +251,12 @@ let cd_find_point_seg (arr : int array) = Ox_gameseg.find_point_seg arr
    Returns: [| distance (fix) or -1; connected_segment_distance |] *)
 let cd_find_connected_distance (arr : int array) = Ox_gameseg.find_connected_distance arr
 
+(* find_connected_distance_segments: packed array → int array (2 ints)
+   Packed layout: header(6) + n_segments × 15 per-segment data.
+   See Ox_gameseg.find_connected_distance_segments for full layout docs.
+   Returns: [| distance (fix) or -1; connected_segment_distance |] *)
+let cd_find_connected_distance_segments (arr : int array) = Ox_gameseg.find_connected_distance_segments arr
+
 (* C externals for on-demand segment data + side type mutation *)
 external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
 external set_segment_side_type_c : int -> int -> int -> unit = "cd_ox_set_segment_side_type"
@@ -299,5 +305,6 @@ let register_callbacks () =
   Callback.register "cd_create_all_vertnum_lists" cd_create_all_vertnum_lists;
   Callback.register "cd_find_point_seg" cd_find_point_seg;
   Callback.register "cd_find_connected_distance" cd_find_connected_distance;
+  Callback.register "cd_find_connected_distance_segments" cd_find_connected_distance_segments;
   Callback.register "cd_check_segment_connections" cd_check_segment_connections
 ;;

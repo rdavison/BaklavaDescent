@@ -825,6 +825,14 @@ int cd_ox_find_point_seg(const int32_t* packed, int packed_len);
 void cd_ox_find_connected_distance(const int32_t* packed, int packed_len,
                                     int32_t* out_dist, int32_t* out_csd);
 
+/* find_connected_distance_segments: wrapper that computes segment centers
+   and delegates to find_connected_distance BFS.
+   packed layout: header(6) + n_segments × 15 ints per segment.
+   Header: seg0, seg1, depth, wid_flag, n_segments, check_wid_on_adjacency.
+   Per-segment: children(6), wid(6), center.xyz. */
+void cd_ox_find_connected_distance_segments(const int32_t* packed, int packed_len,
+                                             int32_t* out_dist, int32_t* out_csd);
+
 /* -- FVI check_trans_wall callback ------------------------------------ */
 /* Callback type for pixel-level transparency check on walls.
    Called from OCaml FVI when FQ_TRANSPOINT is set.
