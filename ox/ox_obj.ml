@@ -257,3 +257,22 @@ let obj_allocate () =
     objnum
   end
 ;;
+
+(* spin_object: process a continuously-spinning object.
+   C original: void spin_object(object* obj) in object.cpp
+   Pure math: takes spin_rate, orient, and frame_time, returns new orient.
+   obj->movement_type must be MT_SPINNING (asserted in C). *)
+let spin_object ~spin_rate_x ~spin_rate_y ~spin_rate_z ~orient ~frame_time =
+  (* rotangs.p = fixmul(obj->mtype.spin_rate.x, FrameTime) *)
+  let p = Ox_math.fixmul ~a:spin_rate_x ~b:frame_time in
+  (* rotangs.h = fixmul(obj->mtype.spin_rate.y, FrameTime) *)
+  let h = Ox_math.fixmul ~a:spin_rate_y ~b:frame_time in
+  (* rotangs.b = fixmul(obj->mtype.spin_rate.z, FrameTime) *)
+  let b = Ox_math.fixmul ~a:spin_rate_z ~b:frame_time in
+  (* vm_angles_2_matrix(&rotmat, &rotangs) *)
+  let rotmat = Ox_math.vm_angles_2_matrix ~v:(p, b, h) in
+  (* vm_matrix_x_matrix(&new_pm, &obj->orient, &rotmat) *)
+  let new_pm = Ox_math.vm_matrix_x_matrix ~a:orient ~b:rotmat in
+  (* check_and_fix_matrix(&obj->orient) *)
+  Ox_physics.check_and_fix_matrix ~orient:new_pm
+;;

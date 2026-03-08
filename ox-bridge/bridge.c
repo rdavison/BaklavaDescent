@@ -6615,6 +6615,35 @@ int cd_ox_search_all_segments_for_object(int objnum)
     return Int_val(v_result);
 }
 
+/* C entry point: calls OCaml spin_object.
+   Pure math — no effects needed. */
+static const value* g_spin_object = NULL;
+
+void cd_ox_spin_object(
+    int32_t spin_rx, int32_t spin_ry, int32_t spin_rz,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t frame_time,
+    int32_t* out_orient)
+{
+    cd_ox_require_ready("cd_ox_spin_object");
+    if (!g_spin_object)
+        g_spin_object = caml_named_value("cd_spin_object");
+    if (!g_spin_object) return;
+    value args[13] = {
+        Val_long(spin_rx), Val_long(spin_ry), Val_long(spin_rz),
+        Val_long(o_rx), Val_long(o_ry), Val_long(o_rz),
+        Val_long(o_ux), Val_long(o_uy), Val_long(o_uz),
+        Val_long(o_fx), Val_long(o_fy), Val_long(o_fz),
+        Val_long(frame_time),
+    };
+    value result = caml_callbackN(*g_spin_object, 13, args);
+    /* result is a tuple (rx, ry, rz, ux, uy, uz, fx, fy, fz) */
+    for (int i = 0; i < 9; i++)
+        out_orient[i] = Int_val(Field(result, i));
+}
+
 /* C entry point: calls OCaml set_robot_location_info.
    Returns 1 if danger_laser fields should be updated, 0 otherwise. */
 static const value* g_set_robot_location_info = NULL;

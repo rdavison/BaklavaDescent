@@ -83,8 +83,20 @@ let cd_obj_allocate () =
     ; effc
     }
 
+let cd_spin_object spin_rx spin_ry spin_rz
+    o_rx o_ry o_rz o_ux o_uy o_uz o_fx o_fy o_fz
+    frame_time =
+  let orient = Ox_obj.spin_object
+    ~spin_rate_x:spin_rx ~spin_rate_y:spin_ry ~spin_rate_z:spin_rz
+    ~orient:((o_rx, o_ry, o_rz), (o_ux, o_uy, o_uz), (o_fx, o_fy, o_fz))
+    ~frame_time
+  in
+  let (rx, ry, rz), (ux, uy, uz), (fx, fy, fz) = orient in
+  (rx, ry, rz, ux, uy, uz, fx, fy, fz)
+
 let register_callbacks () =
   Callback.register "search_all_segments_for_object" search_all_segments_for_object_wrapper;
   Callback.register "cd_set_robot_location_info" cd_set_robot_location_info;
   Callback.register "cd_wake_up_rendered_objects" cd_wake_up_rendered_objects;
-  Callback.register "cd_obj_allocate" cd_obj_allocate
+  Callback.register "cd_obj_allocate" cd_obj_allocate;
+  Callback.register "cd_spin_object" cd_spin_object

@@ -269,6 +269,8 @@ PORTED_FUNCTIONS = {
     "matcen_create": "ported",
     # Collide - volatile wall
     "check_volatile_wall": "ported",
+    # Object movement
+    "spin_object": "ported",
 }
 
 # Functions that intentionally remain as C effects.

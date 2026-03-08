@@ -1531,6 +1531,17 @@ void cd_ox_register_obj_search_effects(
 /* C entry point: OCaml search_all_segments_for_object */
 int cd_ox_search_all_segments_for_object(int objnum);
 
+/* C entry point: OCaml spin_object.
+   Takes spin_rate (3), orient (9), frame_time (1) = 13 args.
+   Writes new orient into out_orient (9 ints).  */
+void cd_ox_spin_object(
+    int32_t spin_rx, int32_t spin_ry, int32_t spin_rz,
+    int32_t o_rx, int32_t o_ry, int32_t o_rz,
+    int32_t o_ux, int32_t o_uy, int32_t o_uz,
+    int32_t o_fx, int32_t o_fy, int32_t o_fz,
+    int32_t frame_time,
+    int32_t* out_orient);
+
 /* -- Morph effects ----------------------------------------------------- */
 
 /* Fetch submodel vertices from polymodel bytecode.

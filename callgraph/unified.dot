@@ -676,7 +676,7 @@ digraph callgraph {
   "special_reactor_stuff" [label="special_reactor_stuff\n(cntrlcen)", color=orange, style=filled, fillcolor="lightyellow"];
   "special_reset_objects" [label="special_reset_objects\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "sphere_intersects_wall" [label="sphere_intersects_wall\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
-  "spin_object" [label="spin_object\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "spin_object" [label="spin_object\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "spit_powerup" [label="spit_powerup\n(weapon)", color=gray50, style=solid, fillcolor="white"];
   "sprintf" [label="sprintf\n(ai)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "start_boss_death_sequence" [label="start_boss_death_sequence\n(collide)", color=orange, style=filled, fillcolor="lightyellow"];
