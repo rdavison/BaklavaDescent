@@ -19,5 +19,6 @@ let () =
   Obj_mgmt.register_callbacks ();
   Morph.register_callbacks ();
   Fuelcen.register_callbacks ();
-  Fireball.register_callbacks ()
+  Fireball.register_callbacks ();
+  Laser.register_callbacks ()
 ;;

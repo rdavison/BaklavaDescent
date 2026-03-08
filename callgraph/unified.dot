@@ -207,7 +207,7 @@ digraph callgraph {
   "create_bfs_list" [label="create_bfs_list\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "create_buddy_bot" [label="create_buddy_bot\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "create_gated_robot" [label="create_gated_robot\n(ai2)", color=gray50, style=solid, fillcolor="white"];
-  "create_homing_missile" [label="create_homing_missile\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "create_homing_missile" [label="create_homing_missile\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "create_lightning_blobs" [label="create_lightning_blobs\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "create_morph_robot" [label="create_morph_robot\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "create_n_segment_path" [label="create_n_segment_path\n(ai)", color=green, style=filled, fillcolor="honeydew"];

@@ -11,5 +11,5 @@
    robot lighting
    weapon controlcen
    ai_frame physics_sim
-   misc mem escort gameseq switch wall obj_mgmt morph fuelcen fireball)
+   misc mem escort gameseq switch wall obj_mgmt morph fuelcen fireball laser)
  (flags (:standard -w -27 -open Core)))

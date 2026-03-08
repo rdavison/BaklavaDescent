@@ -1720,6 +1720,26 @@ void cd_ox_register_compress_objects_effects(
     cd_effect_fetch_compress_objects_data_fn fetch_data,
     cd_effect_execute_compress_objects_fn execute);
 
+/* -- create_homing_missile ------------------------------------------------ */
+
+/* C entry point: calls OCaml create_homing_missile */
+int cd_ox_create_homing_missile(int32_t objp_pos_x, int32_t objp_pos_y, int32_t objp_pos_z,
+    int objp_segnum, int objp_objnum, int goal_obj, int objtype, int make_sound);
+
+/* Laser effect registration */
+typedef void (*cd_effect_laser_fetch_object_pos_fn)(int objnum, int32_t* out_x, int32_t* out_y, int32_t* out_z);
+typedef int (*cd_effect_laser_create_new_fn)(
+    int32_t dir_x, int32_t dir_y, int32_t dir_z,
+    int32_t pos_x, int32_t pos_y, int32_t pos_z,
+    int segnum, int parent_objnum, int objtype, int make_sound);
+typedef void (*cd_effect_laser_set_track_goal_fn)(int objnum, int goal_obj);
+typedef int (*cd_effect_laser_p_rand_fn)(void);
+void cd_ox_register_laser_effects(
+    cd_effect_laser_fetch_object_pos_fn fetch_pos,
+    cd_effect_laser_create_new_fn create_new,
+    cd_effect_laser_set_track_goal_fn set_track_goal,
+    cd_effect_laser_p_rand_fn p_rand);
+
 #ifdef __cplusplus
 }
 #endif

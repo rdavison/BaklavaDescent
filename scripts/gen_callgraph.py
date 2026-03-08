@@ -174,6 +174,7 @@ PORTED_FUNCTIONS = {
     "player_has_weapon": "ported",
     "get_explosion_vclip": "ported",
     "ok_to_do_omega_damage": "ported",
+    "create_homing_missile": "ported",
     # Inlined into pure OCaml (no longer escapes to C)
     "make_random_vector": "ported",
     "convert_to_byte": "ported",

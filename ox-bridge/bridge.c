@@ -269,6 +269,13 @@ static const value* g_fuelcen_create = NULL;
 static const value* g_matcen_create = NULL;
 static const value* g_fuelcen_activate = NULL;
 static const value* g_explode_wall = NULL;
+static const value* g_create_homing_missile = NULL;
+
+/* Laser effect function pointers */
+static cd_effect_laser_fetch_object_pos_fn g_effect_laser_fetch_object_pos = NULL;
+static cd_effect_laser_create_new_fn g_effect_laser_create_new = NULL;
+static cd_effect_laser_set_track_goal_fn g_effect_laser_set_track_goal = NULL;
+static cd_effect_laser_p_rand_fn g_effect_laser_p_rand = NULL;
 
 /* Fireball effect function pointers */
 static cd_effect_fb_alloc_expl_wall_slot_fn g_effect_fb_alloc_expl_wall_slot = NULL;
@@ -775,6 +782,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_matcen_create = caml_named_value("cd_matcen_create");
     g_fuelcen_activate = caml_named_value("cd_fuelcen_activate");
     g_explode_wall = caml_named_value("cd_explode_wall");
+    g_create_homing_missile = caml_named_value("cd_create_homing_missile");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
@@ -959,7 +967,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_fuelcen_create
         || !g_matcen_create
         || !g_fuelcen_activate
-        || !g_explode_wall)
+        || !g_explode_wall
+        || !g_create_homing_missile)
     {
         return 1;
     }
@@ -7431,4 +7440,94 @@ void cd_ox_init_controlcen_for_level(
         result[i] = (int32_t)Long_val(Field(v_result, i));
 
     CAMLreturn0;
+}
+
+/* -- create_homing_missile effect infrastructure ------------------------- */
+
+void cd_ox_register_laser_effects(
+    cd_effect_laser_fetch_object_pos_fn fetch_pos,
+    cd_effect_laser_create_new_fn create_new,
+    cd_effect_laser_set_track_goal_fn set_track_goal,
+    cd_effect_laser_p_rand_fn p_rand)
+{
+    g_effect_laser_fetch_object_pos = fetch_pos;
+    g_effect_laser_create_new = create_new;
+    g_effect_laser_set_track_goal = set_track_goal;
+    g_effect_laser_p_rand = p_rand;
+}
+
+/* fetch_object_pos: int -> int array (3 elements: x, y, z) */
+CAMLprim value cd_ox_effect_laser_fetch_object_pos(value v_objnum)
+{
+    CAMLparam1(v_objnum);
+    CAMLlocal1(v_result);
+    int32_t x = 0, y = 0, z = 0;
+    if (g_effect_laser_fetch_object_pos)
+        g_effect_laser_fetch_object_pos(Int_val(v_objnum), &x, &y, &z);
+    v_result = caml_alloc(3, 0);
+    Store_field(v_result, 0, Val_long(x));
+    Store_field(v_result, 1, Val_long(y));
+    Store_field(v_result, 2, Val_long(z));
+    CAMLreturn(v_result);
+}
+
+/* laser_create_new: 10 args -> int (native code path) */
+CAMLprim value cd_ox_effect_laser_create_new(
+    value v_dx, value v_dy, value v_dz,
+    value v_px, value v_py, value v_pz,
+    value v_segnum, value v_parent, value v_objtype, value v_make_sound)
+{
+    int result = -1;
+    if (g_effect_laser_create_new)
+        result = g_effect_laser_create_new(
+            Int_val(v_dx), Int_val(v_dy), Int_val(v_dz),
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz),
+            Int_val(v_segnum), Int_val(v_parent),
+            Int_val(v_objtype), Int_val(v_make_sound));
+    return Val_int(result);
+}
+
+CAMLprim value cd_ox_effect_laser_create_new_bytecode(value* argv, int argn)
+{
+    (void)argn;
+    return cd_ox_effect_laser_create_new(
+        argv[0], argv[1], argv[2], argv[3], argv[4],
+        argv[5], argv[6], argv[7], argv[8], argv[9]);
+}
+
+/* set_laser_track_goal: int -> int -> unit */
+CAMLprim value cd_ox_effect_laser_set_track_goal(value v_objnum, value v_goal_obj)
+{
+    if (g_effect_laser_set_track_goal)
+        g_effect_laser_set_track_goal(Int_val(v_objnum), Int_val(v_goal_obj));
+    return Val_unit;
+}
+
+/* p_rand: unit -> int */
+CAMLprim value cd_ox_effect_p_rand(value unit)
+{
+    (void)unit;
+    int result = 0;
+    if (g_effect_laser_p_rand)
+        result = g_effect_laser_p_rand();
+    return Val_int(result);
+}
+
+/* C entry point: calls OCaml create_homing_missile */
+int cd_ox_create_homing_missile(int32_t objp_pos_x, int32_t objp_pos_y, int32_t objp_pos_z,
+    int objp_segnum, int objp_objnum, int goal_obj, int objtype, int make_sound)
+{
+    cd_ox_require_ready("cd_ox_create_homing_missile");
+    CAMLparam0();
+    CAMLlocal1(v_result);
+
+    value args[8] = {
+        Val_long(objp_pos_x), Val_long(objp_pos_y), Val_long(objp_pos_z),
+        Val_long(objp_segnum), Val_long(objp_objnum), Val_long(goal_obj),
+        Val_long(objtype), Val_long(make_sound)
+    };
+    v_result = caml_callbackN(*g_create_homing_missile, 8, args);
+
+    int result = Int_val(v_result);
+    CAMLreturnT(int, result);
 }

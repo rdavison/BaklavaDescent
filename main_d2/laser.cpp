@@ -2400,6 +2400,40 @@ int do_laser_firing(int objnum, int weapon_num, int level, int flags, int nfires
 //	if goal_obj == -1, then create random vector
 int create_homing_missile(object *objp, int goal_obj, int objtype, int make_sound)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_laser_effects(
+				// fetch_object_pos
+				[](int objnum, int32_t* out_x, int32_t* out_y, int32_t* out_z) {
+					*out_x = Objects[objnum].pos.x;
+					*out_y = Objects[objnum].pos.y;
+					*out_z = Objects[objnum].pos.z;
+				},
+				// laser_create_new
+				[](int32_t dx, int32_t dy, int32_t dz,
+				   int32_t px, int32_t py, int32_t pz,
+				   int segnum, int parent_objnum, int objtype, int make_sound) -> int {
+					vms_vector dir = {dx, dy, dz};
+					vms_vector pos = {px, py, pz};
+					return Laser_create_new(&dir, &pos, segnum, parent_objnum, objtype, make_sound);
+				},
+				// set_laser_track_goal
+				[](int objnum, int goal_obj) {
+					Objects[objnum].ctype.laser_info.track_goal = goal_obj;
+				},
+				// p_rand
+				[]() -> int { return P_Rand(); }
+			);
+			registered = true;
+		}
+		return cd_ox_create_homing_missile(
+			objp->pos.x, objp->pos.y, objp->pos.z,
+			objp->segnum, (int)(objp - Objects),
+			goal_obj, objtype, make_sound);
+	}
+#else
 	int			objnum;
 	vms_vector	vector_to_goal;
 	vms_vector	random_vector;
@@ -2412,7 +2446,7 @@ int create_homing_missile(object *objp, int goal_obj, int objtype, int make_soun
 		make_random_vector(&random_vector);
 		vm_vec_scale_add2(&vector_to_goal, &random_vector, F1_0/4);
 		vm_vec_normalize_quick(&vector_to_goal);
-	}		
+	}
 
 	//	Create a vector towards the goal, then add some noise to it.
 	objnum = Laser_create_new(&vector_to_goal, &objp->pos, objp->segnum, objp-Objects, objtype, make_sound);
@@ -2428,6 +2462,7 @@ int create_homing_missile(object *objp, int goal_obj, int objtype, int make_soun
 	Objects[objnum].ctype.laser_info.track_goal = goal_obj;
 
 	return objnum;
+#endif
 }
 
 extern void blast_nearby_glass(object *objp, fix damage);
