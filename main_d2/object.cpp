@@ -2458,6 +2458,38 @@ void fix_object_segs()
 //if clear_all is set, clear even proximity bombs
 void clear_transient_objects(int clear_all)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int cto_reg = 0;
+		if (!cto_reg) {
+			cto_reg = 1;
+			cd_ox_register_clear_transient_objects_effects(
+				/* fetch: [highest_object_index, is_d2, then per-object: type, id, flags, weapon_info_flags] */
+				[](int32_t* out, int* out_len) {
+					int highest = Highest_object_index;
+					out[0] = highest;
+					out[1] = 1; /* is_d2 = true */
+					for (int j = 0; j <= highest; j++) {
+						int base = 2 + j * 4;
+						out[base + 0] = Objects[j].type;
+						out[base + 1] = Objects[j].id;
+						out[base + 2] = Objects[j].flags;
+						out[base + 3] = (Objects[j].type == OBJ_WEAPON) ? Weapon_info[Objects[j].id].flags : 0;
+					}
+					*out_len = 2 + (highest + 1) * 4;
+				},
+				/* write: [count, objnum_0, objnum_1, ...] — calls obj_delete on each */
+				[](const int32_t* packed, int len) {
+					int count = packed[0];
+					for (int j = 0; j < count && (j + 1) < len; j++) {
+						obj_delete(packed[1 + j]);
+					}
+				});
+		}
+		cd_ox_clear_transient_objects(clear_all);
+		return;
+	}
+#endif
 	int objnum;
 	object* obj;
 

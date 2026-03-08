@@ -159,7 +159,7 @@ digraph callgraph {
   "choose_thief_recreation_segment" [label="choose_thief_recreation_segment\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "clear_boxed_message" [label="clear_boxed_message\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "clear_stuck_objects" [label="clear_stuck_objects\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
-  "clear_transient_objects" [label="clear_transient_objects\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
+  "clear_transient_objects" [label="clear_transient_objects\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
   "close_subtitles" [label="close_subtitles\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "collide_debris_and_wall" [label="collide_debris_and_wall\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "collide_hostage_and_player" [label="collide_hostage_and_player\n(collide)", color=gray50, style=solid, fillcolor="white"];

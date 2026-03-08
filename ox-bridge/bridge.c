@@ -262,6 +262,7 @@ static const value* g_verify_console_object = NULL;
 static const value* g_free_object_slots = NULL;
 static const value* g_copy_defaults_to_robot = NULL;
 static const value* g_copy_defaults_to_robot_all = NULL;
+static const value* g_clear_transient_objects = NULL;
 static const value* g_filter_objects_from_level = NULL;
 static const value* g_gameseq_remove_unused_players = NULL;
 static const value* g_do_lock_doors = NULL;
@@ -353,6 +354,12 @@ static cd_effect_gs_fetch_init_ammo_energy_data_fn g_effect_gs_fetch_init_ammo_e
 static cd_effect_gs_write_init_ammo_energy_fn g_effect_gs_write_init_ammo_energy = NULL;
 typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out_len);
 static cd_effect_gs_fetch_filter_objects_data_fn g_effect_gs_fetch_filter_objects_data = NULL;
+
+/* clear_transient_objects effect function pointers */
+typedef void (*cd_effect_gs_fetch_clear_transient_objects_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_clear_transient_objects_fn)(const int32_t* packed, int len);
+static cd_effect_gs_fetch_clear_transient_objects_data_fn g_effect_gs_fetch_clear_transient_objects_data = NULL;
+static cd_effect_gs_write_clear_transient_objects_fn g_effect_gs_write_clear_transient_objects = NULL;
 
 /* init_player_object effect function pointers */
 static cd_effect_gs_fetch_init_player_object_data_fn g_effect_gs_fetch_init_player_object_data = NULL;
@@ -627,6 +634,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_init_thief_for_level
           && g_create_bfs_list
           && g_free_object_slots
+          && g_clear_transient_objects
           && g_filter_objects_from_level
           && g_special_reset_objects
           && g_bash_to_shield
@@ -796,6 +804,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_free_object_slots = caml_named_value("cd_free_object_slots");
     g_copy_defaults_to_robot = caml_named_value("cd_copy_defaults_to_robot");
     g_copy_defaults_to_robot_all = caml_named_value("cd_copy_defaults_to_robot_all");
+    g_clear_transient_objects = caml_named_value("cd_clear_transient_objects");
     g_filter_objects_from_level = caml_named_value("cd_filter_objects_from_level");
     g_gameseq_remove_unused_players = caml_named_value("cd_gameseq_remove_unused_players");
     g_special_reset_objects = caml_named_value("cd_special_reset_objects");
@@ -1034,6 +1043,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_clear_stuck_objects
         || !g_copy_defaults_to_robot
         || !g_copy_defaults_to_robot_all
+        || !g_clear_transient_objects
         || !g_filter_objects_from_level
         || !g_init_ammo_and_energy
         || !g_update_player_stats
@@ -6001,6 +6011,66 @@ void cd_ox_filter_objects_from_level(void)
     CAMLparam0();
 
     caml_callback(*g_filter_objects_from_level, Val_unit);
+
+    CAMLreturn0;
+}
+
+/* -- clear_transient_objects: effect registration --------------------------- */
+
+void cd_ox_register_clear_transient_objects_effects(
+    cd_effect_gs_fetch_clear_transient_objects_data_fn fetch_data,
+    cd_effect_gs_write_clear_transient_objects_fn write_data)
+{
+    g_effect_gs_fetch_clear_transient_objects_data = fetch_data;
+    g_effect_gs_write_clear_transient_objects = write_data;
+}
+
+/* -- clear_transient_objects: effect externals ------------------------------ */
+
+/* Data layout: [highest_object_index, is_d2,
+   then per-object: type, id, flags, weapon_info_flags]
+   Max: 2 + 4*350 = 1402 */
+#define GS_CTO_DATA_LEN 1402
+
+CAMLprim value cd_ox_effect_gs_fetch_clear_transient_objects_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[GS_CTO_DATA_LEN];
+    int out_len = GS_CTO_DATA_LEN;
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_clear_transient_objects_data)
+        g_effect_gs_fetch_clear_transient_objects_data(out, &out_len);
+
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_clear_transient_objects(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_clear_transient_objects) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[512];
+        if (len > 512) len = 512;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_clear_transient_objects(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_clear_transient_objects: C entry point that calls into OCaml */
+void cd_ox_clear_transient_objects(int clear_all)
+{
+    cd_ox_require_ready("cd_ox_clear_transient_objects");
+    CAMLparam0();
+
+    caml_callback(*g_clear_transient_objects, Val_int(clear_all));
 
     CAMLreturn0;
 }

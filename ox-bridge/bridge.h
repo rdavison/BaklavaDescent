@@ -1366,6 +1366,14 @@ void cd_ox_bash_to_shield(int objnum);
 /* clear_stuck_objects: Clear all stuck objects (D2 only). */
 void cd_ox_clear_stuck_objects(void);
 
+/* clear_transient_objects: Remove transient objects (weapons, fireballs, debris, exploding). */
+void cd_ox_clear_transient_objects(int clear_all);
+typedef void (*cd_effect_gs_fetch_clear_transient_objects_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_clear_transient_objects_fn)(const int32_t* packed, int len);
+void cd_ox_register_clear_transient_objects_effects(
+    cd_effect_gs_fetch_clear_transient_objects_data_fn fetch_data,
+    cd_effect_gs_write_clear_transient_objects_fn write_data);
+
 /* filter_objects_from_level: Remove flag powerups from single-player levels (D2 only). */
 void cd_ox_filter_objects_from_level(void);
 typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out_len);

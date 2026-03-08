@@ -1,11 +1,11 @@
 {
   "summary": {
     "total_functions": 775,
-    "ported": 200,
+    "ported": 201,
     "intrinsic": 68,
     "effect": 61,
     "frontier": 0,
-    "unported": 446
+    "unported": 445
   },
   "functions": {
     "AdvanceLevel": {
@@ -2709,7 +2709,7 @@
       "transitive_dep_count": 1
     },
     "clear_transient_objects": {
-      "status": "unported",
+      "status": "ported",
       "file": "main_d2_gameseq",
       "callers": [
         "StartLevel",
@@ -11537,21 +11537,6 @@
   "frontier_priority": [],
   "next_to_port": [
     {
-      "function": "clear_transient_objects",
-      "file": "gameseq",
-      "unported_dep_count": 0,
-      "total_dep_count": 9,
-      "callers": [
-        "StartLevel",
-        "StartSecretLevel"
-      ],
-      "callees": [
-        "_mprintf",
-        "i2f",
-        "obj_delete"
-      ]
-    },
-    {
       "function": "gameseq_init_network_players",
       "file": "gameseq",
       "unported_dep_count": 0,
@@ -13484,6 +13469,23 @@
       ]
     },
     {
+      "function": "StartSecretLevel",
+      "file": "gameseq",
+      "unported_dep_count": 6,
+      "total_dep_count": 32,
+      "callers": [
+        "StartNewLevelSecret"
+      ],
+      "callees": [
+        "InitPlayerPosition",
+        "_Assert",
+        "ai_reset_all_paths",
+        "clear_transient_objects",
+        "reset_rear_view",
+        "verify_console_object"
+      ]
+    },
+    {
       "function": "recreate_thief",
       "file": "ai2",
       "unported_dep_count": 6,
@@ -13636,23 +13638,6 @@
         "wall_close_door_num",
         "wall_open_door",
         "wall_set_tmap_num"
-      ]
-    },
-    {
-      "function": "StartSecretLevel",
-      "file": "gameseq",
-      "unported_dep_count": 7,
-      "total_dep_count": 32,
-      "callers": [
-        "StartNewLevelSecret"
-      ],
-      "callees": [
-        "InitPlayerPosition",
-        "_Assert",
-        "ai_reset_all_paths",
-        "clear_transient_objects",
-        "reset_rear_view",
-        "verify_console_object"
       ]
     },
     {
@@ -13896,6 +13881,28 @@
       ]
     },
     {
+      "function": "StartLevel",
+      "file": "gameseq",
+      "unported_dep_count": 9,
+      "total_dep_count": 36,
+      "callers": [
+        "DoPlayerDead",
+        "StartNewLevelSub"
+      ],
+      "callees": [
+        "InitPlayerPosition",
+        "_Assert",
+        "ai_init_boss_for_ship",
+        "ai_reset_all_paths",
+        "clear_stuck_objects",
+        "clear_transient_objects",
+        "disable_matcens",
+        "reset_rear_view",
+        "reset_time",
+        "verify_console_object"
+      ]
+    },
+    {
       "function": "Laser_player_fire",
       "file": "laser",
       "unported_dep_count": 9,
@@ -13921,28 +13928,6 @@
       "callees": [
         "buddy_message",
         "strncpy"
-      ]
-    },
-    {
-      "function": "StartLevel",
-      "file": "gameseq",
-      "unported_dep_count": 10,
-      "total_dep_count": 36,
-      "callers": [
-        "DoPlayerDead",
-        "StartNewLevelSub"
-      ],
-      "callees": [
-        "InitPlayerPosition",
-        "_Assert",
-        "ai_init_boss_for_ship",
-        "ai_reset_all_paths",
-        "clear_stuck_objects",
-        "clear_transient_objects",
-        "disable_matcens",
-        "reset_rear_view",
-        "reset_time",
-        "verify_console_object"
       ]
     },
     {
@@ -15035,6 +15020,28 @@
       ]
     },
     {
+      "function": "StartNewLevelSecret",
+      "file": "gameseq",
+      "unported_dep_count": 64,
+      "total_dep_count": 123,
+      "callers": [
+        "EnterSecretLevel",
+        "StartNewGame"
+      ],
+      "callees": [
+        "HUD_clear_messages",
+        "LoadLevel",
+        "StartSecretLevel",
+        "_Assert",
+        "_fopen",
+        "automap_clear_visited",
+        "copy_defaults_to_robot_all",
+        "do_secret_message",
+        "fclose",
+        "gameseq_init_network_players"
+      ]
+    },
+    {
       "function": "collide_robot_and_player",
       "file": "collide",
       "unported_dep_count": 64,
@@ -15056,31 +15063,9 @@
       ]
     },
     {
-      "function": "StartNewLevelSecret",
-      "file": "gameseq",
-      "unported_dep_count": 65,
-      "total_dep_count": 123,
-      "callers": [
-        "EnterSecretLevel",
-        "StartNewGame"
-      ],
-      "callees": [
-        "HUD_clear_messages",
-        "LoadLevel",
-        "StartSecretLevel",
-        "_Assert",
-        "_fopen",
-        "automap_clear_visited",
-        "copy_defaults_to_robot_all",
-        "do_secret_message",
-        "fclose",
-        "gameseq_init_network_players"
-      ]
-    },
-    {
       "function": "EnterSecretLevel",
       "file": "gameseq",
-      "unported_dep_count": 70,
+      "unported_dep_count": 69,
       "total_dep_count": 129,
       "callers": [
         "check_trigger_sub"
@@ -15095,7 +15080,7 @@
     {
       "function": "StartNewLevelSub",
       "file": "gameseq",
-      "unported_dep_count": 72,
+      "unported_dep_count": 71,
       "total_dep_count": 136,
       "callers": [
         "StartNewLevel"
@@ -15116,7 +15101,7 @@
     {
       "function": "StartNewLevel",
       "file": "gameseq",
-      "unported_dep_count": 76,
+      "unported_dep_count": 75,
       "total_dep_count": 141,
       "callers": [
         "AdvanceLevel",
@@ -15133,7 +15118,7 @@
     {
       "function": "AdvanceLevel",
       "file": "gameseq",
-      "unported_dep_count": 93,
+      "unported_dep_count": 92,
       "total_dep_count": 159,
       "callers": [
         "DoPlayerDead",
@@ -15151,7 +15136,7 @@
     {
       "function": "StartNewGame",
       "file": "gameseq",
-      "unported_dep_count": 93,
+      "unported_dep_count": 92,
       "total_dep_count": 160,
       "callers": [],
       "callees": [
@@ -15166,7 +15151,7 @@
     {
       "function": "PlayerFinishedLevel",
       "file": "gameseq",
-      "unported_dep_count": 94,
+      "unported_dep_count": 93,
       "total_dep_count": 160,
       "callers": [],
       "callees": [
@@ -15177,7 +15162,7 @@
     {
       "function": "ExitSecretLevel",
       "file": "gameseq",
-      "unported_dep_count": 101,
+      "unported_dep_count": 100,
       "total_dep_count": 167,
       "callers": [
         "check_trigger_sub"
@@ -15196,7 +15181,7 @@
     {
       "function": "DoPlayerDead",
       "file": "cntrlcen",
-      "unported_dep_count": 114,
+      "unported_dep_count": 113,
       "total_dep_count": 181,
       "callers": [
         "dead_player_frame",
@@ -15218,7 +15203,7 @@
     {
       "function": "do_countdown_frame",
       "file": "cntrlcen",
-      "unported_dep_count": 116,
+      "unported_dep_count": 115,
       "total_dep_count": 186,
       "callers": [
         "do_controlcen_dead_frame"
@@ -15239,7 +15224,7 @@
     {
       "function": "check_trigger_sub",
       "file": "switch",
-      "unported_dep_count": 136,
+      "unported_dep_count": 135,
       "total_dep_count": 228,
       "callers": [
         "check_trigger"
@@ -15260,7 +15245,7 @@
     {
       "function": "check_trigger",
       "file": "collide",
-      "unported_dep_count": 138,
+      "unported_dep_count": 137,
       "total_dep_count": 230,
       "callers": [
         "collide_weapon_and_wall",
@@ -15274,7 +15259,7 @@
     {
       "function": "do_controlcen_dead_frame",
       "file": "cntrlcen",
-      "unported_dep_count": 163,
+      "unported_dep_count": 162,
       "total_dep_count": 310,
       "callers": [],
       "callees": [
@@ -15286,7 +15271,7 @@
     {
       "function": "dead_player_frame",
       "file": "object",
-      "unported_dep_count": 170,
+      "unported_dep_count": 169,
       "total_dep_count": 321,
       "callers": [],
       "callees": [
@@ -15305,7 +15290,7 @@
     {
       "function": "collide_weapon_and_wall",
       "file": "collide",
-      "unported_dep_count": 173,
+      "unported_dep_count": 172,
       "total_dep_count": 332,
       "callers": [
         "collide_object_with_wall",
@@ -15327,7 +15312,7 @@
     {
       "function": "object_move_one",
       "file": "object",
-      "unported_dep_count": 264,
+      "unported_dep_count": 263,
       "total_dep_count": 526,
       "callers": [
         "object_move_all"
@@ -15348,7 +15333,7 @@
     {
       "function": "object_move_all",
       "file": "object",
-      "unported_dep_count": 269,
+      "unported_dep_count": 268,
       "total_dep_count": 531,
       "callers": [],
       "callees": [

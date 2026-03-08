@@ -471,3 +471,60 @@ let filter_objects_from_level () =
         bash_to_shield ~objnum:i
   done
 ;;
+
+(* clear_transient_objects: Remove transient objects (weapons, fireballs, debris, exploding).
+   If clear_all=1, also remove proximity bombs (PROXIMITY_ID, and SUPERPROX_ID in D2).
+   D2 additionally checks WIF_PLACABLE — placable weapons are kept.
+   Ported from main_d1/object.cpp and main_d2/object.cpp. *)
+
+type _ Effect.t +=
+  | Fetch_clear_transient_objects_data : unit -> int array Effect.t
+  | Write_clear_transient_objects : int array -> unit Effect.t
+
+let of_exploding = 1
+let proximity_id = 16
+let superprox_id = 38
+let wif_placable = 1
+
+let clear_transient_objects ~clear_all =
+  (* Fetch: [highest_object_index, is_d2,
+     then per-object (0..highest): type, id, flags, weapon_info_flags] *)
+  let data = Effect.perform (Fetch_clear_transient_objects_data ()) in
+  let highest = data.(0) in
+  let is_d2 = data.(1) <> 0 in
+  let to_delete = Array.create ~len:(highest + 1) 0 in
+  let count = ref 0 in
+  for i = 0 to highest do
+    let base = 2 + i * 4 in
+    let obj_type = data.(base) in
+    let obj_id = data.(base + 1) in
+    let obj_flags = data.(base + 2) in
+    let wi_flags = data.(base + 3) in
+    let should_delete =
+      if obj_type = obj_weapon then begin
+        if is_d2 then
+          (* D2: skip if WIF_PLACABLE; otherwise delete unless it's a prox/superprox and not clear_all *)
+          (wi_flags land wif_placable) = 0 &&
+          (clear_all <> 0 || (obj_id <> proximity_id && obj_id <> superprox_id))
+        else
+          (* D1: delete all weapons unless it's a proximity and not clear_all *)
+          clear_all <> 0 || obj_id <> proximity_id
+      end
+      else if obj_type = obj_fireball then true
+      else if obj_type = obj_debris then true
+      else if obj_type <> obj_none && (obj_flags land of_exploding) <> 0 then true
+      else false
+    in
+    if should_delete then begin
+      to_delete.(!count) <- i;
+      incr count
+    end
+  done;
+  (* Write back: [count, objnum_0, objnum_1, ...] *)
+  let result = Array.create ~len:(!count + 1) 0 in
+  result.(0) <- !count;
+  for j = 0 to !count - 1 do
+    result.(j + 1) <- to_delete.(j)
+  done;
+  Effect.perform (Write_clear_transient_objects result)
+;;
