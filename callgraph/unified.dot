@@ -595,7 +595,7 @@ digraph callgraph {
   "print_trigger_message" [label="print_trigger_message\n(switch)", color=gray50, style=solid, fillcolor="white"];
   "printf" [label="printf\n(physics)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "process_awareness_events" [label="process_awareness_events\n(ai)", color=gray50, style=solid, fillcolor="white"];
-  "process_super_mines_frame" [label="process_super_mines_frame\n(weapon)", color=gray50, style=solid, fillcolor="white"];
+  "process_super_mines_frame" [label="process_super_mines_frame\n(weapon)", color=green, style=filled, fillcolor="honeydew"];
   "qsort" [label="qsort\n(aipath)", color=gray50, style=solid, fillcolor="white"];
   "read_active_door" [label="read_active_door\n(wall)", color=gray50, style=solid, fillcolor="white"];
   "read_angvec" [label="read_angvec\n(object)", color=gray50, style=solid, fillcolor="white"];

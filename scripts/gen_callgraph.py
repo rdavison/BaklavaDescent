@@ -175,6 +175,7 @@ PORTED_FUNCTIONS = {
     "calc_controlcen_gun_point": "ported",
     "init_controlcen_for_level": "ported",
     # Weapons / homing
+    "process_super_mines_frame": "ported",
     "find_homing_object": "ported",
     "find_homing_object_complete": "ported",
     "homing_missile_turn_towards_velocity": "ported",

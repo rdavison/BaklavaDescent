@@ -459,6 +459,12 @@ static const value* g_track_track_goal_v2 = NULL;
 static const value* g_player_is_visible_from_object_v2 = NULL;
 static const value* g_compute_vis_and_vec_v2 = NULL;
 
+/* process_super_mines_frame */
+static const value* g_process_super_mines_frame = NULL;
+static cd_effect_wep_fetch_process_super_mines_data_fn g_effect_wep_fetch_process_super_mines_data = NULL;
+static cd_effect_wep_write_process_super_mines_fn g_effect_wep_write_process_super_mines = NULL;
+static cd_effect_wep_super_mine_fvi_check_fn g_effect_wep_super_mine_fvi_check = NULL;
+
 static void cd_ox_require_ready(const char* fn)
 {
     if (!(g_runtime_started
@@ -625,7 +631,8 @@ static void cd_ox_require_ready(const char* fn)
           && g_wall_illusion_off
           && g_wall_illusion_on
           && g_do_physics_sim_d1
-          && g_do_physics_sim_d2))
+          && g_do_physics_sim_d2
+          && g_process_super_mines_frame))
     {
         fprintf(stderr, "OxCaml bridge not initialized before %s\n", fn);
         abort();
@@ -838,6 +845,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_create_homing_missile = caml_named_value("cd_create_homing_missile");
     g_create_weapon_object = caml_named_value("cd_create_weapon_object");
     g_drop_marker_object = caml_named_value("cd_drop_marker_object");
+    g_process_super_mines_frame = caml_named_value("cd_process_super_mines_frame");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
@@ -8245,4 +8253,77 @@ void cd_ox_fix_object_segs(void)
     if (!g_fix_object_segs) return;
 
     caml_callback(*g_fix_object_segs, Val_unit);
+}
+
+/* -- process_super_mines_frame: effect registration ------------------------- */
+
+void cd_ox_register_process_super_mines_effects(
+    cd_effect_wep_fetch_process_super_mines_data_fn fetch_data,
+    cd_effect_wep_write_process_super_mines_fn write_data,
+    cd_effect_wep_super_mine_fvi_check_fn fvi_check)
+{
+    g_effect_wep_fetch_process_super_mines_data = fetch_data;
+    g_effect_wep_write_process_super_mines = write_data;
+    g_effect_wep_super_mine_fvi_check = fvi_check;
+}
+
+/* -- process_super_mines_frame: effect externals ---------------------------- */
+
+/* Max data size: 5 header + 350*9 = 3155 ints */
+#define WEP_PSM_MAX_DATA 3155
+
+CAMLprim value cd_ox_effect_wep_fetch_process_super_mines_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int32_t out[WEP_PSM_MAX_DATA];
+    int out_len = WEP_PSM_MAX_DATA;
+    memset(out, 0, sizeof(out));
+    if (g_effect_wep_fetch_process_super_mines_data)
+        g_effect_wep_fetch_process_super_mines_data(out, &out_len);
+
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_wep_write_process_super_mines(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_wep_write_process_super_mines) {
+        int len = Wosize_val(v_packed);
+        /* Max: 2 + 350 = 352 */
+        int32_t buf[352];
+        if (len > 352) len = 352;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_wep_write_process_super_mines(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+CAMLprim value cd_ox_effect_wep_super_mine_fvi_check(value v_args)
+{
+    CAMLparam1(v_args);
+
+    int result = 0;
+    if (g_effect_wep_super_mine_fvi_check) {
+        int32_t args[8];
+        for (int i = 0; i < 8; i++)
+            args[i] = (int32_t)Long_val(Field(v_args, i));
+        result = g_effect_wep_super_mine_fvi_check(args);
+    }
+    CAMLreturn(Val_int(result));
+}
+
+/* C entry point: calls OCaml process_super_mines_frame */
+void cd_ox_process_super_mines_frame(void)
+{
+    cd_ox_require_ready("cd_ox_process_super_mines_frame");
+    if (!g_process_super_mines_frame) return;
+
+    caml_callback(*g_process_super_mines_frame, Val_unit);
 }

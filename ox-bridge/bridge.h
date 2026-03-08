@@ -1888,6 +1888,20 @@ void cd_ox_register_fix_object_segs_effects(
     cd_effect_update_object_seg_result_fn update_seg,
     cd_effect_compute_segment_center_set_pos_fn center_pos);
 
+/* -- process_super_mines_frame --------------------------------------------- */
+
+/* C entry point: calls OCaml process_super_mines_frame */
+void cd_ox_process_super_mines_frame(void);
+
+/* process_super_mines_frame effect registration */
+typedef void (*cd_effect_wep_fetch_process_super_mines_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_wep_write_process_super_mines_fn)(const int32_t* packed, int len);
+typedef int (*cd_effect_wep_super_mine_fvi_check_fn)(const int32_t* args);
+void cd_ox_register_process_super_mines_effects(
+    cd_effect_wep_fetch_process_super_mines_data_fn fetch_data,
+    cd_effect_wep_write_process_super_mines_fn write_data,
+    cd_effect_wep_super_mine_fvi_check_fn fvi_check);
+
 #ifdef __cplusplus
 }
 #endif

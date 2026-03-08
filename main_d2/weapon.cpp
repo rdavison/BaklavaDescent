@@ -1037,6 +1037,62 @@ int	Super_mines_yes = 1;
 //	Call this once/frame to process all super mines in the level.
 void process_super_mines_frame(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int psm_reg = 0;
+		if (!psm_reg) {
+			psm_reg = 1;
+			cd_ox_register_process_super_mines_effects(
+				/* fetch: header[5] + per-object[9] data */
+				[](int32_t* out, int* out_len) {
+					int highest = Highest_object_index;
+					out[0] = FrameCount;
+					out[1] = Super_mines_yes;
+					out[2] = highest;
+					out[3] = Weapon_info[SUPERPROX_ID].lifetime;
+					out[4] = (CurrentLogicVersion == LogicVer::SHAREWARE) ? 1 : 0;
+					for (int k = 0; k <= highest; k++) {
+						int off = 5 + k * 9;
+						out[off + 0] = Objects[k].type;
+						out[off + 1] = Objects[k].id;
+						out[off + 2] = Objects[k].lifeleft;
+						out[off + 3] = Objects[k].pos.x;
+						out[off + 4] = Objects[k].pos.y;
+						out[off + 5] = Objects[k].pos.z;
+						out[off + 6] = Objects[k].segnum;
+						out[off + 7] = Objects[k].size;
+						out[off + 8] = Objects[k].ctype.laser_info.parent_num;
+					}
+					*out_len = 5 + (highest + 1) * 9;
+				},
+				/* write: [super_mines_yes, n_to_set, idx0, idx1, ...] */
+				[](const int32_t* packed, int len) {
+					Super_mines_yes = packed[0];
+					int n = packed[1];
+					for (int k = 0; k < n && k + 2 < len; k++)
+						Objects[packed[2 + k]].lifeleft = 1;
+				},
+				/* fvi check: [startseg, p0x, p0y, p0z, p1x, p1y, p1z, thisobjnum] -> fate */
+				[](const int32_t* args) -> int {
+					fvi_query fq;
+					fvi_info hit_data;
+					vms_vector p0 = {args[1], args[2], args[3]};
+					vms_vector p1 = {args[4], args[5], args[6]};
+					fq.startseg = (short)args[0];
+					fq.p0 = &p0;
+					fq.p1 = &p1;
+					fq.rad = 0;
+					fq.thisobjnum = (short)args[7];
+					fq.ignore_obj_list = NULL;
+					fq.flags = 0;
+					return find_vector_intersection(&fq, &hit_data);
+				});
+		}
+		cd_ox_process_super_mines_frame();
+		return;
+	}
+#endif
+
 	int	i, j;
 	int	start, add;
 
