@@ -1454,6 +1454,8 @@ int cd_ox_door_is_wall_switched(int wall_num);
 
 /* flag_wall_switched_doors: Mark all wall-switched doors (D2 only). */
 void cd_ox_flag_wall_switched_doors(void);
+/* do_matcen: Trigger matcens for all links of a trigger. */
+void cd_ox_do_matcen(int trigger_num);
 /* do_il_on: Turn on illusion walls for all links of a trigger. */
 void cd_ox_do_il_on(int trigger_num);
 /* do_il_off: Turn off illusion walls for all links of a trigger. */

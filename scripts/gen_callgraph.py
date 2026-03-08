@@ -247,6 +247,7 @@ PORTED_FUNCTIONS = {
     "flag_wall_switched_doors": "ported",
     "do_il_on": "ported",
     "do_il_off": "ported",
+    "do_matcen": "ported",
     "wall_illusion_off": "ported",
     "start_wall_cloak": "ported",
     "start_wall_decloak": "ported",

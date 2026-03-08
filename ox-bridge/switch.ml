@@ -140,10 +140,25 @@ let combined_effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuatio
       match Fireball.effc eff with
       | Some _ as s -> s
       | None ->
-        match eff with
-        | Ox_gameseg.Fetch_segment_data segnum ->
-          Some (fun k -> Effect.Deep.continue k (fetch_segment_data_c segnum))
-        | _ -> None
+        match Fuelcen.effc eff with
+        | Some _ as s -> s
+        | None ->
+          match eff with
+          | Ox_gameseg.Fetch_segment_data segnum ->
+            Some (fun k -> Effect.Deep.continue k (fetch_segment_data_c segnum))
+          | _ -> None
+;;
+
+let cd_do_matcen trigger_num =
+  Effect.Deep.match_with
+    (fun () -> Ox_switch.do_matcen ~trigger_num)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] do_matcen exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> combined_effc eff)
+    }
 ;;
 
 let cd_do_il_on trigger_num =
@@ -175,6 +190,7 @@ let register_callbacks () =
   Callback.register "cd_do_unlock_doors" cd_do_unlock_doors;
   Callback.register "cd_door_is_wall_switched" cd_door_is_wall_switched;
   Callback.register "cd_flag_wall_switched_doors" cd_flag_wall_switched_doors;
+  Callback.register "cd_do_matcen" cd_do_matcen;
   Callback.register "cd_do_il_on" cd_do_il_on;
   Callback.register "cd_do_il_off" cd_do_il_off
 ;;

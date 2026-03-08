@@ -269,6 +269,7 @@ static const value* g_kill_stuck_objects = NULL;
 static const value* g_is_door_free = NULL;
 static const value* g_wall_illusion_off = NULL;
 static const value* g_wall_illusion_on = NULL;
+static const value* g_do_matcen = NULL;
 static const value* g_do_il_on = NULL;
 static const value* g_do_il_off = NULL;
 static const value* g_start_wall_cloak = NULL;
@@ -787,6 +788,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_is_door_free = caml_named_value("cd_is_door_free");
     g_wall_illusion_off = caml_named_value("cd_wall_illusion_off");
     g_wall_illusion_on = caml_named_value("cd_wall_illusion_on");
+    g_do_matcen = caml_named_value("cd_do_matcen");
     g_do_il_on = caml_named_value("cd_do_il_on");
     g_do_il_off = caml_named_value("cd_do_il_off");
     g_start_wall_cloak = caml_named_value("cd_start_wall_cloak");
@@ -1015,6 +1017,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_is_door_free
         || !g_wall_illusion_off
         || !g_wall_illusion_on
+        || !g_do_matcen
         || !g_do_il_on
         || !g_do_il_off
         || !g_start_wall_cloak
@@ -6383,6 +6386,14 @@ void cd_ox_flag_wall_switched_doors(void)
     cd_ox_require_ready("cd_ox_flag_wall_switched_doors");
     CAMLparam0();
     caml_callback(*g_flag_wall_switched_doors, Val_unit);
+    CAMLreturn0;
+}
+
+void cd_ox_do_matcen(int trigger_num)
+{
+    cd_ox_require_ready("cd_ox_do_matcen");
+    CAMLparam0();
+    caml_callback(*g_do_matcen, Val_long(trigger_num));
     CAMLreturn0;
 }
 

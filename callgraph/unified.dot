@@ -287,7 +287,7 @@ digraph callgraph {
   "do_light_on" [label="do_light_on\n(switch)", color=gray50, style=solid, fillcolor="white"];
   "do_link" [label="do_link\n(switch)", color=gray50, style=solid, fillcolor="white"];
   "do_lock_doors" [label="do_lock_doors\n(switch)", color=green, style=filled, fillcolor="honeydew"];
-  "do_matcen" [label="do_matcen\n(switch)", color=gray50, style=solid, fillcolor="white"];
+  "do_matcen" [label="do_matcen\n(switch)", color=green, style=filled, fillcolor="honeydew"];
   "do_megawow_powerup" [label="do_megawow_powerup\n(powerup)", color=gray50, style=solid, fillcolor="white"];
   "do_missile_firing" [label="do_missile_firing\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "do_morph_frame" [label="do_morph_frame\n(morph)", color=gray50, style=solid, fillcolor="white"];

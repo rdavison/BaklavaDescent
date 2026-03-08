@@ -396,16 +396,37 @@ void print_trigger_message (int pnum,int trig,int shot,const char *message)
 
 void do_matcen(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int seg_side_reg = 0;
+		if (!seg_side_reg) {
+			seg_side_reg = 1;
+			cd_ox_register_switch_seg_side_effect(
+				/* fetch_trigger_seg_sides */
+				[](int tnum, int32_t* out, int* out_len) {
+					int n = Triggers[tnum].num_links;
+					out[0] = n;
+					for (int j = 0; j < n; j++) {
+						out[1 + j * 2] = Triggers[tnum].seg[j];
+						out[1 + j * 2 + 1] = Triggers[tnum].side[j];
+					}
+					*out_len = 1 + n * 2;
+				});
+		}
+		cd_ox_do_matcen(trigger_num);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Matcen link!\n"));
 
 	if (trigger_num != -1)
 	{
-		for (i=0;i<Triggers[trigger_num].num_links;i++) 
+		for (i=0;i<Triggers[trigger_num].num_links;i++)
 		{
-			trigger_matcen(Triggers[trigger_num].seg[i] ); 
-			mprintf((0," trigger_num %d : seg %d\n", 
+			trigger_matcen(Triggers[trigger_num].seg[i] );
+			mprintf((0," trigger_num %d : seg %d\n",
 				trigger_num, Triggers[trigger_num].seg[i]));
   		}
   	}

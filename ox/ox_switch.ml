@@ -76,6 +76,18 @@ let flag_wall_switched_doors () =
       Effect.perform (Set_wall_flag_wall_switch i)
   done
 
+(* do_matcen: Trigger matcens for all links of a trigger.
+   Ported from switch.cpp (identical in D1 and D2). *)
+let do_matcen ~trigger_num =
+  if trigger_num <> -1 then begin
+    let data = Effect.perform (Fetch_trigger_seg_sides trigger_num) in
+    let num_links = data.(0) in
+    for i = 0 to num_links - 1 do
+      let segnum = data.(1 + i * 2) in
+      Ox_fuelcen.trigger_matcen ~segnum
+    done
+  end
+
 (* do_il_on: Turn on illusion walls for all links of a trigger.
    Ported from switch.cpp (identical in D1 and D2). *)
 let do_il_on ~trigger_num =
