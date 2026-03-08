@@ -1583,6 +1583,17 @@ void cd_ox_process_awareness_events(
     const int* event_segnums, const int* event_types,
     int8_t* new_awareness_out);
 
+/* set_player_awareness_all: process awareness events + update AI objects.
+   Updates player_awareness_type, player_awareness_time, and SUB_FLAGS
+   for all CT_AI objects based on awareness propagation results. */
+void cd_ox_set_player_awareness_all(
+    int num_events, int highest_segment_index, int is_d2, int game_mode,
+    int highest_object_index, int player_awareness_initial_time,
+    const int* event_segnums, const int* event_types,
+    const int* obj_control_types, const int* obj_segnums,
+    const int* obj_awareness_types, const int* obj_sub_flags,
+    int* out_awareness_types, int* out_awareness_times, int* out_sub_flags);
+
 /* Object detach effects */
 typedef void (*cd_obj_detach_one_fn)(int objnum);
 typedef int (*cd_get_attached_obj_fn)(int objnum);

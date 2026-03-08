@@ -823,3 +823,84 @@ let process_awareness_events (packed : int array) =
   (* Num_awareness_events = 0 is handled by the C caller *)
   new_awareness
 ;;
+
+(* ── set_player_awareness_all ─────────────────────────────── *)
+(* Calls process_awareness_events, then loops through all objects
+   and updates AI awareness for CT_AI objects.
+
+   Input packed array:
+     [0] num_awareness_events
+     [1] highest_segment_index
+     [2] is_d2
+     [3] game_mode
+     [4] highest_object_index
+     [5] player_awareness_initial_time (3*F1_0)
+     [6 .. 6 + 2*num_events - 1] = awareness events (segnum, type pairs)
+     Then for each object 0..highest_object_index (4 ints per object):
+       base = 6 + 2*num_events + 4*i
+       [base+0] = control_type
+       [base+1] = segnum
+       [base+2] = player_awareness_type (from ai_local_info)
+       [base+3] = sub_flags (from ctype.ai_info.SUB_FLAGS)
+
+   Output: int array of updates, groups of 4:
+     [4*j+0] = objnum
+     [4*j+1] = new_player_awareness_type
+     [4*j+2] = new_player_awareness_time
+     [4*j+3] = new_sub_flags
+*)
+
+let ct_ai_ = 1
+let sub_flags_camera_awake_ = 0x04
+
+let set_player_awareness_all (packed : int array) =
+  let num_events = packed.(0) in
+  let highest_seg = packed.(1) in
+  let is_d2 = packed.(2) <> 0 in
+  let game_mode = packed.(3) in
+  let highest_obj = packed.(4) in
+  let awareness_initial_time = packed.(5) in
+  (* Build the sub-packed array for process_awareness_events *)
+  let pae_packed = Array.create ~len:(4 + 2 * num_events) 0 in
+  pae_packed.(0) <- num_events;
+  pae_packed.(1) <- highest_seg;
+  pae_packed.(2) <- packed.(2); (* is_d2 *)
+  pae_packed.(3) <- game_mode;
+  for i = 0 to 2 * num_events - 1 do
+    pae_packed.(4 + i) <- packed.(6 + i)
+  done;
+  let new_awareness = process_awareness_events pae_packed in
+  (* Loop through objects and collect updates *)
+  let updates = ref [] in
+  let obj_base = 6 + 2 * num_events in
+  for i = 0 to highest_obj do
+    let base = obj_base + 4 * i in
+    let control_type = packed.(base) in
+    if control_type = ct_ai_ then begin
+      let segnum = packed.(base + 1) in
+      let pat = packed.(base + 2) in  (* player_awareness_type *)
+      let sub_flags = packed.(base + 3) in
+      let seg_awareness = if segnum >= 0 && segnum <= highest_seg then new_awareness.(segnum) else 0 in
+      let new_pat = ref pat in
+      let new_time = ref (-1) in  (* -1 = no change *)
+      let new_sf = ref sub_flags in
+      if seg_awareness > pat then begin
+        new_pat := seg_awareness;
+        new_time := awareness_initial_time
+      end;
+      (* D2: clear CAMERA_AWAKE if awareness > (already updated) player_awareness_type.
+         Note: in C this is checked after the first update, so seg_awareness > new_pat
+         will always be false after we just set new_pat = seg_awareness. Port faithfully. *)
+      if is_d2 then begin
+        if seg_awareness > !new_pat then
+          new_sf := !new_sf land (lnot sub_flags_camera_awake_)
+      end;
+      (* Only emit update if something changed *)
+      if !new_pat <> pat || !new_time >= 0 || !new_sf <> sub_flags then
+        updates := !new_sf :: !new_time :: !new_pat :: i :: !updates
+    end
+  done;
+  (* Build output array from reversed list *)
+  let lst = List.rev !updates in
+  Array.of_list lst
+;;

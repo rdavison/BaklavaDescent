@@ -105,6 +105,7 @@ PORTED_FUNCTIONS = {
     "init_ai_frame": "ported",
     "pae_aux": "ported",
     "process_awareness_events": "ported",
+    "set_player_awareness_all": "ported",
     # Collision handlers
     "bump_one_object": "ported",
     "collide_robot_and_robot": "ported",

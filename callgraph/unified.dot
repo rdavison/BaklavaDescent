@@ -651,7 +651,7 @@ digraph callgraph {
   "set_highest_level" [label="set_highest_level\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "set_next_fire_time" [label="set_next_fire_time\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
   "set_object_turnroll" [label="set_object_turnroll\n(physics)", color=green, style=filled, fillcolor="honeydew"];
-  "set_player_awareness_all" [label="set_player_awareness_all\n(ai)", color=gray50, style=solid, fillcolor="white"];
+  "set_player_awareness_all" [label="set_player_awareness_all\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "set_popup_screen" [label="set_popup_screen\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "set_pos_from_return_segment" [label="set_pos_from_return_segment\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "set_robot_location_info" [label="set_robot_location_info\n(object)", color=green, style=filled, fillcolor="honeydew"];

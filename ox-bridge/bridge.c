@@ -174,6 +174,7 @@ static const value* g_add_awareness_event = NULL;
 static const value* g_create_awareness_event = NULL;
 static const value* g_init_ai_frame = NULL;
 static const value* g_process_awareness_events = NULL;
+static const value* g_set_player_awareness_all = NULL;
 static const value* g_compute_object_light = NULL;
 static const value* g_lighting_cache_visible = NULL;
 static const value* g_do_physics_drag = NULL;
@@ -762,6 +763,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_create_awareness_event = caml_named_value("cd_create_awareness_event");
     g_init_ai_frame = caml_named_value("cd_init_ai_frame");
     g_process_awareness_events = caml_named_value("cd_process_awareness_events");
+    g_set_player_awareness_all = caml_named_value("cd_set_player_awareness_all");
     g_compute_object_light = caml_named_value("cd_compute_object_light");
     g_lighting_cache_visible = caml_named_value("cd_lighting_cache_visible");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
@@ -972,6 +974,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_create_awareness_event
         || !g_init_ai_frame
         || !g_process_awareness_events
+        || !g_set_player_awareness_all
         || !g_compute_object_light
         || !g_do_physics_drag
         || !g_do_homing_weapon_frame
@@ -6972,6 +6975,61 @@ void cd_ox_process_awareness_events(
     int n = highest_segment_index + 1;
     for (int i = 0; i < n; i++)
         new_awareness_out[i] = (int8_t)Long_val(Field(result, i));
+
+    CAMLreturn0;
+}
+
+/* set_player_awareness_all: packs data, calls OCaml, writes back updates.
+   OCaml runs process_awareness_events + object awareness loop. */
+void cd_ox_set_player_awareness_all(
+    int num_events, int highest_segment_index, int is_d2, int game_mode,
+    int highest_object_index, int player_awareness_initial_time,
+    const int* event_segnums, const int* event_types,
+    const int* obj_control_types, const int* obj_segnums,
+    const int* obj_awareness_types, const int* obj_sub_flags,
+    int* out_awareness_types, int* out_awareness_times, int* out_sub_flags)
+{
+    cd_ox_require_ready("cd_ox_set_player_awareness_all");
+    CAMLparam0();
+    CAMLlocal2(v_packed, result);
+
+    int num_objs = highest_object_index + 1;
+    int packed_len = 6 + 2 * num_events + 4 * num_objs;
+    v_packed = caml_alloc(packed_len, 0);
+    Store_field(v_packed, 0, Val_long(num_events));
+    Store_field(v_packed, 1, Val_long(highest_segment_index));
+    Store_field(v_packed, 2, Val_long(is_d2));
+    Store_field(v_packed, 3, Val_long(game_mode));
+    Store_field(v_packed, 4, Val_long(highest_object_index));
+    Store_field(v_packed, 5, Val_long(player_awareness_initial_time));
+    for (int i = 0; i < num_events; i++) {
+        Store_field(v_packed, 6 + 2 * i, Val_long(event_segnums[i]));
+        Store_field(v_packed, 6 + 2 * i + 1, Val_long(event_types[i]));
+    }
+    int obj_base = 6 + 2 * num_events;
+    for (int i = 0; i < num_objs; i++) {
+        Store_field(v_packed, obj_base + 4 * i,     Val_long(obj_control_types[i]));
+        Store_field(v_packed, obj_base + 4 * i + 1, Val_long(obj_segnums[i]));
+        Store_field(v_packed, obj_base + 4 * i + 2, Val_long(obj_awareness_types[i]));
+        Store_field(v_packed, obj_base + 4 * i + 3, Val_long(obj_sub_flags[i]));
+    }
+
+    result = caml_callback(*g_set_player_awareness_all, v_packed);
+
+    /* result is groups of 4: [objnum, awareness_type, awareness_time, sub_flags] */
+    int n = Wosize_val(result);
+    for (int j = 0; j + 3 < n; j += 4) {
+        int objnum = Long_val(Field(result, j));
+        if (objnum >= 0 && objnum < num_objs) {
+            int new_pat = Long_val(Field(result, j + 1));
+            int new_time = Long_val(Field(result, j + 2));
+            int new_sf = Long_val(Field(result, j + 3));
+            out_awareness_types[objnum] = new_pat;
+            if (new_time >= 0)
+                out_awareness_times[objnum] = new_time;
+            out_sub_flags[objnum] = new_sf;
+        }
+    }
 
     CAMLreturn0;
 }

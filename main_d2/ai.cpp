@@ -2121,6 +2121,46 @@ void process_awareness_events(void)
 // ----------------------------------------------------------------------------------
 void set_player_awareness_all(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int event_segnums[MAX_AWARENESS_EVENTS];
+		int event_types[MAX_AWARENESS_EVENTS];
+		for (int i = 0; i < Num_awareness_events; i++) {
+			event_segnums[i] = Awareness_events[i].segnum;
+			event_types[i] = Awareness_events[i].type;
+		}
+		int num_objs = Highest_object_index + 1;
+		int obj_control_types[MAX_OBJECTS];
+		int obj_segnums[MAX_OBJECTS];
+		int obj_awareness_types[MAX_OBJECTS];
+		int obj_sub_flags[MAX_OBJECTS];
+		int out_awareness_times[MAX_OBJECTS];
+		for (int i = 0; i < num_objs; i++) {
+			obj_control_types[i] = Objects[i].control_type;
+			obj_segnums[i] = Objects[i].segnum;
+			obj_awareness_types[i] = Ai_local_info[i].player_awareness_type;
+			obj_sub_flags[i] = Objects[i].ctype.ai_info.SUB_FLAGS;
+			out_awareness_times[i] = -1; /* -1 = no change */
+		}
+		cd_ox_set_player_awareness_all(
+			Num_awareness_events, Highest_segment_index, 1, Game_mode,
+			Highest_object_index, PLAYER_AWARENESS_INITIAL_TIME,
+			event_segnums, event_types,
+			obj_control_types, obj_segnums, obj_awareness_types, obj_sub_flags,
+			obj_awareness_types, out_awareness_times, obj_sub_flags);
+		/* Write back updates */
+		for (int i = 0; i < num_objs; i++) {
+			if (Objects[i].control_type == CT_AI) {
+				Ai_local_info[i].player_awareness_type = obj_awareness_types[i];
+				if (out_awareness_times[i] >= 0)
+					Ai_local_info[i].player_awareness_time = out_awareness_times[i];
+				Objects[i].ctype.ai_info.SUB_FLAGS = obj_sub_flags[i];
+			}
+		}
+		Num_awareness_events = 0;
+		return;
+	}
+#endif
 	int	i;
 
 	process_awareness_events();
