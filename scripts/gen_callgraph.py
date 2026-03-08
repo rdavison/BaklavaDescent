@@ -103,6 +103,8 @@ PORTED_FUNCTIONS = {
     "init_ai_for_ship": "ported",
     "init_robots_for_level": "ported",
     "init_ai_frame": "ported",
+    "pae_aux": "ported",
+    "process_awareness_events": "ported",
     # Collision handlers
     "bump_one_object": "ported",
     "collide_robot_and_robot": "ported",

@@ -2088,6 +2088,23 @@ void pae_aux(int segnum, int type, int level)
 // ----------------------------------------------------------------------------------
 void process_awareness_events(void)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		int event_segnums[MAX_AWARENESS_EVENTS];
+		int event_types[MAX_AWARENESS_EVENTS];
+		for (int i = 0; i < Num_awareness_events; i++) {
+			event_segnums[i] = Awareness_events[i].segnum;
+			event_types[i] = Awareness_events[i].type;
+		}
+		memset(New_awareness, 0, sizeof(New_awareness[0]) * (Highest_segment_index + 1));
+		cd_ox_process_awareness_events(
+			Num_awareness_events, Highest_segment_index, 1, Game_mode,
+			event_segnums, event_types,
+			New_awareness);
+		Num_awareness_events = 0;
+		return;
+	}
+#endif
 	int	i;
 
 	if (!(Game_mode & GM_MULTI) || (Game_mode & GM_MULTI_ROBOTS)) {

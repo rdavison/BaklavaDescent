@@ -1577,6 +1577,12 @@ void cd_ox_init_ai_frame(
     int32_t afterburner_charge, int afterburner_state,
     int32_t* out_buf);
 
+/* process_awareness_events: propagate awareness through segment graph */
+void cd_ox_process_awareness_events(
+    int num_events, int highest_segment_index, int is_d2, int game_mode,
+    const int* event_segnums, const int* event_types,
+    int8_t* new_awareness_out);
+
 /* Object detach effects */
 typedef void (*cd_obj_detach_one_fn)(int objnum);
 typedef int (*cd_get_attached_obj_fn)(int objnum);

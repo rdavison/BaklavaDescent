@@ -571,7 +571,7 @@ digraph callgraph {
   "ox_replayer_active" [label="ox_replayer_active\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "ox_replayer_restore_initial_state" [label="ox_replayer_restore_initial_state\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "p_secret_level_destroyed" [label="p_secret_level_destroyed\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
-  "pae_aux" [label="pae_aux\n(ai)", color=gray50, style=solid, fillcolor="white"];
+  "pae_aux" [label="pae_aux\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "palette_restore" [label="palette_restore\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "palette_save" [label="palette_save\n(escort)", color=gray50, style=solid, fillcolor="white"];
   "phys_apply_force" [label="phys_apply_force\n(collide)", color=green, style=filled, fillcolor="honeydew"];
@@ -594,7 +594,7 @@ digraph callgraph {
   "powerup_basic" [label="powerup_basic\n(powerup)", color=gray50, style=solid, fillcolor="white"];
   "print_trigger_message" [label="print_trigger_message\n(switch)", color=gray50, style=solid, fillcolor="white"];
   "printf" [label="printf\n(physics)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
-  "process_awareness_events" [label="process_awareness_events\n(ai)", color=gray50, style=solid, fillcolor="white"];
+  "process_awareness_events" [label="process_awareness_events\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "process_super_mines_frame" [label="process_super_mines_frame\n(weapon)", color=green, style=filled, fillcolor="honeydew"];
   "qsort" [label="qsort\n(aipath)", color=gray50, style=solid, fillcolor="white"];
   "read_active_door" [label="read_active_door\n(wall)", color=gray50, style=solid, fillcolor="white"];

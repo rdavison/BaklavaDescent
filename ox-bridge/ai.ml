@@ -190,6 +190,34 @@ let cd_init_ai_frame (packed : int array) =
     }
 ;;
 
+(* process_awareness_events: packed array → int array (New_awareness),
+   needs Fetch_segment_data effect for segment children *)
+external fetch_segment_data_c
+  :  int
+  -> int array
+  = "cd_ox_fetch_segment_data"
+
+let cd_process_awareness_events (packed : int array) =
+  let highest_seg = packed.(1) in
+  Effect.Deep.match_with
+    (fun () -> Ox_ai.process_awareness_events packed)
+    ()
+    { retc = (fun x -> x)
+    ; exnc = (fun exn ->
+        Printf.eprintf "OX: process_awareness_events exception: %s\n" (Core.Exn.to_string exn);
+        Out_channel.flush stderr;
+        Array.create ~len:(highest_seg + 1) 0)
+    ; effc = (fun (type a) (eff : a Effect.t) : ((a, _) Effect.Deep.continuation -> _) option ->
+        match eff with
+        | Ox_gameseg.Fetch_segment_data segnum ->
+          Some (fun k -> Effect.Deep.continue k (fetch_segment_data_c segnum))
+        | (eff : a Effect.t) -> (
+          match Misc.effc eff with
+          | Some h -> Some h
+          | None -> None))
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_set_next_fire_time_d1" cd_set_next_fire_time_d1;
   Callback.register "cd_set_next_fire_time_d2" cd_set_next_fire_time_d2;
@@ -205,5 +233,6 @@ let register_callbacks () =
   Callback.register "cd_init_ai_object_d2" cd_init_ai_object_d2;
   Callback.register "cd_add_awareness_event" cd_add_awareness_event;
   Callback.register "cd_create_awareness_event" cd_create_awareness_event;
-  Callback.register "cd_init_ai_frame" cd_init_ai_frame
+  Callback.register "cd_init_ai_frame" cd_init_ai_frame;
+  Callback.register "cd_process_awareness_events" cd_process_awareness_events
 ;;

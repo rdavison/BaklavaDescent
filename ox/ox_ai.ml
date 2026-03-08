@@ -741,3 +741,85 @@ let teleport_boss ~num_boss_teleport_segs ~highest_segment_index
   [| rand_segnum; pos_x; pos_y; pos_z;
      o_rx; o_ry; o_rz; o_ux; o_uy; o_uz; o_fx; o_fy; o_fz |]
 ;;
+
+(* ── process_awareness_events ─────────────────────────────── *)
+(* Propagates awareness events through the segment graph.
+   Called once per frame from set_player_awareness_all.
+
+   Input packed array:
+     [0] num_awareness_events
+     [1] highest_segment_index
+     [2] is_d2
+     [3] game_mode
+     [4 + 2*i] = event segnum, [4 + 2*i + 1] = event type  (for i in 0..num-1)
+
+   Output: int array of size (highest_segment_index + 1) = New_awareness values.
+
+   Uses Fetch_segment_data effect to get segment children on demand. *)
+
+let gm_multi_ = 38
+let gm_multi_robots_ = 8
+
+let process_awareness_events (packed : int array) =
+  let num_events = packed.(0) in
+  let highest_seg = packed.(1) in
+  let is_d2 = packed.(2) <> 0 in
+  let game_mode = packed.(3) in
+  let new_awareness = Array.create ~len:(highest_seg + 1) 0 in
+  (* pae_aux: recursively propagate awareness through segment children.
+     D1: level check is <= 4
+     D2: level check is <= 3 *)
+  let rec pae_aux segnum atype level =
+    if segnum < 0 || segnum > highest_seg then ()
+    else begin
+      if new_awareness.(segnum) < atype then
+        new_awareness.(segnum) <- atype;
+      (* D1: if level <= 4, process children
+         D2: always process children, but level <= 3 check inside *)
+      if is_d2 then begin
+        (* D2: iterate sides, check child, check level <= 3 *)
+        let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+        for j = 0 to 5 do
+          let child = seg_data.(j) in
+          if child >= 0 then
+            if level <= 3 then begin
+              if atype = 4 then
+                pae_aux child (atype - 1) (level + 1)
+              else
+                pae_aux child atype (level + 1)
+            end
+        done
+      end else begin
+        (* D1: if level <= 4, process children *)
+        if level <= 4 then begin
+          let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+          for j = 0 to 5 do
+            let child = seg_data.(j) in
+            if child >= 0 then begin
+              if atype = 4 then
+                pae_aux child (atype - 1) (level + 1)
+              else
+                pae_aux child atype (level + 1)
+            end
+          done
+        end
+      end
+    end
+  in
+  (* D2: only run if not in multiplayer-without-robots *)
+  let dominated_by_mp =
+    if is_d2 then
+      game_mode land gm_multi_ <> 0 && game_mode land gm_multi_robots_ = 0
+    else
+      false
+  in
+  if not dominated_by_mp then begin
+    for i = 0 to num_events - 1 do
+      let ev_segnum = packed.(4 + 2 * i) in
+      let ev_type = packed.(4 + 2 * i + 1) in
+      pae_aux ev_segnum ev_type 1
+    done
+  end;
+  (* Num_awareness_events = 0 is handled by the C caller *)
+  new_awareness
+;;
