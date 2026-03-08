@@ -265,6 +265,7 @@ static const value* g_is_door_free = NULL;
 static const value* g_wall_illusion_off = NULL;
 static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
+static const value* g_do_il_off = NULL;
 static const value* g_start_wall_cloak = NULL;
 static const value* g_start_wall_decloak = NULL;
 static const value* g_fuelcen_create = NULL;
@@ -756,6 +757,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_wall_illusion_off = caml_named_value("cd_wall_illusion_off");
     g_wall_illusion_on = caml_named_value("cd_wall_illusion_on");
     g_do_il_on = caml_named_value("cd_do_il_on");
+    g_do_il_off = caml_named_value("cd_do_il_off");
     g_start_wall_cloak = caml_named_value("cd_start_wall_cloak");
     g_start_wall_decloak = caml_named_value("cd_start_wall_decloak");
     g_do_physics_sim_d1 = caml_named_value("cd_do_physics_sim_d1");
@@ -970,6 +972,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_wall_illusion_off
         || !g_wall_illusion_on
         || !g_do_il_on
+        || !g_do_il_off
         || !g_start_wall_cloak
         || !g_start_wall_decloak
         || !g_do_physics_sim_d1
@@ -6237,6 +6240,14 @@ void cd_ox_do_il_on(int trigger_num)
     cd_ox_require_ready("cd_ox_do_il_on");
     CAMLparam0();
     caml_callback(*g_do_il_on, Val_long(trigger_num));
+    CAMLreturn0;
+}
+
+void cd_ox_do_il_off(int trigger_num, int is_d2)
+{
+    cd_ox_require_ready("cd_ox_do_il_off");
+    CAMLparam0();
+    caml_callback2(*g_do_il_off, Val_long(trigger_num), Val_long(is_d2));
     CAMLreturn0;
 }
 

@@ -148,13 +148,34 @@ void do_il_on(int8_t trigger_num)
 
 void do_il_off(int8_t trigger_num)
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int seg_side_reg = 0;
+		if (!seg_side_reg) {
+			seg_side_reg = 1;
+			cd_ox_register_switch_seg_side_effect(
+				/* fetch_trigger_seg_sides */
+				[](int tnum, int32_t* out, int* out_len) {
+					int n = Triggers[tnum].num_links;
+					out[0] = n;
+					for (int j = 0; j < n; j++) {
+						out[1 + j * 2] = Triggers[tnum].seg[j];
+						out[1 + j * 2 + 1] = Triggers[tnum].side[j];
+					}
+					*out_len = 1 + n * 2;
+				});
+		}
+		cd_ox_do_il_off(trigger_num, 0);
+		return;
+	}
+#endif
 	int i;
 
 	mprintf((0, "Illusion OFF\n"));
 
-	if (trigger_num != -1) 
+	if (trigger_num != -1)
 	{
-		for (i = 0; i < Triggers[trigger_num].num_links; i++) 
+		for (i = 0; i < Triggers[trigger_num].num_links; i++)
 		{
 			wall_illusion_off(&Segments[Triggers[trigger_num].seg[i]], Triggers[trigger_num].side[i]);
 			mprintf((0, " trigger_num %d : seg %d, side %d\n",

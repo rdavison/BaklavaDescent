@@ -1439,6 +1439,8 @@ int cd_ox_door_is_wall_switched(int wall_num);
 void cd_ox_flag_wall_switched_doors(void);
 /* do_il_on: Turn on illusion walls for all links of a trigger. */
 void cd_ox_do_il_on(int trigger_num);
+/* do_il_off: Turn off illusion walls for all links of a trigger. */
+void cd_ox_do_il_off(int trigger_num, int is_d2);
 
 /* Switch effect registration */
 typedef void (*cd_effect_sw_fetch_trigger_links_fn)(int trigger_num, int32_t* out, int* out_len);

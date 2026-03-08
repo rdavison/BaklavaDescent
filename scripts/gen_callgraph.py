@@ -240,6 +240,7 @@ PORTED_FUNCTIONS = {
     "door_is_wall_switched": "ported",
     "flag_wall_switched_doors": "ported",
     "do_il_on": "ported",
+    "do_il_off": "ported",
     "wall_illusion_off": "ported",
     "start_wall_cloak": "ported",
     "start_wall_decloak": "ported",

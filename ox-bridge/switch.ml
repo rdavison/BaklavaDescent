@@ -124,10 +124,26 @@ let cd_flag_wall_switched_doors () =
     }
 ;;
 
+(* Segment data fetch — reuse from gameseg bridge *)
+external fetch_segment_data_c
+  :  int
+  -> int array
+  = "cd_ox_fetch_segment_data"
+
 let combined_effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match effc eff with
   | Some _ as s -> s
-  | None -> Wall.effc eff
+  | None ->
+    match Wall.effc eff with
+    | Some _ as s -> s
+    | None ->
+      match Fireball.effc eff with
+      | Some _ as s -> s
+      | None ->
+        match eff with
+        | Ox_gameseg.Fetch_segment_data segnum ->
+          Some (fun k -> Effect.Deep.continue k (fetch_segment_data_c segnum))
+        | _ -> None
 ;;
 
 let cd_do_il_on trigger_num =
@@ -142,10 +158,23 @@ let cd_do_il_on trigger_num =
     }
 ;;
 
+let cd_do_il_off trigger_num is_d2 =
+  Effect.Deep.match_with
+    (fun () -> Ox_switch.do_il_off ~trigger_num ~is_d2:(is_d2 <> 0))
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] do_il_off exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> combined_effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_do_lock_doors" cd_do_lock_doors;
   Callback.register "cd_do_unlock_doors" cd_do_unlock_doors;
   Callback.register "cd_door_is_wall_switched" cd_door_is_wall_switched;
   Callback.register "cd_flag_wall_switched_doors" cd_flag_wall_switched_doors;
-  Callback.register "cd_do_il_on" cd_do_il_on
+  Callback.register "cd_do_il_on" cd_do_il_on;
+  Callback.register "cd_do_il_off" cd_do_il_off
 ;;

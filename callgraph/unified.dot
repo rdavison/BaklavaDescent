@@ -279,7 +279,7 @@ digraph callgraph {
   "do_final_boss_frame" [label="do_final_boss_frame\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "do_final_boss_hacks" [label="do_final_boss_hacks\n(collide)", color=orange, style=filled, fillcolor="lightyellow"];
   "do_firing_stuff" [label="do_firing_stuff\n(ai)", color=green, style=filled, fillcolor="honeydew"];
-  "do_il_off" [label="do_il_off\n(switch)", color=gray50, style=solid, fillcolor="white"];
+  "do_il_off" [label="do_il_off\n(switch)", color=green, style=filled, fillcolor="honeydew"];
   "do_il_on" [label="do_il_on\n(switch)", color=green, style=filled, fillcolor="honeydew"];
   "do_laser_firing" [label="do_laser_firing\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "do_laser_firing_player" [label="do_laser_firing_player\n(laser)", color=gray50, style=solid, fillcolor="white"];

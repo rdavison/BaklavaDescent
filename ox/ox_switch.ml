@@ -88,3 +88,36 @@ let do_il_on ~trigger_num =
       Ox_wall.wall_illusion_on ~segnum ~side
     done
   end
+
+(* do_il_off: Turn off illusion walls for all links of a trigger.
+   D2 version also plays SOUND_WALL_REMOVED at the center of each side.
+   D1 version just calls wall_illusion_off with no sound.
+   Ported from main_d2/switch.cpp and main_d1/switch.cpp. *)
+let sound_wall_removed = 246
+let f1_0 = 0x10000
+
+let do_il_off ~trigger_num ~is_d2 =
+  if trigger_num <> -1 then begin
+    let data = Effect.perform (Fetch_trigger_seg_sides trigger_num) in
+    let num_links = data.(0) in
+    for i = 0 to num_links - 1 do
+      let segnum = data.(1 + i * 2) in
+      let side = data.(1 + i * 2 + 1) in
+      Ox_wall.wall_illusion_off ~segnum ~side;
+      if is_d2 then begin
+        (* Compute center point on side for sound positioning *)
+        let seg_data = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+        let sv = Ox_gameseg.side_to_verts.(side) in
+        let v idx =
+          seg_data.(56 + idx * 3), seg_data.(56 + idx * 3 + 1), seg_data.(56 + idx * 3 + 2)
+        in
+        let px, py, pz =
+          Ox_gameseg.compute_center_point_on_side
+            ~v0:(v sv.(0)) ~v1:(v sv.(1)) ~v2:(v sv.(2)) ~v3:(v sv.(3))
+        in
+        Effect.perform
+          (Ox_fireball.Digi_link_sound_to_pos
+             (sound_wall_removed, segnum, side, px, py, pz, 0, f1_0))
+      end
+    done
+  end
