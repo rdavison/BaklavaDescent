@@ -461,7 +461,7 @@ digraph callgraph {
   "kill_stuck_objects" [label="kill_stuck_objects\n(switch)", color=green, style=filled, fillcolor="honeydew"];
   "laser_are_related" [label="laser_are_related\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "lead_player" [label="lead_player\n(ai2)", color=green, style=filled, fillcolor="honeydew"];
-  "lighting_cache_visible" [label="lighting_cache_visible\n(lighting)", color=gray50, style=solid, fillcolor="white"];
+  "lighting_cache_visible" [label="lighting_cache_visible\n(lighting)", color=green, style=filled, fillcolor="honeydew"];
   "lightning_frame" [label="lightning_frame\n(laser)", color=gray50, style=solid, fillcolor="white"];
   "list_seg_objects" [label="list_seg_objects\n(object)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "llvm.abs.i32" [label="llvm.abs.i32\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];

@@ -174,6 +174,7 @@ static const value* g_add_awareness_event = NULL;
 static const value* g_create_awareness_event = NULL;
 static const value* g_init_ai_frame = NULL;
 static const value* g_compute_object_light = NULL;
+static const value* g_lighting_cache_visible = NULL;
 static const value* g_do_physics_drag = NULL;
 static const value* g_do_homing_weapon_frame = NULL;
 static const value* g_player_has_weapon_d1 = NULL;
@@ -753,6 +754,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_create_awareness_event = caml_named_value("cd_create_awareness_event");
     g_init_ai_frame = caml_named_value("cd_init_ai_frame");
     g_compute_object_light = caml_named_value("cd_compute_object_light");
+    g_lighting_cache_visible = caml_named_value("cd_lighting_cache_visible");
     g_do_physics_drag = caml_named_value("cd_do_physics_drag");
     g_do_homing_weapon_frame = caml_named_value("cd_do_homing_weapon_frame");
     g_player_has_weapon_d1 = caml_named_value("cd_player_has_weapon_d1");
@@ -3756,6 +3758,22 @@ void cd_ox_compute_object_light(
         Store_field(arr, i, Val_long(packed[i]));
     const value result = caml_callback(*g_compute_object_light, arr);
     for (int i = 0; i < 2; i++)
+        out_buf[i] = Int_val(Field(result, i));
+    CAMLreturn0;
+}
+
+void cd_ox_lighting_cache_visible(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf)
+{
+    cd_ox_require_ready("cd_ox_lighting_cache_visible");
+    CAMLparam0();
+    CAMLlocal1(arr);
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    const value result = caml_callback(*g_lighting_cache_visible, arr);
+    for (int i = 0; i < 3; i++)
         out_buf[i] = Int_val(Field(result, i));
     CAMLreturn0;
 }

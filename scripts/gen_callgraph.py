@@ -165,6 +165,7 @@ PORTED_FUNCTIONS = {
     "cast_light": "ported",
     "compute_headlight_light": "ported",
     "compute_object_light": "ported",
+    "lighting_cache_visible": "ported",
     # Robot state
     "robot_get_anim_state": "ported",
     "robot_set_angles": "ported",

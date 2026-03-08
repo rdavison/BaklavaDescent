@@ -55,6 +55,36 @@ int Cache_hits = 0, Cache_lookups = 1;
 //	If some amount of time has gone by, then recompute, else use cached value.
 int lighting_cache_visible(int vertnum, int segnum, int objnum, vms_vector* obj_pos, int obj_seg, vms_vector* vertpos)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int cache_index = ((segnum << LIGHTING_CACHE_SHIFT) ^ vertnum) & (LIGHTING_CACHE_SIZE - 1);
+		int32_t packed[13];
+		packed[0] = vertnum;
+		packed[1] = segnum;
+		packed[2] = objnum;
+		packed[3] = obj_pos->x;
+		packed[4] = obj_pos->y;
+		packed[5] = obj_pos->z;
+		packed[6] = obj_seg;
+		packed[7] = vertpos->x;
+		packed[8] = vertpos->y;
+		packed[9] = vertpos->z;
+		packed[10] = FrameCount;
+		packed[11] = Lighting_frame_delta;
+		packed[12] = Lighting_cache[cache_index];
+		int32_t out[3];
+		cd_ox_lighting_cache_visible(packed, 13, out);
+		int apply_light = out[0];
+		int new_cache_val = out[1];
+		int cache_hit = out[2];
+		Cache_lookups++;
+		if (cache_hit)
+			Cache_hits++;
+		if (new_cache_val != -1)
+			Lighting_cache[cache_index] = new_cache_val;
+		return apply_light;
+	}
+#endif
 	int	cache_val, cache_frame, cache_vis;
 
 	cache_val = Lighting_cache[((segnum << LIGHTING_CACHE_SHIFT) ^ vertnum) & (LIGHTING_CACHE_SIZE - 1)];

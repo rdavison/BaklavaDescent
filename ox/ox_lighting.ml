@@ -107,6 +107,91 @@ let compute_headlight_light_d2
    Returns array (2 ints):
      0: final_light
      1: new_object_light   — updated cache value *)
+(* lighting_cache_visible — D2 only.
+   Determines if a vertex is visible from a light source, using a frame-based cache.
+   Packed input (13 ints):
+     0: vertnum         — vertex index
+     1: segnum          — segment containing the vertex
+     2: objnum          — object (light source) number
+     3: obj_pos_x       — light source position x
+     4: obj_pos_y       — light source position y
+     5: obj_pos_z       — light source position z
+     6: obj_seg         — segment containing the light source
+     7: vertpos_x       — vertex position x
+     8: vertpos_y       — vertex position y
+     9: vertpos_z       — vertex position z
+    10: frame_count     — current FrameCount
+    11: lighting_frame_delta — recompute interval
+    12: cache_val       — current Lighting_cache entry for this (segnum,vertnum)
+   Returns array (3 ints):
+     0: apply_light     — 1 if visible, 0 if not
+     1: new_cache_val   — new cache value to write back (-1 if cache hit, no write needed)
+     2: cache_hit       — 1 if cache hit (for Cache_hits counter) *)
+
+let lighting_cache_size = 4096
+let lighting_cache_shift = 8
+let fq_transwall = 2
+let hit_none = 0
+let hit_wall = 1
+let hit_object = 2
+
+let lighting_cache_visible (packed : int array) =
+  let vertnum = packed.(0) in
+  let segnum = packed.(1) in
+  let objnum = packed.(2) in
+  let obj_pos_x = packed.(3) in
+  let obj_pos_y = packed.(4) in
+  let obj_pos_z = packed.(5) in
+  let obj_seg = packed.(6) in
+  let vertpos_x = packed.(7) in
+  let vertpos_y = packed.(8) in
+  let vertpos_z = packed.(9) in
+  let frame_count = packed.(10) in
+  let lighting_frame_delta = packed.(11) in
+  let cache_val = packed.(12) in
+  let cache_frame = cache_val asr 1 in
+  let cache_vis = cache_val land 1 in
+  (* Cache_lookups++ done on C side *)
+  if cache_frame <> 0 && cache_frame + lighting_frame_delta > frame_count
+  then (* Cache hit *)
+    [| cache_vis; -1; 1 |]
+  else (
+    (* Cache miss — perform FVI ray cast *)
+    let fate, _hit_px, _hit_py, _hit_pz, _hit_seg, _hit_side, _hit_side_seg,
+        _hit_object, _wn_x, _wn_y, _wn_z, _n_segs, _seglist =
+      Effect.perform
+        (Ox_physics_sim.Find_vector_intersection
+           ( obj_pos_x, obj_pos_y, obj_pos_z
+           , vertpos_x, vertpos_y, vertpos_z
+           , 0 (* rad *)
+           , objnum (* thisobjnum *)
+           , [| -1 |] (* ignore_obj_list: NULL → terminated list *)
+           , fq_transwall (* flags *)
+           , obj_seg (* startseg *) ))
+    in
+    let apply_light =
+      if fate = hit_none then 1
+      else if fate = hit_wall then (
+        let dist_dist =
+          Ox_math.vm_vec_dist_quick
+            ~a:(_hit_px, _hit_py, _hit_pz)
+            ~b:(obj_pos_x, obj_pos_y, obj_pos_z)
+        in
+        if dist_dist < f1_0 / 4 then 1 else 0)
+      else (
+        (* hit_object: Int3() in C — shouldn't happen *)
+        if fate = hit_object then ignore (fate : int);
+        0)
+    in
+    let new_cache_val = apply_light + (frame_count lsl 1) in
+    (* Use segnum for cache index (matches C parameter, not the shadowed local) *)
+    ignore (segnum : int);
+    ignore (vertnum : int);
+    ignore (lighting_cache_size : int);
+    ignore (lighting_cache_shift : int);
+    [| apply_light; new_cache_val; 0 |])
+;;
+
 let compute_object_light (packed : int array) =
   let light_rate = 0x40000 in
   (* i2f(4) = 4 << 16 *)

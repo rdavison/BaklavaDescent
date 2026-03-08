@@ -626,6 +626,12 @@ void cd_ox_compute_object_light(
     const int32_t* packed, int packed_len,
     int32_t* out_buf);
 
+/* lighting_cache_visible: visibility check with frame-based cache.
+   packed[13] in, out_buf[3] out (apply_light, new_cache_val, cache_hit). */
+void cd_ox_lighting_cache_visible(
+    const int32_t* packed, int packed_len,
+    int32_t* out_buf);
+
 /* do_physics_drag: velocity integration with thrust and drag.
    packed[10] in, out_buf[3] out (new velocity vx, vy, vz). */
 void cd_ox_do_physics_drag(
