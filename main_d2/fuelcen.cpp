@@ -45,6 +45,10 @@ COPYRIGHT 1993-1999 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "multi.h"
 #include "multibot.h"
 
+#ifdef USE_OX_BRIDGE
+#include "ox-bridge/bridge.h"
+#endif
+
 // The max number of fuel stations per mine.
 
 fix Fuelcen_refill_speed = i2f(1);
@@ -112,7 +116,56 @@ void reset_all_robot_centers()
 // Turns a segment into a fully charged up fuel center...
 void fuelcen_create(segment* segp)
 {
-	segment2* seg2p = &Segment2s[segp - Segments];
+	int segnum = (int)(segp - Segments);
+
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_fuelcen_create_effects(
+				// fetch: [station_type, num_fuelcenters, max_fuelcens, fuelcen_max_amount,
+				//         is_d2, center_x, center_y, center_z]
+				[](int seg, int32_t* out) {
+					segment2* s2p = &Segment2s[seg];
+					vms_vector center;
+					compute_segment_center(&center, &Segments[seg]);
+					out[0] = s2p->special;
+					out[1] = Num_fuelcenters;
+					out[2] = MAX_NUM_FUELCENS;
+					out[3] = Fuelcen_max_amount;
+					out[4] = 1;  // is_d2
+					out[5] = center.x;
+					out[6] = center.y;
+					out[7] = center.z;
+				},
+				// write: [segnum, station_type, max_capacity, timer, flag,
+				//         center_x, center_y, center_z]
+				[](const int32_t* packed, int len) {
+					if (len < 8) return;
+					int seg = packed[0];
+					segment2* s2p = &Segment2s[seg];
+					s2p->value = Num_fuelcenters;
+					Station[Num_fuelcenters].Type = packed[1];
+					Station[Num_fuelcenters].MaxCapacity = packed[2];
+					Station[Num_fuelcenters].Capacity = packed[2];
+					Station[Num_fuelcenters].segnum = seg;
+					Station[Num_fuelcenters].Timer = packed[3];
+					Station[Num_fuelcenters].Flag = packed[4];
+					Station[Num_fuelcenters].Center.x = packed[5];
+					Station[Num_fuelcenters].Center.y = packed[6];
+					Station[Num_fuelcenters].Center.z = packed[7];
+					Num_fuelcenters++;
+				});
+			registered = true;
+		}
+		if (cd_ox_is_ready()) {
+			cd_ox_fuelcen_create(segnum);
+			return;
+		}
+	}
+#endif
+
+	segment2* seg2p = &Segment2s[segnum];
 
 	int	station_type;
 

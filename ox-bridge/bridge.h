@@ -1582,6 +1582,18 @@ void cd_ox_register_obj_allocate_effects(
 /* C entry point: calls OCaml obj_allocate, returns objnum or -1 */
 int cd_ox_obj_allocate(void);
 
+/* -- fuelcen_create ------------------------------------------------------ */
+
+/* C entry point: calls OCaml fuelcen_create */
+void cd_ox_fuelcen_create(int segnum);
+
+/* Fuelcen effect registration */
+typedef void (*cd_effect_fc_fetch_fuelcen_create_data_fn)(int segnum, int32_t* out);
+typedef void (*cd_effect_fc_write_fuelcen_create_fn)(const int32_t* packed, int len);
+void cd_ox_register_fuelcen_create_effects(
+    cd_effect_fc_fetch_fuelcen_create_data_fn fetch_data,
+    cd_effect_fc_write_fuelcen_create_fn write_data);
+
 #ifdef __cplusplus
 }
 #endif

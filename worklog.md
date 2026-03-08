@@ -2463,3 +2463,8 @@ Reorganized the project to make the boundary between pure OCaml game logic and p
   - `ox/ox_misc.ml`, `ox-bridge/misc.ml` — misc utilities
   - `ox/ox_gen_ai_frame_d1.ml`, `ox/ox_gen_ai_frame_d2.ml` — generated AI frame helpers
 - **Note:** Iterations 35-43 failed silently due to missing `--verbose` flag — no functions ported in those iterations.
+
+### Ralph Loop Iteration 81 (2026-03-07)
+- **Ported:** unknown
+- **Status:**   Total: 775  Ported: 161  Intrinsic: 65  Effect: 59  Frontier: 0  Other: 490
+- **Log:** ralph_logs/claude_081.log

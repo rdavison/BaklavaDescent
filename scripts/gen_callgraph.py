@@ -263,6 +263,8 @@ PORTED_FUNCTIONS = {
     "update_points": "ported",
     # Object allocation
     "obj_allocate": "ported",
+    # Fuelcen
+    "fuelcen_create": "ported",
 }
 
 # Functions that intentionally remain as C effects.

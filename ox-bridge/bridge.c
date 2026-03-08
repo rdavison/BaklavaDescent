@@ -261,6 +261,13 @@ static const value* g_kill_stuck_objects = NULL;
 static const value* g_wall_illusion_off = NULL;
 static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
+static const value* g_fuelcen_create = NULL;
+
+/* Fuelcen effect function pointers */
+typedef void (*cd_effect_fc_fetch_fuelcen_create_data_fn)(int segnum, int32_t* out);
+typedef void (*cd_effect_fc_write_fuelcen_create_fn)(const int32_t* packed, int len);
+static cd_effect_fc_fetch_fuelcen_create_data_fn g_effect_fc_fetch_fuelcen_create_data = NULL;
+static cd_effect_fc_write_fuelcen_create_fn g_effect_fc_write_fuelcen_create = NULL;
 
 /* Switch effect function pointers */
 static cd_effect_sw_fetch_trigger_links_fn g_effect_sw_fetch_trigger_links = NULL;
@@ -732,6 +739,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_find_point_seg = caml_named_value("cd_find_point_seg");
     g_find_connected_distance = caml_named_value("cd_find_connected_distance");
 
+    g_fuelcen_create = caml_named_value("cd_fuelcen_create");
     g_find_min_max = caml_named_value("cd_find_min_max");
     g_update_points = caml_named_value("cd_update_points");
     g_wake_up_rendered_objects = caml_named_value("cd_wake_up_rendered_objects");
@@ -907,7 +915,8 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_do_il_on
         || !g_do_physics_sim_d1
         || !g_do_physics_sim_d2
-        || !g_find_min_max)
+        || !g_find_min_max
+        || !g_fuelcen_create)
     {
         return 1;
     }
@@ -6854,4 +6863,61 @@ int cd_ox_obj_allocate(void)
 
     value v_result = caml_callback(*g_obj_allocate, Val_unit);
     return Int_val(v_result);
+}
+
+/* -- Fuelcen: fuelcen_create -------------------------------------------- */
+
+void cd_ox_register_fuelcen_create_effects(
+    cd_effect_fc_fetch_fuelcen_create_data_fn fetch_data,
+    cd_effect_fc_write_fuelcen_create_fn write_data)
+{
+    g_effect_fc_fetch_fuelcen_create_data = fetch_data;
+    g_effect_fc_write_fuelcen_create = write_data;
+}
+
+/* OCaml external: fetch fuelcen_create data from C globals
+   Returns [station_type, num_fuelcenters, max_fuelcens, fuelcen_max_amount,
+            is_d2, center_x, center_y, center_z] */
+CAMLprim value cd_ox_effect_fc_fetch_fuelcen_create_data(value v_segnum)
+{
+    CAMLparam1(v_segnum);
+    CAMLlocal1(v_result);
+
+    int segnum = Long_val(v_segnum);
+    int32_t out[8];
+    memset(out, 0, sizeof(out));
+    if (g_effect_fc_fetch_fuelcen_create_data)
+        g_effect_fc_fetch_fuelcen_create_data(segnum, out);
+
+    v_result = caml_alloc(8, 0);
+    for (int i = 0; i < 8; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+    CAMLreturn(v_result);
+}
+
+/* OCaml external: write fuelcen_create result back to C globals */
+CAMLprim value cd_ox_effect_fc_write_fuelcen_create(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_fc_write_fuelcen_create) {
+        int len = Wosize_val(v_packed);
+        int32_t buf[8];
+        if (len > 8) len = 8;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_fc_write_fuelcen_create(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_fuelcen_create: C entry point that calls into OCaml */
+void cd_ox_fuelcen_create(int segnum)
+{
+    cd_ox_require_ready("cd_ox_fuelcen_create");
+    CAMLparam0();
+
+    caml_callback(*g_fuelcen_create, Val_long(segnum));
+
+    CAMLreturn0;
 }

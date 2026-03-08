@@ -17,5 +17,6 @@ let () =
   Switch.register_callbacks ();
   Wall.register_callbacks ();
   Obj_mgmt.register_callbacks ();
-  Morph.register_callbacks ()
+  Morph.register_callbacks ();
+  Fuelcen.register_callbacks ()
 ;;
