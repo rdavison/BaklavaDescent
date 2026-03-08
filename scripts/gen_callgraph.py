@@ -281,6 +281,7 @@ PORTED_FUNCTIONS = {
     "remove_incorrect_objects": "ported",
     # Wall - door blocking
     "check_poke": "ported",
+    "is_door_free": "ported",
 }
 
 # Functions that intentionally remain as C effects.

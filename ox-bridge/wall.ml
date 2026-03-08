@@ -119,6 +119,19 @@ let cd_kill_stuck_objects wallnum =
     }
 ;;
 
+let cd_is_door_free segnum side =
+  Effect.Deep.match_with
+    (fun () -> if Ox_wall.is_door_free ~segnum ~side then 1 else 0)
+    ()
+    { retc = (fun r -> r)
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] is_door_free exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        1) (* default to free on exception *)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let cd_wall_illusion_off segnum side =
   Effect.Deep.match_with
     (fun () -> Ox_wall.wall_illusion_off ~segnum ~side)
@@ -146,6 +159,7 @@ let cd_wall_illusion_on segnum side =
 let register_callbacks () =
   Callback.register "cd_reset_walls" cd_reset_walls;
   Callback.register "cd_kill_stuck_objects" cd_kill_stuck_objects;
+  Callback.register "cd_is_door_free" cd_is_door_free;
   Callback.register "cd_wall_illusion_off" cd_wall_illusion_off;
   Callback.register "cd_wall_illusion_on" cd_wall_illusion_on
 ;;

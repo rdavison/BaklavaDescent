@@ -451,7 +451,7 @@ digraph callgraph {
   "int const& std::__1::min[abi:ne200100]<int, std::__1::__less<void, void>>" [label="int const& std::__1::min[abi:ne200100]<int, std::__1::__less<void, void>>\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "int const& std::__1::min[abi:ne200100]<int>" [label="int const& std::__1::min[abi:ne200100]<int>\n(ai2)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "invalidate_escort_goal" [label="invalidate_escort_goal\n(escort)", color=orange, style=filled, fillcolor="lightyellow"];
-  "is_door_free" [label="is_door_free\n(wall)", color=gray50, style=solid, fillcolor="white"];
+  "is_door_free" [label="is_door_free\n(wall)", color=green, style=filled, fillcolor="honeydew"];
   "is_object_in_seg" [label="is_object_in_seg\n(object)", color=dodgerblue, style=filled, fillcolor="aliceblue"];
   "johns_obj_unlink" [label="johns_obj_unlink\n(object)", color=orange, style=filled, fillcolor="lightyellow"];
   "kc_set_controls" [label="kc_set_controls\n(gameseq)", color=gray50, style=solid, fillcolor="white"];

@@ -125,6 +125,55 @@ let check_poke ~objnum ~segnum ~side =
   end
 ;;
 
+let obj_fireball = 1
+let obj_weapon = 5
+
+(* is_door_free: check if a doorway is unobstructed (no objects poking through).
+   Returns true if door is free to close, false if blocked.
+   Ported from wall.cpp is_door_free (identical in D1 and D2). *)
+let is_door_free ~segnum ~side =
+  (* Get segment children to find child segment *)
+  let seg_data = Effect.perform (Fetch_seg_children_and_wall_nums segnum) in
+  let child_segnum = seg_data.(side) in
+  (* Get cseg children for find_connect_side *)
+  let cseg_data = Effect.perform (Fetch_seg_children_and_wall_nums child_segnum) in
+  let cseg_children = Array.init 6 ~f:(fun i -> cseg_data.(i)) in
+  let connect_side = Ox_gameseg.find_connect_side ~children:cseg_children ~base_seg_num:segnum in
+  assert (connect_side <> -1);
+  (* Get objects head for both segments via Fetch_segment_data (index 86) *)
+  let seg_full = Effect.perform (Ox_gameseg.Fetch_segment_data segnum) in
+  let cseg_full = Effect.perform (Ox_gameseg.Fetch_segment_data child_segnum) in
+  let seg_objects_head = seg_full.(86) in
+  let cseg_objects_head = cseg_full.(86) in
+  (* Check objects in first segment *)
+  let blocked = ref false in
+  let objnum = ref seg_objects_head in
+  while !objnum <> -1 && not !blocked do
+    let obj_data = Effect.perform (Ox_fvi.Fetch_object_data !objnum) in
+    let obj_type = obj_data.(0) in
+    let obj_next = obj_data.(7) in
+    if obj_type <> obj_weapon && obj_type <> obj_fireball
+       && check_poke ~objnum:!objnum ~segnum ~side
+    then blocked := true;
+    objnum := obj_next
+  done;
+  if !blocked then false
+  else begin
+    (* Check objects in connected segment *)
+    let objnum2 = ref cseg_objects_head in
+    while !objnum2 <> -1 && not !blocked do
+      let obj_data = Effect.perform (Ox_fvi.Fetch_object_data !objnum2) in
+      let obj_type = obj_data.(0) in
+      let obj_next = obj_data.(7) in
+      if obj_type <> obj_weapon && obj_type <> obj_fireball
+         && check_poke ~objnum:!objnum2 ~segnum:child_segnum ~side:connect_side
+      then blocked := true;
+      objnum2 := obj_next
+    done;
+    not !blocked
+  end
+;;
+
 let wall_illusion_off_flag = 32
 
 (* wall_illusion_off: Turn off an illusionary wall.

@@ -1483,6 +1483,9 @@ void cd_ox_register_wall_kill_stuck_effects(
     cd_effect_wall_write_kill_stuck_objects_fn write_back,
     cd_effect_wall_flush_fcd_cache_fn flush_fcd);
 
+/* is_door_free: check if doorway is unobstructed */
+int cd_ox_is_door_free(int segnum, int side);
+
 /* wall_illusion_on / wall_illusion_off */
 void cd_ox_wall_illusion_on(int segnum, int side);
 void cd_ox_wall_illusion_off(int segnum, int side);

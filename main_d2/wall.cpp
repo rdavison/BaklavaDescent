@@ -687,6 +687,12 @@ int check_poke(int objnum, int segnum, int side)
 //returns true of door in unobjstructed (& thus can close)
 int is_door_free(segment* seg, int side)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		int segnum = seg - Segments;
+		return cd_ox_is_door_free(segnum, side);
+	}
+#endif
 	int Connectside;
 	segment* csegp;
 	int objnum;

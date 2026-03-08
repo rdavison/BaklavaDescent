@@ -261,6 +261,7 @@ static const value* g_door_is_wall_switched = NULL;
 static const value* g_flag_wall_switched_doors = NULL;
 static const value* g_reset_walls = NULL;
 static const value* g_kill_stuck_objects = NULL;
+static const value* g_is_door_free = NULL;
 static const value* g_wall_illusion_off = NULL;
 static const value* g_wall_illusion_on = NULL;
 static const value* g_do_il_on = NULL;
@@ -573,6 +574,7 @@ static void cd_ox_require_ready(const char* fn)
           && g_door_is_wall_switched
           && g_flag_wall_switched_doors
           && g_reset_walls
+          && g_is_door_free
           && g_wall_illusion_off
           && g_wall_illusion_on
           && g_do_physics_sim_d1
@@ -738,6 +740,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_flag_wall_switched_doors = caml_named_value("cd_flag_wall_switched_doors");
     g_reset_walls = caml_named_value("cd_reset_walls");
     g_kill_stuck_objects = caml_named_value("cd_kill_stuck_objects");
+    g_is_door_free = caml_named_value("cd_is_door_free");
     g_wall_illusion_off = caml_named_value("cd_wall_illusion_off");
     g_wall_illusion_on = caml_named_value("cd_wall_illusion_on");
     g_do_il_on = caml_named_value("cd_do_il_on");
@@ -946,6 +949,7 @@ int cd_ox_init_runtime(const char* executable_path)
         || !g_flag_wall_switched_doors
         || !g_reset_walls
         || !g_kill_stuck_objects
+        || !g_is_door_free
         || !g_wall_illusion_off
         || !g_wall_illusion_on
         || !g_do_il_on
@@ -6356,6 +6360,17 @@ CAMLprim value cd_ox_effect_wall_clear_flags(value v_wall_num, value v_flags)
     if (g_effect_wall_clear_flags)
         g_effect_wall_clear_flags(Int_val(v_wall_num), Int_val(v_flags));
     return Val_unit;
+}
+
+/* C entry point for is_door_free */
+int cd_ox_is_door_free(int segnum, int side)
+{
+    cd_ox_require_ready("cd_ox_is_door_free");
+    CAMLparam0();
+    CAMLlocal1(result);
+    result = caml_callback2(*g_is_door_free, Val_int(segnum), Val_int(side));
+    int ret = Int_val(result);
+    CAMLreturnT(int, ret);
 }
 
 /* C entry point for wall_illusion_off */
