@@ -35,6 +35,18 @@ let cd_find_min_max model_num submodel_num =
     [| 0; 0; 0; 0; 0; 0 |]
 ;;
 
+(* Bridge function: C calls this with packed morph data, OCaml computes init_points *)
+let cd_init_points (data : int array) : int array =
+  try
+    Ox_morph.init_points data
+  with exn ->
+    Printf.eprintf "[OX] init_points exception: %s\n" (Exn.to_string exn);
+    Out_channel.flush stderr;
+    (* Return zeroed output *)
+    let nverts = data.(4) in
+    Array.create ~len:(1 + nverts * 7) 0
+;;
+
 (* Bridge function: C calls this with packed morph data, OCaml computes update_points *)
 let cd_update_points (data : int array) : int array =
   try
@@ -59,5 +71,6 @@ let cd_update_points (data : int array) : int array =
 
 let register_callbacks () =
   Callback.register "cd_find_min_max" cd_find_min_max;
+  Callback.register "cd_init_points" cd_init_points;
   Callback.register "cd_update_points" cd_update_points
 ;;

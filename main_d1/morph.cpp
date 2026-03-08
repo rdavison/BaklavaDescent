@@ -126,10 +126,13 @@ void init_points(polymodel* pm, vms_vector* box_size, int submodel_num, morph_da
 
 #ifdef USE_OX_BRIDGE
 	if (cd_ox_is_ready()) {
-		int morph_slot = (int)(md - morph_objects);
-		int32_t nmp = md->n_morphing_points[submodel_num];
-		cd_ox_update_points(morph_slot, submodel_num,
-			FrameTime, nverts, i, &nmp,
+		int32_t nmp = 0;
+		cd_ox_init_points(nverts,
+			box_size ? 1 : 0,
+			box_size ? box_size->x : 0,
+			box_size ? box_size->y : 0,
+			box_size ? box_size->z : 0,
+			&nmp,
 			&md->morph_times[i],
 			(int32_t*)&md->morph_vecs[i],
 			(int32_t*)&md->morph_deltas[i],
@@ -139,7 +142,7 @@ void init_points(polymodel* pm, vms_vector* box_size, int submodel_num, morph_da
 	}
 #endif
 
-	while (nverts--) 
+	while (nverts--)
 	{
 		fix k, dist;
 

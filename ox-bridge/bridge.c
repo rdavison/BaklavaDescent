@@ -97,6 +97,7 @@ static cd_get_attached_obj_fn g_get_attached_obj = NULL;
 /* Morph effect function pointers (set via cd_ox_register_morph_effects) */
 static cd_effect_morph_fetch_submodel_vertices_fn g_effect_morph_fetch_submodel_vertices = NULL;
 static const value* g_find_min_max = NULL;
+static const value* g_init_points = NULL;
 static const value* g_update_points = NULL;
 
 /* wake_up_rendered_objects effect function pointers */
@@ -772,6 +773,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_fuelcen_activate = caml_named_value("cd_fuelcen_activate");
     g_explode_wall = caml_named_value("cd_explode_wall");
     g_find_min_max = caml_named_value("cd_find_min_max");
+    g_init_points = caml_named_value("cd_init_points");
     g_update_points = caml_named_value("cd_update_points");
     g_wake_up_rendered_objects = caml_named_value("cd_wake_up_rendered_objects");
 
@@ -6804,6 +6806,55 @@ void cd_ox_find_min_max(int model_num, int submodel_num,
     out_max[0] = Int_val(Field(v_result, 3));
     out_max[1] = Int_val(Field(v_result, 4));
     out_max[2] = Int_val(Field(v_result, 5));
+    CAMLreturn0;
+}
+
+/* C entry point: pack vertex data, call OCaml init_points, unpack results.
+   Input array: [has_box_size, box_x, box_y, box_z, nverts, vp[0].x,y,z, ...]
+   Output array: [n_morphing_points, times[0], vecs[0].x,y,z, deltas[0].x,y,z, ...] */
+void cd_ox_init_points(int nverts,
+    int has_box_size, int32_t box_x, int32_t box_y, int32_t box_z,
+    int32_t* n_morphing_points,
+    int32_t* morph_times,
+    int32_t* morph_vecs,
+    int32_t* morph_deltas,
+    int32_t* final_verts)
+{
+    cd_ox_require_ready("cd_ox_init_points");
+    if (!g_init_points) return;
+
+    CAMLparam0();
+    CAMLlocal2(v_input, v_result);
+
+    int arr_len = 5 + nverts * 3;
+    v_input = caml_alloc(arr_len, 0);
+    Store_field(v_input, 0, Val_long(has_box_size));
+    Store_field(v_input, 1, Val_long(box_x));
+    Store_field(v_input, 2, Val_long(box_y));
+    Store_field(v_input, 3, Val_long(box_z));
+    Store_field(v_input, 4, Val_long(nverts));
+
+    for (int v = 0; v < nverts; v++) {
+        int base = 5 + v * 3;
+        Store_field(v_input, base + 0, Val_long(final_verts[v * 3 + 0]));
+        Store_field(v_input, base + 1, Val_long(final_verts[v * 3 + 1]));
+        Store_field(v_input, base + 2, Val_long(final_verts[v * 3 + 2]));
+    }
+
+    v_result = caml_callback(*g_init_points, v_input);
+
+    *n_morphing_points = Long_val(Field(v_result, 0));
+    for (int v = 0; v < nverts; v++) {
+        int obase = 1 + v * 7;
+        morph_times[v] = Long_val(Field(v_result, obase + 0));
+        morph_vecs[v * 3 + 0] = Long_val(Field(v_result, obase + 1));
+        morph_vecs[v * 3 + 1] = Long_val(Field(v_result, obase + 2));
+        morph_vecs[v * 3 + 2] = Long_val(Field(v_result, obase + 3));
+        morph_deltas[v * 3 + 0] = Long_val(Field(v_result, obase + 4));
+        morph_deltas[v * 3 + 1] = Long_val(Field(v_result, obase + 5));
+        morph_deltas[v * 3 + 2] = Long_val(Field(v_result, obase + 6));
+    }
+
     CAMLreturn0;
 }
 

@@ -438,7 +438,7 @@ digraph callgraph {
   "init_player_stats_game" [label="init_player_stats_game\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "init_player_stats_level" [label="init_player_stats_level\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "init_player_stats_new_ship" [label="init_player_stats_new_ship\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
-  "init_points" [label="init_points\n(morph)", color=gray50, style=solid, fillcolor="white"];
+  "init_points" [label="init_points\n(morph)", color=green, style=filled, fillcolor="honeydew"];
   "init_robots_for_level" [label="init_robots_for_level\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "init_seismic_disturbances" [label="init_seismic_disturbances\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "init_smega_detonates" [label="init_smega_detonates\n(gameseq)", color=gray50, style=solid, fillcolor="white"];

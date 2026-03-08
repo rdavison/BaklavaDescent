@@ -1581,6 +1581,16 @@ void cd_ox_register_morph_effects(
 void cd_ox_find_min_max(int model_num, int submodel_num,
     int32_t* out_min, int32_t* out_max);
 
+/* init_points: initialize morph animation for one submodel.
+   Computes initial morph_vecs, morph_deltas, morph_times in OCaml. */
+void cd_ox_init_points(int nverts,
+    int has_box_size, int32_t box_x, int32_t box_y, int32_t box_z,
+    int32_t* n_morphing_points,
+    int32_t* morph_times,
+    int32_t* morph_vecs,     /* [nverts*3] x,y,z */
+    int32_t* morph_deltas,   /* [nverts*3] x,y,z */
+    int32_t* final_verts);   /* [nverts*3] x,y,z */
+
 /* update_points: advance morph animation for one submodel.
    Reads morph state from morph_data, computes in OCaml, writes back. */
 void cd_ox_update_points(int morph_slot, int submodel_num,

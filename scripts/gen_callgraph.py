@@ -263,6 +263,7 @@ PORTED_FUNCTIONS = {
     "SOrderList": "ported",
     # Morph
     "find_min_max": "ported",
+    "init_points": "ported",
     "update_points": "ported",
     # Object allocation
     "obj_allocate": "ported",

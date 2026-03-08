@@ -1,11 +1,11 @@
 {
   "summary": {
     "total_functions": 775,
-    "ported": 172,
+    "ported": 173,
     "intrinsic": 67,
     "effect": 59,
     "frontier": 0,
-    "unported": 477
+    "unported": 476
   },
   "functions": {
     "AdvanceLevel": {
@@ -6934,7 +6934,7 @@
       "transitive_dep_count": 6
     },
     "init_points": {
-      "status": "unported",
+      "status": "ported",
       "file": "main_d2_morph",
       "callers": [
         "do_morph_frame",
@@ -11593,25 +11593,6 @@
       ]
     },
     {
-      "function": "init_points",
-      "file": "morph",
-      "unported_dep_count": 0,
-      "total_dep_count": 7,
-      "callers": [
-        "do_morph_frame",
-        "morph_start"
-      ],
-      "callees": [
-        "_Assert",
-        "f2i",
-        "fixdiv",
-        "llvm.abs.i32",
-        "vm_vec_copy_scale",
-        "vm_vec_normalized_dir_quick",
-        "vm_vec_scale"
-      ]
-    },
-    {
       "function": "start_wall_cloak",
       "file": "switch",
       "unported_dep_count": 0,
@@ -11683,6 +11664,23 @@
       "callees": [
         "compute_segment_center",
         "find_connected_distance"
+      ]
+    },
+    {
+      "function": "morph_start",
+      "file": "ai2",
+      "unported_dep_count": 0,
+      "total_dep_count": 13,
+      "callers": [
+        "create_gated_robot",
+        "robotmaker_proc"
+      ],
+      "callees": [
+        "_Assert",
+        "find_min_max",
+        "init_points",
+        "int const& std::__1::max[abi:ne200100]<int>",
+        "llvm.memcpy.p0.p0.i64"
       ]
     },
     {
@@ -12318,20 +12316,18 @@
       ]
     },
     {
-      "function": "morph_start",
-      "file": "ai2",
+      "function": "do_morph_frame",
+      "file": "morph",
       "unported_dep_count": 1,
-      "total_dep_count": 13,
+      "total_dep_count": 12,
       "callers": [
-        "create_gated_robot",
-        "robotmaker_proc"
+        "object_move_one"
       ],
       "callees": [
-        "_Assert",
-        "find_min_max",
+        "find_morph_data",
         "init_points",
-        "int const& std::__1::max[abi:ne200100]<int>",
-        "llvm.memcpy.p0.p0.i64"
+        "llvm.memcpy.p0.p0.i64",
+        "update_points"
       ]
     },
     {
@@ -12945,21 +12941,6 @@
       ]
     },
     {
-      "function": "do_morph_frame",
-      "file": "morph",
-      "unported_dep_count": 2,
-      "total_dep_count": 12,
-      "callers": [
-        "object_move_one"
-      ],
-      "callees": [
-        "find_morph_data",
-        "init_points",
-        "llvm.memcpy.p0.p0.i64",
-        "update_points"
-      ]
-    },
-    {
       "function": "InitPlayerPosition",
       "file": "gameseq",
       "unported_dep_count": 2,
@@ -13088,6 +13069,28 @@
         "vm_vec_normalize_quick",
         "vm_vec_scale",
         "vm_vec_scale_add"
+      ]
+    },
+    {
+      "function": "create_gated_robot",
+      "file": "ai2",
+      "unported_dep_count": 2,
+      "total_dep_count": 44,
+      "callers": [
+        "boss_spew_robot",
+        "gate_in_robot"
+      ],
+      "callees": [
+        "check_object_object_intersection",
+        "compute_segment_center",
+        "digi_link_sound_to_pos",
+        "i2f",
+        "init_ai_object",
+        "llvm.memcpy.p0.p0.i64",
+        "morph_start",
+        "obj_create",
+        "object_create_explosion",
+        "pick_random_point_in_seg"
       ]
     },
     {
@@ -13404,25 +13407,34 @@
       ]
     },
     {
-      "function": "create_gated_robot",
+      "function": "gate_in_robot",
       "file": "ai2",
       "unported_dep_count": 3,
-      "total_dep_count": 44,
+      "total_dep_count": 45,
+      "callers": [],
+      "callees": [
+        "P_Rand",
+        "_Assert",
+        "create_gated_robot"
+      ]
+    },
+    {
+      "function": "boss_spew_robot",
+      "file": "ai2",
+      "unported_dep_count": 3,
+      "total_dep_count": 46,
       "callers": [
-        "boss_spew_robot",
-        "gate_in_robot"
+        "do_boss_weapon_collision"
       ],
       "callees": [
-        "check_object_object_intersection",
-        "compute_segment_center",
-        "digi_link_sound_to_pos",
-        "i2f",
-        "init_ai_object",
-        "llvm.memcpy.p0.p0.i64",
-        "morph_start",
-        "obj_create",
-        "object_create_explosion",
-        "pick_random_point_in_seg"
+        "P_Rand",
+        "_Assert",
+        "_mprintf",
+        "create_gated_robot",
+        "find_point_seg",
+        "vm_vec_normalize_quick",
+        "vm_vec_scale",
+        "vm_vec_sub"
       ]
     },
     {
@@ -13674,37 +13686,6 @@
         "init_ai_object",
         "init_boss_segments",
         "init_buddy_for_level"
-      ]
-    },
-    {
-      "function": "gate_in_robot",
-      "file": "ai2",
-      "unported_dep_count": 4,
-      "total_dep_count": 45,
-      "callers": [],
-      "callees": [
-        "P_Rand",
-        "_Assert",
-        "create_gated_robot"
-      ]
-    },
-    {
-      "function": "boss_spew_robot",
-      "file": "ai2",
-      "unported_dep_count": 4,
-      "total_dep_count": 46,
-      "callers": [
-        "do_boss_weapon_collision"
-      ],
-      "callees": [
-        "P_Rand",
-        "_Assert",
-        "_mprintf",
-        "create_gated_robot",
-        "find_point_seg",
-        "vm_vec_normalize_quick",
-        "vm_vec_scale",
-        "vm_vec_sub"
       ]
     },
     {
@@ -14649,6 +14630,27 @@
       ]
     },
     {
+      "function": "do_boss_weapon_collision",
+      "file": "collide",
+      "unported_dep_count": 13,
+      "total_dep_count": 59,
+      "callers": [
+        "collide_robot_and_weapon"
+      ],
+      "callees": [
+        "P_Rand",
+        "_Assert",
+        "_mprintf",
+        "boss_spew_robot",
+        "buddy_message",
+        "digi_link_sound_to_pos",
+        "f2fl",
+        "find_point_seg",
+        "fixdiv",
+        "llvm.memcpy.p0.p0.i64"
+      ]
+    },
+    {
       "function": "object_create_badass_explosion",
       "file": "collide",
       "unported_dep_count": 13,
@@ -14699,27 +14701,6 @@
         "vm_vec_normalize_quick",
         "vm_vec_sub",
         "wall_is_doorway"
-      ]
-    },
-    {
-      "function": "do_boss_weapon_collision",
-      "file": "collide",
-      "unported_dep_count": 14,
-      "total_dep_count": 59,
-      "callers": [
-        "collide_robot_and_weapon"
-      ],
-      "callees": [
-        "P_Rand",
-        "_Assert",
-        "_mprintf",
-        "boss_spew_robot",
-        "buddy_message",
-        "digi_link_sound_to_pos",
-        "f2fl",
-        "find_point_seg",
-        "fixdiv",
-        "llvm.memcpy.p0.p0.i64"
       ]
     },
     {
@@ -14897,6 +14878,27 @@
       ]
     },
     {
+      "function": "robotmaker_proc",
+      "file": "fuelcen",
+      "unported_dep_count": 19,
+      "total_dep_count": 128,
+      "callers": [
+        "fuelcen_update_all"
+      ],
+      "callees": [
+        "Int3",
+        "P_Rand",
+        "_mprintf",
+        "collide_player_and_materialization_center",
+        "collide_robot_and_materialization_center",
+        "compute_segment_center",
+        "create_morph_robot",
+        "digi_link_sound_to_pos",
+        "extract_orient_from_segment",
+        "i2f"
+      ]
+    },
+    {
       "function": "do_boss_dying_frame",
       "file": "ai",
       "unported_dep_count": 20,
@@ -14943,30 +14945,9 @@
       ]
     },
     {
-      "function": "robotmaker_proc",
-      "file": "fuelcen",
-      "unported_dep_count": 20,
-      "total_dep_count": 128,
-      "callers": [
-        "fuelcen_update_all"
-      ],
-      "callees": [
-        "Int3",
-        "P_Rand",
-        "_mprintf",
-        "collide_player_and_materialization_center",
-        "collide_robot_and_materialization_center",
-        "compute_segment_center",
-        "create_morph_robot",
-        "digi_link_sound_to_pos",
-        "extract_orient_from_segment",
-        "i2f"
-      ]
-    },
-    {
       "function": "fuelcen_update_all",
       "file": "fuelcen",
-      "unported_dep_count": 21,
+      "unported_dep_count": 20,
       "total_dep_count": 129,
       "callers": [],
       "callees": [
@@ -15322,23 +15303,9 @@
       ]
     },
     {
-      "function": "Laser_player_fire",
-      "file": "laser",
-      "unported_dep_count": 52,
-      "total_dep_count": 171,
-      "callers": [
-        "Flare_create",
-        "do_laser_firing",
-        "do_missile_firing"
-      ],
-      "callees": [
-        "Laser_player_fire_spread"
-      ]
-    },
-    {
       "function": "collide_robot_and_weapon",
       "file": "collide",
-      "unported_dep_count": 52,
+      "unported_dep_count": 51,
       "total_dep_count": 183,
       "callers": [
         "collide_two_objects"
@@ -15354,6 +15321,20 @@
         "digi_link_sound_to_pos",
         "do_ai_robot_hit",
         "do_boss_weapon_collision"
+      ]
+    },
+    {
+      "function": "Laser_player_fire",
+      "file": "laser",
+      "unported_dep_count": 52,
+      "total_dep_count": 171,
+      "callers": [
+        "Flare_create",
+        "do_laser_firing",
+        "do_missile_firing"
+      ],
+      "callees": [
+        "Laser_player_fire_spread"
       ]
     },
     {
@@ -15756,7 +15737,7 @@
     {
       "function": "object_move_one",
       "file": "object",
-      "unported_dep_count": 278,
+      "unported_dep_count": 277,
       "total_dep_count": 526,
       "callers": [
         "object_move_all"
@@ -15777,7 +15758,7 @@
     {
       "function": "object_move_all",
       "file": "object",
-      "unported_dep_count": 283,
+      "unported_dep_count": 282,
       "total_dep_count": 531,
       "callers": [],
       "callees": [
