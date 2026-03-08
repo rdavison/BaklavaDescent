@@ -55,6 +55,14 @@ type _ Effect.t +=
       (* [| objnum; vel_x; vel_y; vel_z |] — sets velocity and movement_type=MT_PHYSICS *)
   | Set_doing_lighting_hack : int -> unit Effect.t
       (* 0 or 1 -> sets Doing_lighting_hack_flag *)
+  | Set_omega_firing_state : (int * int * int) -> unit Effect.t
+      (* (omega_charge, next_laser_fire_time, last_omega_fire_frame) *)
+  | Set_weapon_laser_info_omega : (int * int * int * int) -> unit Effect.t
+      (* (weapon_objnum, parent_type, parent_num, parent_sig) *)
+  | Find_homing_object_omega : (int * int * int * int) -> int Effect.t
+      (* (fp_x, fp_y, fp_z, weapon_objnum) -> lock_objnum *)
+  | Play_omega_sound : (int * int * int * int * int * int) -> unit Effect.t
+      (* (flash_sound, is_viewer, segnum, pos_x, pos_y, pos_z) *)
 
 (* make_random_vector: generate a random unit-ish vector using P_Rand.
    Same logic as C make_random_vector / ox_controlcen.ml *)
@@ -380,4 +388,174 @@ let create_omega_blobs ~firing_segnum ~fp_x ~fp_y ~fp_z
   end;
 
   Effect.perform (Set_doing_lighting_hack 0)
+;;
+
+(* -- do_omega_stuff -------------------------------------------------------- *)
+
+(* FVI external for inline ray cast — same FFI as physics sim / controlcen *)
+external fvi_find_vector_intersection : int array -> int array
+  = "cd_ox_effect_ps_find_vector_intersection"
+
+let obj_player = 4
+let hit_none = 0
+(* FQ_CHECK_OBJS=1 | FQ_TRANSPOINT=4 | FQ_IGNORE_POWERUPS=16 = 21 *)
+let fq_omega_flags = 21
+
+(* do_omega_stuff: Handle omega cannon firing.
+   Packed data layout (26 ints):
+   [0] pnum  [1] player_num  [2] omega_charge  [3] min_omega_charge
+   [4] player_energy  [5] frame_time  [6] game_time  [7] frame_count
+   [8] players_pnum_objnum  [9] player_objnum_sig
+   [10] is_viewer  [11] flash_sound
+   [12] weapon_segnum  [13] weapon_pos_x  [14] weapon_pos_y  [15] weapon_pos_z
+   [16] weapon_objnum
+   [17] parent_fvec_x  [18] parent_fvec_y  [19] parent_fvec_z
+   [20] parent_segnum  [21] parent_objnum
+   [22] firing_pos_x  [23] firing_pos_y  [24] firing_pos_z
+   [25] max_omega_dist
+   C original: main_d2/laser.cpp do_omega_stuff *)
+let do_omega_stuff (data : int array) =
+  let pnum = data.(0) in
+  let player_num = data.(1) in
+  let omega_charge = data.(2) in
+  let min_omega_charge = data.(3) in
+  let player_energy = data.(4) in
+  let frame_time = data.(5) in
+  let game_time = data.(6) in
+  let frame_count = data.(7) in
+  let players_pnum_objnum = data.(8) in
+  let player_objnum_sig = data.(9) in
+  let is_viewer = data.(10) <> 0 in
+  let flash_sound = data.(11) in
+  let weapon_segnum = data.(12) in
+  let weapon_pos_x = data.(13) in
+  let weapon_pos_y = data.(14) in
+  let weapon_pos_z = data.(15) in
+  let weapon_objnum = data.(16) in
+  let parent_fvec_x = data.(17) in
+  let parent_fvec_y = data.(18) in
+  let parent_fvec_z = data.(19) in
+  let parent_segnum = data.(20) in
+  let parent_objnum = data.(21) in
+  let fp_x = data.(22) in
+  let fp_y = data.(23) in
+  let fp_z = data.(24) in
+  let max_omega_dist = data.(25) in
+
+  (* Player charge check *)
+  if pnum = player_num then begin
+    (* If charge >= min, or (some charge and zero energy), allow to fire. *)
+    if not ((omega_charge >= min_omega_charge)
+            || (omega_charge <> 0 && player_energy = 0))
+    then begin
+      Effect.perform (Obj_delete weapon_objnum);
+      (* early return *)
+    end else begin
+      let new_charge = omega_charge - frame_time in
+      let new_charge = if new_charge < 0 then 0 else new_charge in
+      (* Set Omega_charge, Next_laser_fire_time=GameTime+1, Last_omega_fire_frame=FrameCount *)
+      Effect.perform (Set_omega_firing_state (new_charge, game_time + 1, frame_count));
+
+      (* Set weapon laser_info *)
+      Effect.perform (Set_weapon_laser_info_omega
+        (weapon_objnum, obj_player, players_pnum_objnum, player_objnum_sig));
+
+      (* Find homing target *)
+      let lock_objnum = Effect.perform (Find_homing_object_omega (fp_x, fp_y, fp_z, weapon_objnum)) in
+
+      (* Find firing segment *)
+      let firing_segnum = Effect.perform (Find_point_seg_laser (fp_x, fp_y, fp_z, parent_segnum)) in
+
+      (* Play sound *)
+      Effect.perform (Play_omega_sound
+        (flash_sound, (if is_viewer then 1 else 0),
+         weapon_segnum, weapon_pos_x, weapon_pos_y, weapon_pos_z));
+
+      (* Delete the original object *)
+      Effect.perform (Obj_delete weapon_objnum);
+
+      (* Determine goal position *)
+      if lock_objnum = -1 then begin
+        (* No lock — fire straight ahead with perturbation + FVI *)
+        let perturb_vec = make_random_vector () in
+        let perturbed_fvec = Ox_math.vm_vec_scale_add
+          ~a:(parent_fvec_x, parent_fvec_y, parent_fvec_z)
+          ~b:perturb_vec ~k:(f1_0 / 16) in
+        let gp_x, gp_y, gp_z = Ox_math.vm_vec_scale_add
+          ~a:(fp_x, fp_y, fp_z)
+          ~b:perturbed_fvec ~k:max_omega_dist in
+
+        if firing_segnum = -1 then
+          (* Gun is outside mine — abort (mprintf omitted) *)
+          ()
+        else begin
+          let query = [| fp_x; fp_y; fp_z; gp_x; gp_y; gp_z;
+                         0; parent_objnum; fq_omega_flags; firing_segnum; 0 |] in
+          let result = fvi_find_vector_intersection query in
+          let fate = result.(0) in
+          let goal_x, goal_y, goal_z =
+            if fate <> hit_none then
+              (result.(1), result.(2), result.(3))
+            else
+              (gp_x, gp_y, gp_z)
+          in
+          create_omega_blobs ~firing_segnum ~fp_x:fp_x ~fp_y:fp_y ~fp_z:fp_z
+            ~gp_x:goal_x ~gp_y:goal_y ~gp_z:goal_z ~parent_objnum
+        end
+      end else begin
+        (* Locked on target — use target position *)
+        let goal_x, goal_y, goal_z = Effect.perform (Fetch_object_pos lock_objnum) in
+        let firing_segnum =
+          if firing_segnum = -1 then parent_segnum else firing_segnum in
+        create_omega_blobs ~firing_segnum ~fp_x:fp_x ~fp_y:fp_y ~fp_z:fp_z
+          ~gp_x:goal_x ~gp_y:goal_y ~gp_z:goal_z ~parent_objnum
+      end
+    end
+  end else begin
+    (* Not the current player — skip charge check, proceed directly *)
+    Effect.perform (Set_weapon_laser_info_omega
+      (weapon_objnum, obj_player, players_pnum_objnum, player_objnum_sig));
+
+    let lock_objnum = Effect.perform (Find_homing_object_omega (fp_x, fp_y, fp_z, weapon_objnum)) in
+    let firing_segnum = Effect.perform (Find_point_seg_laser (fp_x, fp_y, fp_z, parent_segnum)) in
+
+    Effect.perform (Play_omega_sound
+      (flash_sound, (if is_viewer then 1 else 0),
+       weapon_segnum, weapon_pos_x, weapon_pos_y, weapon_pos_z));
+
+    Effect.perform (Obj_delete weapon_objnum);
+
+    if lock_objnum = -1 then begin
+      let perturb_vec = make_random_vector () in
+      let perturbed_fvec = Ox_math.vm_vec_scale_add
+        ~a:(parent_fvec_x, parent_fvec_y, parent_fvec_z)
+        ~b:perturb_vec ~k:(f1_0 / 16) in
+      let gp_x, gp_y, gp_z = Ox_math.vm_vec_scale_add
+        ~a:(fp_x, fp_y, fp_z)
+        ~b:perturbed_fvec ~k:max_omega_dist in
+
+      if firing_segnum = -1 then
+        ()
+      else begin
+        let query = [| fp_x; fp_y; fp_z; gp_x; gp_y; gp_z;
+                       0; parent_objnum; fq_omega_flags; firing_segnum; 0 |] in
+        let result = fvi_find_vector_intersection query in
+        let fate = result.(0) in
+        let goal_x, goal_y, goal_z =
+          if fate <> hit_none then
+            (result.(1), result.(2), result.(3))
+          else
+            (gp_x, gp_y, gp_z)
+        in
+        create_omega_blobs ~firing_segnum ~fp_x:fp_x ~fp_y:fp_y ~fp_z:fp_z
+          ~gp_x:goal_x ~gp_y:goal_y ~gp_z:goal_z ~parent_objnum
+      end
+    end else begin
+      let goal_x, goal_y, goal_z = Effect.perform (Fetch_object_pos lock_objnum) in
+      let firing_segnum =
+        if firing_segnum = -1 then parent_segnum else firing_segnum in
+      create_omega_blobs ~firing_segnum ~fp_x:fp_x ~fp_y:fp_y ~fp_z:fp_z
+        ~gp_x:goal_x ~gp_y:goal_y ~gp_z:goal_z ~parent_objnum
+    end
+  end
 ;;

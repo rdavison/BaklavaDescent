@@ -314,6 +314,7 @@ PORTED_FUNCTIONS = {
     # Laser - omega blobs
     "delete_old_omega_blobs": "ported",
     "create_omega_blobs": "ported",
+    "do_omega_stuff": "ported",
 }
 
 # Functions that intentionally remain as C effects.

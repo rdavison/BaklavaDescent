@@ -307,6 +307,13 @@ static cd_effect_create_omega_blob_obj_fn g_effect_create_omega_blob_obj = NULL;
 static cd_effect_set_omega_blob_final_fn g_effect_set_omega_blob_final = NULL;
 static cd_effect_set_doing_lighting_hack_fn g_effect_set_doing_lighting_hack = NULL;
 static const value* g_create_omega_blobs = NULL;
+static const value* g_do_omega_stuff = NULL;
+
+/* do_omega_stuff effect function pointers */
+static cd_effect_set_omega_firing_state_fn g_effect_set_omega_firing_state = NULL;
+static cd_effect_set_weapon_laser_info_omega_fn g_effect_set_weapon_laser_info_omega = NULL;
+static cd_effect_find_homing_object_omega_fn g_effect_find_homing_object_omega = NULL;
+static cd_effect_play_omega_sound_fn g_effect_play_omega_sound = NULL;
 
 /* create_weapon_object effect function pointers */
 static cd_effect_fetch_marker_model_data_fn g_effect_fetch_marker_model_data = NULL;
@@ -8896,5 +8903,78 @@ void cd_ox_create_omega_blobs(int firing_segnum,
     args[6] = Val_int(gp_z);
     args[7] = Val_int(parent_objnum);
     caml_callbackN(*g_create_omega_blobs, 8, args);
+    CAMLreturn0;
+}
+
+/* -- do_omega_stuff effect infrastructure --------------------------------- */
+
+void cd_ox_register_do_omega_stuff_effects(
+    cd_effect_set_omega_firing_state_fn set_state,
+    cd_effect_set_weapon_laser_info_omega_fn set_laser_info,
+    cd_effect_find_homing_object_omega_fn find_homing,
+    cd_effect_play_omega_sound_fn play_sound)
+{
+    g_effect_set_omega_firing_state = set_state;
+    g_effect_set_weapon_laser_info_omega = set_laser_info;
+    g_effect_find_homing_object_omega = find_homing;
+    g_effect_play_omega_sound = play_sound;
+}
+
+/* set_omega_firing_state: (int, int, int) -> unit */
+CAMLprim value cd_ox_effect_set_omega_firing_state(value v_charge, value v_next_fire, value v_last_frame)
+{
+    if (g_effect_set_omega_firing_state)
+        g_effect_set_omega_firing_state(Int_val(v_charge), Int_val(v_next_fire), Int_val(v_last_frame));
+    return Val_unit;
+}
+
+/* set_weapon_laser_info_omega: (int, int, int, int) -> unit */
+CAMLprim value cd_ox_effect_set_weapon_laser_info_omega(value v_objnum, value v_ptype, value v_pnum, value v_psig)
+{
+    if (g_effect_set_weapon_laser_info_omega)
+        g_effect_set_weapon_laser_info_omega(Int_val(v_objnum), Int_val(v_ptype), Int_val(v_pnum), Int_val(v_psig));
+    return Val_unit;
+}
+
+/* find_homing_object_omega: (int, int, int, int) -> int */
+CAMLprim value cd_ox_effect_find_homing_object_omega(value v_fpx, value v_fpy, value v_fpz, value v_wobjnum)
+{
+    int result = -1;
+    if (g_effect_find_homing_object_omega)
+        result = g_effect_find_homing_object_omega(Int_val(v_fpx), Int_val(v_fpy), Int_val(v_fpz), Int_val(v_wobjnum));
+    return Val_int(result);
+}
+
+/* play_omega_sound: (int, int, int, int, int, int) -> unit */
+CAMLprim value cd_ox_effect_play_omega_sound(value v_sound, value v_is_viewer,
+    value v_seg, value v_px, value v_py, value v_pz)
+{
+    if (g_effect_play_omega_sound)
+        g_effect_play_omega_sound(Int_val(v_sound), Int_val(v_is_viewer),
+            Int_val(v_seg), Int_val(v_px), Int_val(v_py), Int_val(v_pz));
+    return Val_unit;
+}
+
+/* play_omega_sound bytecode wrapper (6 args) */
+CAMLprim value cd_ox_effect_play_omega_sound_bytecode(value *argv, int argc)
+{
+    (void)argc;
+    return cd_ox_effect_play_omega_sound(argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
+}
+
+/* -- do_omega_stuff: C entry point ---------------------------------------- */
+
+void cd_ox_do_omega_stuff(const int32_t* packed, int packed_len)
+{
+    CAMLparam0();
+    CAMLlocal1(arr);
+    cd_ox_require_ready("cd_ox_do_omega_stuff");
+    if (!g_do_omega_stuff)
+        g_do_omega_stuff = caml_named_value("cd_do_omega_stuff");
+    if (!g_do_omega_stuff) { CAMLreturn0; }
+    arr = caml_alloc(packed_len, 0);
+    for (int i = 0; i < packed_len; i++)
+        Store_field(arr, i, Val_long(packed[i]));
+    caml_callback(*g_do_omega_stuff, arr);
     CAMLreturn0;
 }

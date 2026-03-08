@@ -97,6 +97,27 @@ external effect_set_doing_lighting_hack
   -> unit
   = "cd_ox_effect_set_doing_lighting_hack"
 
+external effect_set_omega_firing_state
+  :  int -> int -> int
+  -> unit
+  = "cd_ox_effect_set_omega_firing_state"
+
+external effect_set_weapon_laser_info_omega
+  :  int -> int -> int -> int
+  -> unit
+  = "cd_ox_effect_set_weapon_laser_info_omega"
+
+external effect_find_homing_object_omega
+  :  int -> int -> int -> int
+  -> int
+  = "cd_ox_effect_find_homing_object_omega"
+
+external effect_play_omega_sound
+  :  int -> int -> int -> int -> int -> int
+  -> unit
+  = "cd_ox_effect_play_omega_sound_bytecode"
+    "cd_ox_effect_play_omega_sound"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -173,6 +194,22 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Set_doing_lighting_hack flag ->
     Some (fun k ->
       effect_set_doing_lighting_hack flag;
+      Effect.Deep.continue k ())
+  | Ox_laser.Set_omega_firing_state (charge, next_fire, last_frame) ->
+    Some (fun k ->
+      effect_set_omega_firing_state charge next_fire last_frame;
+      Effect.Deep.continue k ())
+  | Ox_laser.Set_weapon_laser_info_omega (objnum, ptype, pnum, psig) ->
+    Some (fun k ->
+      effect_set_weapon_laser_info_omega objnum ptype pnum psig;
+      Effect.Deep.continue k ())
+  | Ox_laser.Find_homing_object_omega (fpx, fpy, fpz, wobjnum) ->
+    Some (fun k ->
+      let r = effect_find_homing_object_omega fpx fpy fpz wobjnum in
+      Effect.Deep.continue k r)
+  | Ox_laser.Play_omega_sound (sound, is_viewer, seg, px, py, pz) ->
+    Some (fun k ->
+      effect_play_omega_sound sound is_viewer seg px py pz;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -253,10 +290,25 @@ let cd_create_omega_blobs firing_segnum fp_x fp_y fp_z gp_x gp_y gp_z parent_obj
     }
 ;;
 
+let cd_do_omega_stuff (data : int array) =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.do_omega_stuff data)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] do_omega_stuff exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        ())
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_create_homing_missile" cd_create_homing_missile;
   Callback.register "cd_create_weapon_object" cd_create_weapon_object;
   Callback.register "cd_release_guided_missile" cd_release_guided_missile;
   Callback.register "cd_delete_old_omega_blobs" cd_delete_old_omega_blobs;
-  Callback.register "cd_create_omega_blobs" cd_create_omega_blobs
+  Callback.register "cd_create_omega_blobs" cd_create_omega_blobs;
+  Callback.register "cd_do_omega_stuff" cd_do_omega_stuff
 ;;

@@ -636,6 +636,72 @@ int find_homing_object(vms_vector* curpos, object* tracker);
 //	*pos is the location from which the omega bolt starts
 void do_omega_stuff(object *parent_objp, vms_vector *firing_pos, object *weapon_objp)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_do_omega_stuff_effects(
+				// set_omega_firing_state
+				[](int32_t omega_charge, int32_t next_fire, int32_t last_frame) {
+					Omega_charge = omega_charge;
+					Next_laser_fire_time = next_fire;
+					Last_omega_fire_frame = last_frame;
+				},
+				// set_weapon_laser_info_omega
+				[](int weapon_objnum, int parent_type, int parent_num, int parent_sig) {
+					Objects[weapon_objnum].ctype.laser_info.parent_type = parent_type;
+					Objects[weapon_objnum].ctype.laser_info.parent_num = parent_num;
+					Objects[weapon_objnum].ctype.laser_info.parent_signature = parent_sig;
+				},
+				// find_homing_object_omega
+				[](int32_t fpx, int32_t fpy, int32_t fpz, int weapon_objnum) -> int {
+					vms_vector fp = {fpx, fpy, fpz};
+					return find_homing_object(&fp, &Objects[weapon_objnum]);
+				},
+				// play_omega_sound
+				[](int flash_sound, int is_viewer, int segnum, int32_t px, int32_t py, int32_t pz) {
+					if (is_viewer)
+						digi_play_sample(flash_sound, F1_0);
+					else {
+						vms_vector pos = {px, py, pz};
+						digi_link_sound_to_pos(flash_sound, segnum, 0, &pos, 0, F1_0);
+					}
+				}
+			);
+			registered = true;
+		}
+		int pnum = parent_objp->id;
+		int32_t packed[26];
+		packed[0]  = pnum;
+		packed[1]  = Player_num;
+		packed[2]  = Omega_charge;
+		packed[3]  = MIN_OMEGA_CHARGE;
+		packed[4]  = Players[pnum].energy;
+		packed[5]  = FrameTime;
+		packed[6]  = GameTime;
+		packed[7]  = FrameCount;
+		packed[8]  = Players[pnum].objnum;
+		packed[9]  = Objects[Players[pnum].objnum].signature;
+		packed[10] = (parent_objp == Viewer) ? 1 : 0;
+		packed[11] = Weapon_info[weapon_objp->id].flash_sound;
+		packed[12] = weapon_objp->segnum;
+		packed[13] = weapon_objp->pos.x;
+		packed[14] = weapon_objp->pos.y;
+		packed[15] = weapon_objp->pos.z;
+		packed[16] = (int)(weapon_objp - Objects);
+		packed[17] = parent_objp->orient.fvec.x;
+		packed[18] = parent_objp->orient.fvec.y;
+		packed[19] = parent_objp->orient.fvec.z;
+		packed[20] = parent_objp->segnum;
+		packed[21] = (int)(parent_objp - Objects);
+		packed[22] = firing_pos->x;
+		packed[23] = firing_pos->y;
+		packed[24] = firing_pos->z;
+		packed[25] = MAX_OMEGA_DIST;
+		cd_ox_do_omega_stuff(packed, 26);
+		return;
+	}
+#endif
 	int			lock_objnum, firing_segnum;
 	vms_vector	goal_pos;
 	int			pnum = parent_objp->id;

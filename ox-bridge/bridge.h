@@ -2008,6 +2008,22 @@ void cd_ox_register_create_omega_blobs_effects(
     cd_effect_set_omega_blob_final_fn set_final,
     cd_effect_set_doing_lighting_hack_fn set_hack);
 
+/* -- do_omega_stuff ------------------------------------------------------- */
+
+/* C entry point: calls OCaml do_omega_stuff */
+void cd_ox_do_omega_stuff(const int32_t* packed, int packed_len);
+
+/* do_omega_stuff effect registration */
+typedef void (*cd_effect_set_omega_firing_state_fn)(int32_t omega_charge, int32_t next_fire, int32_t last_frame);
+typedef void (*cd_effect_set_weapon_laser_info_omega_fn)(int weapon_objnum, int parent_type, int parent_num, int parent_sig);
+typedef int  (*cd_effect_find_homing_object_omega_fn)(int32_t fpx, int32_t fpy, int32_t fpz, int weapon_objnum);
+typedef void (*cd_effect_play_omega_sound_fn)(int flash_sound, int is_viewer, int segnum, int32_t px, int32_t py, int32_t pz);
+void cd_ox_register_do_omega_stuff_effects(
+    cd_effect_set_omega_firing_state_fn set_state,
+    cd_effect_set_weapon_laser_info_omega_fn set_laser_info,
+    cd_effect_find_homing_object_omega_fn find_homing,
+    cd_effect_play_omega_sound_fn play_sound);
+
 #ifdef __cplusplus
 }
 #endif
