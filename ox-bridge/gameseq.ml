@@ -107,6 +107,16 @@ external effect_fetch_filter_objects_data
   -> int array
   = "cd_ox_effect_gs_fetch_filter_objects_data"
 
+external effect_fetch_init_network_players_data
+  :  unit
+  -> int array
+  = "cd_ox_effect_gs_fetch_init_network_players_data"
+
+external effect_write_init_network_players
+  :  int array
+  -> unit
+  = "cd_ox_effect_gs_write_init_network_players"
+
 external effect_fetch_clear_transient_objects_data
   :  unit
   -> int array
@@ -204,6 +214,14 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k ->
       let data = effect_fetch_filter_objects_data () in
       Effect.Deep.continue k data)
+  | Ox_gameseq.Fetch_init_network_players_data () ->
+    Some (fun k ->
+      let data = effect_fetch_init_network_players_data () in
+      Effect.Deep.continue k data)
+  | Ox_gameseq.Write_init_network_players packed ->
+    Some (fun k ->
+      effect_write_init_network_players packed;
+      Effect.Deep.continue k ())
   | Ox_gameseq.Fetch_clear_transient_objects_data () ->
     Some (fun k ->
       let data = effect_fetch_clear_transient_objects_data () in
@@ -348,6 +366,18 @@ let cd_gameseq_remove_unused_players () =
     }
 ;;
 
+let cd_gameseq_init_network_players () =
+  Effect.Deep.match_with
+    (fun () -> Ox_gameseq.gameseq_init_network_players ())
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] gameseq_init_network_players exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr)
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let cd_clear_transient_objects clear_all =
   Effect.Deep.match_with
     (fun () -> Ox_gameseq.clear_transient_objects ~clear_all)
@@ -383,6 +413,7 @@ let register_callbacks () =
   Callback.register "cd_free_object_slots" cd_free_object_slots;
   Callback.register "cd_copy_defaults_to_robot" cd_copy_defaults_to_robot;
   Callback.register "cd_copy_defaults_to_robot_all" cd_copy_defaults_to_robot_all;
+  Callback.register "cd_gameseq_init_network_players" cd_gameseq_init_network_players;
   Callback.register "cd_gameseq_remove_unused_players" cd_gameseq_remove_unused_players;
   Callback.register "cd_clear_transient_objects" cd_clear_transient_objects;
   Callback.register "cd_filter_objects_from_level" cd_filter_objects_from_level

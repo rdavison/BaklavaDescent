@@ -243,6 +243,60 @@ int count_number_of_hostages()
 //added 10/12/95: delete buddy bot if coop game.  Probably doesn't really belong here. -MT
 void gameseq_init_network_players()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int inp_reg = 0;
+		if (!inp_reg) {
+			inp_reg = 1;
+			cd_ox_register_init_network_players_effects(
+				/* fetch: [highest_object_index, game_mode, is_d2,
+				   then per-object: type, id, is_companion_robot] */
+				[](int32_t* out, int* out_len) {
+					int highest = Highest_object_index;
+					out[0] = highest;
+					out[1] = Game_mode;
+					out[2] = 1; /* is_d2 */
+					for (int i = 0; i <= highest; i++) {
+						int base = 3 + i * 3;
+						out[base] = Objects[i].type;
+						out[base + 1] = Objects[i].id;
+						out[base + 2] = (Objects[i].type == OBJ_ROBOT &&
+							Objects[i].id < N_robot_types &&
+							Robot_info[Objects[i].id].companion) ? 1 : 0;
+					}
+					*out_len = 3 + (highest + 1) * 3;
+				},
+				/* write: [num_net_player_positions, n_keep, n_delete,
+				   then for each kept: objindex, k,
+				   then for each deleted: objindex] */
+				[](const int32_t* packed, int len) {
+					if (len < 3) return;
+					int num_net = packed[0];
+					int n_keep = packed[1];
+					int n_del = packed[2];
+					ConsoleObject = &Objects[0];
+					for (int i = 0; i < n_keep && 3 + i * 2 + 1 < len; i++) {
+						int objidx = packed[3 + i * 2];
+						int k = packed[3 + i * 2 + 1];
+						Objects[objidx].type = OBJ_PLAYER;
+						Player_init[k].pos = Objects[objidx].pos;
+						Player_init[k].orient = Objects[objidx].orient;
+						Player_init[k].segnum = Objects[objidx].segnum;
+						Players[k].objnum = objidx;
+						Objects[objidx].id = k;
+					}
+					int del_offset = 3 + n_keep * 2;
+					for (int i = 0; i < n_del && del_offset + i < len; i++) {
+						obj_delete(packed[del_offset + i]);
+					}
+					NumNetPlayerPositions = num_net;
+				});
+		}
+		cd_ox_gameseq_init_network_players();
+		return;
+	}
+#endif
+
 	int i, k, j;
 
 	// Initialize network player start locations and object numbers

@@ -269,6 +269,7 @@ PORTED_FUNCTIONS = {
     "free_object_slots": "ported",
     "clear_transient_objects": "ported",
     "filter_objects_from_level": "ported",
+    "gameseq_init_network_players": "ported",
     "gameseq_remove_unused_players": "ported",
     # AI awareness
     "add_awareness_event": "ported",

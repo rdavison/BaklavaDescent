@@ -1380,6 +1380,16 @@ typedef void (*cd_effect_gs_fetch_filter_objects_data_fn)(int32_t* out, int* out
 void cd_ox_register_filter_objects_effects(
     cd_effect_gs_fetch_filter_objects_data_fn fetch_data);
 
+/* gameseq_init_network_players: Initialize network player start locations and object numbers. */
+void cd_ox_gameseq_init_network_players(void);
+
+/* gameseq_init_network_players effect registration */
+typedef void (*cd_effect_gs_fetch_init_network_players_data_fn)(int32_t* out, int* out_len);
+typedef void (*cd_effect_gs_write_init_network_players_fn)(const int32_t* packed, int len);
+void cd_ox_register_init_network_players_effects(
+    cd_effect_gs_fetch_init_network_players_data_fn fetch_data,
+    cd_effect_gs_write_init_network_players_fn write_data);
+
 /* gameseq_remove_unused_players: Remove unused player objects in single-player. */
 void cd_ox_gameseq_remove_unused_players(void);
 

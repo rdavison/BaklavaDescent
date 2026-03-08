@@ -486,6 +486,91 @@ let proximity_id = 16
 let superprox_id = 38
 let wif_placable = 1
 
+(* gameseq_init_network_players: Initialize network player start locations and object numbers.
+   Scans all objects for PLAYER/GHOST/COOP types, sets up Player_init[] positions,
+   Players[].objnum, Objects[].id. Deletes objects that don't match the game mode.
+   Deletes companion robots in multiplayer.
+   Ported from main_d1/gameseq.cpp and main_d2/gameseq.cpp. *)
+
+type _ Effect.t +=
+  | Fetch_init_network_players_data : unit -> int array Effect.t
+  | Write_init_network_players : int array -> unit Effect.t
+
+let obj_ghost = 6
+let obj_coop = 13
+let gm_multi_coop = 0x04
+let gm_multi = 0x01
+
+let gameseq_init_network_players () =
+  (* Fetch: [highest_object_index, game_mode, is_d2,
+     then per-object (0..highest): type, id, is_companion_robot] *)
+  let data = Effect.perform (Fetch_init_network_players_data ()) in
+  let highest = data.(0) in
+  let game_mode = data.(1) in
+  let is_d2 = data.(2) <> 0 in
+  let k = ref 0 in
+  let j = ref 0 in
+  (* Collect kept players (objindex, k) and deleted objects *)
+  let keep_buf = Array.create ~len:((highest + 1) * 2) 0 in
+  let n_keep = ref 0 in
+  let del_buf = Array.create ~len:(highest + 1) 0 in
+  let n_del = ref 0 in
+  for i = 0 to highest do
+    let base = 3 + i * 3 in
+    let obj_type = data.(base) in
+    let _obj_id = data.(base + 1) in
+    let is_companion = data.(base + 2) <> 0 in
+    if obj_type = obj_player || obj_type = obj_ghost || obj_type = obj_coop then begin
+      let keep =
+        if is_d2 then
+          (* D2: non-coop keeps PLAYER/GHOST; coop keeps first (j=0) or COOP *)
+          if (game_mode land gm_multi_coop) = 0 then
+            obj_type = obj_player || obj_type = obj_ghost
+          else
+            !j = 0 || obj_type = obj_coop
+        else
+          (* D1 non-SHAREWARE: same logic as D2 *)
+          if (game_mode land gm_multi_coop) = 0 then
+            obj_type = obj_player || obj_type = obj_ghost
+          else
+            !j = 0 || obj_type = obj_coop
+      in
+      if keep then begin
+        keep_buf.(!n_keep * 2) <- i;
+        keep_buf.(!n_keep * 2 + 1) <- !k;
+        incr n_keep;
+        incr k
+      end else begin
+        del_buf.(!n_del) <- i;
+        incr n_del
+      end;
+      incr j
+    end;
+    (* D2: delete companion robots in multiplayer *)
+    if is_d2 && obj_type = obj_robot && is_companion && (game_mode land gm_multi) <> 0 then begin
+      del_buf.(!n_del) <- i;
+      incr n_del
+    end
+  done;
+  (* Write back: [num_net_player_positions, n_keep, n_delete,
+     then for each kept: objindex, k,
+     then for each deleted: objindex] *)
+  let result_len = 3 + !n_keep * 2 + !n_del in
+  let result = Array.create ~len:result_len 0 in
+  result.(0) <- !k;  (* NumNetPlayerPositions *)
+  result.(1) <- !n_keep;
+  result.(2) <- !n_del;
+  for i = 0 to !n_keep - 1 do
+    result.(3 + i * 2) <- keep_buf.(i * 2);
+    result.(3 + i * 2 + 1) <- keep_buf.(i * 2 + 1)
+  done;
+  let del_offset = 3 + !n_keep * 2 in
+  for i = 0 to !n_del - 1 do
+    result.(del_offset + i) <- del_buf.(i)
+  done;
+  Effect.perform (Write_init_network_players result)
+;;
+
 let clear_transient_objects ~clear_all =
   (* Fetch: [highest_object_index, is_d2,
      then per-object (0..highest): type, id, flags, weapon_info_flags] *)

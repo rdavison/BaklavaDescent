@@ -396,7 +396,7 @@ digraph callgraph {
   "g3_start_instance_matrix" [label="g3_start_instance_matrix\n(morph)", color=gray50, style=solid, fillcolor="white"];
   "game_disable_cheats" [label="game_disable_cheats\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
   "game_flush_inputs" [label="game_flush_inputs\n(escort)", color=gray50, style=solid, fillcolor="white"];
-  "gameseq_init_network_players" [label="gameseq_init_network_players\n(gameseq)", color=gray50, style=solid, fillcolor="white"];
+  "gameseq_init_network_players" [label="gameseq_init_network_players\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
   "gameseq_remove_unused_players" [label="gameseq_remove_unused_players\n(gameseq)", color=green, style=filled, fillcolor="honeydew"];
   "gate_in_robot" [label="gate_in_robot\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "get_boss_id" [label="get_boss_id\n(escort)", color=gray50, style=solid, fillcolor="white"];

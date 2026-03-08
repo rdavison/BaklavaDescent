@@ -264,6 +264,7 @@ static const value* g_copy_defaults_to_robot = NULL;
 static const value* g_copy_defaults_to_robot_all = NULL;
 static const value* g_clear_transient_objects = NULL;
 static const value* g_filter_objects_from_level = NULL;
+static const value* g_gameseq_init_network_players = NULL;
 static const value* g_gameseq_remove_unused_players = NULL;
 static const value* g_do_lock_doors = NULL;
 static const value* g_do_unlock_doors = NULL;
@@ -384,6 +385,10 @@ static cd_effect_gs_write_special_reset_objects_fn g_effect_gs_write_special_res
 /* copy_defaults_to_robot effect function pointers */
 static cd_effect_gs_fetch_copy_defaults_to_robot_data_fn g_effect_gs_fetch_copy_defaults_to_robot_data = NULL;
 static cd_effect_gs_write_copy_defaults_to_robot_fn g_effect_gs_write_copy_defaults_to_robot = NULL;
+
+/* gameseq_init_network_players effect function pointers */
+static cd_effect_gs_fetch_init_network_players_data_fn g_effect_gs_fetch_init_network_players_data = NULL;
+static cd_effect_gs_write_init_network_players_fn g_effect_gs_write_init_network_players = NULL;
 
 /* gameseq_remove_unused_players effect function pointers */
 static cd_effect_gs_fetch_remove_unused_players_data_fn g_effect_gs_fetch_remove_unused_players_data = NULL;
@@ -806,6 +811,7 @@ int cd_ox_init_runtime(const char* executable_path)
     g_copy_defaults_to_robot_all = caml_named_value("cd_copy_defaults_to_robot_all");
     g_clear_transient_objects = caml_named_value("cd_clear_transient_objects");
     g_filter_objects_from_level = caml_named_value("cd_filter_objects_from_level");
+    g_gameseq_init_network_players = caml_named_value("cd_gameseq_init_network_players");
     g_gameseq_remove_unused_players = caml_named_value("cd_gameseq_remove_unused_players");
     g_special_reset_objects = caml_named_value("cd_special_reset_objects");
     g_bash_to_shield = caml_named_value("cd_bash_to_shield");
@@ -6071,6 +6077,66 @@ void cd_ox_clear_transient_objects(int clear_all)
     CAMLparam0();
 
     caml_callback(*g_clear_transient_objects, Val_int(clear_all));
+
+    CAMLreturn0;
+}
+
+/* -- gameseq_init_network_players: effect registration --------------------- */
+
+void cd_ox_register_init_network_players_effects(
+    cd_effect_gs_fetch_init_network_players_data_fn fetch_data,
+    cd_effect_gs_write_init_network_players_fn write_data)
+{
+    g_effect_gs_fetch_init_network_players_data = fetch_data;
+    g_effect_gs_write_init_network_players = write_data;
+}
+
+/* Fetch init_network_players data: variable-length array
+   [highest_object_index, game_mode, is_d2, then per-object: type, id, is_companion_robot] */
+
+CAMLprim value cd_ox_effect_gs_fetch_init_network_players_data(value v_unit)
+{
+    CAMLparam1(v_unit);
+    CAMLlocal1(v_result);
+
+    int out_len = 0;
+    /* Max: 3 + 350*3 = 1053 */
+    int32_t out[1053];
+    memset(out, 0, sizeof(out));
+    if (g_effect_gs_fetch_init_network_players_data)
+        g_effect_gs_fetch_init_network_players_data(out, &out_len);
+
+    if (out_len <= 0) out_len = 3; /* minimum header */
+    v_result = caml_alloc(out_len, 0);
+    for (int i = 0; i < out_len; i++)
+        Store_field(v_result, i, Val_long(out[i]));
+
+    CAMLreturn(v_result);
+}
+
+CAMLprim value cd_ox_effect_gs_write_init_network_players(value v_packed)
+{
+    CAMLparam1(v_packed);
+
+    if (g_effect_gs_write_init_network_players) {
+        int len = Wosize_val(v_packed);
+        /* Max: 3 + 350*2 + 350 = 1053 */
+        int32_t buf[1053];
+        if (len > 1053) len = 1053;
+        for (int i = 0; i < len; i++)
+            buf[i] = (int32_t)Long_val(Field(v_packed, i));
+        g_effect_gs_write_init_network_players(buf, len);
+    }
+    CAMLreturn(Val_unit);
+}
+
+/* cd_ox_gameseq_init_network_players: C entry point that calls into OCaml */
+void cd_ox_gameseq_init_network_players(void)
+{
+    cd_ox_require_ready("cd_ox_gameseq_init_network_players");
+    CAMLparam0();
+
+    caml_callback(*g_gameseq_init_network_players, Val_unit);
 
     CAMLreturn0;
 }
