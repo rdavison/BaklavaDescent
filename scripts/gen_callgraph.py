@@ -148,6 +148,7 @@ PORTED_FUNCTIONS = {
     "create_walls_on_side": "ported",
     "validate_removable_wall": "ported",
     "validate_segment_side": "ported",
+    "validate_segment": "ported",
     "get_verts_for_normal": "ported",
     "check_norms": "ported",
     "extract_orient_from_segment": "ported",

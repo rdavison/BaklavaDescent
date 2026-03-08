@@ -1180,3 +1180,37 @@ let validate_segment_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~wall_n
   else
     validate_removable_wall ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~tmap_num
 ;;
+
+(* validate_segment: validate all 6 sides of a segment.
+   Input: packed array of 6 × 19 ints (one validate_segment_side input per side).
+   Output: array of 6 × 8 ints (one validate_segment_side output per side). *)
+let validate_segment (packed : int array) =
+  let out = Array.create ~len:48 0 in
+  for side = 0 to 5 do
+    let base = side * 19 in
+    let v0 = packed.(base + 0), packed.(base + 1), packed.(base + 2) in
+    let v1 = packed.(base + 3), packed.(base + 4), packed.(base + 5) in
+    let v2 = packed.(base + 6), packed.(base + 7), packed.(base + 8) in
+    let v3 = packed.(base + 9), packed.(base + 10), packed.(base + 11) in
+    let vi0 = packed.(base + 12) in
+    let vi1 = packed.(base + 13) in
+    let vi2 = packed.(base + 14) in
+    let vi3 = packed.(base + 15) in
+    let has_child = packed.(base + 16) <> 0 in
+    let wall_num = packed.(base + 17) in
+    let tmap_num = packed.(base + 18) in
+    let side_type, (n0x, n0y, n0z), (n1x, n1y, n1z), tmap =
+      validate_segment_side ~v0 ~v1 ~v2 ~v3 ~vi0 ~vi1 ~vi2 ~vi3 ~has_child ~wall_num ~tmap_num
+    in
+    let obase = side * 8 in
+    out.(obase + 0) <- side_type;
+    out.(obase + 1) <- n0x;
+    out.(obase + 2) <- n0y;
+    out.(obase + 3) <- n0z;
+    out.(obase + 4) <- n1x;
+    out.(obase + 5) <- n1y;
+    out.(obase + 6) <- n1z;
+    out.(obase + 7) <- tmap
+  done;
+  out
+;;

@@ -1,11 +1,11 @@
 {
   "summary": {
     "total_functions": 775,
-    "ported": 184,
+    "ported": 185,
     "intrinsic": 68,
     "effect": 59,
     "frontier": 0,
-    "unported": 464
+    "unported": 463
   },
   "functions": {
     "AdvanceLevel": {
@@ -10568,7 +10568,7 @@
       "transitive_dep_count": 17
     },
     "validate_segment": {
-      "status": "unported",
+      "status": "ported",
       "file": "main_d2_gameseg",
       "callers": [
         "validate_segment_all"
@@ -11537,18 +11537,6 @@
   "frontier_priority": [],
   "next_to_port": [
     {
-      "function": "validate_segment",
-      "file": "gameseg",
-      "unported_dep_count": 0,
-      "total_dep_count": 19,
-      "callers": [
-        "validate_segment_all"
-      ],
-      "callees": [
-        "validate_segment_side"
-      ]
-    },
-    {
       "function": "create_weapon_object",
       "file": "laser",
       "unported_dep_count": 0,
@@ -11627,6 +11615,18 @@
         "obj_create",
         "vm_vec_scale_add2",
         "vm_vec_sub"
+      ]
+    },
+    {
+      "function": "validate_segment_all",
+      "file": "gameseg",
+      "unported_dep_count": 0,
+      "total_dep_count": 25,
+      "callers": [],
+      "callees": [
+        "Int3",
+        "check_segment_connections",
+        "validate_segment"
       ]
     },
     {
@@ -12253,18 +12253,6 @@
         "llvm.memcpy.p0.p0.i64",
         "obj_create",
         "vm_vec_scale_add"
-      ]
-    },
-    {
-      "function": "validate_segment_all",
-      "file": "gameseg",
-      "unported_dep_count": 1,
-      "total_dep_count": 25,
-      "callers": [],
-      "callees": [
-        "Int3",
-        "check_segment_connections",
-        "validate_segment"
       ]
     },
     {

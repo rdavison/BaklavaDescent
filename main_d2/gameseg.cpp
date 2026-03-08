@@ -2284,8 +2284,40 @@ void validate_segment(segment *sp)
 	check_for_degenerate_segment(sp);
 	#endif
 
+#ifdef USE_OX_BRIDGE
+	int32_t packed[114]; // 6 sides × 19 ints
+	for (side = 0; side < MAX_SIDES_PER_SEGMENT; side++) {
+		int base = side * 19;
+		int v0 = sp->verts[Side_to_verts[side][0]];
+		int v1 = sp->verts[Side_to_verts[side][1]];
+		int v2 = sp->verts[Side_to_verts[side][2]];
+		int v3 = sp->verts[Side_to_verts[side][3]];
+		packed[base + 0] = Vertices[v0].x; packed[base + 1] = Vertices[v0].y; packed[base + 2] = Vertices[v0].z;
+		packed[base + 3] = Vertices[v1].x; packed[base + 4] = Vertices[v1].y; packed[base + 5] = Vertices[v1].z;
+		packed[base + 6] = Vertices[v2].x; packed[base + 7] = Vertices[v2].y; packed[base + 8] = Vertices[v2].z;
+		packed[base + 9] = Vertices[v3].x; packed[base + 10] = Vertices[v3].y; packed[base + 11] = Vertices[v3].z;
+		packed[base + 12] = v0; packed[base + 13] = v1; packed[base + 14] = v2; packed[base + 15] = v3;
+		packed[base + 16] = IS_CHILD(sp->children[side]) ? 1 : 0;
+		packed[base + 17] = sp->sides[side].wall_num;
+		packed[base + 18] = sp->sides[side].tmap_num;
+	}
+	int32_t out_buf[48]; // 6 sides × 8 ints
+	cd_ox_validate_segment(packed, 114, out_buf);
+	for (side = 0; side < MAX_SIDES_PER_SEGMENT; side++) {
+		int obase = side * 8;
+		sp->sides[side].type = out_buf[obase + 0];
+		sp->sides[side].normals[0].x = out_buf[obase + 1];
+		sp->sides[side].normals[0].y = out_buf[obase + 2];
+		sp->sides[side].normals[0].z = out_buf[obase + 3];
+		sp->sides[side].normals[1].x = out_buf[obase + 4];
+		sp->sides[side].normals[1].y = out_buf[obase + 5];
+		sp->sides[side].normals[1].z = out_buf[obase + 6];
+		sp->sides[side].tmap_num = out_buf[obase + 7];
+	}
+#else
 	for (side = 0; side < MAX_SIDES_PER_SEGMENT; side++)
 		validate_segment_side(sp, side);
+#endif
 
 //	assign_default_uvs_to_segment(sp);
 }

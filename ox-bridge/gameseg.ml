@@ -298,6 +298,11 @@ let cd_validate_segment_side (packed : int array) =
   [| side_type; n0x; n0y; n0z; n1x; n1y; n1z; tmap |]
 ;;
 
+(* validate_segment: packed int array (114 ints = 6 sides × 19) → int array (48 ints = 6 sides × 8) *)
+let cd_validate_segment (packed : int array) =
+  Ox_gameseg.validate_segment packed
+;;
+
 (* C externals for on-demand segment data + side type mutation *)
 external fetch_segment_data_c : int -> int array = "cd_ox_fetch_segment_data"
 external set_segment_side_type_c : int -> int -> int -> unit = "cd_ox_set_segment_side_type"
@@ -342,6 +347,7 @@ let register_callbacks () =
   Callback.register "cd_extract_shortpos" cd_extract_shortpos;
   Callback.register "cd_validate_removable_wall" cd_validate_removable_wall;
   Callback.register "cd_validate_segment_side" cd_validate_segment_side;
+  Callback.register "cd_validate_segment" cd_validate_segment;
   Callback.register "cd_create_walls_on_side" cd_create_walls_on_side;
   Callback.register "cd_check_norms" cd_check_norms;
   Callback.register "cd_create_all_vertex_lists" cd_create_all_vertex_lists;
