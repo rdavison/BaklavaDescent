@@ -300,6 +300,14 @@ static cd_effect_fetch_omega_blob_objnums_fn g_effect_fetch_omega_blob_objnums =
 static cd_effect_obj_delete_fn g_effect_obj_delete = NULL;
 static const value* g_delete_old_omega_blobs = NULL;
 
+/* create_omega_blobs effect function pointers */
+static cd_effect_fetch_create_omega_data_fn g_effect_fetch_create_omega_data = NULL;
+static cd_effect_find_point_seg_laser_fn g_effect_find_point_seg_laser = NULL;
+static cd_effect_create_omega_blob_obj_fn g_effect_create_omega_blob_obj = NULL;
+static cd_effect_set_omega_blob_final_fn g_effect_set_omega_blob_final = NULL;
+static cd_effect_set_doing_lighting_hack_fn g_effect_set_doing_lighting_hack = NULL;
+static const value* g_create_omega_blobs = NULL;
+
 /* create_weapon_object effect function pointers */
 static cd_effect_fetch_marker_model_data_fn g_effect_fetch_marker_model_data = NULL;
 static cd_effect_obj_create_marker_fn g_effect_obj_create_marker = NULL;
@@ -8787,4 +8795,106 @@ void cd_ox_delete_old_omega_blobs(int parent_num)
         g_delete_old_omega_blobs = caml_named_value("cd_delete_old_omega_blobs");
     if (!g_delete_old_omega_blobs) return;
     caml_callback(*g_delete_old_omega_blobs, Val_int(parent_num));
+}
+
+/* -- create_omega_blobs effect infrastructure ----------------------------- */
+
+void cd_ox_register_create_omega_blobs_effects(
+    cd_effect_fetch_create_omega_data_fn fetch_data,
+    cd_effect_find_point_seg_laser_fn find_seg,
+    cd_effect_create_omega_blob_obj_fn create_blob,
+    cd_effect_set_omega_blob_final_fn set_final,
+    cd_effect_set_doing_lighting_hack_fn set_hack)
+{
+    g_effect_fetch_create_omega_data = fetch_data;
+    g_effect_find_point_seg_laser = find_seg;
+    g_effect_create_omega_blob_obj = create_blob;
+    g_effect_set_omega_blob_final = set_final;
+    g_effect_set_doing_lighting_hack = set_hack;
+}
+
+/* fetch_create_omega_data: int -> int array (11 elements) */
+CAMLprim value cd_ox_effect_fetch_create_omega_data(value v_parent_objnum)
+{
+    CAMLparam1(v_parent_objnum);
+    CAMLlocal1(v_result);
+    int32_t data[11];
+    memset(data, 0, sizeof(data));
+    if (g_effect_fetch_create_omega_data)
+        g_effect_fetch_create_omega_data(Int_val(v_parent_objnum), data);
+    v_result = caml_alloc(11, 0);
+    for (int i = 0; i < 11; i++)
+        Store_field(v_result, i, Val_int(data[i]));
+    CAMLreturn(v_result);
+}
+
+/* find_point_seg_laser: (px, py, pz, hint_seg) -> int */
+CAMLprim value cd_ox_effect_find_point_seg_laser(
+    value v_px, value v_py, value v_pz, value v_hint_seg)
+{
+    int result = -1;
+    if (g_effect_find_point_seg_laser)
+        result = g_effect_find_point_seg_laser(
+            Int_val(v_px), Int_val(v_py), Int_val(v_pz), Int_val(v_hint_seg));
+    return Val_int(result);
+}
+
+/* create_omega_blob_obj: int array (14 elements) -> int */
+CAMLprim value cd_ox_effect_create_omega_blob_obj(value v_arr)
+{
+    int result = -1;
+    int len = Wosize_val(v_arr);
+    int32_t packed[14];
+    for (int i = 0; i < len && i < 14; i++)
+        packed[i] = Int_val(Field(v_arr, i));
+    if (g_effect_create_omega_blob_obj)
+        result = g_effect_create_omega_blob_obj(packed, len);
+    return Val_int(result);
+}
+
+/* set_omega_blob_final: int array (4 elements) -> unit */
+CAMLprim value cd_ox_effect_set_omega_blob_final(value v_arr)
+{
+    int len = Wosize_val(v_arr);
+    int32_t packed[4];
+    for (int i = 0; i < len && i < 4; i++)
+        packed[i] = Int_val(Field(v_arr, i));
+    if (g_effect_set_omega_blob_final)
+        g_effect_set_omega_blob_final(packed, len);
+    return Val_unit;
+}
+
+/* set_doing_lighting_hack: int -> unit */
+CAMLprim value cd_ox_effect_set_doing_lighting_hack(value v_flag)
+{
+    if (g_effect_set_doing_lighting_hack)
+        g_effect_set_doing_lighting_hack(Int_val(v_flag));
+    return Val_unit;
+}
+
+/* -- create_omega_blobs: C entry point ------------------------------------ */
+
+void cd_ox_create_omega_blobs(int firing_segnum,
+    int32_t fp_x, int32_t fp_y, int32_t fp_z,
+    int32_t gp_x, int32_t gp_y, int32_t gp_z,
+    int parent_objnum)
+{
+    CAMLparam0();
+    CAMLlocal1(v_args);
+    cd_ox_require_ready("cd_ox_create_omega_blobs");
+    if (!g_create_omega_blobs)
+        g_create_omega_blobs = caml_named_value("cd_create_omega_blobs");
+    if (!g_create_omega_blobs) { CAMLreturn0; }
+    /* Pack 8 args into array for caml_callbackN */
+    value args[8];
+    args[0] = Val_int(firing_segnum);
+    args[1] = Val_int(fp_x);
+    args[2] = Val_int(fp_y);
+    args[3] = Val_int(fp_z);
+    args[4] = Val_int(gp_x);
+    args[5] = Val_int(gp_y);
+    args[6] = Val_int(gp_z);
+    args[7] = Val_int(parent_objnum);
+    caml_callbackN(*g_create_omega_blobs, 8, args);
+    CAMLreturn0;
 }

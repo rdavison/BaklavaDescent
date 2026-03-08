@@ -72,6 +72,31 @@ external effect_obj_delete
   -> unit
   = "cd_ox_effect_obj_delete"
 
+external effect_fetch_create_omega_data
+  :  int
+  -> int array
+  = "cd_ox_effect_fetch_create_omega_data"
+
+external effect_find_point_seg_laser
+  :  int -> int -> int -> int
+  -> int
+  = "cd_ox_effect_find_point_seg_laser"
+
+external effect_create_omega_blob_obj
+  :  int array
+  -> int
+  = "cd_ox_effect_create_omega_blob_obj"
+
+external effect_set_omega_blob_final
+  :  int array
+  -> unit
+  = "cd_ox_effect_set_omega_blob_final"
+
+external effect_set_doing_lighting_hack
+  :  int
+  -> unit
+  = "cd_ox_effect_set_doing_lighting_hack"
+
 (* Effect handler *)
 let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) option =
   match eff with
@@ -128,6 +153,26 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
   | Ox_laser.Obj_delete objnum ->
     Some (fun k ->
       effect_obj_delete objnum;
+      Effect.Deep.continue k ())
+  | Ox_laser.Fetch_create_omega_data parent_objnum ->
+    Some (fun k ->
+      let arr = effect_fetch_create_omega_data parent_objnum in
+      Effect.Deep.continue k arr)
+  | Ox_laser.Find_point_seg_laser (px, py, pz, hint_seg) ->
+    Some (fun k ->
+      let seg = effect_find_point_seg_laser px py pz hint_seg in
+      Effect.Deep.continue k seg)
+  | Ox_laser.Create_omega_blob_obj arr ->
+    Some (fun k ->
+      let objnum = effect_create_omega_blob_obj arr in
+      Effect.Deep.continue k objnum)
+  | Ox_laser.Set_omega_blob_final arr ->
+    Some (fun k ->
+      effect_set_omega_blob_final arr;
+      Effect.Deep.continue k ())
+  | Ox_laser.Set_doing_lighting_hack flag ->
+    Some (fun k ->
+      effect_set_doing_lighting_hack flag;
       Effect.Deep.continue k ())
   | _ -> None
 ;;
@@ -192,9 +237,26 @@ let cd_delete_old_omega_blobs parent_num =
     }
 ;;
 
+let cd_create_omega_blobs firing_segnum fp_x fp_y fp_z gp_x gp_y gp_z parent_objnum =
+  Effect.Deep.match_with
+    (fun () ->
+      Ox_laser.create_omega_blobs
+        ~firing_segnum ~fp_x ~fp_y ~fp_z
+        ~gp_x ~gp_y ~gp_z ~parent_objnum)
+    ()
+    { retc = (fun () -> ())
+    ; exnc = (fun e ->
+        Printf.eprintf "[OX] create_omega_blobs exception: %s\n" (Exn.to_string e);
+        Out_channel.flush stderr;
+        ())
+    ; effc = (fun (type a) (eff : a Effect.t) -> effc eff)
+    }
+;;
+
 let register_callbacks () =
   Callback.register "cd_create_homing_missile" cd_create_homing_missile;
   Callback.register "cd_create_weapon_object" cd_create_weapon_object;
   Callback.register "cd_release_guided_missile" cd_release_guided_missile;
-  Callback.register "cd_delete_old_omega_blobs" cd_delete_old_omega_blobs
+  Callback.register "cd_delete_old_omega_blobs" cd_delete_old_omega_blobs;
+  Callback.register "cd_create_omega_blobs" cd_create_omega_blobs
 ;;

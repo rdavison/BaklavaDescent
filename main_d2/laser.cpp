@@ -365,6 +365,87 @@ void delete_old_omega_blobs(object *parent_objp)
 // ---------------------------------------------------------------------------------
 void create_omega_blobs(int firing_segnum, vms_vector *firing_pos, vms_vector *goal_pos, object *parent_objp)
 {
+#ifdef USE_OX_BRIDGE
+	{
+		static bool registered = false;
+		if (!registered) {
+			cd_ox_register_create_omega_blobs_effects(
+				// fetch_create_omega_data
+				[](int parent_objnum, int32_t* out_data) {
+					object *objp = &Objects[parent_objnum];
+					out_data[0] = (Game_mode & GM_MULTI) ? 1 : 0;
+					out_data[1] = FrameTime;
+					out_data[2] = objp->type;
+					out_data[3] = objp->signature;
+					out_data[4] = objp->ctype.laser_info.parent_num;
+					out_data[5] = objp->orient.uvec.x;
+					out_data[6] = objp->orient.uvec.y;
+					out_data[7] = objp->orient.uvec.z;
+					out_data[8] = Weapon_info[OMEGA_ID].blob_size;
+					out_data[9] = Weapon_info[OMEGA_ID].strength[Difficulty_level];
+					out_data[10] = Weapon_info[OMEGA_ID].speed[Difficulty_level];
+				},
+				// find_point_seg_laser
+				[](int32_t px, int32_t py, int32_t pz, int hint_seg) -> int {
+					vms_vector pos;
+					pos.x = px; pos.y = py; pos.z = pz;
+					return find_point_seg(&pos, hint_seg);
+				},
+				// create_omega_blob_obj
+				[](const int32_t* packed, int packed_len) -> int {
+					(void)packed_len;
+					int segnum = packed[0];
+					vms_vector pos;
+					pos.x = packed[1]; pos.y = packed[2]; pos.z = packed[3];
+					int lifeleft = packed[4];
+					vms_vector vel;
+					vel.x = packed[5]; vel.y = packed[6]; vel.z = packed[7];
+					int size = packed[8];
+					int shields = packed[9];
+					int parent_type = packed[10];
+					int parent_sig = packed[11];
+					int parent_num = packed[12];
+					int movement_type = packed[13];
+
+					int objnum = obj_create(OBJ_WEAPON, OMEGA_ID, segnum, &pos, NULL, 0,
+						CT_WEAPON, MT_PHYSICS, RT_WEAPON_VCLIP);
+					if (objnum == -1) return -1;
+
+					object *objp = &Objects[objnum];
+					objp->lifeleft = lifeleft;
+					objp->mtype.phys_info.velocity = vel;
+					objp->size = size;
+					objp->shields = shields;
+					objp->ctype.laser_info.parent_type = parent_type;
+					objp->ctype.laser_info.parent_signature = parent_sig;
+					objp->ctype.laser_info.parent_num = parent_num;
+					objp->movement_type = movement_type;
+					return objnum;
+				},
+				// set_omega_blob_final
+				[](const int32_t* packed, int packed_len) {
+					(void)packed_len;
+					int objnum = packed[0];
+					Objects[objnum].mtype.phys_info.velocity.x = packed[1];
+					Objects[objnum].mtype.phys_info.velocity.y = packed[2];
+					Objects[objnum].mtype.phys_info.velocity.z = packed[3];
+					Objects[objnum].movement_type = MT_PHYSICS;
+				},
+				// set_doing_lighting_hack
+				[](int flag) {
+					Doing_lighting_hack_flag = flag;
+				}
+			);
+			registered = true;
+		}
+		int parent_objnum = (int)(parent_objp - Objects);
+		cd_ox_create_omega_blobs(firing_segnum,
+			firing_pos->x, firing_pos->y, firing_pos->z,
+			goal_pos->x, goal_pos->y, goal_pos->z,
+			parent_objnum);
+		return;
+	}
+#endif
 	int			i, last_segnum, last_created_objnum = -1;
 	vms_vector	vec_to_goal;
 	fix			dist_to_goal;

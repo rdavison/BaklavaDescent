@@ -212,7 +212,7 @@ digraph callgraph {
   "create_morph_robot" [label="create_morph_robot\n(ai2)", color=gray50, style=solid, fillcolor="white"];
   "create_n_segment_path" [label="create_n_segment_path\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "create_n_segment_path_to_door" [label="create_n_segment_path_to_door\n(ai)", color=green, style=filled, fillcolor="honeydew"];
-  "create_omega_blobs" [label="create_omega_blobs\n(laser)", color=gray50, style=solid, fillcolor="white"];
+  "create_omega_blobs" [label="create_omega_blobs\n(laser)", color=green, style=filled, fillcolor="honeydew"];
   "create_path_points" [label="create_path_points\n(aipath)", color=green, style=filled, fillcolor="honeydew"];
   "create_path_to_player" [label="create_path_to_player\n(ai)", color=green, style=filled, fillcolor="honeydew"];
   "create_path_to_segment" [label="create_path_to_segment\n(aipath)", color=green, style=filled, fillcolor="honeydew"];

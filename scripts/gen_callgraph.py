@@ -313,6 +313,7 @@ PORTED_FUNCTIONS = {
     "release_guided_missile": "ported",
     # Laser - omega blobs
     "delete_old_omega_blobs": "ported",
+    "create_omega_blobs": "ported",
 }
 
 # Functions that intentionally remain as C effects.

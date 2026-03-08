@@ -1987,6 +1987,27 @@ void cd_ox_register_delete_omega_blobs_effects(
     cd_effect_fetch_omega_blob_objnums_fn fetch_objnums,
     cd_effect_obj_delete_fn obj_del);
 
+/* -- create_omega_blobs -------------------------------------------------- */
+
+/* C entry point: calls OCaml create_omega_blobs */
+void cd_ox_create_omega_blobs(int firing_segnum,
+    int32_t fp_x, int32_t fp_y, int32_t fp_z,
+    int32_t gp_x, int32_t gp_y, int32_t gp_z,
+    int parent_objnum);
+
+/* create_omega_blobs effect registration */
+typedef void (*cd_effect_fetch_create_omega_data_fn)(int parent_objnum, int32_t* out_data);
+typedef int  (*cd_effect_find_point_seg_laser_fn)(int32_t px, int32_t py, int32_t pz, int hint_seg);
+typedef int  (*cd_effect_create_omega_blob_obj_fn)(const int32_t* packed, int packed_len);
+typedef void (*cd_effect_set_omega_blob_final_fn)(const int32_t* packed, int packed_len);
+typedef void (*cd_effect_set_doing_lighting_hack_fn)(int flag);
+void cd_ox_register_create_omega_blobs_effects(
+    cd_effect_fetch_create_omega_data_fn fetch_data,
+    cd_effect_find_point_seg_laser_fn find_seg,
+    cd_effect_create_omega_blob_obj_fn create_blob,
+    cd_effect_set_omega_blob_final_fn set_final,
+    cd_effect_set_doing_lighting_hack_fn set_hack);
+
 #ifdef __cplusplus
 }
 #endif
