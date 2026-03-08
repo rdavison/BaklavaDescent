@@ -1013,14 +1013,27 @@ void remove_all_objects_but(int segnum, int objnum)
 
 int check_duplicate_objects()
 {
+#ifdef USE_OX_BRIDGE
+	if (cd_ox_is_ready()) {
+		static int reg = 0;
+		if (!reg) {
+			reg = 1;
+			cd_ox_register_check_duplicate_effects(
+				[]() -> int { return Highest_object_index; },
+				[](int obj) -> int { return Objects[obj].type; }
+			);
+		}
+		return cd_ox_check_duplicate_objects();
+	}
+#endif
 	int i, count = 0;
 
 	for (i = 0; i <= Highest_object_index; i++)
 	{
-		if (Objects[i].type != OBJ_NONE) 
+		if (Objects[i].type != OBJ_NONE)
 		{
 			count = search_all_segments_for_object(i);
-			if (count > 1) 
+			if (count > 1)
 			{
 #ifndef NDEBUG
 				mprintf((1, "Object %d is in %d segments!\n", i, count));

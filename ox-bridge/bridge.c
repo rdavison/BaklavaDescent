@@ -6729,6 +6729,47 @@ int cd_ox_search_all_segments_for_object(int objnum)
     return Int_val(v_result);
 }
 
+/* check_duplicate_objects effects: Highest_object_index and Objects[i].type */
+typedef int (*cd_get_highest_object_index_fn)(void);
+static cd_get_highest_object_index_fn g_get_highest_object_index = NULL;
+
+typedef int (*cd_get_obj_type_fn)(int objnum);
+static cd_get_obj_type_fn g_get_obj_type = NULL;
+
+void cd_ox_register_check_duplicate_effects(
+    cd_get_highest_object_index_fn get_highest_object_index,
+    cd_get_obj_type_fn get_obj_type)
+{
+    g_get_highest_object_index = get_highest_object_index;
+    g_get_obj_type = get_obj_type;
+}
+
+CAMLprim value cd_ox_get_highest_object_index(value v_unit)
+{
+    (void)v_unit;
+    if (g_get_highest_object_index) return Val_int(g_get_highest_object_index());
+    return Val_int(0);
+}
+
+CAMLprim value cd_ox_get_obj_type(value v_objnum)
+{
+    if (g_get_obj_type) return Val_int(g_get_obj_type(Int_val(v_objnum)));
+    return Val_int(255); /* OBJ_NONE */
+}
+
+/* C entry point: calls OCaml check_duplicate_objects. */
+static const value* g_check_duplicate_objects = NULL;
+
+int cd_ox_check_duplicate_objects(void)
+{
+    cd_ox_require_ready("cd_ox_check_duplicate_objects");
+    if (!g_check_duplicate_objects)
+        g_check_duplicate_objects = caml_named_value("cd_check_duplicate_objects");
+    if (!g_check_duplicate_objects) return 0;
+    value v_result = caml_callback(*g_check_duplicate_objects, Val_unit);
+    return Int_val(v_result);
+}
+
 /* C entry point: calls OCaml spin_object.
    Pure math — no effects needed. */
 static const value* g_spin_object = NULL;

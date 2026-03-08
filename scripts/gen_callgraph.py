@@ -279,6 +279,7 @@ PORTED_FUNCTIONS = {
     # Object movement
     "spin_object": "ported",
     # Object linked-list maintenance
+    "check_duplicate_objects": "ported",
     "remove_all_objects_but": "ported",
     "remove_incorrect_objects": "ported",
     # Wall - door blocking

@@ -1560,6 +1560,14 @@ int cd_ox_search_all_segments_for_object(int objnum);
 void cd_ox_remove_all_objects_but(int segnum, int objnum);
 void cd_ox_remove_incorrect_objects(void);
 
+/* C entry point: OCaml check_duplicate_objects */
+typedef int (*cd_get_highest_object_index_fn)(void);
+typedef int (*cd_get_obj_type_fn)(int objnum);
+void cd_ox_register_check_duplicate_effects(
+    cd_get_highest_object_index_fn get_highest_object_index,
+    cd_get_obj_type_fn get_obj_type);
+int cd_ox_check_duplicate_objects(void);
+
 /* C entry point: OCaml spin_object.
    Takes spin_rate (3), orient (9), frame_time (1) = 13 args.
    Writes new orient into out_orient (9 ints).  */

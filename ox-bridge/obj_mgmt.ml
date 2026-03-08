@@ -7,6 +7,8 @@ external get_obj_next_c : int -> int = "cd_ox_get_obj_next"
 external get_highest_segment_index_c : unit -> int = "cd_ox_get_highest_segment_index"
 external johns_obj_unlink_c : int -> int -> unit = "cd_ox_effect_johns_obj_unlink"
 external get_obj_segnum_c : int -> int = "cd_ox_get_obj_segnum"
+external get_highest_object_index_c : unit -> int = "cd_ox_get_highest_object_index"
+external get_obj_type_c : int -> int = "cd_ox_get_obj_type"
 external fetch_wake_up_context_c : int -> int array = "cd_ox_effect_fetch_wake_up_context"
 external fetch_ai_local_awareness_c : int -> int = "cd_ox_effect_fetch_ai_local_awareness"
 external apply_wake_up_c : int array -> unit = "cd_ox_effect_apply_wake_up"
@@ -32,6 +34,10 @@ let effc (type a) (eff : a Effect.t) : ((a, 'b) Effect.Deep.continuation -> 'b) 
     Some (fun k -> johns_obj_unlink_c segnum objnum; Effect.Deep.continue k ())
   | Ox_obj.Get_obj_segnum_internal objnum ->
     Some (fun k -> Effect.Deep.continue k (get_obj_segnum_c objnum))
+  | Ox_obj.Get_highest_object_index_internal ->
+    Some (fun k -> Effect.Deep.continue k (get_highest_object_index_c ()))
+  | Ox_obj.Get_obj_type_internal objnum ->
+    Some (fun k -> Effect.Deep.continue k (get_obj_type_c objnum))
   | Ox_obj.Fetch_wake_up_context_internal window_num ->
     Some (fun k -> Effect.Deep.continue k (fetch_wake_up_context_c window_num))
   | Ox_obj.Fetch_ai_local_awareness_internal objnum ->
@@ -124,6 +130,15 @@ let cd_remove_incorrect_objects () =
     ; effc
     }
 
+let cd_check_duplicate_objects () =
+  Effect.Deep.match_with
+    (fun () -> Ox_obj.check_duplicate_objects ())
+    ()
+    { retc = (fun v -> v)
+    ; exnc = (fun _exn -> 0)
+    ; effc
+    }
+
 let cd_compress_objects () =
   Effect.Deep.match_with
     (fun () -> Ox_obj.compress_objects ())
@@ -143,4 +158,5 @@ let register_callbacks () =
   Callback.register "cd_spin_object" cd_spin_object;
   Callback.register "cd_remove_all_objects_but" cd_remove_all_objects_but;
   Callback.register "cd_remove_incorrect_objects" cd_remove_incorrect_objects;
-  Callback.register "cd_compress_objects" cd_compress_objects
+  Callback.register "cd_compress_objects" cd_compress_objects;
+  Callback.register "cd_check_duplicate_objects" cd_check_duplicate_objects

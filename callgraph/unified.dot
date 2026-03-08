@@ -137,7 +137,7 @@ digraph callgraph {
   "change_light" [label="change_light\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
   "change_segment_light" [label="change_segment_light\n(gameseg)", color=gray50, style=solid, fillcolor="white"];
   "check_and_fix_matrix" [label="check_and_fix_matrix\n(object)", color=green, style=filled, fillcolor="honeydew"];
-  "check_duplicate_objects" [label="check_duplicate_objects\n(object)", color=gray50, style=solid, fillcolor="white"];
+  "check_duplicate_objects" [label="check_duplicate_objects\n(object)", color=green, style=filled, fillcolor="honeydew"];
   "check_effect_blowup" [label="check_effect_blowup\n(collide)", color=gray50, style=solid, fillcolor="white"];
   "check_line_to_face" [label="check_line_to_face\n(fvi)", color=green, style=filled, fillcolor="honeydew"];
   "check_line_to_line" [label="check_line_to_line\n(fvi)", color=green, style=filled, fillcolor="honeydew"];

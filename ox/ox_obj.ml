@@ -12,6 +12,8 @@ type _ Effect.t +=
   | Get_highest_segment_index_internal : int Effect.t
   | Johns_obj_unlink_internal : (int * int) -> unit Effect.t
   | Get_obj_segnum_internal : int -> int Effect.t
+  | Get_highest_object_index_internal : int Effect.t
+  | Get_obj_type_internal : int -> int Effect.t
 
 let obj_detach_one objnum = Effect.perform (Obj_detach_one_internal objnum)
 let get_attached_obj objnum = Effect.perform (Get_attached_obj_internal objnum)
@@ -20,8 +22,11 @@ let get_obj_next objnum = Effect.perform (Get_obj_next_internal objnum)
 let get_highest_segment_index () = Effect.perform Get_highest_segment_index_internal
 let johns_obj_unlink ~segnum ~objnum = Effect.perform (Johns_obj_unlink_internal (segnum, objnum))
 let get_obj_segnum objnum = Effect.perform (Get_obj_segnum_internal objnum)
+let get_highest_object_index () = Effect.perform Get_highest_object_index_internal
+let get_obj_type objnum = Effect.perform (Get_obj_type_internal objnum)
 
 let max_objects = 350
+let obj_none = 255
 
 (* -- Ported functions --------------------------------------------------- *)
 
@@ -70,6 +75,31 @@ let remove_all_objects_but ~segnum ~objnum =
         johns_obj_unlink ~segnum:i ~objnum
     end
   done
+;;
+
+(* Check for objects that appear in multiple segment linked lists.
+   If found, remove duplicates and return the count.
+   C original: int check_duplicate_objects() — debug-only function. *)
+let check_duplicate_objects () =
+  let highest = get_highest_object_index () in
+  let result = ref 0 in
+  let done_ = ref false in
+  let i = ref 0 in
+  while not !done_ && !i <= highest do
+    let obj_type = get_obj_type !i in
+    if obj_type <> obj_none then begin
+      let count = search_all_segments_for_object ~objnum:(!i) in
+      if count > 1 then begin
+        (* Int3() in C — debug break; we just fix and return *)
+        let obj_seg = get_obj_segnum !i in
+        remove_all_objects_but ~segnum:obj_seg ~objnum:(!i);
+        result := count;
+        done_ := true
+      end
+    end;
+    i := !i + 1
+  done;
+  !result
 ;;
 
 (* Remove objects whose segnum doesn't match the segment they're linked in.
@@ -251,8 +281,6 @@ type _ Effect.t +=
 let fetch_obj_allocate_data () = Effect.perform Fetch_obj_allocate_data
 let write_obj_allocate_result packed = Effect.perform (Write_obj_allocate_result packed)
 let call_free_object_slots num_used = Effect.perform (Call_free_object_slots num_used)
-
-let obj_none = 255
 
 (* obj_allocate: Allocate the next free object slot.
    C original: int obj_allocate(void) in object.cpp
